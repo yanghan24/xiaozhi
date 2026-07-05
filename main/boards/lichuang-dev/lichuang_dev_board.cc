@@ -8,14 +8,20 @@
 #include "i2c_device.h"
 #include "esp32_camera.h"
 #include "mcp_server.h"
+#include "storage/sd_card_service.h"
 
 #include <esp_log.h>
+#include <esp_vfs_fat.h>
 #include <esp_lcd_panel_vendor.h>
 #include <driver/i2c_master.h>
 #include <driver/spi_common.h>
+#include <driver/sdmmc_host.h>
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
+#include <sdmmc_cmd.h>
 #include <lvgl.h>
+
+#include <cstdio>
 
 #define TAG "LichuangDevBoard"
 
@@ -259,12 +265,47 @@ private:
             });
     }
 
+    void InitializeSdCard() {
+        sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+        sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+        slot_config.clk = SDCARD_SDMMC_CLK_PIN;
+        slot_config.cmd = SDCARD_SDMMC_CMD_PIN;
+        slot_config.d0 = SDCARD_SDMMC_D0_PIN;
+        slot_config.width = SDCARD_SDMMC_BUS_WIDTH;
+
+        esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+            .format_if_mount_failed = false,
+            .max_files = 5,
+            .allocation_unit_size = 0,
+            .disk_status_check_enable = true,
+        };
+
+        sdmmc_card_t* card = nullptr;
+        esp_err_t ret = esp_vfs_fat_sdmmc_mount(
+            SDCARD_MOUNT_POINT, &host, &slot_config, &mount_config, &card);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to mount SD card at %s: %s",
+                SDCARD_MOUNT_POINT, esp_err_to_name(ret));
+            return;
+        }
+
+        sdmmc_card_print_info(stdout, card);
+        ESP_LOGI(TAG, "SD card mounted at %s", SDCARD_MOUNT_POINT);
+
+        ret = SdCardService::GetInstance().EnsureMediaDirectories();
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to prepare SD media directories: %s",
+                esp_err_to_name(ret));
+        }
+    }
+
 public:
     LichuangDevBoard() : boot_button_(BOOT_BUTTON_GPIO) {
         InitializeI2c();
         InitializeSpi();
         InitializeSt7789Display();
         InitializeTouch();
+        InitializeSdCard();
         InitializeButtons();
         InitializeCamera();
         InitializeTools();
