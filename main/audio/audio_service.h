@@ -6,6 +6,10 @@
 #include <condition_variable>
 #include <chrono>
 #include <mutex>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -46,6 +50,10 @@
 
 #define AUDIO_POWER_TIMEOUT_MS 15000
 #define AUDIO_POWER_CHECK_INTERVAL_MS 1000
+
+constexpr int kRecorderPcmSampleRate = 16000;
+constexpr int kRecorderPcmChannels = 1;
+constexpr int kRecorderPcmBitsPerSample = 16;
 
 #define AS_EVENT_AUDIO_TESTING_RUNNING      (1 << 0)
 #define AS_EVENT_WAKE_WORD_RUNNING          (1 << 1)
@@ -102,6 +110,25 @@ struct DebugStatistics {
     uint32_t playback_count = 0;
 };
 
+enum AudioFocusOwner {
+    kAudioFocusOwnerNone = 0,
+    kAudioFocusOwnerLocalMusic,
+    kAudioFocusOwnerRecorder,
+    kAudioFocusOwnerPromptSound,
+    kAudioFocusOwnerVoiceInteraction,
+    kAudioFocusOwnerCount,
+};
+
+enum AudioFocusResource {
+    kAudioFocusResourceNone = 0,
+    kAudioFocusResourceInput = 1 << 0,
+    kAudioFocusResourceOutput = 1 << 1,
+    kAudioFocusResourceInputOutput = kAudioFocusResourceInput | kAudioFocusResourceOutput,
+};
+
+using AudioFocusLostCallback = std::function<void(AudioFocusOwner owner, uint8_t resources)>;
+using AudioPcmObserver = std::function<void(const int16_t* data, size_t samples, int sample_rate, int channels)>;
+
 class AudioService {
 public:
     AudioService();
@@ -126,6 +153,16 @@ public:
     void EnableDeviceAec(bool enable);
 
     void SetCallbacks(AudioServiceCallbacks& callbacks);
+
+    bool RequestAudioFocus(AudioFocusOwner owner, uint8_t resources,
+        AudioFocusLostCallback on_focus_lost = nullptr);
+    void ReleaseAudioFocus(AudioFocusOwner owner,
+        uint8_t resources = kAudioFocusResourceInputOutput);
+    bool HasAudioFocus(AudioFocusOwner owner, uint8_t resources) const;
+    void NotifyVoiceInteractionStarted();
+    void NotifyVoiceInteractionStopped();
+    bool SetInputPcmObserver(AudioFocusOwner owner, AudioPcmObserver observer);
+    void ClearInputPcmObserver(AudioFocusOwner owner);
 
     bool PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> packet, bool wait = false);
     std::unique_ptr<AudioStreamPacket> PopPacketFromSendQueue();
@@ -184,12 +221,22 @@ private:
     std::chrono::steady_clock::time_point last_input_time_;
     std::chrono::steady_clock::time_point last_output_time_;
 
+    mutable std::mutex audio_focus_mutex_;
+    AudioFocusOwner input_focus_owner_ = kAudioFocusOwnerNone;
+    AudioFocusOwner output_focus_owner_ = kAudioFocusOwnerNone;
+    std::array<AudioFocusLostCallback, kAudioFocusOwnerCount> audio_focus_lost_callbacks_;
+
+    mutable std::mutex input_pcm_observer_mutex_;
+    AudioFocusOwner input_pcm_observer_owner_ = kAudioFocusOwnerNone;
+    AudioPcmObserver input_pcm_observer_;
+
     void AudioInputTask();
     void AudioOutputTask();
     void OpusCodecTask();
     void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm);
     void SetDecodeSampleRate(int sample_rate, int frame_duration);
     void CheckAndUpdateAudioPowerState();
+    void NotifyInputPcmObserver(const std::vector<int16_t>& data, int sample_rate, int channels);
 };
 
 #endif

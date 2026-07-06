@@ -9,6 +9,7 @@
 #include <font_emoji.h>
 
 #include <atomic>
+#include <ctime>
 #include <memory>
 
 #define PREVIEW_IMAGE_DURATION_MS 5000
@@ -40,6 +41,49 @@ protected:
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
 
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    enum class LichuangFeatureView {
+        kHome = 0,
+        kPomodoro,
+        kMusic,
+        kRecorder,
+        kCount,
+    };
+
+    lv_obj_t* lichuang_feature_shell_ = nullptr;
+    lv_obj_t* lichuang_feature_views_[static_cast<int>(LichuangFeatureView::kCount)] = {};
+    lv_obj_t* lichuang_home_time_label_ = nullptr;
+    lv_obj_t* lichuang_home_date_label_ = nullptr;
+    lv_obj_t* lichuang_home_weekday_label_ = nullptr;
+    lv_obj_t* lichuang_home_weather_label_ = nullptr;
+    lv_obj_t* lichuang_home_air_label_ = nullptr;
+    lv_obj_t* lichuang_page_label_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_status_label_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_remaining_label_ = nullptr;
+    lv_obj_t* lichuang_music_status_label_ = nullptr;
+    lv_obj_t* lichuang_music_track_label_ = nullptr;
+    int lichuang_feature_view_index_ = 0;
+    time_t lichuang_last_home_update_minute_ = 0;
+    time_t lichuang_last_media_scan_time_ = 0;
+
+    void CreateLichuangFeatureShell();
+    void ShowLichuangFeatureShell();
+    void HideLichuangFeatureShell();
+    void UpdateLichuangFeatureShellVisibility();
+    void SwitchLichuangFeatureView(int delta);
+    void SetLichuangFeatureView(LichuangFeatureView view);
+    void UpdateLichuangHomeView(bool force = false);
+    void UpdateLichuangPomodoroView(bool force = false);
+    void UpdateLichuangMusicView(bool force = false);
+    void HandleLichuangPomodoroPreset(int minutes);
+    void HandleLichuangPomodoroPauseResume();
+    void HandleLichuangPomodoroCancel();
+    static void LichuangFeatureGestureEventCallback(lv_event_t* event);
+    static void LichuangPomodoroPresetEventCallback(lv_event_t* event);
+    static void LichuangPomodoroPauseResumeEventCallback(lv_event_t* event);
+    static void LichuangPomodoroCancelEventCallback(lv_event_t* event);
+#endif
+
 protected:
     // Add protected constructor
     LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width, int height);
@@ -49,6 +93,8 @@ public:
     virtual void SetEmotion(const char* emotion) override;
     virtual void SetChatMessage(const char* role, const char* content) override;
     virtual void ClearChatMessages() override;
+    virtual void SetStatus(const char* status) override;
+    virtual void UpdateStatusBar(bool update_all = false) override;
     virtual void SetPreviewImage(std::unique_ptr<LvglImage> image) override;
     virtual void SetupUI() override;
     // Add theme switching function

@@ -5,12 +5,15 @@
 
 #include <ctime>
 #include <cstdint>
+#include <cstddef>
 #include <string>
 #include <vector>
 
 #ifndef SDCARD_MOUNT_POINT
 #define SDCARD_MOUNT_POINT "/sdcard"
 #endif
+
+constexpr size_t kDefaultMaxMediaFiles = 200;
 
 struct MediaFile {
     std::string path;
@@ -27,7 +30,7 @@ public:
 
     bool IsMounted() const;
     esp_err_t EnsureMediaDirectories();
-    std::vector<MediaFile> ScanMediaFiles(size_t max_items = 200);
+    std::vector<MediaFile> ScanMediaFiles(size_t max_items = kDefaultMaxMediaFiles);
     uint64_t GetFreeBytes() const;
 
 private:

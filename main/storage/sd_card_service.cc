@@ -1,6 +1,7 @@
 #include "sd_card_service.h"
 
 #include <esp_log.h>
+#include <esp_vfs_fat.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -8,7 +9,6 @@
 #include <cstring>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <sys/statvfs.h>
 #include <unistd.h>
 #include <utility>
 
@@ -108,6 +108,7 @@ std::vector<MediaFile> SdCardService::ScanMediaFiles(size_t max_items) {
         return a.path < b.path;
     });
 
+    // Keep the public playlist bounded even when both media directories are full.
     if (files.size() > max_items) {
         files.resize(max_items);
     }
@@ -115,11 +116,19 @@ std::vector<MediaFile> SdCardService::ScanMediaFiles(size_t max_items) {
 }
 
 uint64_t SdCardService::GetFreeBytes() const {
-    struct statvfs fs = {};
-    if (!IsMounted() || statvfs(SDCARD_MOUNT_POINT, &fs) != 0) {
+    if (!IsMounted()) {
         return 0;
     }
-    return static_cast<uint64_t>(fs.f_bavail) * static_cast<uint64_t>(fs.f_frsize);
+
+    uint64_t total_bytes = 0;
+    uint64_t free_bytes = 0;
+    esp_err_t ret = esp_vfs_fat_info(SDCARD_MOUNT_POINT, &total_bytes, &free_bytes);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to query free space for %s: %s",
+            SDCARD_MOUNT_POINT, esp_err_to_name(ret));
+        return 0;
+    }
+    return free_bytes;
 }
 
 void SdCardService::ScanDirectory(const std::string& directory,

@@ -1,6 +1,7 @@
 #include "audio_service.h"
 #include <esp_log.h>
 #include <cstring>
+#include <utility>
 
 #define RATE_CVT_CFG(_src_rate, _dest_rate, _channel)        \
     (esp_ae_rate_cvt_cfg_t)                                  \
@@ -36,6 +37,44 @@
 #endif
 
 #define TAG "AudioService"
+
+namespace {
+int GetAudioFocusPriority(AudioFocusOwner owner) {
+    switch (owner) {
+        case kAudioFocusOwnerVoiceInteraction:
+            return 400;
+        case kAudioFocusOwnerPromptSound:
+            return 300;
+        case kAudioFocusOwnerRecorder:
+            return 200;
+        case kAudioFocusOwnerLocalMusic:
+            return 100;
+        default:
+            return 0;
+    }
+}
+
+const char* AudioFocusOwnerName(AudioFocusOwner owner) {
+    switch (owner) {
+        case kAudioFocusOwnerLocalMusic:
+            return "local_music";
+        case kAudioFocusOwnerRecorder:
+            return "recorder";
+        case kAudioFocusOwnerPromptSound:
+            return "prompt_sound";
+        case kAudioFocusOwnerVoiceInteraction:
+            return "voice_interaction";
+        default:
+            return "none";
+    }
+}
+
+bool CanPreemptAudioFocus(AudioFocusOwner current, AudioFocusOwner requester) {
+    return current == kAudioFocusOwnerNone ||
+        current == requester ||
+        GetAudioFocusPriority(requester) >= GetAudioFocusPriority(current);
+}
+} // namespace
 
 AudioService::AudioService() {
     event_group_ = xEventGroupCreate();
@@ -215,6 +254,8 @@ bool AudioService::ReadAudioData(std::vector<int16_t>& data, int sample_rate, in
     /* Update the last input time */
     last_input_time_ = std::chrono::steady_clock::now();
     debug_statistics_.input_count++;
+
+    NotifyInputPcmObserver(data, sample_rate, codec_->input_channels());
 
 #if CONFIG_USE_AUDIO_DEBUGGER
     // 音频调试：发送原始音频数据
@@ -630,6 +671,136 @@ void AudioService::SetCallbacks(AudioServiceCallbacks& callbacks) {
     callbacks_ = callbacks;
 }
 
+bool AudioService::RequestAudioFocus(AudioFocusOwner owner, uint8_t resources,
+        AudioFocusLostCallback on_focus_lost) {
+    if (owner <= kAudioFocusOwnerNone || owner >= kAudioFocusOwnerCount ||
+            resources == kAudioFocusResourceNone) {
+        return false;
+    }
+
+    std::array<uint8_t, kAudioFocusOwnerCount> lost_resources = {};
+    {
+        std::lock_guard<std::mutex> lock(audio_focus_mutex_);
+        if ((resources & kAudioFocusResourceInput) &&
+                !CanPreemptAudioFocus(input_focus_owner_, owner)) {
+            ESP_LOGW(TAG, "%s cannot get input focus held by %s",
+                AudioFocusOwnerName(owner), AudioFocusOwnerName(input_focus_owner_));
+            return false;
+        }
+        if ((resources & kAudioFocusResourceOutput) &&
+                !CanPreemptAudioFocus(output_focus_owner_, owner)) {
+            ESP_LOGW(TAG, "%s cannot get output focus held by %s",
+                AudioFocusOwnerName(owner), AudioFocusOwnerName(output_focus_owner_));
+            return false;
+        }
+
+        if (on_focus_lost) {
+            audio_focus_lost_callbacks_[owner] = std::move(on_focus_lost);
+        }
+
+        if ((resources & kAudioFocusResourceInput) &&
+                input_focus_owner_ != owner) {
+            lost_resources[input_focus_owner_] |= kAudioFocusResourceInput;
+            input_focus_owner_ = owner;
+        }
+        if ((resources & kAudioFocusResourceOutput) &&
+                output_focus_owner_ != owner) {
+            lost_resources[output_focus_owner_] |= kAudioFocusResourceOutput;
+            output_focus_owner_ = owner;
+        }
+    }
+
+    for (int i = kAudioFocusOwnerLocalMusic; i < kAudioFocusOwnerCount; ++i) {
+        auto lost_owner = static_cast<AudioFocusOwner>(i);
+        if (lost_resources[i] == kAudioFocusResourceNone) {
+            continue;
+        }
+
+        AudioFocusLostCallback callback;
+        {
+            std::lock_guard<std::mutex> lock(audio_focus_mutex_);
+            callback = audio_focus_lost_callbacks_[i];
+        }
+        ESP_LOGI(TAG, "%s audio focus interrupted by %s (resources=%u)",
+            AudioFocusOwnerName(lost_owner), AudioFocusOwnerName(owner),
+            static_cast<unsigned>(lost_resources[i]));
+        if (callback) {
+            callback(lost_owner, lost_resources[i]);
+        }
+    }
+
+    ESP_LOGI(TAG, "%s requested audio focus (resources=%u)",
+        AudioFocusOwnerName(owner), static_cast<unsigned>(resources));
+    return true;
+}
+
+void AudioService::ReleaseAudioFocus(AudioFocusOwner owner, uint8_t resources) {
+    if (owner <= kAudioFocusOwnerNone || owner >= kAudioFocusOwnerCount ||
+            resources == kAudioFocusResourceNone) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(audio_focus_mutex_);
+    if ((resources & kAudioFocusResourceInput) && input_focus_owner_ == owner) {
+        input_focus_owner_ = kAudioFocusOwnerNone;
+    }
+    if ((resources & kAudioFocusResourceOutput) && output_focus_owner_ == owner) {
+        output_focus_owner_ = kAudioFocusOwnerNone;
+    }
+    if (input_focus_owner_ != owner && output_focus_owner_ != owner) {
+        audio_focus_lost_callbacks_[owner] = nullptr;
+    }
+    ESP_LOGI(TAG, "%s released audio focus (resources=%u)",
+        AudioFocusOwnerName(owner), static_cast<unsigned>(resources));
+}
+
+bool AudioService::HasAudioFocus(AudioFocusOwner owner, uint8_t resources) const {
+    if (owner <= kAudioFocusOwnerNone || owner >= kAudioFocusOwnerCount) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(audio_focus_mutex_);
+    if ((resources & kAudioFocusResourceInput) && input_focus_owner_ != owner) {
+        return false;
+    }
+    if ((resources & kAudioFocusResourceOutput) && output_focus_owner_ != owner) {
+        return false;
+    }
+    return true;
+}
+
+void AudioService::NotifyVoiceInteractionStarted() {
+    RequestAudioFocus(kAudioFocusOwnerVoiceInteraction, kAudioFocusResourceInputOutput);
+}
+
+void AudioService::NotifyVoiceInteractionStopped() {
+    ReleaseAudioFocus(kAudioFocusOwnerVoiceInteraction, kAudioFocusResourceInputOutput);
+}
+
+bool AudioService::SetInputPcmObserver(AudioFocusOwner owner, AudioPcmObserver observer) {
+    if (owner <= kAudioFocusOwnerNone || owner >= kAudioFocusOwnerCount || !observer) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(input_pcm_observer_mutex_);
+    input_pcm_observer_owner_ = owner;
+    input_pcm_observer_ = std::move(observer);
+    ESP_LOGI(TAG, "%s registered input PCM observer: %d Hz, %d channel, %d-bit",
+        AudioFocusOwnerName(owner), kRecorderPcmSampleRate,
+        kRecorderPcmChannels, kRecorderPcmBitsPerSample);
+    return true;
+}
+
+void AudioService::ClearInputPcmObserver(AudioFocusOwner owner) {
+    std::lock_guard<std::mutex> lock(input_pcm_observer_mutex_);
+    if (input_pcm_observer_owner_ != owner) {
+        return;
+    }
+    input_pcm_observer_owner_ = kAudioFocusOwnerNone;
+    input_pcm_observer_ = nullptr;
+    ESP_LOGI(TAG, "%s cleared input PCM observer", AudioFocusOwnerName(owner));
+}
+
 void AudioService::PlaySound(const std::string_view& ogg) {
     if (!codec_->output_enabled()) {
         esp_timer_stop(audio_power_timer_);
@@ -677,6 +848,32 @@ void AudioService::ResetDecoder() {
     audio_playback_queue_.clear();
     audio_testing_queue_.clear();
     audio_queue_cv_.notify_all();
+}
+
+void AudioService::NotifyInputPcmObserver(const std::vector<int16_t>& data, int sample_rate, int channels) {
+    AudioFocusOwner owner = kAudioFocusOwnerNone;
+    AudioPcmObserver observer;
+    {
+        std::lock_guard<std::mutex> lock(input_pcm_observer_mutex_);
+        owner = input_pcm_observer_owner_;
+        observer = input_pcm_observer_;
+    }
+
+    if (!observer || data.empty() || sample_rate != kRecorderPcmSampleRate ||
+            !HasAudioFocus(owner, kAudioFocusResourceInput)) {
+        return;
+    }
+
+    if (channels <= 1) {
+        observer(data.data(), data.size(), kRecorderPcmSampleRate, kRecorderPcmChannels);
+        return;
+    }
+
+    std::vector<int16_t> mono_data(data.size() / channels);
+    for (size_t i = 0, j = 0; i < mono_data.size(); ++i, j += channels) {
+        mono_data[i] = data[j];
+    }
+    observer(mono_data.data(), mono_data.size(), kRecorderPcmSampleRate, kRecorderPcmChannels);
 }
 
 void AudioService::CheckAndUpdateAudioPowerState() {

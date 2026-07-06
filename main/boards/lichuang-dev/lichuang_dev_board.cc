@@ -1,4 +1,5 @@
 #include "wifi_board.h"
+#include "board.h"
 #include "codecs/box_audio_codec.h"
 #include "display/lcd_display.h"
 #include "display/emote_display.h"
@@ -8,6 +9,8 @@
 #include "i2c_device.h"
 #include "esp32_camera.h"
 #include "mcp_server.h"
+#include "assets/lang_config.h"
+#include "features/pomodoro_timer.h"
 #include "storage/sd_card_service.h"
 
 #include <esp_log.h>
@@ -262,6 +265,58 @@ private:
             PropertyList(), [this](const PropertyList& properties) {
                 EnterWifiConfigMode();
                 return true;
+            });
+
+        auto& pomodoro = PomodoroTimer::GetInstance();
+        pomodoro.SetFinishCallback([]() {
+            Application::GetInstance().Schedule([]() {
+                auto display = Board::GetInstance().GetDisplay();
+                if (display != nullptr) {
+                    display->ShowNotification("Pomodoro finished", 5000);
+                }
+                Application::GetInstance().PlaySound(Lang::Sounds::OGG_SUCCESS);
+            });
+        });
+
+        mcp_server.AddTool("self.pomodoro.start",
+            "Start a Pomodoro timer. The duration must be between 1 and 180 minutes.",
+            PropertyList({
+                Property("duration_minutes", kPropertyTypeInteger)
+            }), [](const PropertyList& properties) -> ReturnValue {
+                int duration_minutes = properties["duration_minutes"].value<int>();
+                esp_err_t ret = PomodoroTimer::GetInstance().Start(duration_minutes);
+                if (ret != ESP_OK) {
+                    return std::string("Duration must be between 1 and 180 minutes.");
+                }
+                return std::string("Pomodoro started for ") +
+                    std::to_string(duration_minutes) + " minutes.";
+            });
+
+        mcp_server.AddTool("self.pomodoro.pause",
+            "Pause the current Pomodoro timer.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                PomodoroTimer::GetInstance().Pause();
+                return PomodoroTimer::GetInstance().GetStatusText();
+            });
+
+        mcp_server.AddTool("self.pomodoro.resume",
+            "Resume the paused Pomodoro timer.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                PomodoroTimer::GetInstance().Resume();
+                return PomodoroTimer::GetInstance().GetStatusText();
+            });
+
+        mcp_server.AddTool("self.pomodoro.cancel",
+            "Cancel the current Pomodoro timer.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                PomodoroTimer::GetInstance().Cancel();
+                return std::string("Pomodoro canceled.");
+            });
+
+        mcp_server.AddTool("self.pomodoro.get_status",
+            "Get the current Pomodoro timer status and remaining time.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                return PomodoroTimer::GetInstance().GetStatusText();
             });
     }
 

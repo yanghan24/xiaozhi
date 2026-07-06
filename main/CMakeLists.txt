@@ -27,6 +27,7 @@ set(SOURCES "audio/audio_codec.cc"
             "display/lvgl_display/jpg/image_to_jpeg.cpp"
             "display/lvgl_display/jpg/jpeg_to_image.c"
             "storage/sd_card_service.cc"
+            "features/pomodoro_timer.cc"
             "protocols/protocol.cc"
             "protocols/mqtt_protocol.cc"
             "protocols/websocket_protocol.cc"
@@ -40,7 +41,7 @@ set(SOURCES "audio/audio_codec.cc"
             "main.cc"
             )
 
-set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols" "storage")
+set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols" "storage" "features")
 
 # Add board common files
 list(APPEND SOURCES
@@ -1046,6 +1047,7 @@ idf_component_register(SRCS ${SOURCES}
                         esp_driver_spi
                         esp_driver_i2c
                         esp_driver_i2s
+                        esp_driver_sdmmc
                         esp_driver_jpeg
                         esp_driver_ppa
                         esp_app_format
@@ -1055,6 +1057,7 @@ idf_component_register(SRCS ${SOURCES}
                         efuse
                         bt
                         fatfs
+                        sdmmc
                         ${MAIN_PRIV_REQUIRES_EXTRA}
                     )
 
