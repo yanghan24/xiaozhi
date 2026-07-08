@@ -382,9 +382,19 @@ constexpr const char* kLichuangNavLabels[] = {
     "Record",
 };
 
-constexpr uint32_t kLichuangRed = 0xDC2626;
-constexpr uint32_t kLichuangBlue = 0x2563EB;
-constexpr uint32_t kLichuangAmber = 0xD97706;
+constexpr uint32_t kLichuangTechBg = 0x06111F;
+constexpr uint32_t kLichuangTechPanel = 0x0B1F33;
+constexpr uint32_t kLichuangTechButton = 0x102A44;
+constexpr uint32_t kLichuangTechBorder = 0x164E63;
+constexpr uint32_t kLichuangTechTrack = 0x0F172A;
+constexpr uint32_t kLichuangTechText = 0xE0F2FE;
+constexpr uint32_t kLichuangTechMuted = 0x7DD3FC;
+constexpr uint32_t kLichuangTechCyan = 0x22D3EE;
+constexpr uint32_t kLichuangTechBlue = 0x38BDF8;
+constexpr uint32_t kLichuangTechGreen = 0x34D399;
+constexpr uint32_t kLichuangTechRed = 0xF43F5E;
+constexpr uint32_t kLichuangTechAmber = 0xF59E0B;
+constexpr int64_t kLichuangPomodoroVoiceOverrideUs = 30 * 1000 * 1000;
 
 lv_obj_t* CreatePlainLabel(lv_obj_t* parent, const char* text, lv_coord_t width,
         lv_text_align_t align = LV_TEXT_ALIGN_CENTER) {
@@ -400,12 +410,13 @@ lv_obj_t* CreateInfoPanel(lv_obj_t* parent, LvglTheme* theme) {
     lv_obj_t* panel = lv_obj_create(parent);
     lv_obj_set_width(panel, LV_PCT(100));
     lv_obj_set_height(panel, LV_SIZE_CONTENT);
-    lv_obj_set_style_radius(panel, 6, 0);
+    lv_obj_set_style_radius(panel, 3, 0);
     lv_obj_set_style_border_width(panel, 1, 0);
-    lv_obj_set_style_border_color(panel, theme->border_color(), 0);
-    lv_obj_set_style_border_opa(panel, LV_OPA_30, 0);
-    lv_obj_set_style_bg_color(panel, theme->assistant_bubble_color(), 0);
-    lv_obj_set_style_bg_opa(panel, LV_OPA_70, 0);
+    lv_obj_set_style_border_color(panel, lv_color_hex(kLichuangTechBorder), 0);
+    lv_obj_set_style_border_opa(panel, LV_OPA_90, 0);
+    lv_obj_set_style_bg_color(panel, lv_color_hex(kLichuangTechPanel), 0);
+    lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(panel, lv_color_hex(kLichuangTechText), 0);
     lv_obj_set_style_pad_all(panel, theme->spacing(2), 0);
     lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -422,7 +433,7 @@ void ApplyButtonColors(lv_obj_t* button, lv_color_t bg_color, lv_color_t border_
     lv_obj_set_style_bg_color(button, bg_color, 0);
     lv_obj_set_style_bg_opa(button, bg_opa, 0);
     lv_obj_set_style_border_color(button, border_color, 0);
-    lv_obj_set_style_border_opa(button, LV_OPA_70, 0);
+    lv_obj_set_style_border_opa(button, LV_OPA_COVER, 0);
     lv_obj_t* label = lv_obj_get_child(button, 0);
     if (label != nullptr) {
         lv_obj_set_style_text_color(label, text_color, 0);
@@ -431,22 +442,23 @@ void ApplyButtonColors(lv_obj_t* button, lv_color_t bg_color, lv_color_t border_
 
 lv_obj_t* CreateStyledButton(lv_obj_t* parent, LvglTheme* theme, const char* text,
         lv_coord_t width, lv_coord_t height, lv_color_t bg_color, lv_color_t text_color) {
+    (void)theme;
     lv_obj_t* button = lv_button_create(parent);
     lv_obj_set_size(button, width, height);
-    lv_obj_set_style_radius(button, 5, 0);
+    lv_obj_set_style_radius(button, 3, 0);
     lv_obj_set_style_border_width(button, 1, 0);
     lv_obj_set_style_pad_all(button, 0, 0);
     lv_obj_t* label = lv_label_create(button);
     lv_label_set_text(label, text);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label);
-    ApplyButtonColors(button, bg_color, theme->border_color(), text_color);
+    ApplyButtonColors(button, bg_color, lv_color_hex(kLichuangTechBorder), text_color);
     return button;
 }
 
 lv_obj_t* CreateSmallButton(lv_obj_t* parent, LvglTheme* theme, const char* text) {
     return CreateStyledButton(parent, theme, text, 62, 30,
-        theme->background_color(), theme->text_color());
+        lv_color_hex(kLichuangTechButton), lv_color_hex(kLichuangTechText));
 }
 
 lv_obj_t* CreateAccentButton(lv_obj_t* parent, LvglTheme* theme, const char* text,
@@ -457,7 +469,7 @@ lv_obj_t* CreateAccentButton(lv_obj_t* parent, LvglTheme* theme, const char* tex
 
 lv_obj_t* CreateNavButton(lv_obj_t* parent, LvglTheme* theme, const char* text) {
     return CreateStyledButton(parent, theme, text, 70, 32,
-        theme->background_color(), theme->text_color());
+        lv_color_hex(kLichuangTechButton), lv_color_hex(kLichuangTechMuted));
 }
 
 lv_obj_t* CreateProgressBar(lv_obj_t* parent, LvglTheme* theme, lv_color_t indicator_color) {
@@ -466,11 +478,11 @@ lv_obj_t* CreateProgressBar(lv_obj_t* parent, LvglTheme* theme, lv_color_t indic
     lv_bar_set_range(bar, 0, 1000);
     lv_bar_set_value(bar, 0, LV_ANIM_OFF);
     lv_obj_set_style_radius(bar, 4, 0);
-    lv_obj_set_style_bg_color(bar, theme->border_color(), 0);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_40, 0);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(kLichuangTechTrack), 0);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(bar, 4, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(bar, indicator_color, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_90, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
     return bar;
 }
 
@@ -541,7 +553,8 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_style_radius(lichuang_feature_shell_, 0, 0);
     lv_obj_set_style_border_width(lichuang_feature_shell_, 0, 0);
     lv_obj_set_style_pad_all(lichuang_feature_shell_, theme->spacing(2), 0);
-    lv_obj_set_style_bg_color(lichuang_feature_shell_, theme->chat_background_color(), 0);
+    lv_obj_set_style_bg_color(lichuang_feature_shell_, lv_color_hex(kLichuangTechBg), 0);
+    lv_obj_set_style_text_color(lichuang_feature_shell_, lv_color_hex(kLichuangTechText), 0);
     lv_obj_set_scrollbar_mode(lichuang_feature_shell_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_dir(lichuang_feature_shell_, LV_DIR_NONE);
     lv_obj_add_flag(lichuang_feature_shell_, LV_OBJ_FLAG_CLICKABLE);
@@ -570,7 +583,7 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_t* home = create_view();
     lv_obj_t* home_time_panel = CreateInfoPanel(home, theme);
     lichuang_home_time_label_ = CreatePlainLabel(home_time_panel, "--:--", content_width);
-    lv_obj_set_style_text_color(lichuang_home_time_label_, lv_color_hex(kLichuangBlue), 0);
+    lv_obj_set_style_text_color(lichuang_home_time_label_, lv_color_hex(kLichuangTechCyan), 0);
     lichuang_home_date_label_ = CreatePlainLabel(home_time_panel, "Date not set", content_width);
     lichuang_home_weekday_label_ = CreatePlainLabel(home_time_panel, "Waiting for network time", content_width);
 
@@ -581,10 +594,10 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_t* pomodoro = create_view();
     lv_obj_t* pomo_panel = CreateInfoPanel(pomodoro, theme);
     lichuang_pomodoro_mode_label_ = CreatePlainLabel(pomo_panel, "READY", content_width);
-    lv_obj_set_style_text_color(lichuang_pomodoro_mode_label_, lv_color_hex(kLichuangRed), 0);
+    lv_obj_set_style_text_color(lichuang_pomodoro_mode_label_, lv_color_hex(kLichuangTechCyan), 0);
     lichuang_pomodoro_remaining_label_ = CreatePlainLabel(pomo_panel, "00:00", content_width);
-    lv_obj_set_style_text_color(lichuang_pomodoro_remaining_label_, lv_color_hex(kLichuangRed), 0);
-    lichuang_pomodoro_progress_bar_ = CreateProgressBar(pomo_panel, theme, lv_color_hex(kLichuangRed));
+    lv_obj_set_style_text_color(lichuang_pomodoro_remaining_label_, lv_color_hex(kLichuangTechCyan), 0);
+    lichuang_pomodoro_progress_bar_ = CreateProgressBar(pomo_panel, theme, lv_color_hex(kLichuangTechCyan));
     lichuang_pomodoro_status_label_ = CreatePlainLabel(pomo_panel, "Pick a focus length", content_width);
     lichuang_pomodoro_preset_label_ = CreatePlainLabel(pomo_panel, "Quick start", content_width);
     lv_obj_t* preset_row = lv_obj_create(pomo_panel);
@@ -595,9 +608,9 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_style_pad_all(preset_row, 0, 0);
     lv_obj_set_style_pad_column(preset_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(preset_row, LV_FLEX_FLOW_ROW);
-    lv_obj_t* preset_15 = CreateAccentButton(preset_row, theme, "15m", 58, lv_color_hex(kLichuangRed));
-    lv_obj_t* preset_30 = CreateAccentButton(preset_row, theme, "30m", 58, lv_color_hex(kLichuangRed));
-    lv_obj_t* preset_45 = CreateAccentButton(preset_row, theme, "45m", 58, lv_color_hex(kLichuangRed));
+    lv_obj_t* preset_15 = CreateAccentButton(preset_row, theme, "15m", 58, lv_color_hex(kLichuangTechCyan));
+    lv_obj_t* preset_30 = CreateAccentButton(preset_row, theme, "30m", 58, lv_color_hex(kLichuangTechCyan));
+    lv_obj_t* preset_45 = CreateAccentButton(preset_row, theme, "45m", 58, lv_color_hex(kLichuangTechCyan));
     lv_obj_set_user_data(preset_15, this);
     lv_obj_set_user_data(preset_30, this);
     lv_obj_set_user_data(preset_45, this);
@@ -616,10 +629,10 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_style_pad_column(pomodoro_control_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(pomodoro_control_row, LV_FLEX_FLOW_ROW);
     lv_obj_t* pause_resume = CreateAccentButton(pomodoro_control_row, theme, "Pause", 76,
-        lv_color_hex(kLichuangBlue));
+        lv_color_hex(kLichuangTechBlue));
     lichuang_pomodoro_pause_button_ = pause_resume;
     lv_obj_t* cancel = CreateAccentButton(pomodoro_control_row, theme, "Cancel", 76,
-        lv_color_hex(kLichuangAmber));
+        lv_color_hex(kLichuangTechAmber));
     lv_obj_set_user_data(pause_resume, this);
     lv_obj_set_user_data(cancel, this);
     lv_obj_add_event_cb(pause_resume, LichuangPomodoroPauseResumeEventCallback,
@@ -630,9 +643,9 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_t* music = create_view();
     lv_obj_t* music_panel = CreateInfoPanel(music, theme);
     lichuang_music_status_label_ = CreatePlainLabel(music_panel, "Player idle", content_width);
-    lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangBlue), 0);
+    lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangTechBlue), 0);
     lichuang_music_track_label_ = CreatePlainLabel(music_panel, "Playlist: no scan yet", content_width);
-    lichuang_music_progress_bar_ = CreateProgressBar(music_panel, theme, lv_color_hex(kLichuangBlue));
+    lichuang_music_progress_bar_ = CreateProgressBar(music_panel, theme, lv_color_hex(kLichuangTechBlue));
     lichuang_music_detail_label_ = CreatePlainLabel(music_panel, "00:00/00:00  -- Hz", content_width);
     lichuang_music_list_label_ = CreatePlainLabel(music_panel, "Next: --", content_width);
     lv_obj_t* control_row = lv_obj_create(music_panel);
@@ -644,7 +657,7 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_flex_flow(control_row, LV_FLEX_FLOW_ROW);
     lv_obj_t* previous = CreateSmallButton(control_row, theme, "Prev");
     lv_obj_t* play_pause = CreateAccentButton(control_row, theme, "Play", 70,
-        lv_color_hex(kLichuangBlue));
+        lv_color_hex(kLichuangTechBlue));
     lichuang_music_play_button_ = play_pause;
     lv_obj_t* next = CreateSmallButton(control_row, theme, "Next");
     lv_obj_add_event_cb(previous, LichuangMusicPreviousEventCallback, LV_EVENT_CLICKED, this);
@@ -654,8 +667,8 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_t* recorder = create_view();
     lv_obj_t* recorder_panel = CreateInfoPanel(recorder, theme);
     lichuang_recorder_status_label_ = CreatePlainLabel(recorder_panel, "Ready to record", content_width);
-    lv_obj_set_style_text_color(lichuang_recorder_status_label_, lv_color_hex(kLichuangRed), 0);
-    lichuang_recorder_progress_bar_ = CreateProgressBar(recorder_panel, theme, lv_color_hex(kLichuangRed));
+    lv_obj_set_style_text_color(lichuang_recorder_status_label_, lv_color_hex(kLichuangTechRed), 0);
+    lichuang_recorder_progress_bar_ = CreateProgressBar(recorder_panel, theme, lv_color_hex(kLichuangTechRed));
     lichuang_recorder_detail_label_ = CreatePlainLabel(recorder_panel, "Elapsed 00:00, free -- MB", content_width);
     lichuang_recorder_file_label_ = CreatePlainLabel(recorder_panel, "Output: /sdcard/recordings", content_width);
     lv_obj_t* recorder_row = lv_obj_create(recorder_panel);
@@ -666,13 +679,13 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_style_pad_column(recorder_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(recorder_row, LV_FLEX_FLOW_ROW);
     lv_obj_t* rec = CreateAccentButton(recorder_row, theme, "Start", 78,
-        lv_color_hex(kLichuangRed));
+        lv_color_hex(kLichuangTechRed));
     lichuang_recorder_start_button_ = rec;
     lv_obj_t* rec_pause = CreateAccentButton(recorder_row, theme, "Pause", 78,
-        lv_color_hex(kLichuangBlue));
+        lv_color_hex(kLichuangTechBlue));
     lichuang_recorder_pause_button_ = rec_pause;
     lv_obj_t* rec_stop = CreateAccentButton(recorder_row, theme, "Stop", 78,
-        lv_color_hex(kLichuangAmber));
+        lv_color_hex(kLichuangTechAmber));
     lichuang_recorder_stop_button_ = rec_stop;
     lv_obj_add_event_cb(rec, LichuangRecorderStartEventCallback, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(rec_pause, LichuangRecorderPauseResumeEventCallback, LV_EVENT_CLICKED, this);
@@ -747,11 +760,26 @@ void LcdDisplay::UpdateLichuangFeatureShellVisibility() {
         return;
     }
 
-    if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle) {
+    bool forced_visible = false;
+    if (lichuang_feature_shell_override_until_us_ > 0) {
+        int64_t now_us = esp_timer_get_time();
+        if (now_us <= lichuang_feature_shell_override_until_us_) {
+            forced_visible = true;
+        } else {
+            lichuang_feature_shell_override_until_us_ = 0;
+        }
+    }
+
+    if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle || forced_visible) {
         ShowLichuangFeatureShell();
     } else {
         HideLichuangFeatureShell();
     }
+}
+
+bool LcdDisplay::IsLichuangFeatureShellVisible() const {
+    return lichuang_feature_shell_ != nullptr &&
+        !lv_obj_has_flag(lichuang_feature_shell_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void LcdDisplay::SwitchLichuangFeatureView(int delta) {
@@ -779,18 +807,17 @@ void LcdDisplay::SetLichuangFeatureView(LichuangFeatureView view) {
         }
     }
 
-    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
     for (int i = 0; i < view_count; ++i) {
         lv_obj_t* nav_button = lichuang_nav_buttons_[i];
         if (nav_button == nullptr) {
             continue;
         }
         if (i == next) {
-            ApplyButtonColors(nav_button, lv_color_hex(kLichuangBlue),
-                lv_color_hex(kLichuangBlue), lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+            ApplyButtonColors(nav_button, lv_color_hex(kLichuangTechCyan),
+                lv_color_hex(kLichuangTechCyan), lv_color_hex(kLichuangTechBg), LV_OPA_COVER);
         } else {
-            ApplyButtonColors(nav_button, theme->background_color(),
-                theme->border_color(), theme->text_color(), LV_OPA_90);
+            ApplyButtonColors(nav_button, lv_color_hex(kLichuangTechButton),
+                lv_color_hex(kLichuangTechBorder), lv_color_hex(kLichuangTechMuted), LV_OPA_COVER);
         }
     }
 
@@ -900,7 +927,6 @@ void LcdDisplay::UpdateLichuangPomodoroView(bool force) {
         return;
     }
 
-    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
     auto status = PomodoroTimer::GetInstance().GetStatus();
 
     char remaining[16];
@@ -917,24 +943,24 @@ void LcdDisplay::UpdateLichuangPomodoroView(bool force) {
     FormatDuration(elapsed, sizeof(elapsed), status.elapsed_seconds);
     FormatDuration(duration, sizeof(duration), status.duration_minutes * 60);
     const char* mode = "READY";
-    lv_color_t state_color = lv_color_hex(kLichuangBlue);
+    lv_color_t state_color = lv_color_hex(kLichuangTechCyan);
     bool timer_active = false;
     switch (status.state) {
         case PomodoroState::kRunning:
             mode = "FOCUS TIMER";
-            state_color = lv_color_hex(kLichuangRed);
+            state_color = lv_color_hex(kLichuangTechRed);
             timer_active = true;
             snprintf(text, sizeof(text), "Countdown %s/%s", elapsed, duration);
             break;
         case PomodoroState::kPaused:
             mode = "PAUSED";
-            state_color = lv_color_hex(kLichuangAmber);
+            state_color = lv_color_hex(kLichuangTechAmber);
             timer_active = true;
             snprintf(text, sizeof(text), "Paused %s/%s", elapsed, duration);
             break;
         case PomodoroState::kFinished:
             mode = "COMPLETE";
-            state_color = lv_color_hex(kLichuangBlue);
+            state_color = lv_color_hex(kLichuangTechGreen);
             snprintf(text, sizeof(text), "Finished %s", duration);
             break;
         case PomodoroState::kIdle:
@@ -947,16 +973,16 @@ void LcdDisplay::UpdateLichuangPomodoroView(bool force) {
         lv_obj_set_style_text_color(lichuang_pomodoro_mode_label_, state_color, 0);
     }
     lv_obj_set_style_text_color(lichuang_pomodoro_remaining_label_, state_color, 0);
-    lv_obj_set_style_text_color(lichuang_pomodoro_status_label_, theme->text_color(), 0);
+    lv_obj_set_style_text_color(lichuang_pomodoro_status_label_, lv_color_hex(kLichuangTechText), 0);
     SetBarIndicatorColor(lichuang_pomodoro_progress_bar_, state_color);
     SetObjectHidden(lichuang_pomodoro_preset_label_, timer_active);
     SetObjectHidden(lichuang_pomodoro_preset_row_, timer_active);
     if (timer_active) {
         ApplyButtonColors(lichuang_pomodoro_pause_button_, state_color,
-            state_color, lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+            state_color, lv_color_hex(kLichuangTechBg), LV_OPA_COVER);
     } else {
-        ApplyButtonColors(lichuang_pomodoro_pause_button_, theme->background_color(),
-            theme->border_color(), theme->text_color(), LV_OPA_90);
+        ApplyButtonColors(lichuang_pomodoro_pause_button_, lv_color_hex(kLichuangTechButton),
+            lv_color_hex(kLichuangTechBorder), lv_color_hex(kLichuangTechMuted), LV_OPA_COVER);
     }
     lv_label_set_text(lichuang_pomodoro_status_label_, text);
 }
@@ -969,20 +995,19 @@ void LcdDisplay::UpdateLichuangMusicView(bool force) {
         return;
     }
 
-    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
     auto& storage = SdCardService::GetInstance();
     if (!storage.IsMounted()) {
         lichuang_last_media_scan_time_ = 0;
         lv_label_set_text(lichuang_music_status_label_, "SD: not mounted");
-        lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangRed), 0);
+        lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangTechRed), 0);
         lv_label_set_text(lichuang_music_track_label_, "Playlist: unavailable");
         lv_label_set_text(lichuang_music_detail_label_, "00:00/00:00  -- Hz");
         lv_label_set_text(lichuang_music_list_label_, "Insert SD card");
         SetBarProgress(lichuang_music_progress_bar_, 0, 0);
-        SetBarIndicatorColor(lichuang_music_progress_bar_, lv_color_hex(kLichuangRed));
+        SetBarIndicatorColor(lichuang_music_progress_bar_, lv_color_hex(kLichuangTechRed));
         SetButtonText(lichuang_music_play_button_, "Play");
-        ApplyButtonColors(lichuang_music_play_button_, theme->background_color(),
-            theme->border_color(), theme->text_color(), LV_OPA_90);
+        ApplyButtonColors(lichuang_music_play_button_, lv_color_hex(kLichuangTechButton),
+            lv_color_hex(kLichuangTechBorder), lv_color_hex(kLichuangTechMuted), LV_OPA_COVER);
         return;
     }
 
@@ -1009,8 +1034,8 @@ void LcdDisplay::UpdateLichuangMusicView(bool force) {
         static_cast<unsigned long long>(free_mb));
     lv_label_set_text(lichuang_music_status_label_, status);
     lv_color_t music_color = player_status.state == MusicPlayerState::kError
-        ? lv_color_hex(kLichuangRed)
-        : lv_color_hex(kLichuangBlue);
+        ? lv_color_hex(kLichuangTechRed)
+        : lv_color_hex(kLichuangTechBlue);
     lv_obj_set_style_text_color(lichuang_music_status_label_, music_color, 0);
 
     SetBarProgress(lichuang_music_progress_bar_, player_status.elapsed_seconds,
@@ -1019,7 +1044,7 @@ void LcdDisplay::UpdateLichuangMusicView(bool force) {
     SetButtonText(lichuang_music_play_button_,
         player_status.state == MusicPlayerState::kPlaying ? "Pause" : "Play");
     ApplyButtonColors(lichuang_music_play_button_, music_color,
-        music_color, lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+        music_color, lv_color_hex(kLichuangTechBg), LV_OPA_COVER);
 
     char playlist[96];
     if (player_status.state == MusicPlayerState::kPlaying ||
@@ -1095,7 +1120,6 @@ void LcdDisplay::UpdateLichuangRecorderView(bool force) {
         return;
     }
 
-    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
     auto status = AudioRecorder::GetInstance().GetStatus();
     uint64_t free_mb = status.free_bytes / (1024 * 1024);
     uint32_t written_kb = status.bytes_written / 1024;
@@ -1110,7 +1134,7 @@ void LcdDisplay::UpdateLichuangRecorderView(bool force) {
     FormatDuration(elapsed, sizeof(elapsed), status.elapsed_seconds);
 
     char state[72];
-    lv_color_t state_color = lv_color_hex(kLichuangRed);
+    lv_color_t state_color = lv_color_hex(kLichuangTechRed);
     bool recorder_active = false;
     switch (status.state) {
         case AudioRecorderState::kRecording:
@@ -1119,7 +1143,7 @@ void LcdDisplay::UpdateLichuangRecorderView(bool force) {
             break;
         case AudioRecorderState::kPaused:
             recorder_active = true;
-            state_color = lv_color_hex(kLichuangAmber);
+            state_color = lv_color_hex(kLichuangTechAmber);
             snprintf(state, sizeof(state), "Paused %s", elapsed);
             break;
         case AudioRecorderState::kError:
@@ -1128,7 +1152,7 @@ void LcdDisplay::UpdateLichuangRecorderView(bool force) {
             break;
         case AudioRecorderState::kIdle:
         default:
-            state_color = lv_color_hex(kLichuangBlue);
+            state_color = lv_color_hex(kLichuangTechGreen);
             snprintf(state, sizeof(state), "Ready to record");
             break;
     }
@@ -1136,19 +1160,19 @@ void LcdDisplay::UpdateLichuangRecorderView(bool force) {
     lv_obj_set_style_text_color(lichuang_recorder_status_label_, state_color, 0);
     SetBarIndicatorColor(lichuang_recorder_progress_bar_, state_color);
     if (recorder_active) {
-        ApplyButtonColors(lichuang_recorder_start_button_, theme->background_color(),
-            theme->border_color(), theme->text_color(), LV_OPA_90);
-        ApplyButtonColors(lichuang_recorder_stop_button_, lv_color_hex(kLichuangRed),
-            lv_color_hex(kLichuangRed), lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+        ApplyButtonColors(lichuang_recorder_start_button_, lv_color_hex(kLichuangTechButton),
+            lv_color_hex(kLichuangTechBorder), lv_color_hex(kLichuangTechMuted), LV_OPA_COVER);
+        ApplyButtonColors(lichuang_recorder_stop_button_, lv_color_hex(kLichuangTechRed),
+            lv_color_hex(kLichuangTechRed), lv_color_hex(kLichuangTechBg), LV_OPA_COVER);
         ApplyButtonColors(lichuang_recorder_pause_button_, state_color,
-            state_color, lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+            state_color, lv_color_hex(kLichuangTechBg), LV_OPA_COVER);
     } else {
-        ApplyButtonColors(lichuang_recorder_start_button_, lv_color_hex(kLichuangRed),
-            lv_color_hex(kLichuangRed), lv_color_hex(0xFFFFFF), LV_OPA_COVER);
-        ApplyButtonColors(lichuang_recorder_stop_button_, theme->background_color(),
-            theme->border_color(), theme->text_color(), LV_OPA_90);
-        ApplyButtonColors(lichuang_recorder_pause_button_, theme->background_color(),
-            theme->border_color(), theme->text_color(), LV_OPA_90);
+        ApplyButtonColors(lichuang_recorder_start_button_, lv_color_hex(kLichuangTechRed),
+            lv_color_hex(kLichuangTechRed), lv_color_hex(kLichuangTechBg), LV_OPA_COVER);
+        ApplyButtonColors(lichuang_recorder_stop_button_, lv_color_hex(kLichuangTechButton),
+            lv_color_hex(kLichuangTechBorder), lv_color_hex(kLichuangTechMuted), LV_OPA_COVER);
+        ApplyButtonColors(lichuang_recorder_pause_button_, lv_color_hex(kLichuangTechButton),
+            lv_color_hex(kLichuangTechBorder), lv_color_hex(kLichuangTechMuted), LV_OPA_COVER);
     }
 
     char detail[80];
@@ -1537,6 +1561,9 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
 
     // Avoid empty message boxes
     if(strlen(content) == 0) {
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+        UpdateLichuangFeatureShellVisibility();
+#endif
         return;
     }
 
@@ -1673,6 +1700,9 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
     
     // Store reference to the latest message label
     chat_message_label_ = msg_text;
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    UpdateLichuangFeatureShellVisibility();
+#endif
 }
 
 void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
@@ -2032,6 +2062,9 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
             lv_obj_remove_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
         }
     }
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    UpdateLichuangFeatureShellVisibility();
+#endif
 #if CONFIG_USE_MULTILINE_CHAT_MESSAGE
     // Re-align bottom_bar_ after text change so it stays anchored to the bottom
     // as its height adapts to the wrapped content.
@@ -2053,6 +2086,20 @@ void LcdDisplay::ClearChatMessages() {
 }
 #endif
 
+void LcdDisplay::ShowPomodoroTimerView() {
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    DisplayLockGuard lock(this);
+    if (lichuang_feature_shell_ == nullptr) {
+        return;
+    }
+
+    lichuang_feature_shell_override_until_us_ =
+        esp_timer_get_time() + kLichuangPomodoroVoiceOverrideUs;
+    SetLichuangFeatureView(LichuangFeatureView::kPomodoro);
+    ShowLichuangFeatureShell();
+#endif
+}
+
 void LcdDisplay::SetStatus(const char* status) {
     LvglDisplay::SetStatus(status);
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
@@ -2066,7 +2113,7 @@ void LcdDisplay::UpdateStatusBar(bool update_all) {
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     DisplayLockGuard lock(this);
     UpdateLichuangFeatureShellVisibility();
-    if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle) {
+    if (IsLichuangFeatureShellVisible()) {
         UpdateLichuangHomeView(update_all);
         if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kPomodoro)) {
             UpdateLichuangPomodoroView(update_all);

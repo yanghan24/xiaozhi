@@ -602,6 +602,10 @@ private:
                 if (ret != ESP_OK) {
                     return std::string("Duration must be between 1 and 180 minutes.");
                 }
+                auto display = Board::GetInstance().GetDisplay();
+                if (display != nullptr) {
+                    display->ShowPomodoroTimerView();
+                }
                 return std::string("Pomodoro started for ") +
                     std::to_string(duration_minutes) + " minutes.";
             });

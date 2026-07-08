@@ -9,6 +9,7 @@
 #include <font_emoji.h>
 
 #include <atomic>
+#include <cstdint>
 #include <ctime>
 #include <memory>
 
@@ -80,6 +81,7 @@ protected:
     lv_obj_t* lichuang_recorder_pause_button_ = nullptr;
     lv_obj_t* lichuang_recorder_stop_button_ = nullptr;
     int lichuang_feature_view_index_ = 0;
+    int64_t lichuang_feature_shell_override_until_us_ = 0;
     time_t lichuang_last_home_update_minute_ = 0;
     time_t lichuang_last_media_scan_time_ = 0;
 
@@ -87,6 +89,7 @@ protected:
     void ShowLichuangFeatureShell();
     void HideLichuangFeatureShell();
     void UpdateLichuangFeatureShellVisibility();
+    bool IsLichuangFeatureShellVisible() const;
     void SwitchLichuangFeatureView(int delta);
     void SetLichuangFeatureView(LichuangFeatureView view);
     void UpdateLichuangHomeView(bool force = false);
@@ -128,6 +131,7 @@ public:
     virtual void UpdateStatusBar(bool update_all = false) override;
     virtual void SetPreviewImage(std::unique_ptr<LvglImage> image) override;
     virtual void SetupUI() override;
+    virtual void ShowPomodoroTimerView() override;
     // Add theme switching function
     virtual void SetTheme(Theme* theme) override;
     

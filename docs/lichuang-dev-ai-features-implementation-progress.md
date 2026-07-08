@@ -329,14 +329,20 @@ Relevant files:
 
 Implemented behavior:
 
-- The standby feature UI now uses a denser dashboard layout with softer panels,
-  stronger selected navigation states, red timer/recording emphasis, and blue
-  navigation/playback emphasis.
+- The standby feature UI now uses a denser sci-fi HUD/dashboard layout with a
+  dark navy background, cyan panel borders, dark module buttons, bright selected
+  navigation state, and neon state colors.
+- Timer and recorder warning/running states use neon red/amber, while healthy
+  ready/completed states use cyan/green.
 - Pomodoro page now has a countdown progress bar, elapsed/total status text,
   and dynamic `Pause`/`Resume` button text.
 - When a Pomodoro countdown is running or paused, the page switches into a
   dedicated timer view by hiding quick presets and showing `FOCUS TIMER` or
   `PAUSED`, the remaining `MM:SS` value, progress, and active controls.
+- Starting Pomodoro through Xiaozhi AI voice now requests the display to show
+  the Timer countdown page immediately. A short feature-shell override prevents
+  the voice dialogue/subtitle UI from covering the countdown while the voice
+  response finishes.
 - Music page now has a playback progress bar, dynamic `Play`/`Pause` button
   text, active track state, elapsed/duration, sample rate, channel count, and a
   next-track or track-position hint.
@@ -356,6 +362,10 @@ Hardware-visible checkpoint:
 - Tap `Timer`, start a preset, and confirm the countdown screen shows
   `FOCUS TIMER`, remaining time, progress, and elapsed/total text updating once
   per second.
+- Start Pomodoro through Xiaozhi AI voice and confirm the display jumps to the
+  Timer countdown page instead of staying on the voice dialogue page.
+- Confirm Home, Timer, Music, and Record pages share the same dark HUD
+  technology visual style.
 - Pause and resume Pomodoro and confirm the button text changes between
   `Pause` and `Resume`.
 - Tap `Music`, play a WAV/MP3 file, and confirm the progress bar,
@@ -446,6 +456,8 @@ Registered tools:
 Tool behavior:
 
 - `self.pomodoro.start` accepts `duration_minutes`.
+- On successful start, `self.pomodoro.start` requests the display to jump to
+  the Timer countdown page.
 - Invalid durations return `Duration must be between 1 and 180 minutes.`
 - Pause/resume/cancel are idempotent.
 - Status returns a short text summary suitable for voice response.
@@ -980,6 +992,8 @@ The following non-ESP-IDF validations were performed:
 - ui-ux-pro-max design-system search for a compact embedded touchscreen
   dashboard, selecting dense spacing, red recording/timer emphasis, and blue
   navigation/playback emphasis.
+- ui-ux-pro-max design-system search for HUD / Sci-Fi FUI style, selecting a
+  dense dark technology control-panel direction for all feature modules.
 - Context7 LVGL documentation check for button event callbacks, callback user
   data, child label updates, and hidden object flags.
 - Static inspection confirming the Lichuang feature shell now exposes bottom
@@ -988,6 +1002,11 @@ The following non-ESP-IDF validations were performed:
   `SetLichuangFeatureView()` path as the swipe fallback.
 - Static inspection confirming Pomodoro running/paused state hides the preset
   row and presents the dedicated countdown UI.
+- Static inspection confirming `self.pomodoro.start` requests
+  `Display::ShowPomodoroTimerView()` after a successful timer start.
+- Static inspection confirming the Lichuang display override keeps the Timer
+  page visible briefly during voice response and then falls back to normal idle
+  shell visibility.
 - Static inspection confirming Recorder UI uses explicit `Start` and `Stop`
   buttons wired to the existing `AudioRecorder` service.
 - Static inspection confirming Pomodoro source is included in `main/CMakeLists.txt`.
@@ -1087,6 +1106,8 @@ Recommended hardware checks:
 - Confirm idle screen shows the Home standby page.
 - Tap the bottom `Home`, `Timer`, `Music`, and `Record` buttons and confirm the
   selected page changes immediately with the active navigation state highlighted.
+- Confirm all four feature pages use the same dark HUD technology style:
+  cyan borders, dark panels/buttons, and neon state accents.
 - Swipe left/right and confirm pages still cycle through Home, Pomodoro, Music,
   and Recorder as a fallback gesture.
 - On the Music page, confirm SD mounted/free-space/media-count display with a
@@ -1098,6 +1119,8 @@ Recommended hardware checks:
   interaction UI appears, then returns to the standby shell when idle again.
 - Test Pomodoro UI quick starts: 15m, 30m, and 45m.
 - Test Pomodoro pause, resume, and cancel from the touch screen.
+- Start Pomodoro by Xiaozhi AI voice and confirm the screen jumps to the Timer
+  countdown UI while the voice response finishes.
 - Test voice/tool calls for start, pause, resume, cancel, and status.
 - Test an invalid voice/tool duration such as 181 minutes and confirm the tool
   returns the range error.
