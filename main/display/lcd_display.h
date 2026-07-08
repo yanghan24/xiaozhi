@@ -35,12 +35,17 @@ protected:
     lv_obj_t* emoji_box_ = nullptr;
     lv_obj_t* chat_message_label_ = nullptr;
     esp_timer_handle_t preview_timer_ = nullptr;
+    esp_timer_handle_t top_bar_auto_hide_timer_ = nullptr;
     std::unique_ptr<LvglImage> preview_image_cached_ = nullptr;
     bool hide_subtitle_ = false;  // Control whether to hide chat messages/subtitles
 
     void InitializeLcdThemes();
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
+    void SetTopBarVisible(bool visible);
+    void ShowTopBarTemporarily();
+    void AttachTopBarTouchTarget(lv_obj_t* object);
+    static void TopBarTouchEventCallback(lv_event_t* event);
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     enum class LichuangFeatureView {

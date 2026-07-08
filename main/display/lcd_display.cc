@@ -31,6 +31,10 @@ LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
 LV_FONT_DECLARE(BUILTIN_ICON_FONT);
 LV_FONT_DECLARE(font_awesome_30_4);
 
+namespace {
+constexpr int64_t kTopBarAutoHideUs = 3 * 1000 * 1000;
+} // namespace
+
 void LcdDisplay::InitializeLcdThemes() {
     auto text_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_TEXT_FONT);
     auto icon_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_ICON_FONT);
@@ -96,6 +100,20 @@ LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_
         .skip_unhandled_events = false,
     };
     esp_timer_create(&preview_timer_args, &preview_timer_);
+
+    // Create a timer to hide the transient top bar after touch.
+    esp_timer_create_args_t top_bar_timer_args = {
+        .callback = [](void* arg) {
+            LcdDisplay* display = static_cast<LcdDisplay*>(arg);
+            DisplayLockGuard lock(display);
+            display->SetTopBarVisible(false);
+        },
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "top_bar_auto_hide",
+        .skip_unhandled_events = true,
+    };
+    esp_timer_create(&top_bar_timer_args, &top_bar_auto_hide_timer_);
 }
 
 SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
@@ -305,6 +323,10 @@ LcdDisplay::~LcdDisplay() {
         esp_timer_stop(preview_timer_);
         esp_timer_delete(preview_timer_);
     }
+    if (top_bar_auto_hide_timer_ != nullptr) {
+        esp_timer_stop(top_bar_auto_hide_timer_);
+        esp_timer_delete(top_bar_auto_hide_timer_);
+    }
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     if (lichuang_feature_shell_ != nullptr) {
@@ -364,6 +386,48 @@ bool LcdDisplay::Lock(int timeout_ms) {
 
 void LcdDisplay::Unlock() {
     lvgl_port_unlock();
+}
+
+void LcdDisplay::SetTopBarVisible(bool visible) {
+    if (top_bar_ != nullptr) {
+        if (visible) {
+            lv_obj_remove_flag(top_bar_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_to_index(top_bar_, -1);
+        } else {
+            lv_obj_add_flag(top_bar_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (status_bar_ != nullptr) {
+        if (visible) {
+            lv_obj_remove_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_to_index(status_bar_, -1);
+        } else {
+            lv_obj_add_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void LcdDisplay::ShowTopBarTemporarily() {
+    SetTopBarVisible(true);
+    if (top_bar_auto_hide_timer_ != nullptr) {
+        esp_timer_stop(top_bar_auto_hide_timer_);
+        esp_timer_start_once(top_bar_auto_hide_timer_, kTopBarAutoHideUs);
+    }
+}
+
+void LcdDisplay::AttachTopBarTouchTarget(lv_obj_t* object) {
+    if (object == nullptr) {
+        return;
+    }
+    lv_obj_add_flag(object, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(object, TopBarTouchEventCallback, LV_EVENT_PRESSED, this);
+}
+
+void LcdDisplay::TopBarTouchEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->ShowTopBarTemporarily();
+    }
 }
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
@@ -541,9 +605,8 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     }
 
     LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
-    auto text_font = theme->text_font()->font();
-    lv_coord_t top_offset = text_font->line_height + theme->spacing(8);
-    lv_coord_t shell_height = LV_VER_RES - top_offset;
+    lv_coord_t top_offset = 0;
+    lv_coord_t shell_height = LV_VER_RES;
     lv_coord_t nav_height = 38;
     lv_coord_t page_height = shell_height - nav_height - theme->spacing(8);
 
@@ -561,6 +624,7 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_add_flag(lichuang_feature_shell_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_event_cb(lichuang_feature_shell_, LichuangFeatureGestureEventCallback,
         LV_EVENT_GESTURE, this);
+    AttachTopBarTouchTarget(lichuang_feature_shell_);
 
     auto create_view = [this, theme, page_height]() {
         lv_obj_t* page = lv_obj_create(lichuang_feature_shell_);
@@ -575,6 +639,7 @@ void LcdDisplay::CreateLichuangFeatureShell() {
         lv_obj_set_style_pad_row(page, theme->spacing(2), 0);
         lv_obj_set_scrollbar_mode(page, LV_SCROLLBAR_MODE_OFF);
         lv_obj_add_flag(page, LV_OBJ_FLAG_HIDDEN);
+        AttachTopBarTouchTarget(page);
         return page;
     };
 
@@ -582,17 +647,20 @@ void LcdDisplay::CreateLichuangFeatureShell() {
 
     lv_obj_t* home = create_view();
     lv_obj_t* home_time_panel = CreateInfoPanel(home, theme);
+    AttachTopBarTouchTarget(home_time_panel);
     lichuang_home_time_label_ = CreatePlainLabel(home_time_panel, "--:--", content_width);
     lv_obj_set_style_text_color(lichuang_home_time_label_, lv_color_hex(kLichuangTechCyan), 0);
     lichuang_home_date_label_ = CreatePlainLabel(home_time_panel, "Date not set", content_width);
     lichuang_home_weekday_label_ = CreatePlainLabel(home_time_panel, "Waiting for network time", content_width);
 
     lv_obj_t* env_panel = CreateInfoPanel(home, theme);
+    AttachTopBarTouchTarget(env_panel);
     lichuang_home_weather_label_ = CreatePlainLabel(env_panel, "Weather: unavailable", content_width);
     lichuang_home_air_label_ = CreatePlainLabel(env_panel, "AQI: unavailable", content_width);
 
     lv_obj_t* pomodoro = create_view();
     lv_obj_t* pomo_panel = CreateInfoPanel(pomodoro, theme);
+    AttachTopBarTouchTarget(pomo_panel);
     lichuang_pomodoro_mode_label_ = CreatePlainLabel(pomo_panel, "READY", content_width);
     lv_obj_set_style_text_color(lichuang_pomodoro_mode_label_, lv_color_hex(kLichuangTechCyan), 0);
     lichuang_pomodoro_remaining_label_ = CreatePlainLabel(pomo_panel, "00:00", content_width);
@@ -611,6 +679,9 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_t* preset_15 = CreateAccentButton(preset_row, theme, "15m", 58, lv_color_hex(kLichuangTechCyan));
     lv_obj_t* preset_30 = CreateAccentButton(preset_row, theme, "30m", 58, lv_color_hex(kLichuangTechCyan));
     lv_obj_t* preset_45 = CreateAccentButton(preset_row, theme, "45m", 58, lv_color_hex(kLichuangTechCyan));
+    AttachTopBarTouchTarget(preset_15);
+    AttachTopBarTouchTarget(preset_30);
+    AttachTopBarTouchTarget(preset_45);
     lv_obj_set_user_data(preset_15, this);
     lv_obj_set_user_data(preset_30, this);
     lv_obj_set_user_data(preset_45, this);
@@ -633,6 +704,8 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lichuang_pomodoro_pause_button_ = pause_resume;
     lv_obj_t* cancel = CreateAccentButton(pomodoro_control_row, theme, "Cancel", 76,
         lv_color_hex(kLichuangTechAmber));
+    AttachTopBarTouchTarget(pause_resume);
+    AttachTopBarTouchTarget(cancel);
     lv_obj_set_user_data(pause_resume, this);
     lv_obj_set_user_data(cancel, this);
     lv_obj_add_event_cb(pause_resume, LichuangPomodoroPauseResumeEventCallback,
@@ -642,6 +715,7 @@ void LcdDisplay::CreateLichuangFeatureShell() {
 
     lv_obj_t* music = create_view();
     lv_obj_t* music_panel = CreateInfoPanel(music, theme);
+    AttachTopBarTouchTarget(music_panel);
     lichuang_music_status_label_ = CreatePlainLabel(music_panel, "Player idle", content_width);
     lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangTechBlue), 0);
     lichuang_music_track_label_ = CreatePlainLabel(music_panel, "Playlist: no scan yet", content_width);
@@ -660,12 +734,16 @@ void LcdDisplay::CreateLichuangFeatureShell() {
         lv_color_hex(kLichuangTechBlue));
     lichuang_music_play_button_ = play_pause;
     lv_obj_t* next = CreateSmallButton(control_row, theme, "Next");
+    AttachTopBarTouchTarget(previous);
+    AttachTopBarTouchTarget(play_pause);
+    AttachTopBarTouchTarget(next);
     lv_obj_add_event_cb(previous, LichuangMusicPreviousEventCallback, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(play_pause, LichuangMusicPlayPauseEventCallback, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(next, LichuangMusicNextEventCallback, LV_EVENT_CLICKED, this);
 
     lv_obj_t* recorder = create_view();
     lv_obj_t* recorder_panel = CreateInfoPanel(recorder, theme);
+    AttachTopBarTouchTarget(recorder_panel);
     lichuang_recorder_status_label_ = CreatePlainLabel(recorder_panel, "Ready to record", content_width);
     lv_obj_set_style_text_color(lichuang_recorder_status_label_, lv_color_hex(kLichuangTechRed), 0);
     lichuang_recorder_progress_bar_ = CreateProgressBar(recorder_panel, theme, lv_color_hex(kLichuangTechRed));
@@ -687,6 +765,9 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_t* rec_stop = CreateAccentButton(recorder_row, theme, "Stop", 78,
         lv_color_hex(kLichuangTechAmber));
     lichuang_recorder_stop_button_ = rec_stop;
+    AttachTopBarTouchTarget(rec);
+    AttachTopBarTouchTarget(rec_pause);
+    AttachTopBarTouchTarget(rec_stop);
     lv_obj_add_event_cb(rec, LichuangRecorderStartEventCallback, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(rec_pause, LichuangRecorderPauseResumeEventCallback, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(rec_stop, LichuangRecorderStopEventCallback, LV_EVENT_CLICKED, this);
@@ -703,6 +784,7 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_flex_align(nav_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     for (int i = 0; i < static_cast<int>(LichuangFeatureView::kCount); ++i) {
         lv_obj_t* nav_button = CreateNavButton(nav_row, theme, kLichuangNavLabels[i]);
+        AttachTopBarTouchTarget(nav_button);
         lv_obj_set_user_data(nav_button, this);
         lv_obj_add_event_cb(nav_button, LichuangNavEventCallback, LV_EVENT_CLICKED,
             reinterpret_cast<void*>(static_cast<intptr_t>(i)));
@@ -1368,6 +1450,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_font(screen, text_font, 0);
     lv_obj_set_style_text_color(screen, lvgl_theme->text_color(), 0);
     lv_obj_set_style_bg_color(screen, lvgl_theme->background_color(), 0);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(screen);
+#endif
 
     /* Container */
     container_ = lv_obj_create(screen);
@@ -1379,9 +1464,16 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_row(container_, 0, 0);
     lv_obj_set_style_bg_color(container_, lvgl_theme->background_color(), 0);
     lv_obj_set_style_border_color(container_, lvgl_theme->border_color(), 0);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(container_);
+#endif
 
     /* Layer 1: Top bar - for status icons */
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    top_bar_ = lv_obj_create(screen);
+#else
     top_bar_ = lv_obj_create(container_);
+#endif
     lv_obj_set_size(top_bar_, LV_HOR_RES, LV_SIZE_CONTENT);
     lv_obj_set_style_radius(top_bar_, 0, 0);
     lv_obj_set_style_bg_opa(top_bar_, LV_OPA_50, 0);  // 50% opacity background
@@ -1395,6 +1487,10 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_flex_flow(top_bar_, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(top_bar_, LV_SCROLLBAR_MODE_OFF);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    lv_obj_align(top_bar_, LV_ALIGN_TOP_MID, 0, 0);
+    AttachTopBarTouchTarget(top_bar_);
+#endif
 
     // Left icon
     network_label_ = lv_label_create(top_bar_);
@@ -1434,6 +1530,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_scrollbar_mode(status_bar_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_layout(status_bar_, LV_LAYOUT_NONE, 0);  // Use absolute positioning
     lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);  // Overlap with top_bar_
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(status_bar_);
+#endif
 
     notification_label_ = lv_label_create(status_bar_);
     lv_obj_set_width(notification_label_, LV_HOR_RES * 0.8);
@@ -1468,6 +1567,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_flex_flow(content_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_row(content_, lvgl_theme->spacing(4), 0); // Space between messages
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(content_);
+#endif
 
     // We'll create chat messages dynamically in SetChatMessage
     chat_message_label_ = nullptr;
@@ -1496,6 +1598,7 @@ void LcdDisplay::SetupUI() {
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     CreateLichuangFeatureShell();
+    SetTopBarVisible(false);
 #endif
 }
 #if CONFIG_IDF_TARGET_ESP32P4
@@ -1827,6 +1930,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_font(screen, text_font, 0);
     lv_obj_set_style_text_color(screen, lvgl_theme->text_color(), 0);
     lv_obj_set_style_bg_color(screen, lvgl_theme->background_color(), 0);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(screen);
+#endif
 
     /* Container - used as background */
     container_ = lv_obj_create(screen);
@@ -1836,6 +1942,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_border_width(container_, 0, 0);
     lv_obj_set_style_bg_color(container_, lvgl_theme->background_color(), 0);
     lv_obj_set_style_border_color(container_, lvgl_theme->border_color(), 0);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(container_);
+#endif
 
     /* Bottom layer: emoji_box_ - centered display */
     emoji_box_ = lv_obj_create(screen);
@@ -1844,6 +1953,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_all(emoji_box_, 0, 0);
     lv_obj_set_style_border_width(emoji_box_, 0, 0);
     lv_obj_align(emoji_box_, LV_ALIGN_CENTER, 0, 0);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(emoji_box_);
+#endif
 
     emoji_label_ = lv_label_create(emoji_box_);
     lv_obj_set_style_text_font(emoji_label_, large_icon_font, 0);
@@ -1859,6 +1971,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_size(preview_image_, width_ / 2, height_ / 2);
     lv_obj_align(preview_image_, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(preview_image_);
+#endif
 
     /* Layer 1: Top bar - for status icons */
     top_bar_ = lv_obj_create(screen);
@@ -1876,6 +1991,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(top_bar_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_align(top_bar_, LV_ALIGN_TOP_MID, 0, 0);
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(top_bar_);
+#endif
 
     // Left icon
     network_label_ = lv_label_create(top_bar_);
@@ -1915,6 +2033,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_scrollbar_mode(status_bar_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_layout(status_bar_, LV_LAYOUT_NONE, 0);  // Use absolute positioning
     lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);  // Overlap with top_bar_
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(status_bar_);
+#endif
 
     notification_label_ = lv_label_create(status_bar_);
     lv_obj_set_width(notification_label_, LV_HOR_RES * 0.75);
@@ -1987,6 +2108,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_anim_duration(chat_message_label_, lv_anim_speed_clamped(60, 300, 60000), LV_PART_MAIN);
     lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);  // Hide until there is content
 #endif
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    AttachTopBarTouchTarget(bottom_bar_);
+#endif
 
     low_battery_popup_ = lv_obj_create(screen);
     lv_obj_set_scrollbar_mode(low_battery_popup_, LV_SCROLLBAR_MODE_OFF);
@@ -2003,6 +2127,7 @@ void LcdDisplay::SetupUI() {
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     CreateLichuangFeatureShell();
+    SetTopBarVisible(false);
 #endif
 }
 

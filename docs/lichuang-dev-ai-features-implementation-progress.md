@@ -234,8 +234,9 @@ Implemented behavior:
 - Hides the shell automatically when the device leaves idle for connecting,
   listening, speaking, Wi-Fi configuration, audio testing, or other active
   states.
-- Keeps the existing top status bar visible for Wi-Fi, mute, battery/default
-  power icon, notifications, and status text.
+- Reuses the existing top status bar for Wi-Fi, mute, battery/default power
+  icon, notifications, and status text. The later UI refresh makes this bar a
+  touch-triggered transient overlay.
 - Home page shows:
   - Time
   - Date
@@ -334,6 +335,11 @@ Implemented behavior:
   navigation state, and neon state colors.
 - Timer and recorder warning/running states use neon red/amber, while healthy
   ready/completed states use cyan/green.
+- The top status bar is hidden by default on the Lichuang Dev S3 UI. Tapping
+  the screen or feature controls temporarily shows the top status bar and center
+  status/notification area, then hides them automatically after 3 seconds.
+- The feature shell now uses the full screen; the top status bar behaves as a
+  transient overlay instead of reserving permanent blank header space.
 - Pomodoro page now has a countdown progress bar, elapsed/total status text,
   and dynamic `Pause`/`Resume` button text.
 - When a Pomodoro countdown is running or paused, the page switches into a
@@ -366,6 +372,9 @@ Hardware-visible checkpoint:
   Timer countdown page instead of staying on the voice dialogue page.
 - Confirm Home, Timer, Music, and Record pages share the same dark HUD
   technology visual style.
+- Confirm the top status bar is hidden by default, appears after tapping the
+  screen, and hides again after 3 seconds. Tap again while it is visible and
+  confirm the 3-second hide timer restarts.
 - Pause and resume Pomodoro and confirm the button text changes between
   `Pause` and `Resume`.
 - Tap `Music`, play a WAV/MP3 file, and confirm the progress bar,
@@ -1007,6 +1016,13 @@ The following non-ESP-IDF validations were performed:
 - Static inspection confirming the Lichuang display override keeps the Timer
   page visible briefly during voice response and then falls back to normal idle
   shell visibility.
+- Static inspection confirming the Lichuang top status bar is hidden by
+  default, is shown from LVGL touch events, and is hidden by a 3-second ESP
+  one-shot timer.
+- Static inspection confirming both LVGL setup branches wire touch targets and
+  initialize the Lichuang top status bar as hidden.
+- Static inspection confirming the Lichuang feature shell now occupies the full
+  display area while the top status bar overlays it only when temporarily shown.
 - Static inspection confirming Recorder UI uses explicit `Start` and `Stop`
   buttons wired to the existing `AudioRecorder` service.
 - Static inspection confirming Pomodoro source is included in `main/CMakeLists.txt`.
@@ -1104,6 +1120,8 @@ Recommended hardware checks:
 - Confirm display, touch, audio, camera, and BOOT button behavior are not regressed.
 - Trigger wake word or chat and confirm no audio deadlock or crash appears in logs.
 - Confirm idle screen shows the Home standby page.
+- Confirm the top status bar is hidden during normal idle display, appears only
+  after touching the screen, and disappears automatically after 3 seconds.
 - Tap the bottom `Home`, `Timer`, `Music`, and `Record` buttons and confirm the
   selected page changes immediately with the active navigation state highlighted.
 - Confirm all four feature pages use the same dark HUD technology style:
