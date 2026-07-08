@@ -19,7 +19,10 @@
 
 #include "application.h"
 #include "board.h"
+#include "features/audio_recorder.h"
+#include "features/music_player.h"
 #include "features/pomodoro_timer.h"
+#include "services/environment_service.h"
 #include "storage/sd_card_service.h"
 
 #define TAG "LcdDisplay"
@@ -372,6 +375,17 @@ constexpr const char* kLichuangViewNames[] = {
     "Recorder",
 };
 
+constexpr const char* kLichuangNavLabels[] = {
+    "Home",
+    "Timer",
+    "Music",
+    "Record",
+};
+
+constexpr uint32_t kLichuangRed = 0xDC2626;
+constexpr uint32_t kLichuangBlue = 0x2563EB;
+constexpr uint32_t kLichuangAmber = 0xD97706;
+
 lv_obj_t* CreatePlainLabel(lv_obj_t* parent, const char* text, lv_coord_t width,
         lv_text_align_t align = LV_TEXT_ALIGN_CENTER) {
     lv_obj_t* label = lv_label_create(parent);
@@ -389,29 +403,123 @@ lv_obj_t* CreateInfoPanel(lv_obj_t* parent, LvglTheme* theme) {
     lv_obj_set_style_radius(panel, 6, 0);
     lv_obj_set_style_border_width(panel, 1, 0);
     lv_obj_set_style_border_color(panel, theme->border_color(), 0);
-    lv_obj_set_style_bg_color(panel, theme->background_color(), 0);
-    lv_obj_set_style_bg_opa(panel, LV_OPA_60, 0);
-    lv_obj_set_style_pad_all(panel, theme->spacing(3), 0);
+    lv_obj_set_style_border_opa(panel, LV_OPA_30, 0);
+    lv_obj_set_style_bg_color(panel, theme->assistant_bubble_color(), 0);
+    lv_obj_set_style_bg_opa(panel, LV_OPA_70, 0);
+    lv_obj_set_style_pad_all(panel, theme->spacing(2), 0);
     lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(panel, theme->spacing(2), 0);
+    lv_obj_set_style_pad_row(panel, theme->spacing(1), 0);
     lv_obj_set_scrollbar_mode(panel, LV_SCROLLBAR_MODE_OFF);
     return panel;
 }
 
-lv_obj_t* CreateSmallButton(lv_obj_t* parent, LvglTheme* theme, const char* text) {
+void ApplyButtonColors(lv_obj_t* button, lv_color_t bg_color, lv_color_t border_color,
+        lv_color_t text_color, lv_opa_t bg_opa = LV_OPA_90) {
+    if (button == nullptr) {
+        return;
+    }
+    lv_obj_set_style_bg_color(button, bg_color, 0);
+    lv_obj_set_style_bg_opa(button, bg_opa, 0);
+    lv_obj_set_style_border_color(button, border_color, 0);
+    lv_obj_set_style_border_opa(button, LV_OPA_70, 0);
+    lv_obj_t* label = lv_obj_get_child(button, 0);
+    if (label != nullptr) {
+        lv_obj_set_style_text_color(label, text_color, 0);
+    }
+}
+
+lv_obj_t* CreateStyledButton(lv_obj_t* parent, LvglTheme* theme, const char* text,
+        lv_coord_t width, lv_coord_t height, lv_color_t bg_color, lv_color_t text_color) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_set_size(button, 62, 34);
+    lv_obj_set_size(button, width, height);
     lv_obj_set_style_radius(button, 5, 0);
-    lv_obj_set_style_bg_color(button, theme->assistant_bubble_color(), 0);
-    lv_obj_set_style_bg_opa(button, LV_OPA_90, 0);
     lv_obj_set_style_border_width(button, 1, 0);
-    lv_obj_set_style_border_color(button, theme->border_color(), 0);
+    lv_obj_set_style_pad_all(button, 0, 0);
     lv_obj_t* label = lv_label_create(button);
     lv_label_set_text(label, text);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label);
+    ApplyButtonColors(button, bg_color, theme->border_color(), text_color);
     return button;
+}
+
+lv_obj_t* CreateSmallButton(lv_obj_t* parent, LvglTheme* theme, const char* text) {
+    return CreateStyledButton(parent, theme, text, 62, 30,
+        theme->background_color(), theme->text_color());
+}
+
+lv_obj_t* CreateAccentButton(lv_obj_t* parent, LvglTheme* theme, const char* text,
+        lv_coord_t width, lv_color_t accent_color) {
+    return CreateStyledButton(parent, theme, text, width, 30,
+        accent_color, lv_color_hex(0xFFFFFF));
+}
+
+lv_obj_t* CreateNavButton(lv_obj_t* parent, LvglTheme* theme, const char* text) {
+    return CreateStyledButton(parent, theme, text, 70, 32,
+        theme->background_color(), theme->text_color());
+}
+
+lv_obj_t* CreateProgressBar(lv_obj_t* parent, LvglTheme* theme, lv_color_t indicator_color) {
+    lv_obj_t* bar = lv_bar_create(parent);
+    lv_obj_set_size(bar, LV_HOR_RES - theme->spacing(36), 8);
+    lv_bar_set_range(bar, 0, 1000);
+    lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+    lv_obj_set_style_radius(bar, 4, 0);
+    lv_obj_set_style_bg_color(bar, theme->border_color(), 0);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_40, 0);
+    lv_obj_set_style_radius(bar, 4, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(bar, indicator_color, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_90, LV_PART_INDICATOR);
+    return bar;
+}
+
+void SetObjectHidden(lv_obj_t* object, bool hidden) {
+    if (object == nullptr) {
+        return;
+    }
+    if (hidden) {
+        lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void SetBarIndicatorColor(lv_obj_t* bar, lv_color_t color) {
+    if (bar != nullptr) {
+        lv_obj_set_style_bg_color(bar, color, LV_PART_INDICATOR);
+    }
+}
+
+void SetButtonText(lv_obj_t* button, const char* text) {
+    if (button == nullptr) {
+        return;
+    }
+    lv_obj_t* label = lv_obj_get_child(button, 0);
+    if (label != nullptr) {
+        lv_label_set_text(label, text);
+        lv_obj_center(label);
+    }
+}
+
+void SetBarProgress(lv_obj_t* bar, int elapsed_seconds, int duration_seconds) {
+    if (bar == nullptr) {
+        return;
+    }
+    int value = 0;
+    if (duration_seconds > 0 && elapsed_seconds > 0) {
+        value = std::min(1000, std::max(0, elapsed_seconds * 1000 / duration_seconds));
+    }
+    lv_bar_set_value(bar, value, LV_ANIM_OFF);
+}
+
+void FormatDuration(char* buffer, size_t size, int seconds) {
+    if (seconds < 0) {
+        seconds = 0;
+    }
+    int minutes = seconds / 60;
+    int remaining_seconds = seconds % 60;
+    snprintf(buffer, size, "%02d:%02d", minutes, remaining_seconds);
 }
 } // namespace
 
@@ -424,13 +532,15 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     auto text_font = theme->text_font()->font();
     lv_coord_t top_offset = text_font->line_height + theme->spacing(8);
     lv_coord_t shell_height = LV_VER_RES - top_offset;
+    lv_coord_t nav_height = 38;
+    lv_coord_t page_height = shell_height - nav_height - theme->spacing(8);
 
     lichuang_feature_shell_ = lv_obj_create(lv_screen_active());
     lv_obj_set_pos(lichuang_feature_shell_, 0, top_offset);
     lv_obj_set_size(lichuang_feature_shell_, LV_HOR_RES, shell_height);
     lv_obj_set_style_radius(lichuang_feature_shell_, 0, 0);
     lv_obj_set_style_border_width(lichuang_feature_shell_, 0, 0);
-    lv_obj_set_style_pad_all(lichuang_feature_shell_, theme->spacing(4), 0);
+    lv_obj_set_style_pad_all(lichuang_feature_shell_, theme->spacing(2), 0);
     lv_obj_set_style_bg_color(lichuang_feature_shell_, theme->chat_background_color(), 0);
     lv_obj_set_scrollbar_mode(lichuang_feature_shell_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_dir(lichuang_feature_shell_, LV_DIR_NONE);
@@ -439,49 +549,55 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_add_event_cb(lichuang_feature_shell_, LichuangFeatureGestureEventCallback,
         LV_EVENT_GESTURE, this);
 
-    auto create_view = [this, theme, shell_height](const char* title) {
+    auto create_view = [this, theme, page_height]() {
         lv_obj_t* page = lv_obj_create(lichuang_feature_shell_);
-        lv_obj_set_size(page, LV_HOR_RES - theme->spacing(8), shell_height - theme->spacing(8));
+        lv_obj_set_size(page, LV_HOR_RES - theme->spacing(4), page_height);
+        lv_obj_align(page, LV_ALIGN_TOP_MID, 0, 0);
         lv_obj_set_style_radius(page, 0, 0);
         lv_obj_set_style_border_width(page, 0, 0);
         lv_obj_set_style_pad_all(page, 0, 0);
         lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
         lv_obj_set_flex_flow(page, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(page, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_row(page, theme->spacing(4), 0);
+        lv_obj_set_style_pad_row(page, theme->spacing(2), 0);
         lv_obj_set_scrollbar_mode(page, LV_SCROLLBAR_MODE_OFF);
         lv_obj_add_flag(page, LV_OBJ_FLAG_HIDDEN);
-
-        lv_obj_t* heading = CreatePlainLabel(page, title, LV_HOR_RES - theme->spacing(16));
-        lv_obj_set_style_text_color(heading, theme->text_color(), 0);
         return page;
     };
 
-    lv_obj_t* home = create_view("Standby Home");
+    const lv_coord_t content_width = LV_HOR_RES - theme->spacing(24);
+
+    lv_obj_t* home = create_view();
     lv_obj_t* home_time_panel = CreateInfoPanel(home, theme);
-    lichuang_home_time_label_ = CreatePlainLabel(home_time_panel, "--:--", LV_HOR_RES - theme->spacing(28));
-    lichuang_home_date_label_ = CreatePlainLabel(home_time_panel, "Date not set", LV_HOR_RES - theme->spacing(28));
-    lichuang_home_weekday_label_ = CreatePlainLabel(home_time_panel, "Waiting for network time", LV_HOR_RES - theme->spacing(28));
+    lichuang_home_time_label_ = CreatePlainLabel(home_time_panel, "--:--", content_width);
+    lv_obj_set_style_text_color(lichuang_home_time_label_, lv_color_hex(kLichuangBlue), 0);
+    lichuang_home_date_label_ = CreatePlainLabel(home_time_panel, "Date not set", content_width);
+    lichuang_home_weekday_label_ = CreatePlainLabel(home_time_panel, "Waiting for network time", content_width);
 
     lv_obj_t* env_panel = CreateInfoPanel(home, theme);
-    lichuang_home_weather_label_ = CreatePlainLabel(env_panel, "Weather: unavailable", LV_HOR_RES - theme->spacing(28));
-    lichuang_home_air_label_ = CreatePlainLabel(env_panel, "AQI: unavailable", LV_HOR_RES - theme->spacing(28));
+    lichuang_home_weather_label_ = CreatePlainLabel(env_panel, "Weather: unavailable", content_width);
+    lichuang_home_air_label_ = CreatePlainLabel(env_panel, "AQI: unavailable", content_width);
 
-    lv_obj_t* pomodoro = create_view("Pomodoro");
+    lv_obj_t* pomodoro = create_view();
     lv_obj_t* pomo_panel = CreateInfoPanel(pomodoro, theme);
-    lichuang_pomodoro_remaining_label_ = CreatePlainLabel(pomo_panel, "00:00", LV_HOR_RES - theme->spacing(28));
-    lichuang_pomodoro_status_label_ = CreatePlainLabel(pomo_panel, "Idle", LV_HOR_RES - theme->spacing(28));
-    CreatePlainLabel(pomo_panel, "Quick presets", LV_HOR_RES - theme->spacing(28));
+    lichuang_pomodoro_mode_label_ = CreatePlainLabel(pomo_panel, "READY", content_width);
+    lv_obj_set_style_text_color(lichuang_pomodoro_mode_label_, lv_color_hex(kLichuangRed), 0);
+    lichuang_pomodoro_remaining_label_ = CreatePlainLabel(pomo_panel, "00:00", content_width);
+    lv_obj_set_style_text_color(lichuang_pomodoro_remaining_label_, lv_color_hex(kLichuangRed), 0);
+    lichuang_pomodoro_progress_bar_ = CreateProgressBar(pomo_panel, theme, lv_color_hex(kLichuangRed));
+    lichuang_pomodoro_status_label_ = CreatePlainLabel(pomo_panel, "Pick a focus length", content_width);
+    lichuang_pomodoro_preset_label_ = CreatePlainLabel(pomo_panel, "Quick start", content_width);
     lv_obj_t* preset_row = lv_obj_create(pomo_panel);
+    lichuang_pomodoro_preset_row_ = preset_row;
     lv_obj_set_size(preset_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(preset_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(preset_row, 0, 0);
     lv_obj_set_style_pad_all(preset_row, 0, 0);
-    lv_obj_set_style_pad_column(preset_row, theme->spacing(3), 0);
+    lv_obj_set_style_pad_column(preset_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(preset_row, LV_FLEX_FLOW_ROW);
-    lv_obj_t* preset_15 = CreateSmallButton(preset_row, theme, "15m");
-    lv_obj_t* preset_30 = CreateSmallButton(preset_row, theme, "30m");
-    lv_obj_t* preset_45 = CreateSmallButton(preset_row, theme, "45m");
+    lv_obj_t* preset_15 = CreateAccentButton(preset_row, theme, "15m", 58, lv_color_hex(kLichuangRed));
+    lv_obj_t* preset_30 = CreateAccentButton(preset_row, theme, "30m", 58, lv_color_hex(kLichuangRed));
+    lv_obj_t* preset_45 = CreateAccentButton(preset_row, theme, "45m", 58, lv_color_hex(kLichuangRed));
     lv_obj_set_user_data(preset_15, this);
     lv_obj_set_user_data(preset_30, this);
     lv_obj_set_user_data(preset_45, this);
@@ -497,10 +613,13 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_set_style_bg_opa(pomodoro_control_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(pomodoro_control_row, 0, 0);
     lv_obj_set_style_pad_all(pomodoro_control_row, 0, 0);
-    lv_obj_set_style_pad_column(pomodoro_control_row, theme->spacing(3), 0);
+    lv_obj_set_style_pad_column(pomodoro_control_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(pomodoro_control_row, LV_FLEX_FLOW_ROW);
-    lv_obj_t* pause_resume = CreateSmallButton(pomodoro_control_row, theme, "Pause");
-    lv_obj_t* cancel = CreateSmallButton(pomodoro_control_row, theme, "Cancel");
+    lv_obj_t* pause_resume = CreateAccentButton(pomodoro_control_row, theme, "Pause", 76,
+        lv_color_hex(kLichuangBlue));
+    lichuang_pomodoro_pause_button_ = pause_resume;
+    lv_obj_t* cancel = CreateAccentButton(pomodoro_control_row, theme, "Cancel", 76,
+        lv_color_hex(kLichuangAmber));
     lv_obj_set_user_data(pause_resume, this);
     lv_obj_set_user_data(cancel, this);
     lv_obj_add_event_cb(pause_resume, LichuangPomodoroPauseResumeEventCallback,
@@ -508,39 +627,78 @@ void LcdDisplay::CreateLichuangFeatureShell() {
     lv_obj_add_event_cb(cancel, LichuangPomodoroCancelEventCallback,
         LV_EVENT_CLICKED, this);
 
-    lv_obj_t* music = create_view("Music");
+    lv_obj_t* music = create_view();
     lv_obj_t* music_panel = CreateInfoPanel(music, theme);
-    lichuang_music_status_label_ = CreatePlainLabel(music_panel, "SD: checking...", LV_HOR_RES - theme->spacing(28));
-    lichuang_music_track_label_ = CreatePlainLabel(music_panel, "Playlist: no scan yet", LV_HOR_RES - theme->spacing(28));
+    lichuang_music_status_label_ = CreatePlainLabel(music_panel, "Player idle", content_width);
+    lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangBlue), 0);
+    lichuang_music_track_label_ = CreatePlainLabel(music_panel, "Playlist: no scan yet", content_width);
+    lichuang_music_progress_bar_ = CreateProgressBar(music_panel, theme, lv_color_hex(kLichuangBlue));
+    lichuang_music_detail_label_ = CreatePlainLabel(music_panel, "00:00/00:00  -- Hz", content_width);
+    lichuang_music_list_label_ = CreatePlainLabel(music_panel, "Next: --", content_width);
     lv_obj_t* control_row = lv_obj_create(music_panel);
     lv_obj_set_size(control_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(control_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(control_row, 0, 0);
     lv_obj_set_style_pad_all(control_row, 0, 0);
-    lv_obj_set_style_pad_column(control_row, theme->spacing(3), 0);
+    lv_obj_set_style_pad_column(control_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(control_row, LV_FLEX_FLOW_ROW);
-    CreateSmallButton(control_row, theme, "Prev");
-    CreateSmallButton(control_row, theme, "Play");
-    CreateSmallButton(control_row, theme, "Next");
+    lv_obj_t* previous = CreateSmallButton(control_row, theme, "Prev");
+    lv_obj_t* play_pause = CreateAccentButton(control_row, theme, "Play", 70,
+        lv_color_hex(kLichuangBlue));
+    lichuang_music_play_button_ = play_pause;
+    lv_obj_t* next = CreateSmallButton(control_row, theme, "Next");
+    lv_obj_add_event_cb(previous, LichuangMusicPreviousEventCallback, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(play_pause, LichuangMusicPlayPauseEventCallback, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(next, LichuangMusicNextEventCallback, LV_EVENT_CLICKED, this);
 
-    lv_obj_t* recorder = create_view("Recorder");
+    lv_obj_t* recorder = create_view();
     lv_obj_t* recorder_panel = CreateInfoPanel(recorder, theme);
-    CreatePlainLabel(recorder_panel, "WAV recorder pending", LV_HOR_RES - theme->spacing(28));
-    CreatePlainLabel(recorder_panel, "Output: /sdcard/recordings", LV_HOR_RES - theme->spacing(28));
+    lichuang_recorder_status_label_ = CreatePlainLabel(recorder_panel, "Ready to record", content_width);
+    lv_obj_set_style_text_color(lichuang_recorder_status_label_, lv_color_hex(kLichuangRed), 0);
+    lichuang_recorder_progress_bar_ = CreateProgressBar(recorder_panel, theme, lv_color_hex(kLichuangRed));
+    lichuang_recorder_detail_label_ = CreatePlainLabel(recorder_panel, "Elapsed 00:00, free -- MB", content_width);
+    lichuang_recorder_file_label_ = CreatePlainLabel(recorder_panel, "Output: /sdcard/recordings", content_width);
     lv_obj_t* recorder_row = lv_obj_create(recorder_panel);
     lv_obj_set_size(recorder_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(recorder_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(recorder_row, 0, 0);
     lv_obj_set_style_pad_all(recorder_row, 0, 0);
-    lv_obj_set_style_pad_column(recorder_row, theme->spacing(3), 0);
+    lv_obj_set_style_pad_column(recorder_row, theme->spacing(2), 0);
     lv_obj_set_flex_flow(recorder_row, LV_FLEX_FLOW_ROW);
-    CreateSmallButton(recorder_row, theme, "Rec");
-    CreateSmallButton(recorder_row, theme, "Pause");
-    CreateSmallButton(recorder_row, theme, "Stop");
+    lv_obj_t* rec = CreateAccentButton(recorder_row, theme, "Start", 78,
+        lv_color_hex(kLichuangRed));
+    lichuang_recorder_start_button_ = rec;
+    lv_obj_t* rec_pause = CreateAccentButton(recorder_row, theme, "Pause", 78,
+        lv_color_hex(kLichuangBlue));
+    lichuang_recorder_pause_button_ = rec_pause;
+    lv_obj_t* rec_stop = CreateAccentButton(recorder_row, theme, "Stop", 78,
+        lv_color_hex(kLichuangAmber));
+    lichuang_recorder_stop_button_ = rec_stop;
+    lv_obj_add_event_cb(rec, LichuangRecorderStartEventCallback, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(rec_pause, LichuangRecorderPauseResumeEventCallback, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(rec_stop, LichuangRecorderStopEventCallback, LV_EVENT_CLICKED, this);
+
+    lv_obj_t* nav_row = lv_obj_create(lichuang_feature_shell_);
+    lv_obj_set_size(nav_row, LV_HOR_RES - theme->spacing(4), nav_height);
+    lv_obj_align(nav_row, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_radius(nav_row, 0, 0);
+    lv_obj_set_style_bg_opa(nav_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(nav_row, 0, 0);
+    lv_obj_set_style_pad_all(nav_row, 0, 0);
+    lv_obj_set_style_pad_column(nav_row, theme->spacing(1), 0);
+    lv_obj_set_flex_flow(nav_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(nav_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    for (int i = 0; i < static_cast<int>(LichuangFeatureView::kCount); ++i) {
+        lv_obj_t* nav_button = CreateNavButton(nav_row, theme, kLichuangNavLabels[i]);
+        lv_obj_set_user_data(nav_button, this);
+        lv_obj_add_event_cb(nav_button, LichuangNavEventCallback, LV_EVENT_CLICKED,
+            reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+        lichuang_nav_buttons_[i] = nav_button;
+    }
 
     lichuang_page_label_ = CreatePlainLabel(lichuang_feature_shell_, "Home 1/4",
         LV_HOR_RES - theme->spacing(8));
-    lv_obj_align(lichuang_page_label_, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_add_flag(lichuang_page_label_, LV_OBJ_FLAG_HIDDEN);
 
     lichuang_feature_views_[static_cast<int>(LichuangFeatureView::kHome)] = home;
     lichuang_feature_views_[static_cast<int>(LichuangFeatureView::kPomodoro)] = pomodoro;
@@ -570,6 +728,8 @@ void LcdDisplay::ShowLichuangFeatureShell() {
         UpdateLichuangPomodoroView(false);
     } else if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kMusic)) {
         UpdateLichuangMusicView(false);
+    } else if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kRecorder)) {
+        UpdateLichuangRecorderView(false);
     }
 }
 
@@ -619,6 +779,21 @@ void LcdDisplay::SetLichuangFeatureView(LichuangFeatureView view) {
         }
     }
 
+    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
+    for (int i = 0; i < view_count; ++i) {
+        lv_obj_t* nav_button = lichuang_nav_buttons_[i];
+        if (nav_button == nullptr) {
+            continue;
+        }
+        if (i == next) {
+            ApplyButtonColors(nav_button, lv_color_hex(kLichuangBlue),
+                lv_color_hex(kLichuangBlue), lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+        } else {
+            ApplyButtonColors(nav_button, theme->background_color(),
+                theme->border_color(), theme->text_color(), LV_OPA_90);
+        }
+    }
+
     lichuang_feature_view_index_ = next;
     if (lichuang_page_label_ != nullptr) {
         char label[32];
@@ -633,6 +808,8 @@ void LcdDisplay::SetLichuangFeatureView(LichuangFeatureView view) {
         UpdateLichuangPomodoroView(true);
     } else if (view == LichuangFeatureView::kMusic) {
         UpdateLichuangMusicView(true);
+    } else if (view == LichuangFeatureView::kRecorder) {
+        UpdateLichuangRecorderView(true);
     }
 
     ESP_LOGI(TAG, "Lichuang feature view: %s", kLichuangViewNames[next]);
@@ -645,32 +822,75 @@ void LcdDisplay::UpdateLichuangHomeView(bool force) {
 
     time_t now = time(nullptr);
     time_t current_minute = now / 60;
-    if (!force && current_minute == lichuang_last_home_update_minute_) {
-        return;
-    }
-    lichuang_last_home_update_minute_ = current_minute;
+    if (force || current_minute != lichuang_last_home_update_minute_) {
+        lichuang_last_home_update_minute_ = current_minute;
 
-    struct tm timeinfo = {};
-    localtime_r(&now, &timeinfo);
-    if (timeinfo.tm_year >= 2025 - 1900) {
-        char time_text[16];
-        char date_text[24];
-        strftime(time_text, sizeof(time_text), "%H:%M", &timeinfo);
-        strftime(date_text, sizeof(date_text), "%Y-%m-%d", &timeinfo);
-        static const char* weekdays[] = {
-            "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
-        };
-        lv_label_set_text(lichuang_home_time_label_, time_text);
-        lv_label_set_text(lichuang_home_date_label_, date_text);
-        lv_label_set_text(lichuang_home_weekday_label_, weekdays[timeinfo.tm_wday]);
+        struct tm timeinfo = {};
+        localtime_r(&now, &timeinfo);
+        if (timeinfo.tm_year >= 2025 - 1900) {
+            char time_text[16];
+            char date_text[24];
+            strftime(time_text, sizeof(time_text), "%H:%M", &timeinfo);
+            strftime(date_text, sizeof(date_text), "%Y-%m-%d", &timeinfo);
+            static const char* weekdays[] = {
+                "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+            };
+            lv_label_set_text(lichuang_home_time_label_, time_text);
+            lv_label_set_text(lichuang_home_date_label_, date_text);
+            lv_label_set_text(lichuang_home_weekday_label_, weekdays[timeinfo.tm_wday]);
+        } else {
+            lv_label_set_text(lichuang_home_time_label_, "--:--");
+            lv_label_set_text(lichuang_home_date_label_, "Date not set");
+            lv_label_set_text(lichuang_home_weekday_label_, "Waiting for network time");
+        }
+    }
+
+    auto& environment = EnvironmentService::GetInstance();
+    environment.RefreshAsync(false);
+    auto env = environment.GetSnapshot();
+
+    char weather[96];
+    if (!env.configured) {
+        snprintf(weather, sizeof(weather), "Weather: configure AMap key");
+    } else if (env.weather_available) {
+        snprintf(weather, sizeof(weather), "%s %s %sC H%s%%",
+            env.city.empty() ? "Local" : env.city.c_str(),
+            env.weather_text.c_str(),
+            env.temperature_c.empty() ? "--" : env.temperature_c.c_str(),
+            env.humidity.empty() ? "--" : env.humidity.c_str());
+    } else if (env.refresh_in_progress) {
+        snprintf(weather, sizeof(weather), "Weather: updating...");
     } else {
-        lv_label_set_text(lichuang_home_time_label_, "--:--");
-        lv_label_set_text(lichuang_home_date_label_, "Date not set");
-        lv_label_set_text(lichuang_home_weekday_label_, "Waiting for network time");
+        snprintf(weather, sizeof(weather), "Weather: unavailable");
     }
+    lv_label_set_text(lichuang_home_weather_label_, weather);
 
-    lv_label_set_text(lichuang_home_weather_label_, "Weather: unavailable");
-    lv_label_set_text(lichuang_home_air_label_, "AQI: unavailable");
+    char air[96];
+    if (env.air_available) {
+        char aqi_value[12];
+        if (env.aqi >= 0) {
+            snprintf(aqi_value, sizeof(aqi_value), "%d", env.aqi);
+        } else {
+            snprintf(aqi_value, sizeof(aqi_value), "--");
+        }
+        char pm25_value[12];
+        if (env.pm25 >= 0) {
+            snprintf(pm25_value, sizeof(pm25_value), "%d", env.pm25);
+        } else {
+            snprintf(pm25_value, sizeof(pm25_value), "--");
+        }
+        snprintf(air, sizeof(air), "AQI: %s %s PM2.5 %s",
+            aqi_value,
+            env.air_category.empty() ? "" : env.air_category.c_str(),
+            pm25_value);
+    } else if (!env.configured) {
+        snprintf(air, sizeof(air), "AQI: configure endpoint");
+    } else if (env.refresh_in_progress) {
+        snprintf(air, sizeof(air), "AQI: updating...");
+    } else {
+        snprintf(air, sizeof(air), "AQI: unavailable");
+    }
+    lv_label_set_text(lichuang_home_air_label_, air);
 }
 
 void LcdDisplay::UpdateLichuangPomodoroView(bool force) {
@@ -680,67 +900,277 @@ void LcdDisplay::UpdateLichuangPomodoroView(bool force) {
         return;
     }
 
+    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
     auto status = PomodoroTimer::GetInstance().GetStatus();
-    int remaining_minutes = status.remaining_seconds / 60;
-    int remaining_seconds = status.remaining_seconds % 60;
 
     char remaining[16];
-    snprintf(remaining, sizeof(remaining), "%02d:%02d",
-        remaining_minutes, remaining_seconds);
+    FormatDuration(remaining, sizeof(remaining), status.remaining_seconds);
     lv_label_set_text(lichuang_pomodoro_remaining_label_, remaining);
+    SetBarProgress(lichuang_pomodoro_progress_bar_, status.elapsed_seconds,
+        status.duration_minutes * 60);
+    SetButtonText(lichuang_pomodoro_pause_button_,
+        status.state == PomodoroState::kPaused ? "Resume" : "Pause");
 
     char text[64];
+    char elapsed[16];
+    char duration[16];
+    FormatDuration(elapsed, sizeof(elapsed), status.elapsed_seconds);
+    FormatDuration(duration, sizeof(duration), status.duration_minutes * 60);
+    const char* mode = "READY";
+    lv_color_t state_color = lv_color_hex(kLichuangBlue);
+    bool timer_active = false;
     switch (status.state) {
         case PomodoroState::kRunning:
-            snprintf(text, sizeof(text), "Running %d min", status.duration_minutes);
+            mode = "FOCUS TIMER";
+            state_color = lv_color_hex(kLichuangRed);
+            timer_active = true;
+            snprintf(text, sizeof(text), "Countdown %s/%s", elapsed, duration);
             break;
         case PomodoroState::kPaused:
-            snprintf(text, sizeof(text), "Paused %d min", status.duration_minutes);
+            mode = "PAUSED";
+            state_color = lv_color_hex(kLichuangAmber);
+            timer_active = true;
+            snprintf(text, sizeof(text), "Paused %s/%s", elapsed, duration);
             break;
         case PomodoroState::kFinished:
-            snprintf(text, sizeof(text), "Finished");
+            mode = "COMPLETE";
+            state_color = lv_color_hex(kLichuangBlue);
+            snprintf(text, sizeof(text), "Finished %s", duration);
             break;
         case PomodoroState::kIdle:
         default:
-            snprintf(text, sizeof(text), "Idle");
+            snprintf(text, sizeof(text), "Pick 15m, 30m, or 45m");
             break;
+    }
+    if (lichuang_pomodoro_mode_label_ != nullptr) {
+        lv_label_set_text(lichuang_pomodoro_mode_label_, mode);
+        lv_obj_set_style_text_color(lichuang_pomodoro_mode_label_, state_color, 0);
+    }
+    lv_obj_set_style_text_color(lichuang_pomodoro_remaining_label_, state_color, 0);
+    lv_obj_set_style_text_color(lichuang_pomodoro_status_label_, theme->text_color(), 0);
+    SetBarIndicatorColor(lichuang_pomodoro_progress_bar_, state_color);
+    SetObjectHidden(lichuang_pomodoro_preset_label_, timer_active);
+    SetObjectHidden(lichuang_pomodoro_preset_row_, timer_active);
+    if (timer_active) {
+        ApplyButtonColors(lichuang_pomodoro_pause_button_, state_color,
+            state_color, lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+    } else {
+        ApplyButtonColors(lichuang_pomodoro_pause_button_, theme->background_color(),
+            theme->border_color(), theme->text_color(), LV_OPA_90);
     }
     lv_label_set_text(lichuang_pomodoro_status_label_, text);
 }
 
 void LcdDisplay::UpdateLichuangMusicView(bool force) {
-    if (lichuang_music_status_label_ == nullptr) {
+    if (lichuang_music_status_label_ == nullptr ||
+            lichuang_music_track_label_ == nullptr ||
+            lichuang_music_detail_label_ == nullptr ||
+            lichuang_music_list_label_ == nullptr) {
         return;
     }
 
-    time_t now = time(nullptr);
-    if (!force && now - lichuang_last_media_scan_time_ < 10) {
-        return;
-    }
-    lichuang_last_media_scan_time_ = now;
-
+    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
     auto& storage = SdCardService::GetInstance();
     if (!storage.IsMounted()) {
+        lichuang_last_media_scan_time_ = 0;
         lv_label_set_text(lichuang_music_status_label_, "SD: not mounted");
+        lv_obj_set_style_text_color(lichuang_music_status_label_, lv_color_hex(kLichuangRed), 0);
         lv_label_set_text(lichuang_music_track_label_, "Playlist: unavailable");
+        lv_label_set_text(lichuang_music_detail_label_, "00:00/00:00  -- Hz");
+        lv_label_set_text(lichuang_music_list_label_, "Insert SD card");
+        SetBarProgress(lichuang_music_progress_bar_, 0, 0);
+        SetBarIndicatorColor(lichuang_music_progress_bar_, lv_color_hex(kLichuangRed));
+        SetButtonText(lichuang_music_play_button_, "Play");
+        ApplyButtonColors(lichuang_music_play_button_, theme->background_color(),
+            theme->border_color(), theme->text_color(), LV_OPA_90);
         return;
     }
 
-    auto files = storage.ScanMediaFiles();
+    auto& player = MusicPlayer::GetInstance();
+    auto player_status = player.GetStatus();
+    bool active = player_status.state == MusicPlayerState::kPlaying ||
+        player_status.state == MusicPlayerState::kPaused ||
+        player_status.state == MusicPlayerState::kError;
+    time_t now = time(nullptr);
+    bool scan_due = lichuang_last_media_scan_time_ == 0 ||
+        now - lichuang_last_media_scan_time_ >= 10;
+
+    std::vector<MediaFile> files;
+    bool scanned_playlist = false;
+    if (!active && (force || scan_due)) {
+        lichuang_last_media_scan_time_ = now > 0 ? now : 1;
+        files = player.GetPlaylist();
+        player_status = player.GetStatus();
+        scanned_playlist = true;
+    }
     uint64_t free_mb = storage.GetFreeBytes() / (1024 * 1024);
     char status[48];
     snprintf(status, sizeof(status), "SD: mounted, free %llu MB",
         static_cast<unsigned long long>(free_mb));
     lv_label_set_text(lichuang_music_status_label_, status);
+    lv_color_t music_color = player_status.state == MusicPlayerState::kError
+        ? lv_color_hex(kLichuangRed)
+        : lv_color_hex(kLichuangBlue);
+    lv_obj_set_style_text_color(lichuang_music_status_label_, music_color, 0);
 
-    char playlist[72];
-    if (files.empty()) {
-        snprintf(playlist, sizeof(playlist), "Playlist: 0 files");
-    } else {
-        snprintf(playlist, sizeof(playlist), "Playlist: %u files, newest: %.28s",
+    SetBarProgress(lichuang_music_progress_bar_, player_status.elapsed_seconds,
+        player_status.duration_seconds);
+    SetBarIndicatorColor(lichuang_music_progress_bar_, music_color);
+    SetButtonText(lichuang_music_play_button_,
+        player_status.state == MusicPlayerState::kPlaying ? "Pause" : "Play");
+    ApplyButtonColors(lichuang_music_play_button_, music_color,
+        music_color, lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+
+    char playlist[96];
+    if (player_status.state == MusicPlayerState::kPlaying ||
+            player_status.state == MusicPlayerState::kPaused) {
+        snprintf(playlist, sizeof(playlist), "%s %s: %.42s",
+            player_status.state == MusicPlayerState::kPlaying ? "Playing" : "Paused",
+            player_status.track_type.empty() ? "audio" : player_status.track_type.c_str(),
+            player_status.track_name.empty() ? "(unknown)" : player_status.track_name.c_str());
+    } else if (player_status.state == MusicPlayerState::kError) {
+        snprintf(playlist, sizeof(playlist), "Music error: %.58s",
+            player_status.last_error.c_str());
+    } else if (scanned_playlist && files.empty()) {
+        snprintf(playlist, sizeof(playlist), "Playlist: 0 WAV/MP3 files");
+    } else if (scanned_playlist) {
+        snprintf(playlist, sizeof(playlist), "Playlist: %u WAV/MP3, newest: %.24s",
             static_cast<unsigned>(files.size()), files.front().display_name.c_str());
+    } else if (player_status.playlist_size > 0) {
+        if (player_status.track_name.empty()) {
+            snprintf(playlist, sizeof(playlist), "Playlist: %u WAV/MP3",
+                static_cast<unsigned>(player_status.playlist_size));
+        } else {
+            snprintf(playlist, sizeof(playlist), "Playlist: %u WAV/MP3, last: %.24s",
+                static_cast<unsigned>(player_status.playlist_size),
+                player_status.track_name.c_str());
+        }
+    } else {
+        snprintf(playlist, sizeof(playlist), "Playlist: --");
     }
     lv_label_set_text(lichuang_music_track_label_, playlist);
+
+    char elapsed[16];
+    char duration[16];
+    FormatDuration(elapsed, sizeof(elapsed), player_status.elapsed_seconds);
+    FormatDuration(duration, sizeof(duration), player_status.duration_seconds);
+    char detail[64];
+    if (player_status.sample_rate > 0 && player_status.channels > 0) {
+        snprintf(detail, sizeof(detail), "%s/%s  %d Hz %dch",
+            elapsed,
+            duration,
+            player_status.sample_rate,
+            player_status.channels);
+    } else {
+        snprintf(detail, sizeof(detail), "%s/%s  -- Hz", elapsed, duration);
+    }
+    lv_label_set_text(lichuang_music_detail_label_, detail);
+
+    char list[80];
+    if (!files.empty()) {
+        int next_index = 0;
+        if (player_status.current_index >= 0 &&
+                player_status.current_index < static_cast<int>(files.size())) {
+            next_index = (player_status.current_index + 1) % static_cast<int>(files.size());
+        }
+        snprintf(list, sizeof(list), "Next: %.40s", files[next_index].display_name.c_str());
+    } else if (player_status.playlist_size > 0 && player_status.current_index >= 0) {
+        snprintf(list, sizeof(list), "Track %d/%u",
+            player_status.current_index + 1,
+            static_cast<unsigned>(player_status.playlist_size));
+    } else if (player_status.playlist_size > 0) {
+        snprintf(list, sizeof(list), "Tracks: %u",
+            static_cast<unsigned>(player_status.playlist_size));
+    } else {
+        snprintf(list, sizeof(list), "Next: --");
+    }
+    lv_label_set_text(lichuang_music_list_label_, list);
+}
+
+void LcdDisplay::UpdateLichuangRecorderView(bool force) {
+    (void)force;
+    if (lichuang_recorder_status_label_ == nullptr ||
+            lichuang_recorder_file_label_ == nullptr ||
+            lichuang_recorder_detail_label_ == nullptr) {
+        return;
+    }
+
+    LvglTheme* theme = static_cast<LvglTheme*>(current_theme_);
+    auto status = AudioRecorder::GetInstance().GetStatus();
+    uint64_t free_mb = status.free_bytes / (1024 * 1024);
+    uint32_t written_kb = status.bytes_written / 1024;
+
+    SetBarProgress(lichuang_recorder_progress_bar_, status.elapsed_seconds, 60 * 60);
+    SetButtonText(lichuang_recorder_start_button_, "Start");
+    SetButtonText(lichuang_recorder_pause_button_,
+        status.state == AudioRecorderState::kPaused ? "Resume" : "Pause");
+    SetButtonText(lichuang_recorder_stop_button_, "Stop");
+
+    char elapsed[16];
+    FormatDuration(elapsed, sizeof(elapsed), status.elapsed_seconds);
+
+    char state[72];
+    lv_color_t state_color = lv_color_hex(kLichuangRed);
+    bool recorder_active = false;
+    switch (status.state) {
+        case AudioRecorderState::kRecording:
+            recorder_active = true;
+            snprintf(state, sizeof(state), "Recording %s", elapsed);
+            break;
+        case AudioRecorderState::kPaused:
+            recorder_active = true;
+            state_color = lv_color_hex(kLichuangAmber);
+            snprintf(state, sizeof(state), "Paused %s", elapsed);
+            break;
+        case AudioRecorderState::kError:
+            snprintf(state, sizeof(state), "Recorder error: %.52s",
+                status.last_error.c_str());
+            break;
+        case AudioRecorderState::kIdle:
+        default:
+            state_color = lv_color_hex(kLichuangBlue);
+            snprintf(state, sizeof(state), "Ready to record");
+            break;
+    }
+    lv_label_set_text(lichuang_recorder_status_label_, state);
+    lv_obj_set_style_text_color(lichuang_recorder_status_label_, state_color, 0);
+    SetBarIndicatorColor(lichuang_recorder_progress_bar_, state_color);
+    if (recorder_active) {
+        ApplyButtonColors(lichuang_recorder_start_button_, theme->background_color(),
+            theme->border_color(), theme->text_color(), LV_OPA_90);
+        ApplyButtonColors(lichuang_recorder_stop_button_, lv_color_hex(kLichuangRed),
+            lv_color_hex(kLichuangRed), lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+        ApplyButtonColors(lichuang_recorder_pause_button_, state_color,
+            state_color, lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+    } else {
+        ApplyButtonColors(lichuang_recorder_start_button_, lv_color_hex(kLichuangRed),
+            lv_color_hex(kLichuangRed), lv_color_hex(0xFFFFFF), LV_OPA_COVER);
+        ApplyButtonColors(lichuang_recorder_stop_button_, theme->background_color(),
+            theme->border_color(), theme->text_color(), LV_OPA_90);
+        ApplyButtonColors(lichuang_recorder_pause_button_, theme->background_color(),
+            theme->border_color(), theme->text_color(), LV_OPA_90);
+    }
+
+    char detail[80];
+    if (status.free_bytes > 0) {
+        snprintf(detail, sizeof(detail), "Elapsed %s, %u KB, free %llu MB",
+            elapsed,
+            static_cast<unsigned>(written_kb),
+            static_cast<unsigned long long>(free_mb));
+    } else {
+        snprintf(detail, sizeof(detail), "Elapsed %s, %u KB, free -- MB",
+            elapsed,
+            static_cast<unsigned>(written_kb));
+    }
+    lv_label_set_text(lichuang_recorder_detail_label_, detail);
+
+    char file[96];
+    if (!status.file_name.empty()) {
+        snprintf(file, sizeof(file), "File: %.58s", status.file_name.c_str());
+    } else {
+        snprintf(file, sizeof(file), "Output: /sdcard/recordings");
+    }
+    lv_label_set_text(lichuang_recorder_file_label_, file);
 }
 
 void LcdDisplay::HandleLichuangPomodoroPreset(int minutes) {
@@ -762,6 +1192,49 @@ void LcdDisplay::HandleLichuangPomodoroPauseResume() {
 void LcdDisplay::HandleLichuangPomodoroCancel() {
     PomodoroTimer::GetInstance().Cancel();
     UpdateLichuangPomodoroView(true);
+}
+
+void LcdDisplay::HandleLichuangMusicPrevious() {
+    MusicPlayer::GetInstance().Previous();
+    UpdateLichuangMusicView(true);
+}
+
+void LcdDisplay::HandleLichuangMusicPlayPause() {
+    MusicPlayer::GetInstance().TogglePlayPause();
+    UpdateLichuangMusicView(true);
+}
+
+void LcdDisplay::HandleLichuangMusicNext() {
+    MusicPlayer::GetInstance().Next();
+    UpdateLichuangMusicView(true);
+}
+
+void LcdDisplay::HandleLichuangRecorderStart() {
+    AudioRecorder::GetInstance().Start();
+    UpdateLichuangRecorderView(true);
+}
+
+void LcdDisplay::HandleLichuangRecorderPauseResume() {
+    AudioRecorder::GetInstance().TogglePauseResume();
+    UpdateLichuangRecorderView(true);
+}
+
+void LcdDisplay::HandleLichuangRecorderStop() {
+    AudioRecorder::GetInstance().Stop();
+    UpdateLichuangRecorderView(true);
+}
+
+void LcdDisplay::LichuangNavEventCallback(lv_event_t* event) {
+    auto* button = static_cast<lv_obj_t*>(lv_event_get_current_target(event));
+    auto* display = static_cast<LcdDisplay*>(lv_obj_get_user_data(button));
+    int index = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
+    if (display == nullptr ||
+            index < 0 ||
+            index >= static_cast<int>(LichuangFeatureView::kCount)) {
+        return;
+    }
+
+    display->SetLichuangFeatureView(static_cast<LichuangFeatureView>(index));
 }
 
 void LcdDisplay::LichuangFeatureGestureEventCallback(lv_event_t* event) {
@@ -805,6 +1278,48 @@ void LcdDisplay::LichuangPomodoroCancelEventCallback(lv_event_t* event) {
     auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
     if (display != nullptr) {
         display->HandleLichuangPomodoroCancel();
+    }
+}
+
+void LcdDisplay::LichuangMusicPreviousEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->HandleLichuangMusicPrevious();
+    }
+}
+
+void LcdDisplay::LichuangMusicPlayPauseEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->HandleLichuangMusicPlayPause();
+    }
+}
+
+void LcdDisplay::LichuangMusicNextEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->HandleLichuangMusicNext();
+    }
+}
+
+void LcdDisplay::LichuangRecorderStartEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->HandleLichuangRecorderStart();
+    }
+}
+
+void LcdDisplay::LichuangRecorderPauseResumeEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->HandleLichuangRecorderPauseResume();
+    }
+}
+
+void LcdDisplay::LichuangRecorderStopEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display != nullptr) {
+        display->HandleLichuangRecorderStop();
     }
 }
 #endif
@@ -1557,6 +2072,8 @@ void LcdDisplay::UpdateStatusBar(bool update_all) {
             UpdateLichuangPomodoroView(update_all);
         } else if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kMusic)) {
             UpdateLichuangMusicView(update_all);
+        } else if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kRecorder)) {
+            UpdateLichuangRecorderView(update_all);
         }
     }
 #endif

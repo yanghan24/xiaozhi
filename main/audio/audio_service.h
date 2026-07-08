@@ -165,6 +165,7 @@ public:
     void ClearInputPcmObserver(AudioFocusOwner owner);
 
     bool PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> packet, bool wait = false);
+    bool PushPcmToPlaybackQueue(AudioFocusOwner owner, std::vector<int16_t>&& pcm, bool wait = false);
     std::unique_ptr<AudioStreamPacket> PopPacketFromSendQueue();
     void PlaySound(const std::string_view& sound);
     bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);

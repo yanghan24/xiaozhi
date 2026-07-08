@@ -10,8 +10,12 @@
 #include "esp32_camera.h"
 #include "mcp_server.h"
 #include "assets/lang_config.h"
+#include "features/audio_recorder.h"
+#include "features/music_player.h"
 #include "features/pomodoro_timer.h"
+#include "services/environment_service.h"
 #include "storage/sd_card_service.h"
+#include "system_info.h"
 
 #include <esp_log.h>
 #include <esp_vfs_fat.h>
@@ -19,6 +23,7 @@
 #include <driver/i2c_master.h>
 #include <driver/spi_common.h>
 #include <driver/sdmmc_host.h>
+#include <esp_heap_caps.h>
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
 #include <sdmmc_cmd.h>
@@ -27,6 +32,315 @@
 #include <cstdio>
 
 #define TAG "LichuangDevBoard"
+
+namespace {
+const char* PomodoroStateName(PomodoroState state) {
+    switch (state) {
+        case PomodoroState::kRunning:
+            return "running";
+        case PomodoroState::kPaused:
+            return "paused";
+        case PomodoroState::kFinished:
+            return "finished";
+        case PomodoroState::kIdle:
+        default:
+            return "idle";
+    }
+}
+
+const char* MusicStateName(MusicPlayerState state) {
+    switch (state) {
+        case MusicPlayerState::kPlaying:
+            return "playing";
+        case MusicPlayerState::kPaused:
+            return "paused";
+        case MusicPlayerState::kError:
+            return "error";
+        case MusicPlayerState::kIdle:
+        default:
+            return "idle";
+    }
+}
+
+const char* RecorderStateName(AudioRecorderState state) {
+    switch (state) {
+        case AudioRecorderState::kRecording:
+            return "recording";
+        case AudioRecorderState::kPaused:
+            return "paused";
+        case AudioRecorderState::kError:
+            return "error";
+        case AudioRecorderState::kIdle:
+        default:
+            return "idle";
+    }
+}
+
+enum class ReleaseCheckLevel {
+    kPass,
+    kWarn,
+    kFail,
+};
+
+const char* ReleaseCheckLevelName(ReleaseCheckLevel level) {
+    switch (level) {
+        case ReleaseCheckLevel::kWarn:
+            return "warn";
+        case ReleaseCheckLevel::kFail:
+            return "fail";
+        case ReleaseCheckLevel::kPass:
+        default:
+            return "pass";
+    }
+}
+
+void AddReleaseCheck(cJSON* checks, int& warning_count, int& failure_count,
+        const char* name, ReleaseCheckLevel level, const std::string& message) {
+    if (level == ReleaseCheckLevel::kWarn) {
+        warning_count++;
+    } else if (level == ReleaseCheckLevel::kFail) {
+        failure_count++;
+    }
+
+    cJSON* check = cJSON_CreateObject();
+    cJSON_AddStringToObject(check, "name", name);
+    cJSON_AddStringToObject(check, "level", ReleaseCheckLevelName(level));
+    cJSON_AddStringToObject(check, "message", message.c_str());
+    cJSON_AddItemToArray(checks, check);
+}
+
+void AddRuntimeHeapDiagnostics(cJSON* root) {
+    cJSON* runtime = cJSON_CreateObject();
+    cJSON_AddNumberToObject(runtime, "free_heap_bytes",
+        static_cast<double>(SystemInfo::GetFreeHeapSize()));
+    cJSON_AddNumberToObject(runtime, "minimum_free_heap_bytes",
+        static_cast<double>(SystemInfo::GetMinimumFreeHeapSize()));
+    cJSON_AddNumberToObject(runtime, "internal_free_bytes",
+        static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
+    cJSON_AddNumberToObject(runtime, "internal_minimum_free_bytes",
+        static_cast<double>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)));
+    cJSON_AddNumberToObject(runtime, "spiram_free_bytes",
+        static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+    cJSON_AddNumberToObject(runtime, "spiram_minimum_free_bytes",
+        static_cast<double>(heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM)));
+    cJSON_AddItemToObject(root, "runtime", runtime);
+}
+
+cJSON* BuildLichuangDiagnosticsJson(bool scan_media) {
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "board_type", BOARD_TYPE);
+    cJSON_AddStringToObject(root, "board_name", BOARD_NAME);
+    cJSON_AddBoolToObject(root, "manual_hardware_verification_required", true);
+
+    auto& storage = SdCardService::GetInstance();
+    cJSON* storage_json = cJSON_CreateObject();
+    bool mounted = storage.IsMounted();
+    cJSON_AddBoolToObject(storage_json, "mounted", mounted);
+    if (mounted) {
+        cJSON_AddNumberToObject(storage_json, "free_bytes",
+            static_cast<double>(storage.GetFreeBytes()));
+    }
+    if (mounted && scan_media) {
+        auto files = storage.ScanMediaFiles();
+        cJSON_AddNumberToObject(storage_json, "media_count", files.size());
+        cJSON* preview = cJSON_CreateArray();
+        size_t preview_count = files.size() < 8 ? files.size() : 8;
+        for (size_t i = 0; i < preview_count; ++i) {
+            cJSON* item = cJSON_CreateObject();
+            cJSON_AddStringToObject(item, "name", files[i].display_name.c_str());
+            cJSON_AddStringToObject(item, "path", files[i].path.c_str());
+            cJSON_AddStringToObject(item, "type", files[i].type.c_str());
+            cJSON_AddNumberToObject(item, "size_bytes",
+                static_cast<double>(files[i].size_bytes));
+            cJSON_AddItemToArray(preview, item);
+        }
+        cJSON_AddItemToObject(storage_json, "media_preview", preview);
+    } else {
+        cJSON_AddBoolToObject(storage_json, "media_scan_skipped", true);
+    }
+    cJSON_AddItemToObject(root, "storage", storage_json);
+
+    auto& environment = EnvironmentService::GetInstance();
+    auto env_config = environment.GetConfig();
+    auto env = environment.GetSnapshot();
+    cJSON* env_json = cJSON_CreateObject();
+    cJSON_AddBoolToObject(env_json, "amap_key_configured", !env_config.amap_api_key.empty());
+    cJSON_AddBoolToObject(env_json, "aggregate_url_configured", !env_config.aggregate_url.empty());
+    cJSON_AddNumberToObject(env_json, "refresh_interval_minutes",
+        env_config.refresh_interval_minutes);
+    cJSON_AddBoolToObject(env_json, "refresh_in_progress", env.refresh_in_progress);
+    cJSON_AddBoolToObject(env_json, "stale", env.stale);
+    cJSON_AddBoolToObject(env_json, "location_available", env.location_available);
+    cJSON_AddBoolToObject(env_json, "weather_available", env.weather_available);
+    cJSON_AddBoolToObject(env_json, "air_available", env.air_available);
+    cJSON_AddStringToObject(env_json, "city", env.city.c_str());
+    cJSON_AddStringToObject(env_json, "adcode", env.adcode.c_str());
+    cJSON_AddStringToObject(env_json, "weather", env.weather_text.c_str());
+    cJSON_AddStringToObject(env_json, "temperature_c", env.temperature_c.c_str());
+    cJSON_AddStringToObject(env_json, "humidity", env.humidity.c_str());
+    cJSON_AddNumberToObject(env_json, "aqi", env.aqi);
+    cJSON_AddNumberToObject(env_json, "pm25", env.pm25);
+    cJSON_AddNumberToObject(env_json, "pm10", env.pm10);
+    cJSON_AddNumberToObject(env_json, "updated_at", static_cast<double>(env.updated_at));
+    cJSON_AddStringToObject(env_json, "last_error", env.last_error.c_str());
+    cJSON_AddItemToObject(root, "environment", env_json);
+
+    auto pomodoro = PomodoroTimer::GetInstance().GetStatus();
+    cJSON* pomodoro_json = cJSON_CreateObject();
+    cJSON_AddStringToObject(pomodoro_json, "state", PomodoroStateName(pomodoro.state));
+    cJSON_AddNumberToObject(pomodoro_json, "duration_minutes", pomodoro.duration_minutes);
+    cJSON_AddNumberToObject(pomodoro_json, "remaining_seconds", pomodoro.remaining_seconds);
+    cJSON_AddNumberToObject(pomodoro_json, "elapsed_seconds", pomodoro.elapsed_seconds);
+    cJSON_AddItemToObject(root, "pomodoro", pomodoro_json);
+
+    auto music = MusicPlayer::GetInstance().GetStatus();
+    cJSON* music_json = cJSON_CreateObject();
+    cJSON_AddStringToObject(music_json, "state", MusicStateName(music.state));
+    cJSON_AddNumberToObject(music_json, "current_index", music.current_index);
+    cJSON_AddNumberToObject(music_json, "playlist_size", music.playlist_size);
+    cJSON_AddStringToObject(music_json, "track_name", music.track_name.c_str());
+    cJSON_AddStringToObject(music_json, "track_path", music.track_path.c_str());
+    cJSON_AddStringToObject(music_json, "track_type", music.track_type.c_str());
+    cJSON_AddNumberToObject(music_json, "sample_rate", music.sample_rate);
+    cJSON_AddNumberToObject(music_json, "channels", music.channels);
+    cJSON_AddNumberToObject(music_json, "elapsed_seconds", music.elapsed_seconds);
+    cJSON_AddNumberToObject(music_json, "duration_seconds", music.duration_seconds);
+    cJSON_AddStringToObject(music_json, "last_error", music.last_error.c_str());
+    cJSON_AddItemToObject(root, "music", music_json);
+
+    auto recorder = AudioRecorder::GetInstance().GetStatus();
+    cJSON* recorder_json = cJSON_CreateObject();
+    cJSON_AddStringToObject(recorder_json, "state", RecorderStateName(recorder.state));
+    cJSON_AddStringToObject(recorder_json, "file_name", recorder.file_name.c_str());
+    cJSON_AddStringToObject(recorder_json, "file_path", recorder.file_path.c_str());
+    cJSON_AddNumberToObject(recorder_json, "elapsed_seconds", recorder.elapsed_seconds);
+    cJSON_AddNumberToObject(recorder_json, "bytes_written",
+        static_cast<double>(recorder.bytes_written));
+    cJSON_AddNumberToObject(recorder_json, "free_bytes",
+        static_cast<double>(recorder.free_bytes));
+    cJSON_AddStringToObject(recorder_json, "last_error", recorder.last_error.c_str());
+    cJSON_AddItemToObject(root, "recorder", recorder_json);
+
+    AddRuntimeHeapDiagnostics(root);
+    return root;
+}
+
+cJSON* BuildLichuangReleaseSelfCheckJson(bool scan_media) {
+    constexpr uint64_t kMinimumSdFreeBytes = 1ULL * 1024ULL * 1024ULL;
+    constexpr uint64_t kRecommendedSdFreeBytes = 10ULL * 1024ULL * 1024ULL;
+    constexpr size_t kMinimumFreeHeapBytes = 64U * 1024U;
+    constexpr size_t kMinimumInternalHeapBytes = 32U * 1024U;
+    constexpr size_t kRecommendedInternalHeapBytes = 64U * 1024U;
+
+    int warning_count = 0;
+    int failure_count = 0;
+    cJSON* root = cJSON_CreateObject();
+    cJSON* checks = cJSON_CreateArray();
+
+    auto& storage = SdCardService::GetInstance();
+    bool mounted = storage.IsMounted();
+    AddReleaseCheck(checks, warning_count, failure_count, "sd_mounted",
+        mounted ? ReleaseCheckLevel::kPass : ReleaseCheckLevel::kFail,
+        mounted ? "SD card is mounted." :
+            "SD card is not mounted; music, recording, and media-list tests cannot pass.");
+
+    uint64_t sd_free_bytes = 0;
+    if (mounted) {
+        sd_free_bytes = storage.GetFreeBytes();
+        ReleaseCheckLevel level = ReleaseCheckLevel::kPass;
+        std::string message = "SD free space is sufficient for baseline feature tests.";
+        if (sd_free_bytes < kMinimumSdFreeBytes) {
+            level = ReleaseCheckLevel::kFail;
+            message = "SD free space is below the recorder start threshold.";
+        } else if (sd_free_bytes < kRecommendedSdFreeBytes) {
+            level = ReleaseCheckLevel::kWarn;
+            message = "SD free space is low; short smoke tests may pass, but release regression should use a larger card.";
+        }
+        AddReleaseCheck(checks, warning_count, failure_count, "sd_free_space", level, message);
+    }
+
+    size_t media_count = 0;
+    if (mounted && scan_media) {
+        auto files = storage.ScanMediaFiles();
+        media_count = files.size();
+        AddReleaseCheck(checks, warning_count, failure_count, "media_playlist",
+            media_count > 0 ? ReleaseCheckLevel::kPass : ReleaseCheckLevel::kWarn,
+            media_count > 0 ? "At least one WAV/MP3 file is visible to the media scanner." :
+                "No WAV/MP3 files were found; music playback regression needs test files under /sdcard/music or /sdcard/recordings.");
+    } else if (mounted) {
+        AddReleaseCheck(checks, warning_count, failure_count, "media_playlist",
+            ReleaseCheckLevel::kWarn,
+            "Media scan was skipped; rerun with scan_media=true before final release handoff.");
+    }
+
+    auto& environment = EnvironmentService::GetInstance();
+    auto env_config = environment.GetConfig();
+    auto env = environment.GetSnapshot();
+    AddReleaseCheck(checks, warning_count, failure_count, "environment_config",
+        env_config.amap_api_key.empty() ? ReleaseCheckLevel::kWarn : ReleaseCheckLevel::kPass,
+        env_config.amap_api_key.empty() ?
+            "AMap API key is not configured; standby weather will remain unavailable." :
+            "AMap API key is configured.");
+    AddReleaseCheck(checks, warning_count, failure_count, "weather_snapshot",
+        env.weather_available ? ReleaseCheckLevel::kPass : ReleaseCheckLevel::kWarn,
+        env.weather_available ?
+            "Weather snapshot is available for the standby home page." :
+            "Weather snapshot is not available yet; refresh network/API config during hardware verification.");
+    AddReleaseCheck(checks, warning_count, failure_count, "air_quality_snapshot",
+        env.air_available ? ReleaseCheckLevel::kPass : ReleaseCheckLevel::kWarn,
+        env.air_available ?
+            "AQI snapshot is available for the standby home page." :
+            "AQI snapshot is unavailable; configure a valid aggregate endpoint if AQI is required for release.");
+
+    auto pomodoro = PomodoroTimer::GetInstance().GetStatus();
+    AddReleaseCheck(checks, warning_count, failure_count, "pomodoro_service",
+        ReleaseCheckLevel::kPass,
+        std::string("Pomodoro service is reachable; current state is ") +
+            PomodoroStateName(pomodoro.state) + ".");
+
+    auto music = MusicPlayer::GetInstance().GetStatus();
+    AddReleaseCheck(checks, warning_count, failure_count, "music_service",
+        music.state == MusicPlayerState::kError ? ReleaseCheckLevel::kFail : ReleaseCheckLevel::kPass,
+        music.state == MusicPlayerState::kError ?
+            std::string("Music service is in error state: ") + music.last_error :
+            std::string("Music service is reachable; current state is ") +
+                MusicStateName(music.state) + ".");
+
+    auto recorder = AudioRecorder::GetInstance().GetStatus();
+    AddReleaseCheck(checks, warning_count, failure_count, "recorder_service",
+        recorder.state == AudioRecorderState::kError ? ReleaseCheckLevel::kFail : ReleaseCheckLevel::kPass,
+        recorder.state == AudioRecorderState::kError ?
+            std::string("Recorder service is in error state: ") + recorder.last_error :
+            std::string("Recorder service is reachable; current state is ") +
+                RecorderStateName(recorder.state) + ".");
+
+    size_t free_heap = SystemInfo::GetFreeHeapSize();
+    size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    ReleaseCheckLevel heap_level = ReleaseCheckLevel::kPass;
+    std::string heap_message = "Runtime heap headroom is above the release self-check thresholds.";
+    if (free_heap < kMinimumFreeHeapBytes || internal_free < kMinimumInternalHeapBytes) {
+        heap_level = ReleaseCheckLevel::kFail;
+        heap_message = "Runtime heap headroom is below the minimum self-check threshold.";
+    } else if (internal_free < kRecommendedInternalHeapBytes) {
+        heap_level = ReleaseCheckLevel::kWarn;
+        heap_message = "Internal heap headroom is low; monitor MP3 playback and recorder tests carefully.";
+    }
+    AddReleaseCheck(checks, warning_count, failure_count, "runtime_heap", heap_level, heap_message);
+
+    cJSON_AddStringToObject(root, "status",
+        failure_count > 0 ? "fail" : warning_count > 0 ? "warn" : "pass");
+    cJSON_AddNumberToObject(root, "failures", failure_count);
+    cJSON_AddNumberToObject(root, "warnings", warning_count);
+    cJSON_AddBoolToObject(root, "manual_hardware_verification_required", true);
+    cJSON_AddBoolToObject(root, "media_scan_requested", scan_media);
+    cJSON_AddNumberToObject(root, "sd_free_bytes", static_cast<double>(sd_free_bytes));
+    cJSON_AddNumberToObject(root, "media_count", static_cast<double>(media_count));
+    cJSON_AddNumberToObject(root, "free_heap_bytes", static_cast<double>(free_heap));
+    cJSON_AddNumberToObject(root, "internal_free_bytes", static_cast<double>(internal_free));
+    cJSON_AddItemToObject(root, "checks", checks);
+    return root;
+}
+} // namespace
 
 class Pca9557 : public I2cDevice {
 public:
@@ -318,20 +632,235 @@ private:
             PropertyList(), [](const PropertyList& properties) -> ReturnValue {
                 return PomodoroTimer::GetInstance().GetStatusText();
             });
+
+        mcp_server.AddUserOnlyTool("self.environment.set_config",
+            "Configure standby weather and air-quality data sources. The AMap key is stored in NVS and must not be hardcoded.",
+            PropertyList({
+                Property("amap_api_key", kPropertyTypeString),
+                Property("aggregate_url", kPropertyTypeString, ""),
+                Property("refresh_interval_minutes", kPropertyTypeInteger, 30, 5, 1440),
+                Property("fallback_adcode", kPropertyTypeString, ""),
+                Property("fallback_city", kPropertyTypeString, "")
+            }), [](const PropertyList& properties) -> ReturnValue {
+                EnvironmentConfig config;
+                config.amap_api_key = properties["amap_api_key"].value<std::string>();
+                config.aggregate_url = properties["aggregate_url"].value<std::string>();
+                config.refresh_interval_minutes = properties["refresh_interval_minutes"].value<int>();
+                config.fallback_adcode = properties["fallback_adcode"].value<std::string>();
+                config.fallback_city = properties["fallback_city"].value<std::string>();
+                EnvironmentService::GetInstance().SaveConfig(config);
+                EnvironmentService::GetInstance().RefreshAsync(true);
+                return std::string("Environment configuration saved.");
+            });
+
+        mcp_server.AddTool("self.environment.refresh",
+            "Refresh standby weather and air-quality data now.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                EnvironmentService::GetInstance().RefreshAsync(true);
+                return std::string("Environment refresh started.");
+            });
+
+        mcp_server.AddTool("self.environment.get_status",
+            "Get current standby weather and air-quality status.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                auto snapshot = EnvironmentService::GetInstance().GetSnapshot();
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddBoolToObject(json, "configured", snapshot.configured);
+                cJSON_AddBoolToObject(json, "refresh_in_progress", snapshot.refresh_in_progress);
+                cJSON_AddBoolToObject(json, "weather_available", snapshot.weather_available);
+                cJSON_AddBoolToObject(json, "air_available", snapshot.air_available);
+                cJSON_AddStringToObject(json, "city", snapshot.city.c_str());
+                cJSON_AddStringToObject(json, "adcode", snapshot.adcode.c_str());
+                cJSON_AddStringToObject(json, "weather", snapshot.weather_text.c_str());
+                cJSON_AddStringToObject(json, "temperature_c", snapshot.temperature_c.c_str());
+                cJSON_AddNumberToObject(json, "aqi", snapshot.aqi);
+                cJSON_AddStringToObject(json, "air_category", snapshot.air_category.c_str());
+                cJSON_AddStringToObject(json, "last_error", snapshot.last_error.c_str());
+                return json;
+            });
+
+        mcp_server.AddTool("self.music.play",
+            "Play a local WAV or MP3 track from the SD card. Omit index or pass -1 to play the current or first track.",
+            PropertyList({
+                Property("index", kPropertyTypeInteger, -1, -1, 199)
+            }), [](const PropertyList& properties) -> ReturnValue {
+                int index = properties["index"].value<int>();
+                esp_err_t ret = MusicPlayer::GetInstance().Play(index);
+                if (ret != ESP_OK) {
+                    return MusicPlayer::GetInstance().GetStatusText();
+                }
+                return std::string("Music playback started.");
+            });
+
+        mcp_server.AddTool("self.music.pause",
+            "Pause local music playback.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                MusicPlayer::GetInstance().Pause();
+                return MusicPlayer::GetInstance().GetStatusText();
+            });
+
+        mcp_server.AddTool("self.music.next",
+            "Play the next local WAV or MP3 track in newest-first playlist order.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                esp_err_t ret = MusicPlayer::GetInstance().Next();
+                if (ret != ESP_OK) {
+                    return MusicPlayer::GetInstance().GetStatusText();
+                }
+                return std::string("Next track started.");
+            });
+
+        mcp_server.AddTool("self.music.previous",
+            "Play the previous local WAV or MP3 track in newest-first playlist order.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                esp_err_t ret = MusicPlayer::GetInstance().Previous();
+                if (ret != ESP_OK) {
+                    return MusicPlayer::GetInstance().GetStatusText();
+                }
+                return std::string("Previous track started.");
+            });
+
+        mcp_server.AddTool("self.music.list",
+            "List local WAV and MP3 tracks on the SD card.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                auto files = MusicPlayer::GetInstance().GetPlaylist();
+                auto status = MusicPlayer::GetInstance().GetStatus();
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddNumberToObject(json, "count", files.size());
+                cJSON_AddNumberToObject(json, "current_index", status.current_index);
+                cJSON* tracks = cJSON_CreateArray();
+                for (size_t i = 0; i < files.size(); ++i) {
+                    cJSON* item = cJSON_CreateObject();
+                    cJSON_AddNumberToObject(item, "index", i);
+                    cJSON_AddStringToObject(item, "name", files[i].display_name.c_str());
+                    cJSON_AddStringToObject(item, "path", files[i].path.c_str());
+                    cJSON_AddStringToObject(item, "type", files[i].type.c_str());
+                    cJSON_AddNumberToObject(item, "size_bytes",
+                        static_cast<double>(files[i].size_bytes));
+                    cJSON_AddItemToArray(tracks, item);
+                }
+                cJSON_AddItemToObject(json, "tracks", tracks);
+                return json;
+            });
+
+        mcp_server.AddTool("self.music.get_status",
+            "Get current local music playback status.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                auto status = MusicPlayer::GetInstance().GetStatus();
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddStringToObject(json, "state",
+                    status.state == MusicPlayerState::kPlaying ? "playing" :
+                    status.state == MusicPlayerState::kPaused ? "paused" :
+                    status.state == MusicPlayerState::kError ? "error" : "idle");
+                cJSON_AddNumberToObject(json, "current_index", status.current_index);
+                cJSON_AddNumberToObject(json, "playlist_size", status.playlist_size);
+                cJSON_AddStringToObject(json, "track_name", status.track_name.c_str());
+                cJSON_AddStringToObject(json, "track_path", status.track_path.c_str());
+                cJSON_AddStringToObject(json, "track_type", status.track_type.c_str());
+                cJSON_AddNumberToObject(json, "sample_rate", status.sample_rate);
+                cJSON_AddNumberToObject(json, "channels", status.channels);
+                cJSON_AddNumberToObject(json, "elapsed_seconds", status.elapsed_seconds);
+                cJSON_AddNumberToObject(json, "duration_seconds", status.duration_seconds);
+                cJSON_AddStringToObject(json, "last_error", status.last_error.c_str());
+                return json;
+            });
+
+        mcp_server.AddTool("self.recorder.start",
+            "Start recording microphone audio to a WAV file on the SD card.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                esp_err_t ret = AudioRecorder::GetInstance().Start();
+                if (ret != ESP_OK) {
+                    return AudioRecorder::GetInstance().GetStatusText();
+                }
+                return std::string("Recording started.");
+            });
+
+        mcp_server.AddTool("self.recorder.pause",
+            "Pause the current WAV recording.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                AudioRecorder::GetInstance().Pause();
+                return AudioRecorder::GetInstance().GetStatusText();
+            });
+
+        mcp_server.AddTool("self.recorder.resume",
+            "Resume the paused WAV recording.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                esp_err_t ret = AudioRecorder::GetInstance().Resume();
+                if (ret != ESP_OK) {
+                    return AudioRecorder::GetInstance().GetStatusText();
+                }
+                return std::string("Recording resumed.");
+            });
+
+        mcp_server.AddTool("self.recorder.stop",
+            "Stop the current WAV recording and finalize the file header.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                AudioRecorder::GetInstance().Stop();
+                return AudioRecorder::GetInstance().GetStatusText();
+            });
+
+        mcp_server.AddTool("self.recorder.get_status",
+            "Get current WAV recorder status.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                auto status = AudioRecorder::GetInstance().GetStatus();
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddStringToObject(json, "state",
+                    status.state == AudioRecorderState::kRecording ? "recording" :
+                    status.state == AudioRecorderState::kPaused ? "paused" :
+                    status.state == AudioRecorderState::kError ? "error" : "idle");
+                cJSON_AddStringToObject(json, "file_name", status.file_name.c_str());
+                cJSON_AddStringToObject(json, "file_path", status.file_path.c_str());
+                cJSON_AddNumberToObject(json, "elapsed_seconds", status.elapsed_seconds);
+                cJSON_AddNumberToObject(json, "bytes_written", status.bytes_written);
+                cJSON_AddNumberToObject(json, "free_bytes",
+                    static_cast<double>(status.free_bytes));
+                cJSON_AddStringToObject(json, "last_error", status.last_error.c_str());
+                return json;
+            });
+
+        mcp_server.AddTool("self.lichuang.get_diagnostics",
+            "Get a consolidated Lichuang Dev feature diagnostic snapshot for hardware regression testing. "
+            "Set scan_media to true only when you want to scan the SD card media list.",
+            PropertyList({
+                Property("scan_media", kPropertyTypeBoolean, false)
+            }), [](const PropertyList& properties) -> ReturnValue {
+                bool scan_media = properties["scan_media"].value<bool>();
+                return BuildLichuangDiagnosticsJson(scan_media);
+            });
+
+        mcp_server.AddTool("self.lichuang.run_release_self_check",
+            "Run a lightweight release-readiness self-check for Lichuang Dev features. "
+            "This does not replace manual hardware verification.",
+            PropertyList({
+                Property("scan_media", kPropertyTypeBoolean, false)
+            }), [](const PropertyList& properties) -> ReturnValue {
+                bool scan_media = properties["scan_media"].value<bool>();
+                return BuildLichuangReleaseSelfCheckJson(scan_media);
+            });
     }
 
-    void InitializeSdCard() {
+    esp_err_t InitializeSdCard() {
+        auto& storage = SdCardService::GetInstance();
+        if (storage.IsMounted()) {
+            return ESP_OK;
+        }
+
+        gpio_set_pull_mode(SDCARD_SDMMC_CLK_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_CMD_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_D0_PIN, GPIO_PULLUP_ONLY);
+
         sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+        host.max_freq_khz = SDMMC_FREQ_DEFAULT;
         sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
         slot_config.clk = SDCARD_SDMMC_CLK_PIN;
         slot_config.cmd = SDCARD_SDMMC_CMD_PIN;
         slot_config.d0 = SDCARD_SDMMC_D0_PIN;
         slot_config.width = SDCARD_SDMMC_BUS_WIDTH;
+        slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
         esp_vfs_fat_sdmmc_mount_config_t mount_config = {
             .format_if_mount_failed = false,
             .max_files = 5,
-            .allocation_unit_size = 0,
+            .allocation_unit_size = 16 * 1024,
             .disk_status_check_enable = true,
         };
 
@@ -341,17 +870,19 @@ private:
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "Failed to mount SD card at %s: %s",
                 SDCARD_MOUNT_POINT, esp_err_to_name(ret));
-            return;
+            return ret;
         }
 
         sdmmc_card_print_info(stdout, card);
         ESP_LOGI(TAG, "SD card mounted at %s", SDCARD_MOUNT_POINT);
 
-        ret = SdCardService::GetInstance().EnsureMediaDirectories();
+        ret = storage.EnsureMediaDirectories();
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "Failed to prepare SD media directories: %s",
                 esp_err_to_name(ret));
+            return ret;
         }
+        return ESP_OK;
     }
 
 public:
@@ -366,6 +897,10 @@ public:
         InitializeTools();
 
         GetBacklight()->RestoreBrightness();
+    }
+
+    virtual esp_err_t EnsureStorageReady() override {
+        return InitializeSdCard();
     }
 
     virtual AudioCodec* GetAudioCodec() override {

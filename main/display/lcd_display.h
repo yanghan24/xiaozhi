@@ -52,16 +52,33 @@ protected:
 
     lv_obj_t* lichuang_feature_shell_ = nullptr;
     lv_obj_t* lichuang_feature_views_[static_cast<int>(LichuangFeatureView::kCount)] = {};
+    lv_obj_t* lichuang_nav_buttons_[static_cast<int>(LichuangFeatureView::kCount)] = {};
     lv_obj_t* lichuang_home_time_label_ = nullptr;
     lv_obj_t* lichuang_home_date_label_ = nullptr;
     lv_obj_t* lichuang_home_weekday_label_ = nullptr;
     lv_obj_t* lichuang_home_weather_label_ = nullptr;
     lv_obj_t* lichuang_home_air_label_ = nullptr;
     lv_obj_t* lichuang_page_label_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_mode_label_ = nullptr;
     lv_obj_t* lichuang_pomodoro_status_label_ = nullptr;
     lv_obj_t* lichuang_pomodoro_remaining_label_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_progress_bar_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_preset_label_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_preset_row_ = nullptr;
+    lv_obj_t* lichuang_pomodoro_pause_button_ = nullptr;
     lv_obj_t* lichuang_music_status_label_ = nullptr;
     lv_obj_t* lichuang_music_track_label_ = nullptr;
+    lv_obj_t* lichuang_music_detail_label_ = nullptr;
+    lv_obj_t* lichuang_music_list_label_ = nullptr;
+    lv_obj_t* lichuang_music_progress_bar_ = nullptr;
+    lv_obj_t* lichuang_music_play_button_ = nullptr;
+    lv_obj_t* lichuang_recorder_status_label_ = nullptr;
+    lv_obj_t* lichuang_recorder_file_label_ = nullptr;
+    lv_obj_t* lichuang_recorder_detail_label_ = nullptr;
+    lv_obj_t* lichuang_recorder_progress_bar_ = nullptr;
+    lv_obj_t* lichuang_recorder_start_button_ = nullptr;
+    lv_obj_t* lichuang_recorder_pause_button_ = nullptr;
+    lv_obj_t* lichuang_recorder_stop_button_ = nullptr;
     int lichuang_feature_view_index_ = 0;
     time_t lichuang_last_home_update_minute_ = 0;
     time_t lichuang_last_media_scan_time_ = 0;
@@ -75,13 +92,27 @@ protected:
     void UpdateLichuangHomeView(bool force = false);
     void UpdateLichuangPomodoroView(bool force = false);
     void UpdateLichuangMusicView(bool force = false);
+    void UpdateLichuangRecorderView(bool force = false);
     void HandleLichuangPomodoroPreset(int minutes);
     void HandleLichuangPomodoroPauseResume();
     void HandleLichuangPomodoroCancel();
+    void HandleLichuangMusicPrevious();
+    void HandleLichuangMusicPlayPause();
+    void HandleLichuangMusicNext();
+    void HandleLichuangRecorderStart();
+    void HandleLichuangRecorderPauseResume();
+    void HandleLichuangRecorderStop();
     static void LichuangFeatureGestureEventCallback(lv_event_t* event);
+    static void LichuangNavEventCallback(lv_event_t* event);
     static void LichuangPomodoroPresetEventCallback(lv_event_t* event);
     static void LichuangPomodoroPauseResumeEventCallback(lv_event_t* event);
     static void LichuangPomodoroCancelEventCallback(lv_event_t* event);
+    static void LichuangMusicPreviousEventCallback(lv_event_t* event);
+    static void LichuangMusicPlayPauseEventCallback(lv_event_t* event);
+    static void LichuangMusicNextEventCallback(lv_event_t* event);
+    static void LichuangRecorderStartEventCallback(lv_event_t* event);
+    static void LichuangRecorderPauseResumeEventCallback(lv_event_t* event);
+    static void LichuangRecorderStopEventCallback(lv_event_t* event);
 #endif
 
 protected:
