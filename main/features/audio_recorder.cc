@@ -56,10 +56,14 @@ esp_err_t AudioRecorder::Start() {
         state_ = AudioRecorderState::kError;
         return ESP_ERR_INVALID_STATE;
     }
-    esp_err_t ret = storage.EnsureMediaDirectories();
+    esp_err_t ret = storage.EnsureRecordingsDirectory();
     if (ret != ESP_OK) {
         std::lock_guard<std::mutex> lock(mutex_);
-        last_error_ = "Failed to prepare /sdcard/recordings.";
+        last_error_ = std::string("Prepare /sdcard/recordings failed: ") +
+            esp_err_to_name(ret);
+        if (ret == ESP_ERR_INVALID_ARG) {
+            last_error_ += " (enable FatFS LFN)";
+        }
         state_ = AudioRecorderState::kError;
         return ret;
     }

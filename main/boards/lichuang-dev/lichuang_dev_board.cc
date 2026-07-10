@@ -26,10 +26,13 @@
 #include <esp_heap_caps.h>
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <sdmmc_cmd.h>
 #include <lvgl.h>
 
 #include <cstdio>
+#include <mutex>
 
 #define TAG "LichuangDevBoard"
 
@@ -395,6 +398,7 @@ private:
     Display* display_;
     Pca9557* pca9557_;
     Esp32Camera* camera_;
+    std::mutex sd_mutex_;
 
     void InitializeI2c() {
         // Initialize I2C peripheral
@@ -519,9 +523,17 @@ private:
         };
         tp_io_config.scl_speed_hz = 400000;
 
-        esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle);
-        esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &tp);
-        assert(tp);
+        esp_err_t ret = esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to create touch I2C panel IO: %s", esp_err_to_name(ret));
+            return;
+        }
+        ret = esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &tp);
+        if (ret != ESP_OK || tp == nullptr) {
+            ESP_LOGW(TAG, "Failed to initialize FT5x06 touch controller: %s",
+                esp_err_to_name(ret));
+            return;
+        }
 
         /* Add touch input (for selected screen) */
         const lvgl_port_touch_cfg_t touch_cfg = {
@@ -843,6 +855,7 @@ private:
     }
 
     esp_err_t InitializeSdCard() {
+        std::lock_guard<std::mutex> lock(sd_mutex_);
         auto& storage = SdCardService::GetInstance();
         if (storage.IsMounted()) {
             return ESP_OK;
@@ -889,18 +902,33 @@ private:
         return ESP_OK;
     }
 
+    void InitializeSdCardAsync() {
+        BaseType_t ret = xTaskCreate([](void* arg) {
+            auto* self = static_cast<LichuangDevBoard*>(arg);
+            vTaskDelay(pdMS_TO_TICKS(500));
+            esp_err_t sd_ret = self->InitializeSdCard();
+            if (sd_ret != ESP_OK) {
+                ESP_LOGW(TAG, "Deferred SD card initialization failed: %s",
+                    esp_err_to_name(sd_ret));
+            }
+            vTaskDelete(nullptr);
+        }, "sdcard_init", 4096, this, 2, nullptr);
+        if (ret != pdPASS) {
+            ESP_LOGW(TAG, "Failed to create deferred SD card initialization task");
+        }
+    }
+
 public:
     LichuangDevBoard() : boot_button_(BOOT_BUTTON_GPIO) {
         InitializeI2c();
         InitializeSpi();
         InitializeSt7789Display();
+        GetBacklight()->RestoreBrightness();
         InitializeTouch();
-        InitializeSdCard();
         InitializeButtons();
         InitializeCamera();
         InitializeTools();
-
-        GetBacklight()->RestoreBrightness();
+        InitializeSdCardAsync();
     }
 
     virtual esp_err_t EnsureStorageReady() override {

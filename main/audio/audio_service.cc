@@ -576,6 +576,9 @@ bool AudioService::PushPcmToPlaybackQueue(AudioFocusOwner owner, std::vector<int
     if (service_stopped_) {
         return false;
     }
+    if (!HasAudioFocus(owner, kAudioFocusResourceOutput)) {
+        return false;
+    }
 
     auto task = std::make_unique<AudioTask>();
     task->type = kAudioTaskTypeDecodeToPlaybackQueue;

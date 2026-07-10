@@ -77,7 +77,12 @@ private:
     int current_index_ = -1;
     std::string last_error_;
     TaskHandle_t playback_task_handle_ = nullptr;
+    TaskHandle_t deferred_playback_task_handle_ = nullptr;
     uint32_t playback_generation_ = 0;
+    uint32_t deferred_playback_generation_ = 0;
+    int deferred_play_index_ = -1;
+    bool deferred_resume_ = false;
+    bool auto_resume_after_focus_loss_ = false;
     uint32_t resume_offset_ = 0;
     int elapsed_seconds_ = 0;
     int duration_seconds_ = 0;
@@ -87,6 +92,11 @@ private:
     std::vector<MediaFile> BuildPlayablePlaylistLocked();
     esp_err_t StartPlaybackLocked(int index, uint32_t resume_offset);
     void PauseFromFocusLoss();
+    esp_err_t SchedulePlayAfterVoiceInteraction(int index);
+    esp_err_t ScheduleResumeAfterVoiceInteraction();
+    esp_err_t StartDeferredPlaybackTaskLocked(int index, bool resume);
+    void CancelDeferredPlaybackLocked();
+    void DeferredPlaybackLoop(uint32_t generation);
     void PlaybackLoop(uint32_t generation);
     void PlaybackWav(uint32_t generation, const MediaFile& track, uint32_t start_offset);
     void PlaybackMp3(uint32_t generation, const MediaFile& track, uint32_t start_offset);
@@ -96,6 +106,7 @@ private:
     void SetLastErrorLocked(const std::string& error);
 
     static void PlaybackTask(void* arg);
+    static void DeferredPlaybackTask(void* arg);
     static bool ParseWav(FILE* file, WavInfo& info, std::string& error);
     static const char* StateName(MusicPlayerState state);
 };

@@ -29,6 +29,8 @@ public:
     static SdCardService& GetInstance();
 
     bool IsMounted() const;
+    esp_err_t EnsureMusicDirectory();
+    esp_err_t EnsureRecordingsDirectory();
     esp_err_t EnsureMediaDirectories();
     std::vector<MediaFile> ScanMediaFiles(size_t max_items = kDefaultMaxMediaFiles);
     uint64_t GetFreeBytes() const;
@@ -38,7 +40,8 @@ private:
     SdCardService(const SdCardService&) = delete;
     SdCardService& operator=(const SdCardService&) = delete;
 
-    void ScanDirectory(const std::string& directory, std::vector<MediaFile>& files, size_t max_items) const;
+    void ScanDirectory(const std::string& directory, std::vector<MediaFile>& files,
+        size_t max_items, int depth) const;
 };
 
 #endif // SD_CARD_SERVICE_H

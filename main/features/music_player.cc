@@ -6,6 +6,7 @@
 
 #include <esp_ae_rate_cvt.h>
 #include <esp_audio_simple_dec.h>
+#include <esp_err.h>
 #include <esp_mp3_dec.h>
 #include <esp_log.h>
 #include <sdkconfig.h>
@@ -23,6 +24,11 @@ constexpr size_t kPlaybackChunkFrames = 1200;
 constexpr size_t kMp3InputChunkBytes = 2048;
 constexpr size_t kMp3OutputBufferBytes = 8192;
 constexpr size_t kMaxListedTracks = 200;
+constexpr uint32_t kPlaybackTaskStackBytes = 8192;
+constexpr uint32_t kDeferredPlaybackTaskStackBytes = 4096;
+constexpr uint32_t kDeferredPlaybackPollMs = 100;
+constexpr uint32_t kDeferredPlaybackTimeoutMs = 20000;
+constexpr uint32_t kDeferredPlaybackSettleMs = 200;
 
 struct PlaybackTaskArg {
     MusicPlayer* player = nullptr;
@@ -197,6 +203,27 @@ bool PrepareOutputChunk(const int16_t* input, size_t frames, int input_channels,
     }
     return rate_converter.Process(output, error);
 }
+
+bool EnsureStorageForPlayback(std::string& error) {
+    esp_err_t ret = Board::GetInstance().EnsureStorageReady();
+    if (ret == ESP_OK || SdCardService::GetInstance().IsMounted()) {
+        return true;
+    }
+
+    error = std::string("SD card is not ready: ") + esp_err_to_name(ret);
+    return false;
+}
+
+bool IsVoiceOutputActive() {
+    auto& app = Application::GetInstance();
+    auto state = app.GetDeviceState();
+    if (state == kDeviceStateConnecting ||
+            state == kDeviceStateSpeaking) {
+        return true;
+    }
+    return app.GetAudioService().HasAudioFocus(
+        kAudioFocusOwnerVoiceInteraction, kAudioFocusResourceOutput);
+}
 } // namespace
 
 MusicPlayer& MusicPlayer::GetInstance() {
@@ -205,6 +232,17 @@ MusicPlayer& MusicPlayer::GetInstance() {
 }
 
 esp_err_t MusicPlayer::Play(int index) {
+    std::string storage_error;
+    if (!EnsureStorageForPlayback(storage_error)) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_ = MusicPlayerState::kError;
+        SetLastErrorLocked(storage_error);
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (IsVoiceOutputActive()) {
+        return SchedulePlayAfterVoiceInteraction(index);
+    }
+
     auto& audio = Application::GetInstance().GetAudioService();
     if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
             [](AudioFocusOwner owner, uint8_t resources) {
@@ -244,6 +282,8 @@ esp_err_t MusicPlayer::Play(int index) {
 esp_err_t MusicPlayer::Pause() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        CancelDeferredPlaybackLocked();
+        auto_resume_after_focus_loss_ = false;
         if (state_ != MusicPlayerState::kPlaying) {
             return ESP_OK;
         }
@@ -255,6 +295,10 @@ esp_err_t MusicPlayer::Pause() {
 }
 
 esp_err_t MusicPlayer::Resume() {
+    if (IsVoiceOutputActive()) {
+        return ScheduleResumeAfterVoiceInteraction();
+    }
+
     auto& audio = Application::GetInstance().GetAudioService();
     if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
             [](AudioFocusOwner owner, uint8_t resources) {
@@ -292,6 +336,7 @@ esp_err_t MusicPlayer::TogglePlayPause() {
 esp_err_t MusicPlayer::Stop() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        CancelDeferredPlaybackLocked();
         playback_generation_++;
         state_ = MusicPlayerState::kIdle;
         resume_offset_ = 0;
@@ -303,6 +348,14 @@ esp_err_t MusicPlayer::Stop() {
 }
 
 esp_err_t MusicPlayer::Next() {
+    std::string storage_error;
+    if (!EnsureStorageForPlayback(storage_error)) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_ = MusicPlayerState::kError;
+        SetLastErrorLocked(storage_error);
+        return ESP_ERR_INVALID_STATE;
+    }
+
     auto& audio = Application::GetInstance().GetAudioService();
     if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
             [](AudioFocusOwner owner, uint8_t resources) {
@@ -331,6 +384,14 @@ esp_err_t MusicPlayer::Next() {
 }
 
 esp_err_t MusicPlayer::Previous() {
+    std::string storage_error;
+    if (!EnsureStorageForPlayback(storage_error)) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_ = MusicPlayerState::kError;
+        SetLastErrorLocked(storage_error);
+        return ESP_ERR_INVALID_STATE;
+    }
+
     auto& audio = Application::GetInstance().GetAudioService();
     if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
             [](AudioFocusOwner owner, uint8_t resources) {
@@ -379,6 +440,14 @@ MusicPlayerStatus MusicPlayer::GetStatus() {
 }
 
 std::vector<MediaFile> MusicPlayer::GetPlaylist() {
+    std::string storage_error;
+    if (!EnsureStorageForPlayback(storage_error)) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_ = MusicPlayerState::kError;
+        SetLastErrorLocked(storage_error);
+        return {};
+    }
+
     std::lock_guard<std::mutex> lock(mutex_);
     playlist_ = BuildPlayablePlaylistLocked();
     return playlist_;
@@ -425,13 +494,16 @@ esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset) {
     sample_rate_ = 0;
     channels_ = 0;
     last_error_.clear();
+    auto_resume_after_focus_loss_ = false;
+    deferred_play_index_ = -1;
+    deferred_resume_ = false;
     state_ = MusicPlayerState::kPlaying;
 
     auto* arg = new PlaybackTaskArg();
     arg->player = this;
     arg->generation = playback_generation_;
     BaseType_t ret = xTaskCreate(&MusicPlayer::PlaybackTask, "music_player",
-        4096, arg, 4, &playback_task_handle_);
+        kPlaybackTaskStackBytes, arg, 4, &playback_task_handle_);
     if (ret != pdPASS) {
         delete arg;
         playback_task_handle_ = nullptr;
@@ -451,7 +523,107 @@ void MusicPlayer::PauseFromFocusLoss() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (state_ == MusicPlayerState::kPlaying) {
         state_ = MusicPlayerState::kPaused;
+        auto_resume_after_focus_loss_ = true;
+        StartDeferredPlaybackTaskLocked(current_index_, true);
         ESP_LOGI(TAG, "Local music paused by audio focus loss");
+    }
+}
+
+esp_err_t MusicPlayer::SchedulePlayAfterVoiceInteraction(int index) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto_resume_after_focus_loss_ = false;
+    return StartDeferredPlaybackTaskLocked(index, false);
+}
+
+esp_err_t MusicPlayer::ScheduleResumeAfterVoiceInteraction() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return StartDeferredPlaybackTaskLocked(current_index_, true);
+}
+
+esp_err_t MusicPlayer::StartDeferredPlaybackTaskLocked(int index, bool resume) {
+    deferred_play_index_ = index;
+    deferred_resume_ = resume;
+    if (deferred_playback_task_handle_ != nullptr) {
+        ESP_LOGI(TAG, "Updated deferred music playback request");
+        return ESP_OK;
+    }
+
+    auto* arg = new PlaybackTaskArg();
+    arg->player = this;
+    arg->generation = ++deferred_playback_generation_;
+    BaseType_t ret = xTaskCreate(&MusicPlayer::DeferredPlaybackTask,
+        "music_defer", kDeferredPlaybackTaskStackBytes, arg, 3,
+        &deferred_playback_task_handle_);
+    if (ret != pdPASS) {
+        delete arg;
+        deferred_playback_task_handle_ = nullptr;
+        deferred_play_index_ = -1;
+        deferred_resume_ = false;
+        auto_resume_after_focus_loss_ = false;
+        SetLastErrorLocked("Failed to create deferred music playback task.");
+        return ESP_ERR_NO_MEM;
+    }
+
+    ESP_LOGI(TAG, "Deferred local music until voice interaction finishes");
+    return ESP_OK;
+}
+
+void MusicPlayer::CancelDeferredPlaybackLocked() {
+    deferred_playback_generation_++;
+    deferred_playback_task_handle_ = nullptr;
+    deferred_play_index_ = -1;
+    deferred_resume_ = false;
+}
+
+void MusicPlayer::DeferredPlaybackLoop(uint32_t generation) {
+    uint32_t waited_ms = 0;
+    while (IsVoiceOutputActive() && waited_ms < kDeferredPlaybackTimeoutMs) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (generation != deferred_playback_generation_) {
+                return;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(kDeferredPlaybackPollMs));
+        waited_ms += kDeferredPlaybackPollMs;
+    }
+
+    if (IsVoiceOutputActive()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (generation == deferred_playback_generation_) {
+            deferred_playback_task_handle_ = nullptr;
+            deferred_play_index_ = -1;
+            deferred_resume_ = false;
+            auto_resume_after_focus_loss_ = false;
+            SetLastErrorLocked("Timed out waiting for voice interaction to finish.");
+            ESP_LOGW(TAG, "%s", last_error_.c_str());
+        }
+        return;
+    }
+
+    auto& audio = Application::GetInstance().GetAudioService();
+    audio.WaitForPlaybackQueueEmpty();
+    vTaskDelay(pdMS_TO_TICKS(kDeferredPlaybackSettleMs));
+
+    int index = -1;
+    bool resume = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (generation != deferred_playback_generation_) {
+            return;
+        }
+        index = deferred_play_index_;
+        resume = deferred_resume_ || auto_resume_after_focus_loss_;
+        deferred_playback_task_handle_ = nullptr;
+        deferred_play_index_ = -1;
+        deferred_resume_ = false;
+        auto_resume_after_focus_loss_ = false;
+    }
+
+    esp_err_t ret = resume ? Resume() : Play(index);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Deferred local music playback failed: %s",
+            esp_err_to_name(ret));
     }
 }
 
@@ -837,8 +1009,8 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, const MediaFile& track,
 MusicPlayer::PlaybackLoopResult MusicPlayer::QueuePcmChunk(uint32_t generation,
         std::vector<int16_t>&& output, uint32_t resume_offset,
         const std::string& error_on_cancel) {
-    while (!Application::GetInstance().GetAudioService().PushPcmToPlaybackQueue(
-            kAudioFocusOwnerLocalMusic, std::move(output), false)) {
+    auto& audio = Application::GetInstance().GetAudioService();
+    while (true) {
         MusicPlayerState requested_state = MusicPlayerState::kPlaying;
         std::string requested_error;
         {
@@ -862,14 +1034,31 @@ MusicPlayer::PlaybackLoopResult MusicPlayer::QueuePcmChunk(uint32_t generation,
             FinishPlayback(generation, MusicPlayerState::kError, error_on_cancel);
             return PlaybackLoopResult::kError;
         }
+
+        if (audio.PushPcmToPlaybackQueue(kAudioFocusOwnerLocalMusic,
+                std::move(output), true)) {
+            return PlaybackLoopResult::kContinue;
+        }
+        if (!audio.HasAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput)) {
+            FinishPlayback(generation, MusicPlayerState::kPaused, "");
+            return PlaybackLoopResult::kStopped;
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-    return PlaybackLoopResult::kContinue;
 }
 
 void MusicPlayer::FinishPlayback(uint32_t generation, MusicPlayerState state,
         const std::string& error) {
     bool release_focus = state == MusicPlayerState::kIdle || !error.empty();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (generation != playback_generation_) {
+            return;
+        }
+    }
+    if (state == MusicPlayerState::kIdle && error.empty()) {
+        Application::GetInstance().GetAudioService().WaitForPlaybackQueueEmpty();
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (generation != playback_generation_) {
@@ -902,6 +1091,15 @@ void MusicPlayer::PlaybackTask(void* arg) {
     uint32_t generation = task_arg->generation;
     delete task_arg;
     player->PlaybackLoop(generation);
+    vTaskDelete(nullptr);
+}
+
+void MusicPlayer::DeferredPlaybackTask(void* arg) {
+    auto* task_arg = static_cast<PlaybackTaskArg*>(arg);
+    MusicPlayer* player = task_arg->player;
+    uint32_t generation = task_arg->generation;
+    delete task_arg;
+    player->DeferredPlaybackLoop(generation);
     vTaskDelete(nullptr);
 }
 

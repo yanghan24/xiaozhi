@@ -885,7 +885,10 @@ void Application::HandleStateChangedEvent() {
             display->SetChatMessage("system", "");
             break;
         case kDeviceStateListening:
-            audio_service_.NotifyVoiceInteractionStarted();
+            audio_service_.RequestAudioFocus(kAudioFocusOwnerVoiceInteraction,
+                kAudioFocusResourceInput);
+            audio_service_.ReleaseAudioFocus(kAudioFocusOwnerVoiceInteraction,
+                kAudioFocusResourceOutput);
             display->SetStatus(Lang::Strings::LISTENING);
             display->SetEmotion("neutral");
 
