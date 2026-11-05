@@ -1,6 +1,6 @@
 # 规范通与集市语音接口资料
 
-用于[任务 #12](https://github.com/yanghan24/xiaozhi/issues/12)。以下两段接口信息由用户于 2026-11-05 从集市提供，已拆分为独立的会话创建示例和 MCP 配置；尚未使用真实 Key 调用验证。通用身份与凭证规则见根目录《元筑AI集市应用接入接口文档》v1.0。
+用于[任务 #12](https://github.com/yanghan24/xiaozhi/issues/12)。以下接口信息由用户于 2026-11-05 从集市页面提供，包括会话创建请求、响应示例和 MCP 配置；尚未使用真实 Key 调用验证。通用身份与凭证规则见根目录《元筑AI集市应用接入接口文档》v1.0。页面说明业务参数沿用元筑接口，积分计入 Key 所属账号；文件上传后使用返回的文件 ID，文件接口尚未提供。
 
 ## 规范通标识
 
@@ -15,6 +15,8 @@
 
 ## 创建会话
 
+方法为 `POST`，内容类型为 `application/json`。`app_id` 是必填的字符串字段。
+
 ```bash
 curl --request POST 'https://aimarket.hncig.cn:4090/api/ai_apaas/v1/app/conversation' \
   --header 'Authorization: Bearer YOUR_AIMARKET_KEY' \
@@ -24,7 +26,18 @@ curl --request POST 'https://aimarket.hncig.cn:4090/api/ai_apaas/v1/app/conversa
   }'
 ```
 
-此请求创建规范通会话，未包含用户问题。本次尚未提供创建响应，因而还不能确定会话标识在响应中的确切字段位置；也未提供后续发起对话的请求格式。
+页面提供的响应示例：
+
+```json
+{
+  "request_id": "REQUEST_ID",
+  "conversation_id": "CONVERSATION_ID"
+}
+```
+
+示例中的 `request_id` 和 `conversation_id` 均位于 JSON 顶层。前者标识本次请求，后者是新会话的标识；两个大写值都是占位符。此请求未包含用户问题，后续发起对话时如何携带会话标识，仍需对应请求契约。
+
+页面另说明响应字段和事件由元筑返回，具体内容取决于应用，流式响应包含多条 `data` 事件。这段通用说明尚未给出对话增量、完成或错误事件的具体结构，不能据此假定兼容其他模型的流式协议。以上是文档样例，并非真实调用结果。
 
 ## MCP 连接配置
 
@@ -45,7 +58,7 @@ curl --request POST 'https://aimarket.hncig.cn:4090/api/ai_apaas/v1/app/conversa
 
 ## 仍需补齐
 
-- 创建会话的成功/失败响应，以及后续发起对话的完整请求。
+- 创建会话的失败响应，以及后续发起对话的完整请求。
 - 流式增量正文、结束、错误和引用等事件样例，会话续接/归属校验与取消机制。
 - 如选 MCP：工具定义、参数、返回结果及取消语义。
 - 集市语音合成模型名称、调用示例、音色、音频格式/采样率和流式能力。
