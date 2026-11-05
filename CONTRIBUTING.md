@@ -61,9 +61,10 @@ git revert --no-edit COMMIT_SHA
 
 ## 查看旧版本与找回提交
 
-用独立 worktree 检查旧标签，保留当前工作区。将 `RELEASE_TAG` 换成需要检查的标签，例如 `checkpoint/requirements-2026-11-05`。
+普通 `git fetch origin` 不一定会获取旧标签，尤其是在只克隆 `main` 时。将下面的 `RELEASE_TAG` 换成需要检查的标签，例如 `checkpoint/requirements-2026-11-05`，先显式抓取该标签；抓取成功后，再用独立 worktree 检查，保留当前工作区。若本地已有同名标签且指向不同提交，先核对两端的标签，不要强制覆盖。
 
 ```bash
+git fetch origin tag RELEASE_TAG
 git worktree add --detach .worktrees/inspect-checkpoint RELEASE_TAG
 ```
 
