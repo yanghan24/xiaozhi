@@ -26,7 +26,11 @@ git worktree add --no-track -b feat/123-oidc-login .worktrees/123-oidc-login ori
 git push -u origin HEAD
 ```
 
-每个 PR 至少由另一位开发者审阅，解决讨论后再 squash 合并。当前仓库尚未导入应用代码，后续将真实运行的构建、测试任务加入必需检查；不要将不存在的检查名称设为合并门槛。
+每个 PR 由仓库管理员审核，解决讨论后由管理员执行 squash 合并，合并操作即记录管理员的同意。管理员自己发起的 PR 也可以检查后自行合并，不额外要求另一位开发者批准。其他开发者可以提交分支、参与审阅，但不能更新 `main`。
+
+代理可以提交、推送任务分支和准备 PR；合并到 `main` 前须获得管理员针对该 PR 的明确同意，即使代理使用的 GitHub 凭据属于管理员也一样。
+
+当前仓库尚未导入应用代码，后续将真实运行的构建、测试任务加入必需检查；不要将不存在的检查名称设为合并门槛。
 
 ## 每个 clone 的本地设置
 
@@ -94,12 +98,21 @@ git branch rescue/recovered-work COMMIT_SHA
 
 ## GitHub 保护配置
 
-主线保护的目标配置位于 [.github/branch-protection/main.json](.github/branch-protection/main.json)：要求 PR、至少一位审阅者、解决讨论和线性历史，禁止强推及删除，并适用于管理员。团队至少需要一位作者以外的有权审阅者完成合并。
+主线使用两个 GitHub ruleset，均只作用于 `refs/heads/main`：
 
-该 JSON 仅保存配置目标；是否生效以 GitHub 设置为准。维护者应用此配置前，应重新读取远端规则，将已有额外限制合并保留；下面的 PUT 会替换经典分支保护配置。
+| 配置 | 作用 |
+| --- | --- |
+| [main-safety.json](.github/rulesets/main-safety.json) | 所有人通过 PR、解决讨论并 squash 合并；禁止强推和删除，要求线性历史；无绕过名单 |
+| [main-admin-merge.json](.github/rulesets/main-admin-merge.json) | 限制更新，仅仓库管理员可通过 PR 合并；管理员也不能直接推送主线 |
+
+管理员权限使用 GitHub 内置的仓库 Admin 角色（`RepositoryRole`，ID `5`），授权模式为 `pull_request`。独立的安全规则没有绕过名单，因此管理员合并时仍须遵守这些限制。GitHub 不允许批准自己发起的 PR；这里将必需的 Approve 数量设为 `0`，由管理员审核后的合并动作确认同意，不再叠加第二人的审阅门槛。仓库管理员指 GitHub 权限，与产品中的运营管理员无关。
+
+JSON 保存配置目标，是否生效以 GitHub 设置为准。维护者应用前先读取现有 ruleset 和经典分支保护，保留已有额外限制。同名 ruleset 已存在时使用其 ID 更新；仅在不存在时创建，避免重复规则。不要为了降低审阅人数而关闭所有管理员保护。
 
 ```bash
-gh api repos/yanghan24/xiaozhi/branches/main/protection
+gh api repos/yanghan24/xiaozhi/rulesets
 gh api repos/yanghan24/xiaozhi/rules/branches/main
-gh api --method PUT repos/yanghan24/xiaozhi/branches/main/protection --input .github/branch-protection/main.json
+gh api repos/yanghan24/xiaozhi/branches/main/protection
 ```
+
+创建或更新规则使用 [GitHub ruleset API](https://docs.github.com/en/rest/repos/rules) 的 POST 或 PUT，并通过 `--input` 传入对应 JSON。管理员授权的行为见 [仅通过 PR 绕过更新限制](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository#granting-bypass-permissions-for-your-branch-or-tag-ruleset)。
