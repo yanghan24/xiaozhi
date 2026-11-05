@@ -11,6 +11,17 @@
 - 开始时可用内存约 2.2 GiB、磁盘约 322 GiB；构建期间前置检查观测可用内存 2516 MiB、磁盘 318.9 GiB。顺序构建前后端，Java 测试运行前停止本项目管理容器以释放内存。
 - 管理项目 `xiaozhi-baseline`，仅发布 `127.0.0.1:18002`。数据库、缓存、上传文件使用新建的专属卷；既有 JetLinks 容器和数据未修改。
 
+## 源码与产物对应
+
+本项目实现提交：`fd104daaa3fc7c3017ece00d13deb319778f69c7`。以下最终本机镜像均以该提交作为 tag 和 `org.opencontainers.image.revision`，另有 `io.xiaozhi.upstream.revision` 标签记录完整上游提交。
+
+| 产物 | 本机 image ID |
+| --- | --- |
+| `xiaozhi-manager-api:fd104daaa3fc7c3017ece00d13deb319778f69c7` | `sha256:b1201771f4c166507b639f6c4f52681229c26a72d570e38ae41d3b488606d04d` |
+| `xiaozhi-manager-web:fd104daaa3fc7c3017ece00d13deb319778f69c7` | `sha256:ff32cbd3d291dc71ab588c7916610124719d6e3f873c7d39acaca16f92396c75` |
+
+写入提交标签时，Maven 编译、前端依赖、前端测试和生产打包步骤全部命中此前通过验证的构建缓存；应用产物沿用已验收内容。最终镜像已用于恢复管理环境。基础镜像的完整摘要固定在 [Dockerfile](../../deploy/manager/Dockerfile)，MySQL 和 Redis 的摘要固定在 [compose.yaml](../../compose.yaml)。这是本机构建产物记录，未发布镜像仓库或软件版本。
+
 ## 已执行结果
 
 | 检查 | 实际结果 | 证据 |
@@ -27,6 +38,7 @@
 | 错误密码 | 使用有效验证码、错误密码，返回 `10004`，不签发 token | [浏览器结果](issue-3-browser-result.json) |
 | 正确登录、保存及刷新回读 | 保存 `baseline.acceptance.1793853793879`，刷新后读到 `manager-write-read-verified` | [浏览器结果](issue-3-browser-result.json)及下方截图 |
 | Java 全套测试及集成守卫 | 206 条，0 失败、0 错误、0 跳过；集成守卫确认三组共 8 条已执行 | [测试摘要](issue-3-java-tests.txt)，独立项目 `xiaozhi-baseline-tests` |
+| 最终镜像恢复运行 | 使用带源码提交标签的镜像恢复；HTTP 检查再次返回 0，其他项目容器仍运行 | `docker compose up -d --wait --wait-timeout 360`、`scripts/check-manager.py` |
 
 ![刷新后的参数回读](issue-3-configuration-readback.png)
 
@@ -69,3 +81,13 @@ PASS: management HTML, initialized API configuration, anonymous access rejection
 运行说明、私有配置生成、启动、停止、恢复、测试环境清理和重复检查命令见 [管理端说明](../development/manager-baseline.md)。真实密码、token、生成的服务密钥及原始运行日志仅保留在本地忽略目录；仓库中只保存上述脱敏结果。
 
 本任务没有运行 Python 语音服务、设备激活、绑定、WebSocket 或真机语音问答；没有验证集市身份、规范通计费、OTA 刷写或 100 路并发。上述范围分别留待后续任务，父规格 #2 的 A、B 两层仍未全部完成。
+
+## 双轴审阅
+
+审阅基线为 `b5d749f2fc29b72bef888d1d44a1d72d723835cf`，实现提交为 `fd104daaa3fc7c3017ece00d13deb319778f69c7`，使用两个独立审阅上下文。
+
+**Standards：0 项。** 新增部署、脚本和文档符合已检查的仓库规则：保留上游来源与许可；凭据和运行数据置于版本库之外；清理和回退说明区分源码与持久化数据；范围符合 ADR-0004/0005。没有值得报告的代码异味。
+
+**Spec：0 项。** 部署隔离、初始化、错误密码拒绝、页面登录、参数保存及刷新回读满足 #3。刷新路径通过管理 API 从 MySQL 读取参数，能够支撑存储验证。未发现范围扩张；语音、设备和集市集成明确留在后续任务。
+
+源码与镜像对应记录已单独完成规格复核，确认完整提交、镜像标签、image ID、固定基础镜像摘要及构建缓存证据相符；无待核项。
