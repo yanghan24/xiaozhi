@@ -8,6 +8,6 @@ status: accepted
 
 ## 后续调整
 
-[ADR-0002](0002-market-owns-device-bindings.md) 明确设备绑定也由集市管理，调整本记录中“小智后台建立设备关联”的职责表述；账号、应用和权限以集市为准的决定继续适用。
+[ADR-0005](0005-backend-owns-device-management.md) 明确设备管理及绑定归属由小智管理后台维护，账号、应用和权限继续以集市为准；此前将设备管理归于集市的 [ADR-0002](0002-market-owns-device-bindings.md) 已废止。
 
 [ADR-0003](0003-oidc-web-login-for-device-binding.md) 将客户入口调整为设备屏幕二维码引导的网页与 OIDC 登录流程，替换本记录中的微信小程序入口。
