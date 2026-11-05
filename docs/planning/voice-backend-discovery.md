@@ -42,7 +42,7 @@
 
 本轮资料包括用户提供的《元筑AI集市应用接入接口文档》v1.0（2026-11-05），以及[规范通控制台的 API/MCP 页面](https://aimarket.hncig.cn:4090/console/agent/156fd2a5-ade8-4800-b206-21a024d23760?tab=api)。链接中的标识用于定位控制台智能体，实际调用地址、参数和资源标识以页面接口说明为准，不从控制台 URL 推断。
 
-只读检查已从该页面公开前端确认通用说明：原生 API 使用集市 Bearer Key，先创建会话再发起对话；MCP 使用 Streamable HTTP，后续通过 `conversation_id` 续接。页面的具体文档数据由 `GET /consoleapi/agents/156fd2a5-ade8-4800-b206-21a024d23760/native-docs` 加载，无登录态访问返回 HTTP 401；该 GET 地址仅用于控制台加载文档。用户随后补充了会话创建请求、响应示例和 MCP 地址，已记录于[接口资料](../development/ai-market-api.md)：原生 API 的 app_id 与集市智能体 ID 不同，创建响应的顶层包含 request_id 与 conversation_id。发起对话、具体流式事件及语音模型契约仍待取得，尚未执行真实调用。
+只读检查已从该页面公开前端确认通用说明：原生 API 使用集市 Bearer Key，先创建会话再发起对话；MCP 使用 Streamable HTTP，后续通过 `conversation_id` 续接。页面的具体文档数据由 `GET /consoleapi/agents/156fd2a5-ade8-4800-b206-21a024d23760/native-docs` 加载，无登录态访问返回 HTTP 401；该 GET 地址仅用于控制台加载文档。用户随后补充了会话创建、流式对话请求、响应示例和 MCP 地址，已记录于[接口资料](../development/ai-market-api.md)：原生 API 的 app_id 与集市智能体 ID 不同，创建响应的顶层包含 request_id 与 conversation_id；后续向 `/api/ai_apaas/v1/app/conversation/runs` 提交 app_id、conversation_id、query 和 stream 即为页面的流式提问示例。响应样例包含 answer、is_completion 和 content，但正文是增量还是累计、结束/错误事件及取消规则仍待核实；end_user_id 仅作上游业务标记，计费以 Key 所属账号为准。语音模型契约仍待取得，尚未执行真实调用。
 
 接入文档明确 ID Token 和 Access Token 最长 5 分钟，不提供刷新令牌；资源调用另用按用户及接入应用领取的 Key。Key 的授权截止时间与短期令牌不同，但会随来源会话、应用或授权提前失效。长期使用要求尚需与这一生命周期核对；短期令牌到期、登录状态失效与设备解绑分别处理。小智侧以有效登录及业务授权作为使用 Key 的前提，退出后即使仍持有 Key 也停止调用。
 
