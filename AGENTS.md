@@ -11,3 +11,7 @@ Use the five default triage roles. Before triaging an issue or changing its tria
 ### Domain docs
 
 Single-context layout: root `GLOSSARY.md` and `docs/adr/`. Before exploring the codebase, read `docs/agents/domain.md`.
+
+## Collaboration
+
+Before editing project files, creating branches or worktrees, committing, pushing, opening PRs, or undoing changes, read `CONTRIBUTING.md` for this repository's collaboration and recovery workflow.
