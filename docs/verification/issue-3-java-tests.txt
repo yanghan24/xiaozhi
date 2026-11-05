@@ -1,0 +1,32 @@
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.497 s -- in xiaozhi.common.redis.RedisSerializationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.366 s -- in xiaozhi.common.service.impl.BaseServiceImplTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.066 s -- in xiaozhi.common.utils.AESUtilsTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.030 s -- in xiaozhi.common.utils.JsonUtilsTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.060 s -- in xiaozhi.common.utils.SensitiveDataUtilsTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in xiaozhi.modules.agent.dto.AgentUpdateDTOTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.099 s -- in xiaozhi.modules.agent.service.impl.AgentSnapshotRedactionRunnerTest
+[INFO] Tests run: 59, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.157 s -- in xiaozhi.modules.agent.service.impl.AgentSnapshotServiceImplTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.274 s -- in xiaozhi.modules.agent.typehandler.ContextProviderListTypeHandlerTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.336 s -- in xiaozhi.modules.config.service.impl.ConfigServiceImplTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.195 s -- in xiaozhi.modules.correctword.service.impl.CorrectWordFileServiceImplTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.33 s -- in xiaozhi.modules.device.DeviceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.199 s -- in xiaozhi.modules.device.controller.DeviceControllerTest
+[INFO] Tests run: 22, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.233 s -- in xiaozhi.modules.device.service.impl.DeviceAddressBookServiceImplTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.078 s -- in xiaozhi.modules.device.service.impl.DeviceAutoUpdateTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.174 s -- in xiaozhi.modules.device.service.impl.DeviceServiceImplTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.070 s -- in xiaozhi.modules.device.service.impl.DeviceTimeSerializationTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.698 s -- in xiaozhi.modules.device.service.impl.MqttGatewayAuthorizationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.023 s -- in xiaozhi.modules.knowledge.rag.KnowledgeBaseAdapterFactoryTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.361 s -- in xiaozhi.modules.model.service.impl.ModelConfigPersistenceTest
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.131 s -- in xiaozhi.modules.model.service.impl.ModelConfigServiceImplTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in xiaozhi.modules.security.config.ShiroConfigTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.148 s -- in xiaozhi.modules.sys.loginControllerTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.079 s -- in xiaozhi.modules.sys.service.impl.SysDictDataServiceImplTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.141 s -- in xiaozhi.modules.sys.service.impl.SysParamsServiceImplTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.163 s -- in xiaozhi.modules.timbre.service.impl.TimbreServiceImplTest
+[INFO] Tests run: 206, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+OK  xiaozhi.modules.device.DeviceTest 跑了 2 条
+OK  xiaozhi.modules.model.service.impl.ModelConfigPersistenceTest 跑了 3 条
+OK  xiaozhi.modules.sys.loginControllerTest 跑了 3 条
+集成测试都跑过了
