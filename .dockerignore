@@ -1,0 +1,17 @@
+.git
+.worktrees
+.runtime
+.env
+!main/manager-web/.env
+**/node_modules
+**/target
+**/dist
+**/.webpack_cache
+**/__pycache__
+**/.pytest_cache
+main/xiaozhi-server/data
+main/xiaozhi-server/models
+**/.config.yaml
+**/.secrets.yaml
+**/.private_config.yaml
+**/*.log

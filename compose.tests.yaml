@@ -1,0 +1,40 @@
+# Run with an independent project name; these databases never contain browser data.
+name: xiaozhi-baseline-tests
+
+services:
+  mysql:
+    extends:
+      file: compose.yaml
+      service: mysql
+  redis:
+    extends:
+      file: compose.yaml
+      service: redis
+  api-tests:
+    image: xiaozhi-manager-api-tests:${BUILD_TAG:-baseline-local}
+    build:
+      context: .
+      dockerfile: deploy/manager/Dockerfile
+      target: api-tests
+    environment:
+      CI: "true"
+      MAVEN_OPTS: "-Xmx384m -XX:ActiveProcessorCount=2"
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:ActiveProcessorCount=2"
+      SPRING_DATASOURCE_DRUID_URL: jdbc:mysql://mysql:3306/xiaozhi_esp32_server?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_DRUID_USERNAME: xiaozhi
+      SPRING_DATASOURCE_DRUID_PASSWORD: ${MYSQL_PASSWORD:?Run python3 scripts/init-manager.py first}
+      SPRING_DATASOURCE_DRUID_INITIAL_SIZE: "2"
+      SPRING_DATASOURCE_DRUID_MIN_IDLE: "2"
+      SPRING_DATASOURCE_DRUID_MAX_ACTIVE: "10"
+      SPRING_DATA_REDIS_HOST: redis
+    command: ["bash", "-ec", "mvn -B -ntp test -DskipTests=false && bash scripts/check-integration-tests.sh"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 1400m
+
+volumes:
+  mysql-data:
+  redis-data:

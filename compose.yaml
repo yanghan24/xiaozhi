@@ -1,0 +1,84 @@
+name: ${XIAOZHI_PROJECT_NAME:-xiaozhi-baseline}
+
+services:
+  mysql:
+    image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run python3 scripts/init-manager.py first}
+      MYSQL_DATABASE: xiaozhi_esp32_server
+      MYSQL_USER: xiaozhi
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run python3 scripts/init-manager.py first}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M", "--max-connections=60", "--performance-schema=OFF"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql --protocol=TCP -h 127.0.0.1 -uxiaozhi -D xiaozhi_esp32_server -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    mem_limit: 640m
+
+  redis:
+    image: redis:8.0.0-alpine@sha256:0779069b3c24a47a2f681855c1c01d046793e7c5f7d2b079c2aa0652c42eaf0e
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 192m
+
+  api:
+    image: xiaozhi-manager-api:${BUILD_TAG:-baseline-local}
+    build:
+      context: .
+      dockerfile: deploy/manager/Dockerfile
+      target: api
+      args:
+        SOURCE_REVISION: ${SOURCE_REVISION:-working-tree}
+    environment:
+      SPRING_DATASOURCE_DRUID_URL: jdbc:mysql://mysql:3306/xiaozhi_esp32_server?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_DRUID_USERNAME: xiaozhi
+      SPRING_DATASOURCE_DRUID_PASSWORD: ${MYSQL_PASSWORD:?Run python3 scripts/init-manager.py first}
+      SPRING_DATASOURCE_DRUID_INITIAL_SIZE: "2"
+      SPRING_DATASOURCE_DRUID_MIN_IDLE: "2"
+      SPRING_DATASOURCE_DRUID_MAX_ACTIVE: "10"
+      SPRING_DATA_REDIS_HOST: redis
+      SERVER_TOMCAT_THREADS_MAX: "50"
+      SERVER_TOMCAT_THREADS_MIN_SPARE: "5"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploadfile
+    mem_limit: 896m
+
+  web:
+    image: xiaozhi-manager-web:${BUILD_TAG:-baseline-local}
+    build:
+      context: .
+      dockerfile: deploy/manager/Dockerfile
+      target: web
+      args:
+        SOURCE_REVISION: ${SOURCE_REVISION:-working-tree}
+    ports:
+      - "127.0.0.1:${MANAGER_PORT:-18002}:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/xiaozhi/user/pub-config"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    mem_limit: 96m
+
+volumes:
+  mysql-data:
+  redis-data:
+  uploads:
