@@ -15,3 +15,5 @@ Single-context layout: root `GLOSSARY.md` and `docs/adr/`. Before exploring the 
 ## Collaboration
 
 Before editing project files, creating branches or worktrees, committing, pushing, opening PRs, or undoing changes, read `CONTRIBUTING.md` for this repository's collaboration and recovery workflow.
+
+Before planning or running physical-device tests, read the testing environment policy in `CONTRIBUTING.md`.
