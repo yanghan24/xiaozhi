@@ -7,7 +7,7 @@
 - [实际验证记录](docs/verification/issue-3-manager-baseline.md)
 - [任务 #3](https://github.com/yanghan24/xiaozhi/issues/3)、[父规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)
 - [团队协作与回退](CONTRIBUTING.md)
-- [换机接续：Ubuntu 测试与部署](docs/handoff/2026-11-05-ubuntu-server.md)
+- [接续安排：本机测试与后续 Ubuntu 部署](docs/handoff/2026-11-05-ubuntu-server.md)
 - [AI 集市接口确认问卷](to-questionnaire-ai-market-integration.md)
 
 本项目使用根目录 `compose.yaml` 启动独立测试环境。保留的 [上游 README](README.upstream.md)、`docs/Deployment_all.md` 和 `main/xiaozhi-server/docker-compose_all.yml` 是来源资料；其中的预构建镜像、全局容器名和清理步骤不是本项目本机运行流程。
