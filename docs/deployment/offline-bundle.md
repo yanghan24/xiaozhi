@@ -2,6 +2,8 @@
 
 本机交付目录为 `D:\AI\xiaozhi\.runtime\ubuntu-test-bundle-20261106`。这是已验证运行镜像和源码的准备产物，尚未上传或在 Ubuntu 启动。服务器检查时 Docker Registry/GitHub 直连失败，Maven/npm/阿里云 Debian/PyPI 的 HEAD 请求返回 200，因此提供离线路径。探测成功不代表完整依赖下载已验证。
 
+按用户最新安排，此包用于后续统一的 Ubuntu 后台测试环境；本机只提供编辑、SSH 和浏览器访问。实际服务器状态与 JetLinks 停机记录见 [Ubuntu runbook](ubuntu-isolated-test.md)。
+
 包内包含 `source.tar.gz`、`overlays.tar.gz`、`images.tar`、`manifest.json`、`SHA256SUMS`、`verify-images.py`、本次语音 Dockerfile 与完整依赖清单。源码通过固定 `6e354edf292c3df14fd783c5dc7314a4402e3b74` 的 `git archive` 导出，不含 `.git`、根目录私有 `.env`、`.runtime`、本机账号或数据库卷。源码自带的 `main/manager-web/.env` 仅含公开页面标题、描述和关键词，随固定源码保留。覆盖包提供已审查的部署模板、报告和 LF 属性规则。
 
 语音镜像为 `xiaozhi-voice:local-20261106-netmirror`，revision 标签为 `working-tree`；仅 Debian 软件源 URL 改为阿里云 HTTPS 镜像，实际构建配方及 SHA-256 随包记录。API/web 使用完整源码提交作标签。清单分别记录 Docker 29 的运行时镜像标识和 Docker archive 配置标识，用于兼容 Ubuntu Docker 26 的导入结果；同时校验平台、文件系统层和 revision 标签。
@@ -89,6 +91,6 @@ dco run --rm --no-deps -T voice-config-check
 
 在设备网段、路由和访问条件确认后，才单独执行 `dco up -d --no-deps --no-build --pull never device-entry`，然后发布真实 OTA/WS 地址并重跑协议及外部 OTA 检查。候选 LAN 地址为 `http://192.168.168.114:18080/xiaozhi/ota/` 和 `ws://192.168.168.114:18080/xiaozhi/v1/`；当前它们尚未在服务器部署或从设备网络验证。
 
-服务器 `jt` 通过 sudo 使用 Docker，不新增 docker 组权限。UFW 检查时 inactive，仍不能据此认定跨网段、防火墙、NAT 或公网入口可达。现有 JetLinks 服务、数据、端口和账号保持原状态。
+服务器 `jt` 通过 sudo 使用 Docker，不新增 docker 组权限。UFW 检查时 inactive，仍不能据此认定跨网段、防火墙、NAT 或公网入口可达。JetLinks 按最新要求停机，其数据和账号配置保留；后续小智操作保持其停机状态。
 
 镜像校验/加载成功不是 Ubuntu 服务或真机验收。真实 ASR/LLM/TTS 仍需要有效配置与网络，设备输入和播放由现场测试确认。联调记录实际测试固件版本或构建号；不把修改 OTA 地址视为固件升级或回滚测试。

@@ -1,0 +1,136 @@
+{
+  "date": "2026-11-06T16:07:20.289387+08:00",
+  "host": "192.168.168.114",
+  "action": "stop_jetlinks_project",
+  "status": "PASS",
+  "before": [
+    {
+      "id": "543900e9811e025b221160149aed4592fabdd28fc9a5449b9bffe2f616e1a1d5",
+      "name": "jetlinks-restored-99a1e3b3-jetlinks-1",
+      "running": true,
+      "status": "running",
+      "exit_code": 0,
+      "oom_killed": false,
+      "restart_policy": "unless-stopped",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/jetlinks-restored/data/jetlinks",
+          "destination": "/application/data"
+        }
+      ]
+    },
+    {
+      "id": "c08ff5941ab8cf7af8e23ba7ff790252549aa35980db8745db786c381a1e3719",
+      "name": "jetlinks-restored-99a1e3b3-postgres-1",
+      "running": true,
+      "status": "running",
+      "exit_code": 0,
+      "oom_killed": false,
+      "restart_policy": "unless-stopped",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/jetlinks-restored/data/postgres",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "id": "c9fd520efd611a6b88638abc30cd7a87ae100014cf44fba05a6a378db16c0ea1",
+      "name": "jetlinks-restored-99a1e3b3-redis-1",
+      "running": true,
+      "status": "running",
+      "exit_code": 0,
+      "oom_killed": false,
+      "restart_policy": "unless-stopped",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/jetlinks-restored/data/redis",
+          "destination": "/data"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "id": "543900e9811e025b221160149aed4592fabdd28fc9a5449b9bffe2f616e1a1d5",
+      "name": "jetlinks-restored-99a1e3b3-jetlinks-1",
+      "running": false,
+      "status": "exited",
+      "exit_code": 137,
+      "oom_killed": false,
+      "restart_policy": "unless-stopped",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/jetlinks-restored/data/jetlinks",
+          "destination": "/application/data"
+        }
+      ]
+    },
+    {
+      "id": "c08ff5941ab8cf7af8e23ba7ff790252549aa35980db8745db786c381a1e3719",
+      "name": "jetlinks-restored-99a1e3b3-postgres-1",
+      "running": false,
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false,
+      "restart_policy": "unless-stopped",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/jetlinks-restored/data/postgres",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "id": "c9fd520efd611a6b88638abc30cd7a87ae100014cf44fba05a6a378db16c0ea1",
+      "name": "jetlinks-restored-99a1e3b3-redis-1",
+      "running": false,
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false,
+      "restart_policy": "unless-stopped",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/jetlinks-restored/data/redis",
+          "destination": "/data"
+        }
+      ]
+    }
+  ],
+  "all_jetlinks_containers_stopped": 6,
+  "released_tcp_ports": [
+    1883,
+    1884,
+    1885,
+    1886,
+    1887,
+    1888,
+    1889,
+    1890,
+    5060,
+    5061,
+    8800,
+    8801,
+    8802,
+    8803,
+    8804,
+    8805,
+    8806,
+    8807,
+    8808,
+    8809,
+    8810,
+    8848
+  ],
+  "ssh_port_22_listening": true,
+  "data_mounts_preserved": true,
+  "restart_policy_changed": false,
+  "restart_behavior": "unless-stopped preserves manual stop across Docker restarts",
+  "xiaozhi_ubuntu_deployed": false
+}
