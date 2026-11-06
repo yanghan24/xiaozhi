@@ -609,9 +609,10 @@ class ConnectionHandler:
             if self.tts is None:
                 self.tts = self._initialize_tts()
             # 打开语音合成通道
+            # This runs in the component worker; propagate asynchronous setup failures.
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
-            )
+            ).result(timeout=30)
             if self.need_bind:
                 self.bind_completed_event.set()
                 return
@@ -641,7 +642,7 @@ class ConnectionHandler:
             # 打开语音识别通道
             asyncio.run_coroutine_threadsafe(
                 self.asr.open_audio_channels(self), self.loop
-            )
+            ).result(timeout=30)
 
             """加载记忆"""
             self._initialize_memory()
