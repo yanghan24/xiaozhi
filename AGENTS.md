@@ -16,6 +16,8 @@ Single-context layout: root `GLOSSARY.md` and `docs/adr/`. Before exploring the 
 
 Before editing project files, creating branches or worktrees, committing, pushing, opening PRs, or undoing changes, read `CONTRIBUTING.md` for this repository's collaboration and recovery workflow.
 
+Before planning or running physical-device tests, read the testing environment policy in `CONTRIBUTING.md`.
+
 ## Backend validation
 
 Run backend services, regression tests, and device protocol checks on Ubuntu `192.168.168.114` using SSH user `jt`. The local computer may provide editing, SSH, and browser access. Before provisioning, testing, or restarting backend services, read `docs/deployment/ubuntu-isolated-test.md` for the current server state and operating procedure.
