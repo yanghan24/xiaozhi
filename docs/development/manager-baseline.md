@@ -1,6 +1,8 @@
 # 本机管理端运行与验证
 
-在仓库根目录执行下列命令。需要 x86_64 Docker Engine、Docker Compose、Python 3，以及可访问镜像和依赖仓库的网络。运行范围为管理页面、Java API、MySQL 和 Redis。
+当前执行入口为[Ubuntu 独立测试部署与复验](../deployment/ubuntu-isolated-test.md)。下文保留基线初始化方法，仅在全新 Ubuntu 测试环境需要初始化时使用；现有服务器复用原 `.env`、账号及数据卷，不重新注册首个管理员或生成数据库密码。本机仅作编辑、SSH 和浏览器访问。
+
+在 Ubuntu 仓库根目录执行下列后端命令。需要 x86_64 Docker Engine、Docker Compose、Python 3，以及可访问镜像和依赖仓库的网络。运行范围为管理页面、Java API、MySQL 和 Redis。
 
 ## 初始化和启动
 

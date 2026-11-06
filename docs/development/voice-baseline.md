@@ -1,20 +1,21 @@
 # 本机语音服务与设备协议验证
 
-本流程承接[管理端本机环境](manager-baseline.md)，运行导入源码中的 Python 小智语音服务。管理 API、MySQL、Redis 均为真实服务；客户端模拟设备的 HTTP／WebSocket 协议。当前不依赖服务器、集市专用接口或样机。
+本流程保留 #4 的基线操作，并补齐新 clone 的路径和检查凭据更新说明。当前后端服务、回归及设备协议检查统一在 Ubuntu 执行，先读[当前部署与复验](../deployment/ubuntu-isolated-test.md)，复用服务器现有 `.env`、账号和数据卷。下文 Docker/Python 命令在 Ubuntu clone 执行；浏览器登录可在开发电脑经 SSH 隧道完成。协议模拟不依赖集市专用接口或样机，不代表真机验收。
 
 ## 复用已有环境
 
-在本任务 worktree 根目录执行。下例复用任务 #3 的 Compose 项目及原始私有 `.env`，不会重新初始化数据库密码：
+在当前 clone 或 worktree 根目录执行。新电脑先按[管理端说明](manager-baseline.md)完成管理服务启动、测试账号注册和登录；新环境的私有配置为当前根目录 `.env`，浏览器检查生成的凭据为 `.runtime/manager-check/credentials.json`。
+
+下例使用当前目录已初始化的环境，Compose 项目名取自该 `.env` 的 `XIAOZHI_PROJECT_NAME`：
 
 ```bash
-export MANAGER_ENV=../3-upstream-manager-baseline/.env
-export COMPOSE_PROJECT_NAME=xiaozhi-baseline
+export MANAGER_ENV="$PWD/.env"
 export COMPOSE_FILE=compose.yaml:compose.voice.yaml
 docker compose --env-file "$MANAGER_ENV" ps
 python3 scripts/check-manager.py
 ```
 
-如果现有环境在其他目录，将 `MANAGER_ENV` 改为它的 `.env` 路径，并核对项目名。全新环境先按管理端说明初始化、启动并完成测试账号注册。保留已有数据卷和配套凭据；本流程仅新增 `voice` 容器。
+如果现有环境在其他目录，将 `MANAGER_ENV` 改为它的 `.env` 路径，并核对项目名；清除或调整会覆盖项目名的遗留 `COMPOSE_PROJECT_NAME` 设置。原开发机的 #4 worktree 曾使用 `../3-upstream-manager-baseline/.env`，这个相对路径仅适用于当时的目录布局，新 clone 无需重建该布局。已有数据卷须使用配套凭据；本流程仅新增 `voice` 容器。
 
 ## 登录及初始化
 
@@ -23,10 +24,12 @@ python3 scripts/check-manager.py
 ```bash
 npm --prefix scripts/manager-browser ci --ignore-scripts --no-audit --no-fund
 node scripts/manager-browser/voice-login.mjs \
-  --credentials ../3-upstream-manager-baseline/.runtime/manager-check/credentials.json
+  --credentials .runtime/manager-check/credentials.json
 ```
 
-按脚本提示查看 `.runtime/voice/captcha.png` 并输入验证码。需要宿主机 Chrome；可用 `CHROME_PATH` 指定位置。token 过期后重新登录；脚本不绕过认证。非默认管理端口用 `--url http://127.0.0.1:端口`，初始化脚本相应加 `--url http://127.0.0.1:端口/xiaozhi`。
+凭据必须属于当前管理数据库；复用原开发机账号时，显式传入其原凭据路径。按脚本提示查看 `.runtime/voice/captcha.png` 并输入验证码。需要宿主机 Chrome；可用 `CHROME_PATH` 指定位置，脚本不绕过认证。非默认管理端口用 `--url http://127.0.0.1:端口`，初始化脚本相应加 `--url http://127.0.0.1:端口/xiaozhi`。服务器无 Chrome 时，使用[交接说明中的 SSH 隧道流程](../handoff/2026-11-05-ubuntu-server.md#服务器上的管理登录)。
+
+token 过期后重新登录，再运行 `python3 scripts/init-voice.py` 刷新 `data/check.json` 中的检查凭据，无需再次加 `--configure`。已经使用自定义地址时，继续传入原有 `--url`、`--container-manager-url`、`--ws-url`、`--ota-url` 等参数；仅替换 `admin-token.json` 不会更新协议客户端保存的旧 token。
 
 ```bash
 python3 scripts/init-voice.py --configure
@@ -44,6 +47,8 @@ python3 scripts/init-voice.py --publish-urls
 ```
 
 先启动语音服务，再发布设备 URL。上游管理 API 拒绝回环 WebSocket URL，并实际连接待保存地址进行校验。本流程发布 Compose 内部地址 `ws://voice:8000/xiaozhi/v1/` 和 `http://api:8002/xiaozhi/ota/`，用于容器内协议客户端。宿主机健康检查使用 `127.0.0.1:18000`；附加 HTTP 入口为 `127.0.0.1:18003`。局域网真机需要另外配置设备可达地址，在后续真机任务验证。
+
+更换设备入口时，向 `init-voice.py --publish-urls` 同时传入实际 `--ws-url` 和 `--ota-url`，发布管理端地址并同步刷新 `data/check.json` 的预期地址。若地址已经在管理页面修改，可不加 `--publish-urls`，带实际地址参数重新初始化检查配置。WebSocket 地址必须同时可由设备、管理 API 容器及协议客户端容器访问；检查配置仍保留旧地址时，完整检查会报告 URL 不匹配。
 
 镜像保留 FFmpeg、libopus 和仓库内 Silero ONNX VAD 模型；不安装 Torch／本地 FunASR 推理栈。远程 ASR 支持 `openai`、`fun_server`，其他提供者需要各自的 SDK、模型及凭据。运行依赖直接版本见 `deploy/voice/requirements.txt`，实际完整依赖清单位于镜像 `/usr/local/share/xiaozhi-requirements.txt`。
 
