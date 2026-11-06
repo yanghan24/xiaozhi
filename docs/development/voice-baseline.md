@@ -70,11 +70,22 @@ docker compose --env-file "$MANAGER_ENV" exec -T voice \
   cat /app/data/protocol-result.json > .runtime/voice/protocol-result.json
 ```
 
-每轮生成独立 MAC、Client-Id 和测试智能体，验证未注册／待绑定状态、激活码绑定、当前测试账号下的设备回读、绑定后的 OTA／智能体配置、错误 WebSocket token 拒绝、真实 `hello` 及三次 WebSocket 控制帧 Ping/Pong。检查结束经管理 API 删除本轮智能体和设备，保留本轮身份和脱敏结果用于追踪。当前上游默认关闭应用层 JSON 心跳，本检查使用 WebSocket 标准控制帧。
+每轮生成独立 MAC、Client-Id 和测试智能体，验证未注册／待绑定状态、激活码绑定、当前测试账号下的设备回读、绑定后的 OTA／智能体配置、错误 WebSocket token 拒绝、真实 `hello`、同一会话的提供者初始化完成及三次 WebSocket 控制帧 Ping/Pong。检查结束经管理 API 删除本轮智能体和设备，保留本轮身份和脱敏结果用于追踪。当前上游默认关闭应用层 JSON 心跳，本检查使用 WebSocket 标准控制帧。
 
 客户端只在全部步骤通过且自己的测试数据清理成功后返回 `0`；失败返回 `1`，结果为 `status: failed`。每次执行均覆盖指定结果文件，不根据旧结果判断通过。`scope: device_protocol` 才表示完整设备协议；不加 `--settings` 只检查 HTTP 存活，报告范围是 `http_health`。服务凭据错误会在配置读取处停止；设备 URL 与预期不一致也会失败，不能把上游备用地址当成可用配置。
 
-`hello` 会早于后台提供者初始化返回。除协议结果外，核对本机私有语音日志中的「异步获取差异化配置成功」「初始化组件」及错误；日志包含认证头，提取证据时仅保留必要信息。初始化成功仅说明创建了提供者对象。
+`hello` 会早于后台提供者初始化返回。本项目在同一语音端口增加 `GET /xiaozhi/v1/ready/{session_id}`：使用该设备的 OTA token、Device-Id 和 Client-Id 校验会话归属，返回 `pending`、`ready` 或 `failed` 及失败阶段，不返回配置或异常详情。客户端最多等待 30 秒，初始化失败或超时会使完整检查失败；错误 token 返回 HTTP `401`，其他设备会话返回 `403`，连接结束后会话移除。正常设备的 `hello` 时序保留。
+
+就绪表示提供者对象和本地组件初始化完成，推理凭据有效性及实际音频仍需各自验证。本机私有语音日志包含认证头，提取补充证据时仅保留必要信息。
+
+可重复执行提供者配置错误／恢复回归，使用经管理 API 新增的独立 TTS 模型：
+
+```bash
+docker compose --env-file "$MANAGER_ENV" exec -T voice \
+  python /checks/check-voice-providers.py
+```
+
+检查先把专属模型设为不受支持的类型，要求设备已收到 `hello` 后仍被判为初始化失败；再将同一模型修正为真实 Edge TTS，要求初始化及协议检查通过。每次设备检查清理自己的智能体和设备，最后删除该专属模型。结果保存在 `/app/data/provider-result.json`，不会修改默认 TTS 模型或调用模型推理。
 
 以下检查在独立容器中给真实 `app.py` 提供缺失／错误配置，再恢复正确配置。已运行的语音服务继续保留自己的配置与端口：
 

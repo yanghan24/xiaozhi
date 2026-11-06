@@ -67,7 +67,7 @@ def check_device(settings, report):
     try:
         api(base, "/agent/" + agent_id, "PUT", {
             "asrModelId": settings["asr_model"], "vadModelId": "VAD_SileroVAD",
-            "llmModelId": "LLM_ChatGLMLLM", "ttsModelId": "TTS_EdgeTTS",
+            "llmModelId": "LLM_ChatGLMLLM", "ttsModelId": settings.get("tts_model", "TTS_EdgeTTS"),
             "intentModelId": "Intent_nointent", "memModelId": "Memory_nomem", "chatHistoryConf": 0,
         }, token)
         body = {"version": 1, "mac_address": mac, "uuid": trace,
@@ -119,7 +119,11 @@ def check_device(settings, report):
             providers[module] = {"id": name, "type": provider.get("type"), "api_key_state": key_state}
         record(report, "bound device retrieves its actual agent configuration", model_evidence,
                {"http": 200, "code": 0, "providers": providers, "chat_history_conf": config["chat_history_conf"]})
-        asyncio.run(check_websocket(websocket, headers, report))
+        other_headers = {**headers, "Client-Id": client + "-other"}
+        status, other_ota = http_json(base, "/ota/", "POST", body, headers=other_headers)
+        require(status == 200 and bool(other_ota.get("websocket", {}).get("token")), "No credentials returned for a second client identity")
+        other_headers["Authorization"] = "Bearer " + other_ota["websocket"]["token"]
+        asyncio.run(check_websocket(websocket, headers, other_headers, report))
     finally:
         api(base, "/agent/" + agent_id, "DELETE", token=token)
         require(all(agent["id"] != agent_id for agent in api(base, "/agent/list", token=token)),
@@ -130,7 +134,7 @@ def check_device(settings, report):
                {"code": 0, "device_activation_http_after_delete": status})
 
 
-async def check_websocket(websocket, headers, report):
+async def check_websocket(websocket, headers, other_headers, report):
     from websockets.asyncio.client import connect
 
     url = websocket["url"]
@@ -156,8 +160,7 @@ async def check_websocket(websocket, headers, report):
         record(report, "OTA credentials complete a real WebSocket hello handshake",
                {"url": url, "headers": {**headers, "Authorization": "Bearer [redacted]"}, "message": hello},
                {key: welcome[key] for key in ("type", "version", "transport", "session_id", "audio_params")})
-        # Allow the server to fetch and initialize private configuration while
-        # keeping the socket alive, without sending audio or invoking a model.
+        await check_session_ready(url, welcome["session_id"], headers, websocket["token"], other_headers, report)
         for _ in range(3):
             waiter = await connection.ping(b"xiaozhi-protocol-check")
             await asyncio.wait_for(waiter, 5)
@@ -165,6 +168,41 @@ async def check_websocket(websocket, headers, report):
         record(report, "WebSocket control Ping/Pong messages round trip",
                {"opcode": 9, "payload": "xiaozhi-protocol-check", "count": 3},
                {"opcode": 10, "matching_payload": True, "count": 3})
+    base = url.replace("ws://", "http://", 1).replace("wss://", "https://", 1).rstrip("/")
+    path = "/ready/" + welcome["session_id"]
+    for _ in range(50):
+        status, _ = await asyncio.to_thread(http_json, base, path, token=websocket["token"], headers=headers)
+        if status == 404:
+            record(report, "closed device session is removed from readiness", {"method": "GET", "url": base + path}, {"http": status})
+            break
+        await asyncio.sleep(0.1)
+    else:
+        raise ValueError("Closed device session remained visible in readiness")
+
+
+async def check_session_ready(ws_url, session_id, headers, token, other_headers, report):
+    base = ws_url.replace("ws://", "http://", 1).replace("wss://", "https://", 1).rstrip("/")
+    path = "/ready/" + session_id
+    deadline = asyncio.get_running_loop().time() + 30
+    while asyncio.get_running_loop().time() < deadline:
+        status, state = await asyncio.to_thread(http_json, base, path, token=token, headers=headers)
+        require(status == 200 and isinstance(state, dict), "Session readiness endpoint is unavailable")
+        report["provider_initialization"] = state
+        require(state.get("status") != "failed", "Device initialization failed at stage: " + str(state.get("stage")))
+        if state.get("status") == "ready":
+            record(report, "the same device session finishes provider initialization",
+                   {"method": "GET", "url": base + path, "headers": {**headers, "Authorization": "Bearer [redacted]"}}, state)
+            status, _ = await asyncio.to_thread(http_json, base, path, token="protocol-check-invalid-token", headers=headers)
+            require(status == 401, "Session readiness accepts invalid device credentials")
+            record(report, "session readiness rejects invalid device credentials",
+                   {"method": "GET", "url": base + path, "authorization": "Bearer [invalid]"}, {"http": status})
+            status, _ = await asyncio.to_thread(http_json, base, path, headers=other_headers)
+            require(status == 403, "A different authenticated client can read this device session")
+            record(report, "session readiness rejects another authenticated client",
+                   {"method": "GET", "url": base + path, "headers": {**other_headers, "Authorization": "Bearer [redacted]"}}, {"http": status})
+            return
+        await asyncio.sleep(0.1)
+    raise ValueError("Device initialization did not complete within 30 seconds")
 
 
 def check_health(ws_url, report):

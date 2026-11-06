@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip check \
     && pip freeze > /usr/local/share/xiaozhi-requirements.txt
 COPY main/xiaozhi-server/ /app/
-COPY scripts/check-voice.py scripts/check-voice-startup.py scripts/voice_api.py /checks/
+COPY scripts/check-voice.py scripts/check-voice-startup.py scripts/check-voice-providers.py scripts/voice_api.py /checks/
 ARG SOURCE_REVISION=working-tree
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION \
       org.opencontainers.image.source="https://github.com/yanghan24/xiaozhi" \
