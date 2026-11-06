@@ -1,0 +1,148 @@
+{
+  "date": "2026-11-06",
+  "source_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "voice_build_tag": "local-20261106-netmirror",
+  "voice_revision": "working-tree",
+  "voice_build_change": "Only Debian repository URLs changed to the Aliyun HTTPS mirror; pinned Python base and direct requirements retained.",
+  "voice_dockerfile_sha256": "a36412fd081f0fe3d5ca630719aaddc41afb7333e478cdb4adac1513b76f88d2",
+  "images": [
+    {
+      "service": "api",
+      "source_reference": "xiaozhi-manager-api:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "tag": "xiaozhi-manager-api:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "runtime_image_id": "sha256:57f9d5f6fad6c67cc820230384af4044d40c314cc85053d8704d319bc752829b",
+      "repo_digests": [
+        "xiaozhi-manager-api@sha256:57f9d5f6fad6c67cc820230384af4044d40c314cc85053d8704d319bc752829b"
+      ],
+      "platform": "linux/amd64",
+      "rootfs_layers": [
+        "sha256:65c636ce09f299ba8ea7157c8d126dfd5b115fa7bbc5d634a91b34786958546e",
+        "sha256:b8506daaf41ff5d5a57169e1419c6f5425d65dbf16ae62d891e2c7178e040c40",
+        "sha256:388edbe9ecf9e49c7517809bbe7d08f0ba31721a9a046344c9019718a38894f9",
+        "sha256:9e272c6a10738aa38dffeedaf4c0ff3b67479b234e428e7673541d1ca3e5524e",
+        "sha256:a5c9494ae1c32a5645c1908d4be87906c8c827e3b602290c41cd3802e1d8ac62",
+        "sha256:5ac7b0fec4fb5245e5f7aaee27da15e43b8bcf7a7ae2e3e3f00f36460b052254",
+        "sha256:232f8695a86ba9c38914d9d79c868e7355ce26101f60aca120103f21af37c862"
+      ],
+      "revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "exported_config_id": "sha256:3b4ea5cfbe509b8e1835cfa5e18b02b934ad04dd0a80a4580c913bf83f39b569"
+    },
+    {
+      "service": "web",
+      "source_reference": "xiaozhi-manager-web:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "tag": "xiaozhi-manager-web:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "runtime_image_id": "sha256:bebd8ddec81cb909a977cd7ae4d1f1bd71c32e5eac0d734bee5749c8e0736f44",
+      "repo_digests": [
+        "xiaozhi-manager-web@sha256:bebd8ddec81cb909a977cd7ae4d1f1bd71c32e5eac0d734bee5749c8e0736f44"
+      ],
+      "platform": "linux/amd64",
+      "rootfs_layers": [
+        "sha256:08000c18d16dadf9553d747a58cf44023423a9ab010aab96cf263d2216b8b350",
+        "sha256:c1761f3c364a963ec0ebd4d728cb6dd5aa24273f7dba0c3dd2fdb8411682ef0a",
+        "sha256:8f3c313eb1240a3b86e0c76d0abda7a6fa7df30ad3151e98c4e3725a3fb710dc",
+        "sha256:c9ce8cb4e76a801ef89c226cb8657556e62e3bb962b3641b051bb25f13dd1a26",
+        "sha256:252b6db79fae151ab547c0f86a873dc97274d8b61f3921158d480b4242fef957",
+        "sha256:f1f70b13aacc43849d4f4ab87a889304a4300210ecd32be5a55305486af5f1ea",
+        "sha256:9af9e76ea07fe05a1f7660b80ec2417bc3fe500991df4995b0adfa13aade20b6",
+        "sha256:c18897d5e3dd125d3d9f2ca7f361cb6b05cf7fad8ef9bc00548f3eb6f3def644",
+        "sha256:45b3b642334ce82b98db1a23e9310e83336e0153cecd9a81686abf84e80bf7c1",
+        "sha256:8efb5316d3e8536b33ee189ecbbedaf692039af358bb2ddccaca2291028e92c6"
+      ],
+      "revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "exported_config_id": "sha256:bebb0deaf0fdcea397a227cdd2b8ddda4a052c6c174c3419f0004564db437516"
+    },
+    {
+      "service": "voice",
+      "source_reference": "xiaozhi-voice:local-20261106-netmirror",
+      "tag": "xiaozhi-voice:local-20261106-netmirror",
+      "runtime_image_id": "sha256:fb7f7c996a17496a2882e2203a6ee7b403f9a37da0e29055b8e6288316fe62c3",
+      "repo_digests": [
+        "xiaozhi-voice@sha256:fb7f7c996a17496a2882e2203a6ee7b403f9a37da0e29055b8e6288316fe62c3"
+      ],
+      "platform": "linux/amd64",
+      "rootfs_layers": [
+        "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+        "sha256:3c19f04e7db6642e808e1ad229c0d877d42865f2cb1af1ddc9f9bd10217113b6",
+        "sha256:09b830de5fb0a5a54f1050a5c4cd5f9ac999b4692506df84ba85c925f1a8a0fd",
+        "sha256:a403b3f684d654bd6ccba458f4e7d1aa7b3ca642fb8297c07b913f83fa4b809a",
+        "sha256:ece489f8cd9ed72333c1ffc998916fbc1518cb8c7642578603b3efa33ce4db0d",
+        "sha256:51a8d300f37ecae54d6cebe714794f44968bdc8763012220aae861285dcc0887",
+        "sha256:0687bf8ea6ddaa5128991e2985e49a94c3b6ecbda2cd20488302ad0a3b89e244",
+        "sha256:b74c500a642b0e51b4a367df2a3439e3c050cc0c5ce47c08d31282a20d09d122",
+        "sha256:d67359a3efea32b0b05dccfd3d5693d68d0efed99e93a97ea7554d770d16f9fb",
+        "sha256:3f192563fb0bcdb008f58141a760b74941651e4e0b5dbba11a9d59bc1f22c622"
+      ],
+      "revision": "working-tree",
+      "exported_config_id": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7"
+    },
+    {
+      "service": "mysql",
+      "source_reference": "mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306",
+      "tag": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "runtime_image_id": "sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306",
+      "repo_digests": [
+        "mysql@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306",
+        "docker.m.daocloud.io/library/mysql@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306"
+      ],
+      "platform": "linux/amd64",
+      "rootfs_layers": [
+        "sha256:561b565cf5eba84f1729d1d097d529566c1f992937a14ac7ec12e76a4a5693d2",
+        "sha256:31705e061531203ea8fbb0b4fe9699d1a105d397802a7cfb3ca4d3894f8131bf",
+        "sha256:12071b1715b948342e017bd8a679f12309cd2a74698bdab0a958a31b0b203886",
+        "sha256:c9becb658e14b868ee04cce1e55053b6dd8a5ac00d4c70c4bd34698e0009f7fb",
+        "sha256:0989275e5162a7ee9456562f3b148bb3f36a8707b98c028609c9f6d0442178bb",
+        "sha256:5d0ca33c6b163c3319f1a69201f2fde96e0a732e7b73a964c44360f91512075e",
+        "sha256:44939b75b812a48026cffea065bf1b38f0d130c14bad992caad8c5071a30cdae",
+        "sha256:f70cb8ce3af430a7d7ad69e5bb689a77594cd83b7ee4a98021c0e75eb1ba08f5",
+        "sha256:e77ddf9bcd5c070aa792a32c4592d9bb603b3dd885f775bd5bbb235edd66d719",
+        "sha256:2c8ab0a2de7a8b7a91d28f61ecbdeb8fc205f90c2f6cdc7c7720089b309b84fb",
+        "sha256:77cd9385548748384a15f61a0f17da5fd355af097af6d44bbec20061b4818ea2"
+      ],
+      "revision": null,
+      "exported_config_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb"
+    },
+    {
+      "service": "redis",
+      "source_reference": "redis:8.0.0-alpine@sha256:0779069b3c24a47a2f681855c1c01d046793e7c5f7d2b079c2aa0652c42eaf0e",
+      "tag": "xiaozhi-offline-redis:8.0.0-20261106",
+      "runtime_image_id": "sha256:0779069b3c24a47a2f681855c1c01d046793e7c5f7d2b079c2aa0652c42eaf0e",
+      "repo_digests": [
+        "redis@sha256:0779069b3c24a47a2f681855c1c01d046793e7c5f7d2b079c2aa0652c42eaf0e"
+      ],
+      "platform": "linux/amd64",
+      "rootfs_layers": [
+        "sha256:08000c18d16dadf9553d747a58cf44023423a9ab010aab96cf263d2216b8b350",
+        "sha256:ee02a18786a28e4831b6fbf47fa2278c71352d307b22819372f2c515b4d45083",
+        "sha256:28ff1868e195f555abf96bfdc428593e2050c454b5130a1e4e35a13c8539e861",
+        "sha256:92683a6f294535d1cabadcf7c99f9be5d33d3cf1e5d7450397b306913a341740",
+        "sha256:4716386b7ca560e19fda2262eeb3dc7c0a0f9887319d7aaec363b9c550d3564e",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        "sha256:a8ae93f632b998d1ea342ea79a927106bbfb9206c6da7314824f0ffe29b7b20d"
+      ],
+      "revision": null,
+      "exported_config_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed"
+    },
+    {
+      "service": "device-entry",
+      "source_reference": "nginx:1.27.4-alpine@sha256:4ff102c5d78d254a6f0da062b3cf39eaf07f01eec0927fd21e219d0af8bc0591",
+      "tag": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "runtime_image_id": "sha256:4ff102c5d78d254a6f0da062b3cf39eaf07f01eec0927fd21e219d0af8bc0591",
+      "repo_digests": [
+        "nginx@sha256:4ff102c5d78d254a6f0da062b3cf39eaf07f01eec0927fd21e219d0af8bc0591"
+      ],
+      "platform": "linux/amd64",
+      "rootfs_layers": [
+        "sha256:08000c18d16dadf9553d747a58cf44023423a9ab010aab96cf263d2216b8b350",
+        "sha256:c1761f3c364a963ec0ebd4d728cb6dd5aa24273f7dba0c3dd2fdb8411682ef0a",
+        "sha256:8f3c313eb1240a3b86e0c76d0abda7a6fa7df30ad3151e98c4e3725a3fb710dc",
+        "sha256:c9ce8cb4e76a801ef89c226cb8657556e62e3bb962b3641b051bb25f13dd1a26",
+        "sha256:252b6db79fae151ab547c0f86a873dc97274d8b61f3921158d480b4242fef957",
+        "sha256:f1f70b13aacc43849d4f4ab87a889304a4300210ecd32be5a55305486af5f1ea",
+        "sha256:9af9e76ea07fe05a1f7660b80ec2417bc3fe500991df4995b0adfa13aade20b6",
+        "sha256:c18897d5e3dd125d3d9f2ca7f361cb6b05cf7fad8ef9bc00548f3eb6f3def644"
+      ],
+      "revision": null,
+      "exported_config_id": "sha256:1ff4bb4faebcfb1f7e01144fa9904a570ab9bab88694457855feb6c6bba3fa07"
+    }
+  ]
+}
