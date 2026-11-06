@@ -15,7 +15,7 @@
 | 首批应用 | 规范通，复用该集市应用的用户权限 |
 | 应用计费 | 额度、定价、扣费及结算由 AI 集市负责，小智侧处理调用结果，无需另建计费或结算链路 |
 | 语音识别费用 | 平台承担 |
-| 语音合成 | 调用 AI 集市的语音模型，由集市按账号处理费用；具体模型及调用契约待取得 |
+| 语音合成 | 暂定千问，通过 AI 集市调用并由集市按账号处理费用；官方资料已查阅，集市开放型号及代理契约待核实 |
 | 对话记录 | 按账号和设备区分文字记录，保留 30 天并到期清理；原始录音默认不保存；首版小智后台不提供客户自助查看和删除入口 |
 | 容量目标 | 100 台设备同时在线且同时进行语音对话，允许阶梯压测；用户表示暂时没有调用限制，以实际测试为准，尚未验证容量 |
 | 响应时间 | 用户当前未指定响应时限；实际延迟应在联调中测量 |
@@ -42,7 +42,9 @@
 
 本轮资料包括用户提供的《元筑AI集市应用接入接口文档》v1.0（2026-11-05），以及[规范通控制台的 API/MCP 页面](https://aimarket.hncig.cn:4090/console/agent/156fd2a5-ade8-4800-b206-21a024d23760?tab=api)。链接中的标识用于定位控制台智能体，实际调用地址、参数和资源标识以页面接口说明为准，不从控制台 URL 推断。
 
-只读检查已从该页面公开前端确认通用说明：原生 API 使用集市 Bearer Key，先创建会话再发起对话；MCP 使用 Streamable HTTP，后续通过 `conversation_id` 续接。页面的具体文档数据由 `GET /consoleapi/agents/156fd2a5-ade8-4800-b206-21a024d23760/native-docs` 加载，无登录态访问返回 HTTP 401；该 GET 地址仅用于控制台加载文档。用户随后补充了会话创建、流式对话请求、响应示例和 MCP 地址，已记录于[接口资料](../development/ai-market-api.md)：原生 API 的 app_id 与集市智能体 ID 不同，创建响应的顶层包含 request_id 与 conversation_id；后续向 `/api/ai_apaas/v1/app/conversation/runs` 提交 app_id、conversation_id、query 和 stream 即为页面的流式提问示例。响应样例包含 answer、is_completion 和 content，但正文是增量还是累计、结束/错误事件及取消规则仍待核实；end_user_id 仅作上游业务标记，计费以 Key 所属账号为准。语音模型契约仍待取得，尚未执行真实调用。
+只读检查已从该页面公开前端确认通用说明：原生 API 使用集市 Bearer Key，先创建会话再发起对话；MCP 使用 Streamable HTTP，后续通过 `conversation_id` 续接。页面的具体文档数据由 `GET /consoleapi/agents/156fd2a5-ade8-4800-b206-21a024d23760/native-docs` 加载，无登录态访问返回 HTTP 401；该 GET 地址仅用于控制台加载文档。用户随后补充了会话创建、流式对话请求、响应示例和 MCP 地址，已记录于[接口资料](../development/ai-market-api.md)：原生 API 的 app_id 与集市智能体 ID 不同，创建响应的顶层包含 request_id 与 conversation_id；后续向 `/api/ai_apaas/v1/app/conversation/runs` 提交 app_id、conversation_id、query 和 stream 即为页面的流式提问示例。响应样例包含 answer、is_completion 和 content，但正文是增量还是累计、结束/错误事件及取消规则仍待核实；end_user_id 仅作上游业务标记，计费以 Key 所属账号为准。集市语音代理契约仍待取得，尚未执行真实调用。
+
+用户随后暂定千问作为语音合成模型。已直接查阅[千问官方实时语音合成指南](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime)及协议文档，当前官方示例使用 `qwen-audio-3.1-tts-flash`，具备分段文本输入、流式音频输出和取消能力；作为优先联调候选，详见[千问调研](../development/qwen-tts-research.md)。集市是否开放该型号、是否透传 WebSocket 和取消仍待确认；调用继续使用归属账号的集市 Key，经集市处理权限和结算。
 
 接入文档明确 ID Token 和 Access Token 最长 5 分钟，不提供刷新令牌；资源调用另用按用户及接入应用领取的 Key。Key 的授权截止时间与短期令牌不同，但会随来源会话、应用或授权提前失效。长期使用要求尚需与这一生命周期核对；短期令牌到期、登录状态失效与设备解绑分别处理。小智侧以有效登录及业务授权作为使用 Key 的前提，退出后即使仍持有 Key 也停止调用。
 
