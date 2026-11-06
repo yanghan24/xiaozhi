@@ -25,12 +25,28 @@ git diff --quiet 6e354ed afc9ca9 -- main scripts compose.yaml compose.voice.yaml
 | 可说明的检查入口、失败非零退出及超时 | 持久化脚本复用已有 HTTP/WS 检查；[缺少 state](evidence/2026-11-06-ubuntu/negative-missing-state.json)和[拒绝覆盖 state](evidence/2026-11-06-ubuntu/negative-existing-state.json)按预期失败；网络及启动等待有超时 |
 | 停止、重启和清理分别说明，保护其他资源 | runbook 提供对应命令；[本轮 cleanup](evidence/2026-11-06-issue5-repeat/cleanup.json) 3 项通过，仅清理本轮标记对象；JetLinks 保持停止，卷及私有配置保留 |
 | 登录拒绝、服务认证和缺配置回归 | 既有 Ubuntu 浏览器拒绝用例、启动检查及[本轮协议](evidence/2026-11-06-issue5-repeat/protocol.json) 19 项通过；提供者错误恢复见[记录](evidence/2026-11-06-ubuntu/provider-result.json) |
-| 记录资源占用与限制 | [本轮空闲资源快照](evidence/2026-11-06-issue5-repeat/resources.json)；镜像构建及初次执行条件见[历史构建记录](2026-11-06-windows-ubuntu.md)和部署报告，不代表容量通过 |
+| 记录资源占用与限制 | [Ubuntu 全量 API 源码编译资源](evidence/2026-11-06-issue5-repeat/build-resources.json)及[本轮空闲运行快照](evidence/2026-11-06-issue5-repeat/resources.json)；采样范围与限制见下节，不代表容量通过 |
 | 对应父规格 A 层、交付脱敏报告 | 上述各项覆盖 A 层启动、配置、认证、协议、持久化和重复执行；真实数据库、缓存、管理 API 与 voice 均参与，设备由协议客户端模拟 |
 
 本轮管理 HTTP 存活、公开配置初始化和匿名拒绝再次通过，浏览器原来保存的 `baseline.acceptance.1793956177540` 在重启后仍读回 `manager-write-read-verified`。本轮没有重新执行浏览器注册，也没有以新登录替代原配置持久化证据。
 
 源码没有新增运行逻辑变更。既有 Ubuntu 完整回归为 Java 206 项通过、Python 129 passed / 5 skipped，见[汇总](evidence/2026-11-06-ubuntu/regression-summary.json)；本轮重跑的是服务重启、持久化和协议检查，没有将之前套件结果记为本轮新执行。
+
+## 构建资源补充
+
+历史镜像构建未保存明确的构建期资源采样，因此本轮在 Ubuntu 使用已有固定 API 测试镜像中的编译器、源码和依赖缓存，新建无数据挂载的一次性容器，执行 `mvn -B -ntp clean package -DskipTests`。`clean` 删除已有 target，实际重新编译 316 个主源码文件和 27 个测试源码文件，构建成功；该命令跳过测试执行，不能计为套件重跑。
+
+构建总观测时间 16.33 秒，Maven 自报 13.850 秒；约每两秒采样，运行中观察到最高内存 422.1 MiB、CPU 251.82%（多核累计百分比），容器内存上限 1400 MiB。这些是采样观测值，不保证覆盖瞬时峰值，也不代表前端/Python 镜像的历史构建消耗。完整采样、镜像 ID、磁盘前后可用量和产物 SHA-256 见上述 JSON。
+
+生成的 JAR 为 85301022 字节，留存在服务器私有验证目录；没有替换运行中的应用。临时构建容器已清理，原五个服务及数据库不受影响。可复现的核心命令如下，执行前选取未使用的容器名，原始日志留在私有目录，并另行周期采集该容器的 `docker stats --no-stream`：
+
+```bash
+sudo docker run --pull never --name xiaozhi-build-check-UNIQUE --memory 1400m \
+  xiaozhi-manager-api-tests:6e354edf292c3df14fd783c5dc7314a4402e3b74 \
+  mvn -B -ntp clean package -DskipTests
+```
+
+确认退出状态、日志中的源码编译与 `BUILD SUCCESS`，按需导出该容器的 `/build/target/xiaozhi-esp32-api.jar` 后，仅删除这个专属构建容器。
 
 ## 测试阶段 TTS
 
