@@ -3,6 +3,7 @@
 基于上游小智服务端工程开发，接入元筑 AI 集市。已完成管理/设备协议基线与 Ubuntu 部署、重启验证；真实集市与硬件联调继续分别验收，业务范围和职责以 [需求记录](docs/planning/voice-backend-discovery.md)、[领域词汇](GLOSSARY.md)及 [ADR](docs/adr/) 为准。
 
 - [本机管理端运行与验证](docs/development/manager-baseline.md)
+- [实施规格、任务边界与验收导航](docs/planning/task-spec-index.md)
 - [本机语音服务与设备协议验证](docs/development/voice-baseline.md)
 - [上游源码来源与导入范围](docs/development/upstream-baseline.md)
 - 实际验证记录：[管理端](docs/verification/issue-3-manager-baseline.md)、[语音与设备协议](docs/verification/issue-4-voice-protocol.md)
