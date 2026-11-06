@@ -1,6 +1,8 @@
-# Ubuntu 独立测试部署准备
+# Ubuntu 独立测试部署与复验
 
-记录日期：2026-11-06，Asia/Hong_Kong。用户最新安排：后续后台服务、回归测试与设备协议检查统一在 Ubuntu `192.168.168.114` 进行，本机用于编辑、SSH 和浏览器访问。[Windows 本机复验](../verification/2026-11-06-windows-ubuntu.md)保留为历史结果。小智尚未在 Ubuntu 部署，设备入口及设备网络仍待验证。服务器 GitHub/Docker Registry 直连探测失败时，优先使用已准备的[离线部署包](offline-bundle.md)，不必重新构建。
+记录日期：2026-11-06，Asia/Hong_Kong。后续后台服务、回归测试与设备协议检查统一在 Ubuntu `192.168.168.114` 进行，本机用于编辑、SSH 和浏览器访问。小智已部署到 `/home/jt/xiaozhi-ubuntu-test`，管理端、内部设备协议及同设备跨服务重启检查已通过，详见 [Ubuntu 实际验收](../verification/2026-11-06-ubuntu-deployment.md)。设备网络入口及真机音频仍待验证。[Windows 本机复验](../verification/2026-11-06-windows-ubuntu.md)保留为历史结果。
+
+当前环境复用服务器已有 `.env`、账号和数据卷。下文 clone、解压、初始化密码只用于全新环境；服务器 GitHub/Docker Registry 直连失败时使用已校验的[离线部署包](offline-bundle.md)。不要在当前数据库上重新初始化密码。
 
 ## 源码与模板边界
 
@@ -17,7 +19,7 @@
 | 将固定验证源码的 base/voice Compose 与新入口模板合并解析 | `config --quiet` 通过；显式设置 `DEVICE_BIND_IP=127.0.0.1` 和实际配置文件路径 |
 | 固定 Nginx 镜像加载真实入口配置并执行 `nginx -t` | 通过；没有发布宿主机端口 |
 | 真实 API/voice 入口转发、认证及 ready | 本机回环入口完整协议 19 项、外部 HTTP 7 项通过；包括 OTA、认证、ready 与管理路径隔离，结果见本机复验报告 |
-| Ubuntu 启动、设备网络可达及真机联调 | 未执行 |
+| Ubuntu 启动、内部协议及同设备服务重启 | 已通过，见 Ubuntu 实际验收；设备网络及真机音频未执行 |
 
 ## 已核对的服务器状态
 
@@ -30,13 +32,13 @@
 | 容器工具 | Docker 26.1.3；Compose 2.27.1；`jt` 不在 docker 组，本轮通过既有 `sudo` 认证检查 |
 | 已有业务 | 初次盘点为 JetLinks 3 个运行、3 个停止；按用户要求于 16:07（UTC+08:00）停止运行中的项目，现有 6 个相关容器全部停止 |
 | JetLinks 业务端口 | 停机后 1883–1890、5060–5061、8800–8810、8848 均无 TCP 监听；SSH 22 保持监听 |
-| 小智 | 未部署；没有匹配的小智 `.env`，不得复用 JetLinks 卷或密码 |
-| 候选测试端口 | 18002、18000、18003、18080 当时未占用；执行前重新检查 |
+| 小智 | 已部署到 `/home/jt/xiaozhi-ubuntu-test`，独立项目 `xiaozhi-ubuntu-test`，5 个服务运行；使用新生成的私有配置和独立数据卷 |
+| 小智端口 | `127.0.0.1:18002/18000/18003` 已使用；18080 设备入口尚未启用 |
 | 设备及公网 | 设备网络可达性未确认；公网映射未开通 |
 
 SSH 可达仅代表管理通道可用，不代表设备能访问服务器。资源快照仅用于独立测试启动条件，不表示生产容量或并发能力已验收。
 
-拟使用独立 Compose 项目 `xiaozhi-ubuntu-test`。管理页面保留 `127.0.0.1:18002`；语音直连保留 `127.0.0.1:18000` 和 `127.0.0.1:18003`；设备测试入口候选为 `192.168.168.114:18080`。用户已要求关闭 JetLinks；保留其容器、镜像、网络、数据目录和私有配置，后续小智操作保持 JetLinks 停机。
+已使用独立 Compose 项目 `xiaozhi-ubuntu-test`。管理页面监听 `127.0.0.1:18002`，语音直连监听 `127.0.0.1:18000` 和 `127.0.0.1:18003`；设备测试入口候选为 `192.168.168.114:18080`，当前未启用。用户已要求关闭 JetLinks；保留其容器、镜像、网络、数据目录和私有配置，后续小智操作保持 JetLinks 停机。
 
 本次停止项目为 `jetlinks-restored-99a1e3b3`，顺序为 `jetlinks` 应用，再停止专用 `postgres` 和 `redis`。应用等待 30 秒后退出码为 137，`OOMKilled=false`；PostgreSQL 和 Redis 均退出码 0。三个容器的 ID、挂载目录及重启策略前后相同，`/home/jt/jetlinks-restored/data/` 保留。没有重启服务进行恢复测试；保留目录不等于完成数据恢复验证。[停机证据](../verification/evidence/2026-11-06-ubuntu/jetlinks-stop.json)记录完整结果。
 
@@ -258,8 +260,9 @@ with client.open(request, timeout=15) as response:
 dce ps
 dce images
 dce stats --no-stream
-dce stop
-dce start --wait --wait-timeout 360
+dce stop --timeout 60 voice web api mysql redis
+dce up -d --no-recreate --no-build --pull never --wait --wait-timeout 360 mysql redis api web
+dce up -d --no-deps --no-recreate --no-build --pull never --wait --wait-timeout 120 voice
 python3 scripts/check-manager.py
 dc exec -T voice python /checks/check-voice.py \
   --settings /app/data/check.json --output /app/data/protocol-after-restart.json
@@ -267,8 +270,26 @@ dc exec -T voice python /checks/check-voice.py \
 
 上述 `check-voice.py` 每轮创建新身份并清理测试数据；重启前后各运行一次，只证明服务重新可用，**不能证明同一设备绑定和配置持久化**。#5 的持久化复验必须另外保留同一专属测试设备（或本轮真实样机）、测试账号和智能体：重启前记录脱敏设备标识、归属账号、智能体/模型选择与设备可达 URL；重启后用相同身份重新查询及连接，逐项比对后再清理专属测试数据。不要让自动清理脚本删除这份持久化测试对象，也不使用 JetLinks 或其他客户数据代测。
 
+本轮使用新增的 [check-device-persistence.py](../../scripts/check-device-persistence.py) 完成该检查。脚本需要固定语音基线镜像内的 `/checks/voice_api.py` 和 `/checks/check-voice.py`；已经复制到服务器源码目录。内部协议环境的命令如下，若已发布设备地址，应使用对应的实际 OTA URL：
+
+```bash
+dc cp scripts/check-device-persistence.py voice:/checks/check-device-persistence.py
+dc exec -T voice python /checks/check-device-persistence.py prepare \
+  --ota-url http://api:8002/xiaozhi/ota/ \
+  --output /app/data/persistence-prepare.json
+# 保存容器 ID、StartedAt、镜像 ID 和数据挂载，执行上方 stop/up，再比较相同容器。
+dc exec -T voice python /checks/check-device-persistence.py verify \
+  --output /app/data/persistence-verify.json
+dc exec -T voice python /checks/check-device-persistence.py cleanup \
+  --output /app/data/persistence-cleanup.json
+```
+
+`prepare` 留存唯一标记的设备和智能体，`verify` 只读回并重新连接同一对象，`cleanup` 校验归属和标记后删除测试对象。私有 state 及每次结果均禁止覆盖；重复验收时为三个阶段指定同一新的 `--state` 路径，并为每次尝试指定新的 `--output`。每次重建 voice 容器后需重新复制脚本。服务停止和启动的证据由操作者另外记录，脚本不会自行重启或证明主机重启。
+
+本机型服务器的 Compose `run` 不接受 `--pull`，`start` 不接受 `--wait`。运行检查前校验已导入的镜像；恢复服务使用以上 `up --no-recreate --no-build --pull never --wait`，并核对容器 ID 保持不变。若设备入口已经启用，应另外记录并恢复其原有状态。离线部署的全部命令继续使用 `dco` 覆盖文件，不能切回仅使用 registry digest 的配置。
+
 重启后重复设备网络 OTA 请求、相同设备认证连接、真实设备对话及重连。此模板尚未配置随服务器重启自动启动，不能将容器 stop/start 检查记为主机重启验收。主机重启、restart policy、持久备份及生产容量需另行准备，并核对 JetLinks 仍保持停机、数据保留。
 
 暂停设备入口使用 `dce stop device-entry`；暂停全部小智测试服务使用 `dce stop`，保留卷与私有配置。`--publish-urls` 修改的持久配置不会因停机回退；切回内部基线时使用 `init-voice.py --publish-urls`，同时显式传入原来的内部 OTA/WS 地址并重新验证。恢复测试前已有的管理设置则依据私有 `manager-settings-before.json` 逐项恢复。不要删除数据库卷来恢复配置，不使用全局容器清理命令。
 
-归档只提交脱敏报告、源码/镜像标识与实际命令结果。`.env`、管理员账号/token、服务密钥、原始语音日志与录音保存在相应主机私有目录。未执行的步骤保持待测，包括当前服务器部署、设备网络可达性、公网入口和真机音频。
+归档只提交脱敏报告、源码/镜像标识与实际命令结果。`.env`、管理员账号/token、服务密钥、原始语音日志与录音保存在相应主机私有目录。未执行的步骤保持待测，包括设备网络可达性、公网入口、主机重启和真机音频。

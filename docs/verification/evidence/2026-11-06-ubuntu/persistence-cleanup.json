@@ -1,0 +1,32 @@
+{
+  "scope": "same_device_persistence",
+  "phase": "cleanup",
+  "status": "passed",
+  "started_at": "2026-11-06T09:19:50.454396+00:00",
+  "baseline_source": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "checks": [
+    {
+      "name": "same authenticated account",
+      "status": "passed",
+      "account_fingerprint": "8d9bea063f5ba76a981335efd82fcbf374eb0f7b0f89dc7b79afd25950c661d9"
+    },
+    {
+      "name": "only the marked owned agent and its fixture device were deleted",
+      "status": "passed",
+      "agent_id": "b70aec3fa25d4a16baf08e1fe65ca5df"
+    },
+    {
+      "name": "fixture device is no longer bound",
+      "status": "passed",
+      "public_activation_http": 202
+    }
+  ],
+  "audio_inference": "not_run",
+  "hardware_playback": "not_run",
+  "script_sha256": "b2995c55f88d5c89616f9c658b0d6102b848fe266312814c562380f77291457e",
+  "run_id": "8c15737038c14bf1b9f5f762d023252c",
+  "device_id": "02:8c:15:73:70:38",
+  "client_id": "persistence-8c15737038c14bf1b9f5f762d023252c",
+  "prepared_at": "2026-11-06T09:15:42.259467+00:00",
+  "finished_at": "2026-11-06T09:19:50.719833+00:00"
+}

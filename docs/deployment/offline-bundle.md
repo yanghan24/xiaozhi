@@ -1,8 +1,10 @@
 # 2026-11-06 离线测试部署包
 
-本机交付目录为 `D:\AI\xiaozhi\.runtime\ubuntu-test-bundle-20261106`。这是已验证运行镜像和源码的准备产物，尚未上传或在 Ubuntu 启动。服务器检查时 Docker Registry/GitHub 直连失败，Maven/npm/阿里云 Debian/PyPI 的 HEAD 请求返回 200，因此提供离线路径。探测成功不代表完整依赖下载已验证。
+本机交付目录为 `D:\AI\xiaozhi\.runtime\ubuntu-test-bundle-20261106`。该包已上传到服务器 `/home/jt/xiaozhi-package-20261106`，校验、导入及管理/语音服务启动已完成，结果见 [Ubuntu 实际验收](../verification/2026-11-06-ubuntu-deployment.md)。包中 manifest 记录的是准备时的状态；实际部署结果以验收报告为准。服务器检查时 Docker Registry/GitHub 直连失败，因此采用离线路径。
 
 按用户最新安排，此包用于后续统一的 Ubuntu 后台测试环境；本机只提供编辑、SSH 和浏览器访问。实际服务器状态与 JetLinks 停机记录见 [Ubuntu runbook](ubuntu-isolated-test.md)。
+
+下面初始化命令用于全新环境；当前 `/home/jt/xiaozhi-ubuntu-test` 已有数据库，继续复用其私有 `.env`。`SHA256SUMS` 使用 LF 换行，并已在服务器通过 `sha256sum -c` 校验。部署时发现 Windows CRLF 清单会被 Linux 当成带回车的文件名，已在启动前修正清单；八个产物的内容和哈希保持不变。
 
 包内包含 `source.tar.gz`、`overlays.tar.gz`、`images.tar`、`manifest.json`、`SHA256SUMS`、`verify-images.py`、本次语音 Dockerfile 与完整依赖清单。源码通过固定 `6e354edf292c3df14fd783c5dc7314a4402e3b74` 的 `git archive` 导出，不含 `.git`、根目录私有 `.env`、`.runtime`、本机账号或数据库卷。源码自带的 `main/manager-web/.env` 仅含公开页面标题、描述和关键词，随固定源码保留。覆盖包提供已审查的部署模板、报告和 LF 属性规则。
 
