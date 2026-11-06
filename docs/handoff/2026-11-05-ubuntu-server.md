@@ -3,12 +3,14 @@
 > 当前入口（2026-11-06 同步复核）：Ubuntu 已部署并完成 #4/#5 验证，见[当前运行手册](../deployment/ubuntu-isolated-test.md)与[验收记录](../verification/issue-5-acceptance.md)。复用服务器现有配置、账号和数据卷；本机只作编辑、SSH 和浏览器。以下早期基线结果保留原有测试范围，全新环境步骤不适用于重新初始化现有数据库。真实 OIDC 等公网映射，规范通真实测试暂缓，测试 TTS 使用 Edge TTS。
 
 
-首次记录：2026-11-05；更新：2026-11-06。用户最新安排：将当前相关资料保存到自己的分支，在其他电脑开始测试并准备服务器部署。现有 Fedora 本机测试结果作为已完成基线；新电脑、Ubuntu 服务器和真实设备分别复验。
+首次记录：2026-11-05；更新：2026-11-06。早期安排为将资料保存在任务分支供换机使用；当前已完成 Ubuntu 部署与复验，新环境从包含本次文档同步的主线取得完整资料。历史 Fedora 结果保留原有范围，真实设备仍需单独验收。
 
-## 取得完整分支
+## 取得当前主线
+
+本次文档同步 PR #23 合并后使用以下命令；合并前审阅使用该 PR 的任务分支。不要用旧资料分支代替当前主线。
 
 ```bash
-git clone --branch docs/ai-market-integration-questionnaire https://github.com/yanghan24/xiaozhi.git xiaozhi
+git clone --branch main https://github.com/yanghan24/xiaozhi.git xiaozhi
 cd xiaozhi
 git config --local pull.ff only
 git config --local push.default simple
@@ -16,9 +18,9 @@ git config --local core.logAllRefUpdates true
 git status --short --branch
 ```
 
-已有该分支且工作区干净时，使用 `git pull --ff-only` 获取更新。当前资料分支已经汇入 `feat/4-voice-protocol@db7759527ba591b9f26c310f501ad6f852edceeb`，包含管理端、语音服务、构建与测试脚本、集市接口资料及硬件核查稿；无需先创建旧开发机的 worktree 目录。合并后的运行源码和部署脚本与已验证任务分支一致。
+已有主线 checkout 且工作区干净时，使用 `git pull --ff-only` 获取更新。若仍在旧资料或其他任务分支，先按协作规则保存工作，再另建主线 checkout；不要把在旧分支执行 pull 当作同步主线。当前主线已包含管理端、语音服务及 Ubuntu 部署/验收脚本；本次文档同步补齐集市与硬件资料，无需重建旧开发机的 worktree 布局。
 
-[PR #20](https://github.com/yanghan24/xiaozhi/pull/20) 在本次交接时仍待管理员审核；资料分支汇总不表示已合并 `main`。后续任务遵循 [CONTRIBUTING.md](../../CONTRIBUTING.md)，按最新远端状态创建独立任务分支。
+[PR #20](https://github.com/yanghan24/xiaozhi/pull/20) 与 [PR #22](https://github.com/yanghan24/xiaozhi/pull/22) 已合并；旧资料分支 `docs/ai-market-integration-questionnaire` 仅作历史追溯，不含后续完整部署验收更新。后续任务遵循 [CONTRIBUTING.md](../../CONTRIBUTING.md)，按最新远端主线创建独立任务分支。
 
 ## 已完成与资料入口
 
@@ -26,7 +28,7 @@ git status --short --branch
 | --- | --- |
 | 仓库规则与领域职责 | [AGENTS.md](../../AGENTS.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md)、[GLOSSARY.md](../../GLOSSARY.md)、[ADR-0005](../adr/0005-backend-owns-device-management.md) |
 | 管理端基线 | #3 / PR #9 已合并；[运行说明](../development/manager-baseline.md)、[实际验证记录](../verification/issue-3-manager-baseline.md) |
-| 语音与设备协议基线 | #4 实现和本机验证已完成，PR #20 待审核；[运行说明](../development/voice-baseline.md)、[验证报告](../verification/issue-4-voice-protocol.md)、[复审记录](../verification/issue-4-review.md) |
+| 语音与设备协议基线 | #4 / PR #20 已合并，#5 / PR #22 的 Ubuntu 重启持久化复验已通过；[运行说明](../development/voice-baseline.md)、[验证报告](../verification/issue-4-voice-protocol.md)、[复审记录](../verification/issue-4-review.md) |
 | 硬件接入资料 | [硬件负责人提供的核查稿](../../筑音设备接入资料_核查稿_2026-11-06.md)；用户的后续确认见下一节 |
 | 集市接口及规范通 | [资料索引](../development/ai-market-api.md)、[新版原文](<../../元筑AI集市应用接入接口文档(1).md>)、[契约变更核对](../development/ai-market-contract-review-2026-11-06.md) |
 | 语音合成调研 | [千问 TTS 官方资料调研](../development/qwen-tts-research.md)；集市实际代理接口和可用凭据仍待取得 |
