@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "at": "2026-11-06T10:51:51.636204+00:00",
+  "host": "192.168.168.114",
+  "scope": "clean_manager_api_source_build",
+  "command": [
+    "mvn",
+    "-B",
+    "-ntp",
+    "clean",
+    "package",
+    "-DskipTests"
+  ],
+  "source_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "builder_image": "xiaozhi-manager-api-tests:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "builder_image_id": "sha256:57965572db3e41796eff350cabfcd2bf3ea886377fdd5973f587758557980cf4",
+  "container_memory_limit_mib": 1400,
+  "elapsed_seconds": 16.33,
+  "samples": [
+    {
+      "elapsed_seconds": 1.83,
+      "cpu_percent": "221.08%",
+      "memory": "62.1MiB / 1.367GiB",
+      "memory_percent": "4.44%",
+      "pids": "13",
+      "block_io": "0B / 0B"
+    },
+    {
+      "elapsed_seconds": 3.83,
+      "cpu_percent": "224.47%",
+      "memory": "138.1MiB / 1.367GiB",
+      "memory_percent": "9.87%",
+      "pids": "13",
+      "block_io": "0B / 12.3kB"
+    },
+    {
+      "elapsed_seconds": 5.85,
+      "cpu_percent": "217.51%",
+      "memory": "247.3MiB / 1.367GiB",
+      "memory_percent": "17.66%",
+      "pids": "13",
+      "block_io": "0B / 12.3kB"
+    },
+    {
+      "elapsed_seconds": 7.85,
+      "cpu_percent": "217.51%",
+      "memory": "301MiB / 1.367GiB",
+      "memory_percent": "21.50%",
+      "pids": "13",
+      "block_io": "0B / 12.3kB"
+    },
+    {
+      "elapsed_seconds": 9.86,
+      "cpu_percent": "194.28%",
+      "memory": "325.1MiB / 1.367GiB",
+      "memory_percent": "23.22%",
+      "pids": "13",
+      "block_io": "0B / 12.3kB"
+    },
+    {
+      "elapsed_seconds": 11.86,
+      "cpu_percent": "251.82%",
+      "memory": "365.9MiB / 1.367GiB",
+      "memory_percent": "26.13%",
+      "pids": "13",
+      "block_io": "0B / 12.3kB"
+    },
+    {
+      "elapsed_seconds": 13.87,
+      "cpu_percent": "208.12%",
+      "memory": "422.1MiB / 1.367GiB",
+      "memory_percent": "30.15%",
+      "pids": "13",
+      "block_io": "0B / 12.3kB"
+    },
+    {
+      "elapsed_seconds": 16.1,
+      "cpu_percent": "0.00%",
+      "memory": "0B / 0B",
+      "memory_percent": "0.00%",
+      "pids": "0",
+      "block_io": "0B / 0B"
+    }
+  ],
+  "sample_note": "Docker stats samples are periodic observations, not a guaranteed instantaneous peak. Build uses existing compiler/dependency image; Maven clean removes prior targets. No service/database mounted.",
+  "disk_available_before_bytes": 476157227008,
+  "disk_available_after_bytes": 475979915264,
+  "artifact_bytes": 85301022,
+  "artifact_sha256": "f6e62921dc6f472904c29fada7353f629d60b8312ca2de815f389537a8afe227",
+  "compile_evidence": [
+    "[INFO] Compiling 316 source files with javac [debug parameters release 21] to target/classes",
+    "[INFO] Compiling 27 source files with javac [debug parameters release 21] to target/test-classes",
+    "[INFO] BUILD SUCCESS",
+    "[INFO] Total time:  13.850 s"
+  ],
+  "tests": "skipped_for_build; full regression recorded separately",
+  "deployed": false
+}

@@ -1,0 +1,35 @@
+{
+  "started_at": "2026-11-06T07:45:46.608600+00:00",
+  "status": "passed",
+  "scope": "startup_configuration",
+  "checks": [
+    {
+      "name": "missing configuration file is diagnosed",
+      "status": "passed",
+      "command": "python app.py",
+      "exit_code": 1,
+      "diagnostic": "找不到data/.config.yaml文件"
+    },
+    {
+      "name": "missing manager secret is diagnosed",
+      "status": "passed",
+      "command": "python app.py",
+      "exit_code": 1,
+      "diagnostic": "manager-api的url或secret配置错误"
+    },
+    {
+      "name": "wrong manager secret prevents startup",
+      "status": "passed",
+      "command": "python app.py",
+      "exit_code": 1,
+      "diagnostic": "无效的服务器密钥"
+    },
+    {
+      "name": "corrected configuration starts the real service",
+      "status": "passed",
+      "http": 200,
+      "body": "Server is running"
+    }
+  ],
+  "finished_at": "2026-11-06T07:45:49.717448+00:00"
+}

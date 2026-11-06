@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "provider": "Microsoft Edge TTS",
+  "voice": "zh-CN-XiaoxiaoNeural",
+  "host": "192.168.168.114",
+  "at": "2026-11-06T10:45:48.550423+00:00",
+  "hardware_playback": "not_run",
+  "market_tts": "not_run",
+  "bytes": 21888,
+  "sha256": "28d6de45707ffcb5944a374d25a13b7e5f13eb9546165c8225d801c196c7f558",
+  "audio": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "mp3",
+        "sample_rate": "24000",
+        "channels": 1
+      }
+    ],
+    "format": {
+      "duration": "3.648000"
+    }
+  },
+  "decode_success": true
+}

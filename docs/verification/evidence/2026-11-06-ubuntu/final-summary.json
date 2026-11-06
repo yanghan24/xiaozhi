@@ -1,0 +1,109 @@
+{
+  "status": "passed",
+  "at": "2026-11-06T17:19:50.882096+08:00",
+  "host": "192.168.168.114",
+  "source_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "project": "xiaozhi-ubuntu-test",
+  "containers": [
+    {
+      "id": "703115ade66d3ac1155dbf66d80024e07e96709e79d51f4f65a55130237c5284",
+      "service": "voice",
+      "image": "xiaozhi-voice:local-20261106-netmirror",
+      "image_id": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "started_at": "2026-11-06T09:17:43.674110704Z",
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18000"
+          }
+        ],
+        "8003/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18003"
+          }
+        ]
+      },
+      "restart_policy": "no"
+    },
+    {
+      "id": "24abbe393906868ce15bdb26f4f9ed3240e5fb05f348aec8c4bb599fdb0e84f7",
+      "service": "web",
+      "image": "xiaozhi-manager-web:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_id": "sha256:bebb0deaf0fdcea397a227cdd2b8ddda4a052c6c174c3419f0004564db437516",
+      "started_at": "2026-11-06T09:17:32.720821275Z",
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "80/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18002"
+          }
+        ]
+      },
+      "restart_policy": "no"
+    },
+    {
+      "id": "37d11e5f3a3fb9ab650d332e0656b21d4ba90f7a5d3a0cd99fd6b93adecc00e4",
+      "service": "api",
+      "image": "xiaozhi-manager-api:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_id": "sha256:3b4ea5cfbe509b8e1835cfa5e18b02b934ad04dd0a80a4580c913bf83f39b569",
+      "started_at": "2026-11-06T09:17:32.444526925Z",
+      "status": "running",
+      "health": "no_docker_healthcheck",
+      "ports": {
+        "8002/tcp": null
+      },
+      "restart_policy": "no"
+    },
+    {
+      "id": "4beda8efb2d0a83d9408e4e10fe388545494ac11ac3cd9931e441ce0abb31e52",
+      "service": "redis",
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "started_at": "2026-11-06T09:17:26.664969892Z",
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "6379/tcp": null
+      },
+      "restart_policy": "no"
+    },
+    {
+      "id": "959e975da4ac400ac8d4c785b0cc873894ef6d711ee811894b2eae4e67118f3b",
+      "service": "mysql",
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "started_at": "2026-11-06T09:17:26.664921292Z",
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "3306/tcp": null,
+        "33060/tcp": null
+      },
+      "restart_policy": "no"
+    }
+  ],
+  "java_tests": {
+    "passed": 206,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "command_exit": 0
+  },
+  "python_tests": {
+    "passed": 129,
+    "skipped": 5,
+    "command_exit": 0
+  },
+  "jetlinks_running": false,
+  "java_test_volumes_removed": true,
+  "device_entry_published": false,
+  "device_network_tested": false,
+  "host_reboot_tested": false,
+  "persistent_check_script_sha256": "b2995c55f88d5c89616f9c658b0d6102b848fe266312814c562380f77291457e"
+}

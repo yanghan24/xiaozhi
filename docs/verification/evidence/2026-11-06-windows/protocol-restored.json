@@ -1,0 +1,385 @@
+{
+  "started_at": "2026-11-06T07:47:15.850356+00:00",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "voice service HTTP boundary",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/"
+      },
+      "response": {
+        "http": 200,
+        "body": "Server is running"
+      }
+    },
+    {
+      "name": "real service credentials retrieve configuration",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/config/server-base",
+        "authorization": "Bearer [redacted]"
+      },
+      "response": {
+        "http": 200,
+        "code": 0,
+        "selected_module": {
+          "ASR": "ASR_OpenaiASR",
+          "VAD": "VAD_SileroVAD"
+        },
+        "device_authentication": true
+      }
+    },
+    {
+      "name": "wrong service credentials are rejected",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/config/server-base",
+        "authorization": "Bearer [invalid]"
+      },
+      "response": {
+        "http": 200,
+        "code": 401
+      }
+    },
+    {
+      "name": "fresh device has no configuration",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/config/agent-models",
+        "authorization": "Bearer [redacted]",
+        "body": {
+          "macAddress": "02:60:b3:11:fc:45",
+          "clientId": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+          "selectedModule": {}
+        }
+      },
+      "response": {
+        "http": 200,
+        "code": 10041
+      }
+    },
+    {
+      "name": "unbound device activation is pending",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/ota/activate",
+        "Device-Id": "02:60:b3:11:fc:45",
+        "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59"
+      },
+      "response": {
+        "http": 202
+      }
+    },
+    {
+      "name": "OTA issues activation information",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/ota/",
+        "headers": {
+          "Device-Id": "02:60:b3:11:fc:45",
+          "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59"
+        },
+        "body": {
+          "version": 1,
+          "mac_address": "02:60:b3:11:fc:45",
+          "uuid": "60b311fc45bd4583b6d733f38bf51f59",
+          "application": {
+            "name": "protocol-check",
+            "version": "1.0.0"
+          },
+          "board": {
+            "type": "protocol-check",
+            "mac": "02:60:b3:11:fc:45"
+          }
+        }
+      },
+      "response": {
+        "http": 200,
+        "activation": {
+          "code": "[redacted]",
+          "length": 6
+        }
+      }
+    },
+    {
+      "name": "pending device cannot retrieve agent configuration",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/config/agent-models",
+        "authorization": "Bearer [redacted]",
+        "body": {
+          "macAddress": "02:60:b3:11:fc:45",
+          "clientId": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+          "selectedModule": {}
+        }
+      },
+      "response": {
+        "http": 200,
+        "code": 10042
+      }
+    },
+    {
+      "name": "management API binds the device to the logged-in test account",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/device/bind/6127b23fadc4472681b4766d83058eee/[activation-code]"
+      },
+      "response": {
+        "http": 200,
+        "code": 0,
+        "readback_path": "/device/bind/6127b23fadc4472681b4766d83058eee",
+        "device_id": "02:60:b3:11:fc:45",
+        "macAddress": "02:60:b3:11:fc:45",
+        "visible_to_logged_in_account": true
+      }
+    },
+    {
+      "name": "bound device activation succeeds",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/ota/activate",
+        "Device-Id": "02:60:b3:11:fc:45",
+        "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59"
+      },
+      "response": {
+        "http": 200,
+        "body": "success"
+      }
+    },
+    {
+      "name": "bound OTA returns authenticated WebSocket configuration",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/ota/",
+        "headers": {
+          "Device-Id": "02:60:b3:11:fc:45",
+          "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59"
+        }
+      },
+      "response": {
+        "http": 200,
+        "websocket": {
+          "url": "ws://voice:8000/xiaozhi/v1/",
+          "token": "[redacted]"
+        },
+        "activation": "absent"
+      }
+    },
+    {
+      "name": "bound device retrieves its actual agent configuration",
+      "status": "passed",
+      "request": {
+        "method": "POST",
+        "path": "/config/agent-models",
+        "authorization": "Bearer [redacted]",
+        "body": {
+          "macAddress": "02:60:b3:11:fc:45",
+          "clientId": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+          "selectedModule": {}
+        }
+      },
+      "response": {
+        "http": 200,
+        "code": 0,
+        "providers": {
+          "ASR": {
+            "id": "ASR_OpenaiASR",
+            "type": "openai",
+            "api_key_state": "missing"
+          },
+          "TTS": {
+            "id": "TTS_EdgeTTS",
+            "type": "edge",
+            "api_key_state": "missing"
+          },
+          "SLM": {
+            "id": "LLM_ChatGLMLLM",
+            "type": "openai",
+            "api_key_state": "placeholder"
+          },
+          "Memory": {
+            "id": "Memory_nomem",
+            "type": "nomem",
+            "api_key_state": "missing"
+          },
+          "VAD": {
+            "id": "VAD_SileroVAD",
+            "type": "silero",
+            "api_key_state": "missing"
+          },
+          "Intent": {
+            "id": "Intent_nointent",
+            "type": "nointent",
+            "api_key_state": "missing"
+          },
+          "LLM": {
+            "id": "LLM_ChatGLMLLM",
+            "type": "openai",
+            "api_key_state": "placeholder"
+          },
+          "VLLM": {
+            "id": "VLLM_ChatGLMVLLM",
+            "type": "openai",
+            "api_key_state": "placeholder"
+          }
+        },
+        "chat_history_conf": 0
+      }
+    },
+    {
+      "name": "wrong WebSocket credentials are rejected and closed",
+      "status": "passed",
+      "request": {
+        "url": "ws://voice:8000/xiaozhi/v1/",
+        "headers": {
+          "Device-Id": "02:60:b3:11:fc:45",
+          "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+          "Authorization": "Bearer [invalid]"
+        }
+      },
+      "response": {
+        "message": "认证失败",
+        "close_code": 1000
+      }
+    },
+    {
+      "name": "OTA credentials complete a real WebSocket hello handshake",
+      "status": "passed",
+      "request": {
+        "url": "ws://voice:8000/xiaozhi/v1/",
+        "headers": {
+          "Device-Id": "02:60:b3:11:fc:45",
+          "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+          "Authorization": "Bearer [redacted]"
+        },
+        "message": {
+          "type": "hello",
+          "version": 1,
+          "transport": "websocket",
+          "audio_params": {
+            "format": "opus",
+            "sample_rate": 16000,
+            "channels": 1,
+            "frame_duration": 60
+          }
+        }
+      },
+      "response": {
+        "type": "hello",
+        "version": 1,
+        "transport": "websocket",
+        "session_id": "65f62223-8199-41e1-ba41-fa9a4af3c280",
+        "audio_params": {
+          "format": "opus",
+          "sample_rate": 16000,
+          "channels": 1,
+          "frame_duration": 60
+        }
+      }
+    },
+    {
+      "name": "the same device session finishes provider initialization",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/65f62223-8199-41e1-ba41-fa9a4af3c280",
+        "headers": {
+          "Device-Id": "02:60:b3:11:fc:45",
+          "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+          "Authorization": "Bearer [redacted]"
+        }
+      },
+      "response": {
+        "status": "ready",
+        "stage": "providers"
+      }
+    },
+    {
+      "name": "session readiness rejects invalid device credentials",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/65f62223-8199-41e1-ba41-fa9a4af3c280",
+        "authorization": "Bearer [invalid]"
+      },
+      "response": {
+        "http": 401
+      }
+    },
+    {
+      "name": "session readiness rejects another authenticated client",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/65f62223-8199-41e1-ba41-fa9a4af3c280",
+        "headers": {
+          "Device-Id": "02:60:b3:11:fc:45",
+          "Client-Id": "protocol-60b311fc45bd4583b6d733f38bf51f59-other",
+          "Authorization": "Bearer [redacted]"
+        }
+      },
+      "response": {
+        "http": 403
+      }
+    },
+    {
+      "name": "WebSocket control Ping/Pong messages round trip",
+      "status": "passed",
+      "request": {
+        "opcode": 9,
+        "payload": "xiaozhi-protocol-check",
+        "count": 3
+      },
+      "response": {
+        "opcode": 10,
+        "matching_payload": true,
+        "count": 3
+      }
+    },
+    {
+      "name": "closed device session is removed from readiness",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/65f62223-8199-41e1-ba41-fa9a4af3c280"
+      },
+      "response": {
+        "http": 404
+      }
+    },
+    {
+      "name": "disposable agent and device are removed",
+      "status": "passed",
+      "request": {
+        "method": "DELETE",
+        "path": "/agent/6127b23fadc4472681b4766d83058eee"
+      },
+      "response": {
+        "code": 0,
+        "device_activation_http_after_delete": 202
+      }
+    }
+  ],
+  "scope": "device_protocol",
+  "audio_inference": "not_run",
+  "hardware_playback": "not_run",
+  "device_id": "02:60:b3:11:fc:45",
+  "client_id": "protocol-60b311fc45bd4583b6d733f38bf51f59",
+  "agent_id": "6127b23fadc4472681b4766d83058eee",
+  "provider_initialization": {
+    "status": "ready",
+    "stage": "providers"
+  },
+  "finished_at": "2026-11-06T07:47:19.221815+00:00"
+}
