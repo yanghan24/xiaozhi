@@ -86,7 +86,7 @@ def main():
     report = {"started_at": datetime.now(timezone.utc).isoformat(), "status": "failed", "scope": "startup_configuration", "checks": []}
     try:
         known_good = json.loads(Path(args.config).read_text())
-        failed_start("missing configuration file is diagnosed", None, "FileNotFoundError", report)
+        failed_start("missing configuration file is diagnosed", None, "找不到data/.config.yaml文件", report)
         missing_secret = json.loads(json.dumps(known_good))
         missing_secret["manager-api"].pop("secret", None)
         failed_start("missing manager secret is diagnosed", missing_secret, "manager-api的url或secret配置错误", report)

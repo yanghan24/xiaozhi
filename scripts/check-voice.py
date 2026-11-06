@@ -52,6 +52,7 @@ def check_device(settings, report):
     trace = uuid.uuid4().hex
     mac = "02:" + ":".join(trace[index:index + 2] for index in range(0, 10, 2))
     client = "protocol-" + trace
+    headers = {"Device-Id": mac, "Client-Id": client}
     report["device_id"] = mac
     report["client_id"] = client
     model_request = {"macAddress": mac, "clientId": client, "selectedModule": {}}
@@ -69,7 +70,6 @@ def check_device(settings, report):
             "llmModelId": "LLM_ChatGLMLLM", "ttsModelId": "TTS_EdgeTTS",
             "intentModelId": "Intent_nointent", "memModelId": "Memory_nomem", "chatHistoryConf": 0,
         }, token)
-        headers = {"Device-Id": mac, "Client-Id": client}
         body = {"version": 1, "mac_address": mac, "uuid": trace,
                 "application": {"name": "protocol-check", "version": "1.0.0"},
                 "board": {"type": "protocol-check", "mac": mac}}
@@ -124,7 +124,10 @@ def check_device(settings, report):
         api(base, "/agent/" + agent_id, "DELETE", token=token)
         require(all(agent["id"] != agent_id for agent in api(base, "/agent/list", token=token)),
                 "Disposable agent cleanup did not persist")
-        record(report, "disposable agent and device are removed", {"method": "DELETE", "path": "/agent/" + agent_id}, {"code": 0})
+        status, _ = http_json(base, "/ota/activate", "POST", {}, headers=headers)
+        require(status == 202, "Disposable device still exists after agent cleanup")
+        record(report, "disposable agent and device are removed", {"method": "DELETE", "path": "/agent/" + agent_id},
+               {"code": 0, "device_activation_http_after_delete": status})
 
 
 async def check_websocket(websocket, headers, report):
