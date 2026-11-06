@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import json
 
 import websockets
 from config.logger import setup_logging
@@ -44,6 +45,7 @@ class WebSocketServer:
         self.config = config
         self.logger = setup_logging(config)
         self.config_lock = asyncio.Lock()
+        self.sessions = {}
         modules = initialize_modules(
             self.logger,
             self.config,
@@ -127,11 +129,13 @@ class WebSocketServer:
             self._intent,
             self,  # 传入server实例
         )
+        self.sessions[handler.session_id] = handler
         try:
             await handler.handle_connection(websocket)
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"处理连接时出错: {e}")
         finally:
+            self.sessions.pop(handler.session_id, None)
             # 强制关闭连接（如果还没有关闭的话）
             try:
                 # 安全地检查WebSocket状态并关闭
@@ -148,6 +152,9 @@ class WebSocketServer:
                 )
 
     async def _http_response(self, websocket, request_headers):
+        path = request_headers.path.partition("?")[0]
+        if path.startswith("/xiaozhi/v1/ready/"):
+            return await self._session_readiness_response(websocket, path.rsplit("/", 1)[-1])
         # 检查是否为 WebSocket 升级请求
         if request_headers.headers.get("connection", "").lower() == "upgrade":
             # 如果是 WebSocket 请求，返回 None 允许握手继续
@@ -155,6 +162,25 @@ class WebSocketServer:
         else:
             # 如果是普通 HTTP 请求，返回 "server is running"
             return websocket.respond(200, "Server is running\n")
+
+    async def _session_readiness_response(self, websocket, session_id):
+        def respond(status, payload):
+            response = websocket.respond(status, json.dumps(payload))
+            response.headers["Content-Type"] = "application/json"
+            return response
+
+        try:
+            await self._handle_auth(websocket)
+        except AuthenticationError:
+            return respond(401, {"status": "unauthorized"})
+        handler = self.sessions.get(session_id)
+        if handler is None:
+            return respond(404, {"status": "unknown_session"})
+        headers = websocket.request.headers
+        if (headers.get("Device-Id") != handler.device_id
+                or headers.get("Client-Id") != handler.headers.get("client-id", handler.device_id)):
+            return respond(403, {"status": "forbidden"})
+        return respond(200, handler.initialization)
 
     async def update_config(self) -> bool:
         """更新服务器配置并重新初始化组件

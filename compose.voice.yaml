@@ -1,0 +1,48 @@
+# Use alongside compose.yaml and the existing project's private --env-file.
+services:
+  voice:
+    image: xiaozhi-voice:${VOICE_BUILD_TAG:-baseline-local}
+    build:
+      context: .
+      dockerfile: deploy/voice/Dockerfile
+      target: runtime
+      args:
+        SOURCE_REVISION: ${VOICE_SOURCE_REVISION:-working-tree}
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:${VOICE_WS_PORT:-18000}:8000"
+      - "127.0.0.1:${VOICE_HTTP_PORT:-18003}:8003"
+    volumes:
+      - ./.runtime/voice/data:/app/data
+      - ./.runtime/voice/logs:/app/tmp
+    healthcheck:
+      test: ["CMD", "python", "/checks/check-voice.py", "--ws-url", "ws://127.0.0.1:8000/xiaozhi/v1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    mem_limit: 640m
+
+  voice-config-check:
+    profiles: ["checks"]
+    image: xiaozhi-voice:${VOICE_BUILD_TAG:-baseline-local}
+    command: ["python", "/checks/check-voice-startup.py"]
+    volumes:
+      - ./.runtime/voice/data/.config.yaml:/baseline/.config.yaml:ro
+      - ./.runtime/voice/startup-check:/evidence
+    tmpfs:
+      - /app/data:mode=0700
+      - /app/tmp:mode=0700
+    mem_limit: 640m
+
+  voice-tests:
+    profiles: ["checks"]
+    image: xiaozhi-voice-tests:${VOICE_BUILD_TAG:-baseline-local}
+    build:
+      context: .
+      dockerfile: deploy/voice/Dockerfile
+      target: tests
+      args:
+        SOURCE_REVISION: ${VOICE_SOURCE_REVISION:-working-tree}
+    mem_limit: 512m

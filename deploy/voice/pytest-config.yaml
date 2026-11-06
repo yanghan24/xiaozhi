@@ -1,0 +1,5 @@
+# Public, isolated configuration for the upstream pytest suite's default mock mode.
+# Keep the provider choices compatible with the lean voice runtime.
+selected_module:
+  ASR: OpenaiASR
+  Intent: nointent
