@@ -2,6 +2,8 @@
 
 日期：2026-11-06，Asia/Hong_Kong。用户通过 `implement` 授权执行“部署服务”和“Ubuntu 复验”：启动管理端、语音及独立数据库，检查登录、配置保存、设备绑定和语音协议，并验证同一设备的绑定与配置跨服务重启保留。本轮上述范围通过；设备网络接入及真机对话属于后续步骤。
 
+实现提交 `ea43ee7` 已完成两个独立维度的 [code-review 审查](2026-11-06-ubuntu-review.md)：Standards 和 Spec 各 0 项问题。
+
 ## 部署结果
 
 服务器为 `jt@192.168.168.114:22`，Ubuntu 20.04.3、Docker 26.1.3、发行版提供的 Compose 2.27.1。工作目录 `/home/jt/xiaozhi-ubuntu-test`，项目名 `xiaozhi-ubuntu-test`。新建该项目专属 MySQL、Redis、上传数据卷及私有 `.env`，初始化密码仅生成一次。最终保留 mysql、redis、api、web、voice 五个容器运行，详见 [最终状态](evidence/2026-11-06-ubuntu/final-summary.json)。
