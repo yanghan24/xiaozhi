@@ -1,0 +1,183 @@
+{
+  "scope": "same_device_persistence",
+  "phase": "prepare",
+  "status": "passed",
+  "started_at": "2026-11-06T10:45:21.483500+00:00",
+  "baseline_source": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "checks": [
+    {
+      "name": "fixture identity was absent before creation",
+      "status": "passed",
+      "code": 10041
+    },
+    {
+      "name": "only the marked agent was created and configured",
+      "status": "passed",
+      "agent_id": "c52ea3f13e954fa8919497b23037c848"
+    },
+    {
+      "name": "retained binding and model configuration read back",
+      "status": "passed",
+      "agent_id": "c52ea3f13e954fa8919497b23037c848",
+      "account_fingerprint": "8d9bea063f5ba76a981335efd82fcbf374eb0f7b0f89dc7b79afd25950c661d9",
+      "snapshot_sha256": "3d309bfb33629a95574dd307bd3db674a1f28eef977573b9556054387ca1f834",
+      "selected_module": {
+        "ASR": "ASR_OpenaiASR",
+        "TTS": "TTS_EdgeTTS",
+        "SLM": "LLM_ChatGLMLLM",
+        "Memory": "Memory_nomem",
+        "VAD": "VAD_SileroVAD",
+        "Intent": "Intent_nointent",
+        "LLM": "LLM_ChatGLMLLM",
+        "VLLM": "VLLM_ChatGLMVLLM"
+      }
+    },
+    {
+      "name": "retained device is active through public OTA",
+      "status": "passed",
+      "http": 200,
+      "url": "http://api:8002/xiaozhi/ota/activate"
+    },
+    {
+      "name": "same public OTA returns the retained WebSocket URL",
+      "status": "passed",
+      "http": 200,
+      "websocket_url": "ws://voice:8000/xiaozhi/v1/",
+      "token": "[redacted]"
+    },
+    {
+      "name": "wrong WebSocket credentials are rejected and closed",
+      "status": "passed",
+      "request": {
+        "url": "ws://voice:8000/xiaozhi/v1/",
+        "headers": {
+          "Device-Id": "02:d1:89:36:06:aa",
+          "Client-Id": "persistence-d1893606aad24bd6b7d9a7da51dd685e",
+          "Authorization": "Bearer [invalid]"
+        }
+      },
+      "response": {
+        "message": "认证失败",
+        "close_code": 1000
+      }
+    },
+    {
+      "name": "OTA credentials complete a real WebSocket hello handshake",
+      "status": "passed",
+      "request": {
+        "url": "ws://voice:8000/xiaozhi/v1/",
+        "headers": {
+          "Device-Id": "02:d1:89:36:06:aa",
+          "Client-Id": "persistence-d1893606aad24bd6b7d9a7da51dd685e",
+          "Authorization": "Bearer [redacted]"
+        },
+        "message": {
+          "type": "hello",
+          "version": 1,
+          "transport": "websocket",
+          "audio_params": {
+            "format": "opus",
+            "sample_rate": 16000,
+            "channels": 1,
+            "frame_duration": 60
+          }
+        }
+      },
+      "response": {
+        "type": "hello",
+        "version": 1,
+        "transport": "websocket",
+        "session_id": "a2ec5e42-bd7c-4daf-896d-1ea33523c679",
+        "audio_params": {
+          "format": "opus",
+          "sample_rate": 16000,
+          "channels": 1,
+          "frame_duration": 60
+        }
+      }
+    },
+    {
+      "name": "the same device session finishes provider initialization",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/a2ec5e42-bd7c-4daf-896d-1ea33523c679",
+        "headers": {
+          "Device-Id": "02:d1:89:36:06:aa",
+          "Client-Id": "persistence-d1893606aad24bd6b7d9a7da51dd685e",
+          "Authorization": "Bearer [redacted]"
+        }
+      },
+      "response": {
+        "status": "ready",
+        "stage": "providers"
+      }
+    },
+    {
+      "name": "session readiness rejects invalid device credentials",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/a2ec5e42-bd7c-4daf-896d-1ea33523c679",
+        "authorization": "Bearer [invalid]"
+      },
+      "response": {
+        "http": 401
+      }
+    },
+    {
+      "name": "session readiness rejects another authenticated client",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/a2ec5e42-bd7c-4daf-896d-1ea33523c679",
+        "headers": {
+          "Device-Id": "02:d1:89:36:06:aa",
+          "Client-Id": "persistence-d1893606aad24bd6b7d9a7da51dd685e-other",
+          "Authorization": "Bearer [redacted]"
+        }
+      },
+      "response": {
+        "http": 403
+      }
+    },
+    {
+      "name": "WebSocket control Ping/Pong messages round trip",
+      "status": "passed",
+      "request": {
+        "opcode": 9,
+        "payload": "xiaozhi-protocol-check",
+        "count": 3
+      },
+      "response": {
+        "opcode": 10,
+        "matching_payload": true,
+        "count": 3
+      }
+    },
+    {
+      "name": "closed device session is removed from readiness",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/a2ec5e42-bd7c-4daf-896d-1ea33523c679"
+      },
+      "response": {
+        "http": 404
+      }
+    }
+  ],
+  "audio_inference": "not_run",
+  "hardware_playback": "not_run",
+  "script_sha256": "b2995c55f88d5c89616f9c658b0d6102b848fe266312814c562380f77291457e",
+  "run_id": "d1893606aad24bd6b7d9a7da51dd685e",
+  "device_id": "02:d1:89:36:06:aa",
+  "client_id": "persistence-d1893606aad24bd6b7d9a7da51dd685e",
+  "provider_initialization": {
+    "status": "ready",
+    "stage": "providers"
+  },
+  "prepared_at": "2026-11-06T10:45:25.244531+00:00",
+  "next_step": "Record Docker container start times, restart only the isolated project, then run verify with this state.",
+  "finished_at": "2026-11-06T10:45:25.246537+00:00"
+}

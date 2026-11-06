@@ -6,9 +6,9 @@
 
 ## 源码与模板边界
 
-本次验证源码为 `docs/ai-market-integration-questionnaire` 的固定提交 `6e354edf292c3df14fd783c5dc7314a4402e3b74`。它已包含管理端和 #4 语音协议实现；[PR #20](https://github.com/yanghan24/xiaozhi/pull/20) 在准备时仍待审核。本文件及入口模板从 `origin/main@46e7f33` 创建的独立任务分支准备，**该 main 基线尚不包含 `compose.voice.yaml` 和语音检查脚本**。不能仅检出当前 main 就执行下文全部步骤。
+现有部署的源码来源为固定提交 `6e354edf292c3df14fd783c5dc7314a4402e3b74`。#4 已通过 [PR #20](https://github.com/yanghan24/xiaozhi/pull/20) 合并，主线对应提交为 `afc9ca9e03ce85bf6ebb5fb8943060ccb54a5349`，已包含 `compose.voice.yaml` 和语音检查脚本。本任务分支已合入该主线提交。
 
-后续应先核对远端状态：若 #4 已合并，选取并验证实际合并后的提交；若仍未合并，独立测试使用上述固定验证提交。本文件不会将资料分支视为已经获准的正式发布版本。
+已用 Git 比对确认 `6e354ed` 与 `afc9ca9` 的 `main/`、`scripts/`、`compose.yaml`、`compose.voice.yaml` 和 `deploy/voice/` 内容完全一致。因此本轮保留已校验的镜像和数据库，重新执行服务重启及协议验收；没有把旧镜像改标为新构建。结果与 #5 逐项对应关系见 [A 层验收](../verification/issue-5-acceptance.md)。全新部署选择包含本任务文件的固定提交；下文固定 `6e354ed` 的流程用于复现现有历史部署，并需配套本任务的入口和离线覆盖文件。
 
 本次准备的新文件为 [Compose 入口](../../compose.device-entry.yaml)、[Nginx 入口](../../deploy/device-entry/nginx.conf) 和 [单设备记录模板](../verification/device-integration-template.md)。它们不在 `6e354ed` 中；执行部署前需把审查后的两个入口文件复制到验证源码 clone 的同名路径，并记录文件 SHA-256。也可把模板保存在单独目录，显式传入 Compose 文件路径和 `DEVICE_ENTRY_NGINX_CONFIG` 的绝对路径。不要把服务器 `.env`、账号或运行目录从其他项目复制过来。
 
