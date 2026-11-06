@@ -1,8 +1,8 @@
-# 接续安排：本机测试与后续 Ubuntu 部署
+# 换电脑测试与服务器部署交接
 
-首次记录：2026-11-05；当前安排更新于 2026-11-06。用户最新确认：测试先在开发电脑本机跑，需要服务器测试时再安排。当前从本机语音服务与设备协议任务 #4 继续，服务器 SSH、堡垒机和公网端口映射不作为本机测试的前置条件。后续 Ubuntu 部署与容量验收仍需单独执行。
+首次记录：2026-11-05；更新：2026-11-06。用户最新安排：将当前相关资料保存到自己的分支，在其他电脑开始测试并准备服务器部署。现有 Fedora 本机测试结果作为已完成基线；新电脑、Ubuntu 服务器和真实设备分别复验。
 
-## 在新电脑取得内容
+## 取得完整分支
 
 ```bash
 git clone --branch docs/ai-market-integration-questionnaire https://github.com/yanghan24/xiaozhi.git xiaozhi
@@ -13,59 +13,95 @@ git config --local core.logAllRefUpdates true
 git status --short --branch
 ```
 
-此分支汇合了已推送的 `feat/3-upstream-manager-baseline`、接口问卷，以及当时最新 `origin/main` 的团队协作文档。2026-11-06 已核对管理端基线 PR #9 已合并、任务 #3 已关闭；本资料分支不等同于所有资料已进入主线。后续交付继续遵循 [CONTRIBUTING.md](../../CONTRIBUTING.md) 的任务分支和管理员合并流程。
+已有该分支且工作区干净时，使用 `git pull --ff-only` 获取更新。当前资料分支已经汇入 `feat/4-voice-protocol@db7759527ba591b9f26c310f501ad6f852edceeb`，包含管理端、语音服务、构建与测试脚本、集市接口资料及硬件核查稿；无需先创建旧开发机的 worktree 目录。合并后的运行源码和部署脚本与已验证任务分支一致。
 
-新会话可以直接使用以下指令：
+[PR #20](https://github.com/yanghan24/xiaozhi/pull/20) 在本次交接时仍待管理员审核；资料分支汇总不表示已合并 `main`。后续任务遵循 [CONTRIBUTING.md](../../CONTRIBUTING.md)，按最新远端状态创建独立任务分支。
 
-> 请先阅读 AGENTS.md、CONTRIBUTING.md 和 docs/handoff/2026-11-05-ubuntu-server.md，核对最新任务与本机环境，然后在本机推进 #4 的语音服务、激活绑定和 WebSocket 协议验证。需要服务器测试时再安排；缺少模型凭据或样机时如实记录覆盖边界。
+## 已完成与资料入口
 
-## 已有成果与权威资料
-
-| 内容 | 阅读入口 |
+| 内容 | 当前事实和阅读入口 |
 | --- | --- |
-| 仓库工作规则 | [AGENTS.md](../../AGENTS.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md) |
-| 领域语言和职责 | [GLOSSARY.md](../../GLOSSARY.md)、[ADR-0004](../adr/0004-extend-upstream-xiaozhi-server.md)、[ADR-0005](../adr/0005-backend-owns-device-management.md) |
-| 产品需求及外部依赖 | [需求记录](../planning/voice-backend-discovery.md) |
-| 集市负责人待答问卷 | [接口确认问卷](../../to-questionnaire-ai-market-integration.md)；当前是未填写的问卷，不能当作已确认接口契约 |
-| 已实现的管理端基线 | [PR #9](https://github.com/yanghan24/xiaozhi/pull/9) 已合并，[#3](https://github.com/yanghan24/xiaozhi/issues/3) 已关闭 |
-| 上游来源和导入范围 | [源码来源记录](../development/upstream-baseline.md) |
-| 运行与检查方法 | [现有本机运行说明](../development/manager-baseline.md) |
-| 实际构建、浏览器验收、测试与审阅 | [#3 验证报告](../verification/issue-3-manager-baseline.md)，含源码提交、镜像标识、截图和测试结果 |
-| 当前规格与后续任务 | [#2](https://github.com/yanghan24/xiaozhi/issues/2)、[#3](https://github.com/yanghan24/xiaozhi/issues/3)、[#4](https://github.com/yanghan24/xiaozhi/issues/4)、[#5](https://github.com/yanghan24/xiaozhi/issues/5)、[#6](https://github.com/yanghan24/xiaozhi/issues/6) |
+| 仓库规则与领域职责 | [AGENTS.md](../../AGENTS.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md)、[GLOSSARY.md](../../GLOSSARY.md)、[ADR-0005](../adr/0005-backend-owns-device-management.md) |
+| 管理端基线 | #3 / PR #9 已合并；[运行说明](../development/manager-baseline.md)、[实际验证记录](../verification/issue-3-manager-baseline.md) |
+| 语音与设备协议基线 | #4 实现和本机验证已完成，PR #20 待审核；[运行说明](../development/voice-baseline.md)、[验证报告](../verification/issue-4-voice-protocol.md)、[复审记录](../verification/issue-4-review.md) |
+| 硬件接入资料 | [硬件负责人提供的核查稿](../../筑音设备接入资料_核查稿_2026-11-06.md)；用户的后续确认见下一节 |
+| 集市接口及规范通 | [资料索引](../development/ai-market-api.md)、[新版原文](<../../元筑AI集市应用接入接口文档(1).md>)、[契约变更核对](../development/ai-market-contract-review-2026-11-06.md) |
+| 语音合成调研 | [千问 TTS 官方资料调研](../development/qwen-tts-research.md)；集市实际代理接口和可用凭据仍待取得 |
+| 产品与任务 | [需求记录](../planning/voice-backend-discovery.md)、[基线规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)、[集市首版规格 #10](https://github.com/yanghan24/xiaozhi/issues/10)；当前状态和依赖以 GitHub 为准 |
 
-已有管理端验证是在 Fedora 开发电脑完成的，当前本机也是 Fedora；Ubuntu 服务器上的运行和验收尚未执行。语音服务目前只有导入的源码；设备激活、绑定、WebSocket、真机对话、集市接入及最终并发目标仍待验证，具体边界以原规格和验证报告为准。
+#4 在真实管理 API、MySQL、Redis 和 Python 语音服务上完成两轮独立身份检查，每轮 19 项；覆盖激活、绑定、配置、认证、WebSocket 握手、会话初始化就绪和测试数据清理。错误配置及恢复检查通过；上游 Python 套件为 129 passed / 5 skipped。产物版本与验证限制以报告为准，本次资料汇总没有重新执行完整套件。
 
-本机复核（2026-11-06）：现有管理端 Compose 项目仍在运行，其工作目录为 `.worktrees/3-upstream-manager-baseline`，该目录保留匹配的私有 `.env`。根目录没有 `.env`，不要在运行项目的数据卷上改用新生成的密码。对 `http://127.0.0.1:18002` 执行 `python3 scripts/check-manager.py` 已通过页面、API 初始化和匿名访问拒绝检查；本次未重复浏览器登录、配置保存或语音协议验收。
+真实 ASR／LLM 调用仍缺有效配置和凭据；独立 Edge TTS 用例通过不代表设备音频传输、播放或音质已验证。真机对话、服务器部署、集市 OIDC／规范通／计费和最终容量仍需各自验收。
 
-## 已确认的环境变更
+## 用户新确认的硬件条件
 
-2026-11-05 曾计划将后续测试及部署改到 Ubuntu 服务器；2026-11-06 用户进一步明确当前先在本机测试，需要服务器时再安排。当前本机测试优先的决定取代“先落实服务器入口再继续测试”的推进顺序，后续部署方向仍保留。
+2026-11-06，用户在核查稿之后明确确认：**固件版本仍在修改，设备可以修改 OTA 地址。** 这两项更新此前资料中的待确认状态；固件最终版本尚未锁定，首轮联调记录当时的可运行测试版本或构建标识即可。
 
-尚未确认：服务器地址或 SSH 别名、登录账号和端口、服务器是否可访问、测试与正式环境是否同机、内网/公网访问方式、域名、音箱所在网络，以及是否需要迁移旧测试数据。Ubuntu 版本、CPU 架构、资源余量、Docker 和现有服务应在获得访问入口后实际检查。
+硬件资料已列出微雪 `ESP32-P4-WIFI6-Touch-LCD-4.3`、主控 `ESP32-P4`、无线协处理器 `ESP32-C6-MINI-1`、32 MB Flash 和 32 MB PSRAM。继续沿用这些已有资料，不重复要求提供完整板型和芯片信息。实物对应关系、芯片 revision 和固件包适配在实际选择烧录包时核实，不作为仅修改现有固件 OTA 地址的额外资料前提。
 
-此前提出的“开发电脑编辑代码，Ubuntu 运行服务”“测试与正式环境分开配置和数据卷”“Ubuntu 从新测试数据库开始”均为建议，尚未得到用户逐项确认。
+设备自定义 OTA 地址用于取得激活信息、WebSocket 地址和设备认证信息；支持该流程的现有固件可先改地址接入。样机的位置、可用时间和现场播放确认人员尚未确定。动态二维码显示、实际分区、可用 OTA 应用镜像、升级回执和回滚仍未完成实测，分别由 #13／#18 继续落实。
 
-当前沿用原规格 #2 的本机测试方式，先推进 #4，再按依赖推进 #5/#6。不改变 ADR-0004 的上游选型或 ADR-0005 的设备管理职责。后续服务器部署及容量验收由 #11/#19 等任务跟踪；保留已经完成的 Fedora 验证证据，不能以本机结果替代服务器验收。
+## 新电脑或新服务器的隔离基线
 
-## 下一会话按顺序推进
+开始前检查操作系统、CPU 架构、Docker Engine／Compose、磁盘和内存、现有容器与配置。现有记录覆盖 x86_64 Fedora；Ubuntu 和其他平台以实际结果为准。构建需要访问镜像及依赖仓库，浏览器脚本另需 Node 和 Chrome。
 
-1. 阅读工作规则并检查当前工作区、远端分支和相关 Issue 状态。管理端 #3 已完成，#4 的该项阻塞已解除。
-2. 检查本机 Docker、资源、现有容器及私有配置，优先复用本项目的隔离测试环境；不要覆盖已有凭据或测试数据。管理端检查按[运行说明](../development/manager-baseline.md)执行。
-3. 按 #4 在本机构建并运行真实语音服务，以测试客户端验证激活、绑定、配置读取、服务间认证及 WebSocket。模型初始化需要的配置与凭据单独核实，协议模拟不代替真机收音与播放验收。
-4. 按依赖推进 #5 的全套重启和 #6 的真机验证；同时补齐 #11/#12 的集市外部输入。本机测试不因服务器访问条件未落实而等待；真实集市联调仍须满足其正式契约、凭据和网络要求。
-5. 需要服务器测试时，再核实 Ubuntu 访问入口、资源、测试/正式数据边界与 HTTPS/WSS 网络，在固定版本上重跑适用验收并执行容量验证。现有 `compose.yaml` 只发布回环地址，届时按实际访问方案适配。
+1. **全新测试环境：** 按[管理端运行说明](../development/manager-baseline.md)生成当前根目录 `.env`，先做预检，再顺序构建 API 和页面、启动管理服务、检查 HTTP，并注册和登录测试账号。预检会检查端口是否空闲，应用启动后该端口已占用属于正常情况。同一 Docker 主机有其他实例时，首次启动前在 `.env` 选择独立的 `XIAOZHI_PROJECT_NAME` 和端口。
+2. **已有环境：** 找到其 Compose 项目和匹配的私有 `.env`，复用原账号和数据；不要在已有数据库卷上重新生成密码。改变环境变量不会修改数据库中已经初始化的密码。
+3. **接入语音：** 按[语音运行说明](../development/voice-baseline.md)，先登录获取管理 token，再执行 `init-voice.py --configure`，构建并启动 `voice`，然后发布设备 URL。新 clone 使用 `MANAGER_ENV="$PWD/.env"` 和 `.runtime/manager-check/credentials.json`；旧示例中的 `../3-upstream-manager-baseline/` 仅属于旧开发机目录布局。
+4. **验证：** 使用带 `--settings /app/data/check.json` 的容器内客户端完成设备协议检查，再执行配置恢复检查和需要的回归。直接运行不带 settings 的 `check-voice.py` 仅验证 HTTP 存活。
+
+只对新建或明确用于本项目的测试环境运行初始化。`init-voice.py --configure` 修改默认 ASR 和设备认证，`--publish-urls` 修改管理端设备地址；脚本先保存原值，停止容器不会撤销这些持久设置。
+
+## 服务器上的管理登录
+
+服务器可以先运行回环端口上的隔离服务；没有 Chrome 时，在另一台有 Chrome 的电脑通过 SSH 隧道完成真实管理页面注册和登录。以下将 `user@server` 替换为实际 SSH 目标；堡垒机访问按实际 SSH 配置使用 `ProxyJump` 或对应别名。电脑的 `28002` 端口须空闲。
+
+在电脑保持一个隧道终端：
+
+```bash
+ssh -N -L 127.0.0.1:28002:127.0.0.1:18002 user@server
+```
+
+在电脑为该服务器准备的专用 clone 中执行，凭据须属于这台服务器的管理数据库：
+
+```bash
+npm --prefix scripts/manager-browser ci --ignore-scripts --no-audit --no-fund
+MANAGER_URL=http://127.0.0.1:28002 node scripts/manager-browser/check.mjs --register
+node scripts/manager-browser/voice-login.mjs --url http://127.0.0.1:28002 --credentials .runtime/manager-check/credentials.json
+```
+
+首次注册才加 `--register`；已有该服务器测试账号时复用其凭据，去掉该选项。按脚本提示查看本机验证码图片并输入；Chrome 不在默认位置时设置 `CHROME_PATH`。
+
+服务器 clone 根目录先执行 `install -d -m 700 .runtime/voice`。将电脑本次登录生成的 `.runtime/voice/admin-token.json` 经安全文件传输放到服务器 clone 同一路径，例如在电脑执行（替换 SSH 目标和实际仓库路径）：
+
+```bash
+scp .runtime/voice/admin-token.json user@server:/srv/xiaozhi/.runtime/voice/admin-token.json
+```
+
+服务器再执行 `chmod 600 .runtime/voice/admin-token.json`，然后在服务器本机运行语音初始化和后续构建步骤。token 过期时重新登录并安全更新，然后在服务器重跑 `python3 scripts/init-voice.py`，刷新协议客户端 `data/check.json` 中保存的旧 token；无需重新加 `--configure`，自定义地址参数须沿用。它与账号密码均不写入 Git。迁移的是本次服务器登录 token，不可用另一套本地数据库的登录状态替代。
+
+## 设备可达入口与服务器部署
+
+当前 Compose 仅发布回环端口：管理入口 `18002`、语音 WebSocket `18000`、附加语音 HTTP `18003`。默认发布的 `http://api:8002/xiaozhi/ota/` 和 `ws://voice:8000/xiaozhi/v1/` 是容器内部地址。它们用于当前协议基线，局域网或公网音箱无法直接使用。
+
+服务器部署时先核对 SSH／堡垒机访问、系统和资源、测试与正式数据边界、设备所在网络、可达域名或 IP、反向代理及端口映射。管理服务内部运行通过后，再配置设备实际可达的 OTA 与 WebSocket 入口，验证 HTTP／WebSocket 转发以及所选 HTTPS／WSS 配置。仅能通过堡垒机 SSH 登录不代表设备可达。
+
+在局域网接入时，设备填写电脑的可达 OTA 地址，管理端下发同样可达的 WebSocket 地址；公网接入则使用实际部署的入口。使用 `init-voice.py --publish-urls` 并传入实际 `--ws-url`、`--ota-url`，同步发布地址和刷新检查设置；若已经在管理页面发布，仍须带实际地址参数重跑初始化，以更新 `data/check.json` 的预期 URL。实际 WebSocket 地址还须由管理 API 容器和协议客户端容器访问。
+
+调整后重跑协议检查，再做 [#6 单设备真实语音及重启复验](https://github.com/yanghan24/xiaozhi/issues/6)。完整重启复现见 [#5](https://github.com/yanghan24/xiaozhi/issues/5)，集市环境与资源输入见 [#11](https://github.com/yanghan24/xiaozhi/issues/11)／[#12](https://github.com/yanghan24/xiaozhi/issues/12)，服务器容量见 [#19](https://github.com/yanghan24/xiaozhi/issues/19)。
 
 ## Git 能带走的内容与本地状态
 
-本分支保存源码、构建和部署定义、领域文档、接口问卷、接续记录及脱敏验证证据。`.env.example` 和初始化脚本可用于生成新环境配置。
+本分支保存源码、构建和部署定义、接口与硬件资料、交接说明及脱敏验证证据。真实 `.env`、测试账号、管理 token、服务密钥、`.runtime/` 原始日志、Docker 镜像、容器及数据库卷均属于各主机本地状态。克隆后可重新构建和初始化；如需保留旧账号和配置，须单独迁移数据库及配套私有配置。
 
-真实 `.env`、测试账号凭据、`.runtime/` 原始日志、Docker 镜像、运行容器和数据库卷属于各电脑的本地状态，没有提交到 Git。开始本机测试时先检查已有 Compose 项目的工作目录和配置来源；已有容器或数据卷时，保留匹配的私有配置，不重新生成密码覆盖。已有镜像可按源码和固定依赖重建；如需迁移账号和配置，应单独迁移数据库及匹配的配置。仅克隆仓库不会恢复这些运行数据。
+本次没有打包或上传这些私有运行数据。上游语音日志可能包含认证头，只传递脱敏证据。硬件原文引用的外部 `outputs/...` 确认函和排期表未随本次资料提供；候选设备固件包也不包含在本仓库。
 
-## 建议使用的技能
+## 新会话入口与建议技能
 
-- `ask-matt`：需要重新判断当前工作应进入哪一步时使用。
-- `grill-with-docs`：后续需要服务器时确认部署范围、访问方式及测试/正式环境边界。
-- `implement`：当前先执行 #4 的本机语音服务与设备协议任务，再按依赖继续验证。
-- `wizard`：只在云控制台、凭据开通等必须由用户完成的步骤确实出现时使用。
+新电脑可直接使用以下提示：
 
-以上技能是建议入口；工作事实、验收要求和仓库规则以所链接的文件、Issue 和 PR 为准。
+> 请阅读 AGENTS.md、CONTRIBUTING.md 和 docs/handoff/2026-11-05-ubuntu-server.md。资料分支已包含完成本机验证的 #4 语音基线，先检查当前工作区、GitHub 任务和这台电脑／服务器已有环境，再复用或初始化隔离环境、重跑适用检查，并按实际入口准备服务器部署。硬件已确认能改 OTA 地址，固件仍在修改；真机测试记录当时版本。不要沿用旧 worktree 的私有路径或覆盖已有卷的密码。模型凭据、设备音频和服务器容量按真实结果验收。
+
+- `ask-matt`：根据当前任务状态和新机器条件判断下一步。
+- `implement`：按明确的现有任务及依赖继续实施；#4 已实现，先检查其 PR 状态和需要在新环境复验的范围。
+- `code-review`：对后续代码或部署改动按固定基线执行规范与规格复审。

@@ -1,6 +1,6 @@
 # 小智智能音箱
 
-基于上游小智服务端工程开发，接入元筑 AI 集市。当前阶段先建立可复现的管理端源码与运行环境，业务范围和职责以 [需求记录](docs/planning/voice-backend-discovery.md)、[领域词汇](GLOSSARY.md)及 [ADR](docs/adr/) 为准。
+基于上游小智服务端工程开发，接入元筑 AI 集市。已完成本机管理端及语音服务的设备协议基线验证，真机语音和服务器部署继续分别验收。业务范围和职责以 [需求记录](docs/planning/voice-backend-discovery.md)、[领域词汇](GLOSSARY.md)及 [ADR](docs/adr/) 为准。
 
 - [本机管理端运行与验证](docs/development/manager-baseline.md)
 - [本机语音服务与设备协议验证](docs/development/voice-baseline.md)
@@ -8,7 +8,9 @@
 - 实际验证记录：[管理端](docs/verification/issue-3-manager-baseline.md)、[语音与设备协议](docs/verification/issue-4-voice-protocol.md)
 - [任务 #3](https://github.com/yanghan24/xiaozhi/issues/3)、[任务 #4](https://github.com/yanghan24/xiaozhi/issues/4)、[父规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)
 - [团队协作与回退](CONTRIBUTING.md)
-- [接续安排：本机测试与后续 Ubuntu 部署](docs/handoff/2026-11-05-ubuntu-server.md)
+- [换电脑测试与服务器部署交接](docs/handoff/2026-11-05-ubuntu-server.md)
+- [筑音硬件接入资料](筑音设备接入资料_核查稿_2026-11-06.md)
+- [集市接入资料索引](docs/development/ai-market-api.md)、[新版授权契约核对](docs/development/ai-market-contract-review-2026-11-06.md)
 - [AI 集市接口确认问卷](to-questionnaire-ai-market-integration.md)
 
 本项目使用根目录 `compose.yaml` 启动独立测试环境。保留的 [上游 README](README.upstream.md)、`docs/Deployment_all.md` 和 `main/xiaozhi-server/docker-compose_all.yml` 是来源资料；其中的预构建镜像、全局容器名和清理步骤不是本项目本机运行流程。
