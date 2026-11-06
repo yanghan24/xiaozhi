@@ -1,5 +1,5 @@
 {
-  "started_at": "2026-11-06T02:52:04.495269+00:00",
+  "started_at": "2026-11-06T03:47:13.664674+00:00",
   "status": "passed",
   "checks": [
     {
@@ -53,8 +53,8 @@
         "path": "/config/agent-models",
         "authorization": "Bearer [redacted]",
         "body": {
-          "macAddress": "02:00:f3:c0:31:19",
-          "clientId": "protocol-00f3c0311905407784345192ff33e1dd",
+          "macAddress": "02:61:7a:e9:d8:4c",
+          "clientId": "protocol-617ae9d84ce74afe864390e4b3689fba",
           "selectedModule": {}
         }
       },
@@ -69,8 +69,8 @@
       "request": {
         "method": "POST",
         "path": "/ota/activate",
-        "Device-Id": "02:00:f3:c0:31:19",
-        "Client-Id": "protocol-00f3c0311905407784345192ff33e1dd"
+        "Device-Id": "02:61:7a:e9:d8:4c",
+        "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba"
       },
       "response": {
         "http": 202
@@ -83,20 +83,20 @@
         "method": "POST",
         "path": "/ota/",
         "headers": {
-          "Device-Id": "02:00:f3:c0:31:19",
-          "Client-Id": "protocol-00f3c0311905407784345192ff33e1dd"
+          "Device-Id": "02:61:7a:e9:d8:4c",
+          "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba"
         },
         "body": {
           "version": 1,
-          "mac_address": "02:00:f3:c0:31:19",
-          "uuid": "00f3c0311905407784345192ff33e1dd",
+          "mac_address": "02:61:7a:e9:d8:4c",
+          "uuid": "617ae9d84ce74afe864390e4b3689fba",
           "application": {
             "name": "protocol-check",
             "version": "1.0.0"
           },
           "board": {
             "type": "protocol-check",
-            "mac": "02:00:f3:c0:31:19"
+            "mac": "02:61:7a:e9:d8:4c"
           }
         }
       },
@@ -116,8 +116,8 @@
         "path": "/config/agent-models",
         "authorization": "Bearer [redacted]",
         "body": {
-          "macAddress": "02:00:f3:c0:31:19",
-          "clientId": "protocol-00f3c0311905407784345192ff33e1dd",
+          "macAddress": "02:61:7a:e9:d8:4c",
+          "clientId": "protocol-617ae9d84ce74afe864390e4b3689fba",
           "selectedModule": {}
         }
       },
@@ -131,14 +131,14 @@
       "status": "passed",
       "request": {
         "method": "POST",
-        "path": "/device/bind/2d7e164eebad46ef8ab323986223b9c8/[activation-code]"
+        "path": "/device/bind/55853ec5e257480fbd8b9a94449a1727/[activation-code]"
       },
       "response": {
         "http": 200,
         "code": 0,
-        "readback_path": "/device/bind/2d7e164eebad46ef8ab323986223b9c8",
-        "device_id": "02:00:f3:c0:31:19",
-        "macAddress": "02:00:f3:c0:31:19",
+        "readback_path": "/device/bind/55853ec5e257480fbd8b9a94449a1727",
+        "device_id": "02:61:7a:e9:d8:4c",
+        "macAddress": "02:61:7a:e9:d8:4c",
         "visible_to_logged_in_account": true
       }
     },
@@ -148,8 +148,8 @@
       "request": {
         "method": "POST",
         "path": "/ota/activate",
-        "Device-Id": "02:00:f3:c0:31:19",
-        "Client-Id": "protocol-00f3c0311905407784345192ff33e1dd"
+        "Device-Id": "02:61:7a:e9:d8:4c",
+        "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba"
       },
       "response": {
         "http": 200,
@@ -163,8 +163,8 @@
         "method": "POST",
         "path": "/ota/",
         "headers": {
-          "Device-Id": "02:00:f3:c0:31:19",
-          "Client-Id": "protocol-00f3c0311905407784345192ff33e1dd"
+          "Device-Id": "02:61:7a:e9:d8:4c",
+          "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba"
         }
       },
       "response": {
@@ -184,8 +184,8 @@
         "path": "/config/agent-models",
         "authorization": "Bearer [redacted]",
         "body": {
-          "macAddress": "02:00:f3:c0:31:19",
-          "clientId": "protocol-00f3c0311905407784345192ff33e1dd",
+          "macAddress": "02:61:7a:e9:d8:4c",
+          "clientId": "protocol-617ae9d84ce74afe864390e4b3689fba",
           "selectedModule": {}
         }
       },
@@ -243,8 +243,8 @@
       "request": {
         "url": "ws://voice:8000/xiaozhi/v1/",
         "headers": {
-          "Device-Id": "02:00:f3:c0:31:19",
-          "Client-Id": "protocol-00f3c0311905407784345192ff33e1dd",
+          "Device-Id": "02:61:7a:e9:d8:4c",
+          "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba",
           "Authorization": "Bearer [invalid]"
         }
       },
@@ -259,8 +259,8 @@
       "request": {
         "url": "ws://voice:8000/xiaozhi/v1/",
         "headers": {
-          "Device-Id": "02:00:f3:c0:31:19",
-          "Client-Id": "protocol-00f3c0311905407784345192ff33e1dd",
+          "Device-Id": "02:61:7a:e9:d8:4c",
+          "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba",
           "Authorization": "Bearer [redacted]"
         },
         "message": {
@@ -279,13 +279,58 @@
         "type": "hello",
         "version": 1,
         "transport": "websocket",
-        "session_id": "4c13af69-a8af-422b-8aa5-39c6a1fe1b3a",
+        "session_id": "2db3123c-bd64-489c-8aa3-023c13c3ec13",
         "audio_params": {
           "format": "opus",
           "sample_rate": 16000,
           "channels": 1,
           "frame_duration": 60
         }
+      }
+    },
+    {
+      "name": "the same device session finishes provider initialization",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/2db3123c-bd64-489c-8aa3-023c13c3ec13",
+        "headers": {
+          "Device-Id": "02:61:7a:e9:d8:4c",
+          "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba",
+          "Authorization": "Bearer [redacted]"
+        }
+      },
+      "response": {
+        "status": "ready",
+        "stage": "providers"
+      }
+    },
+    {
+      "name": "session readiness rejects invalid device credentials",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/2db3123c-bd64-489c-8aa3-023c13c3ec13",
+        "authorization": "Bearer [invalid]"
+      },
+      "response": {
+        "http": 401
+      }
+    },
+    {
+      "name": "session readiness rejects another authenticated client",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/2db3123c-bd64-489c-8aa3-023c13c3ec13",
+        "headers": {
+          "Device-Id": "02:61:7a:e9:d8:4c",
+          "Client-Id": "protocol-617ae9d84ce74afe864390e4b3689fba-other",
+          "Authorization": "Bearer [redacted]"
+        }
+      },
+      "response": {
+        "http": 403
       }
     },
     {
@@ -303,11 +348,22 @@
       }
     },
     {
+      "name": "closed device session is removed from readiness",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/ready/2db3123c-bd64-489c-8aa3-023c13c3ec13"
+      },
+      "response": {
+        "http": 404
+      }
+    },
+    {
       "name": "disposable agent and device are removed",
       "status": "passed",
       "request": {
         "method": "DELETE",
-        "path": "/agent/2d7e164eebad46ef8ab323986223b9c8"
+        "path": "/agent/55853ec5e257480fbd8b9a94449a1727"
       },
       "response": {
         "code": 0,
@@ -318,8 +374,12 @@
   "scope": "device_protocol",
   "audio_inference": "not_run",
   "hardware_playback": "not_run",
-  "device_id": "02:00:f3:c0:31:19",
-  "client_id": "protocol-00f3c0311905407784345192ff33e1dd",
-  "agent_id": "2d7e164eebad46ef8ab323986223b9c8",
-  "finished_at": "2026-11-06T02:52:09.413985+00:00"
+  "device_id": "02:61:7a:e9:d8:4c",
+  "client_id": "protocol-617ae9d84ce74afe864390e4b3689fba",
+  "agent_id": "55853ec5e257480fbd8b9a94449a1727",
+  "provider_initialization": {
+    "status": "ready",
+    "stage": "providers"
+  },
+  "finished_at": "2026-11-06T03:47:21.909371+00:00"
 }

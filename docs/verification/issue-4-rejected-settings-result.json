@@ -1,5 +1,5 @@
 {
-  "started_at": "2026-11-06T02:54:46.664350+00:00",
+  "started_at": "2026-11-06T03:48:23.065859+00:00",
   "status": "failed",
   "checks": [
     {
@@ -19,5 +19,5 @@
   "audio_inference": "not_run",
   "hardware_playback": "not_run",
   "error": "Real service credentials did not retrieve the server configuration",
-  "finished_at": "2026-11-06T02:54:46.694841+00:00"
+  "finished_at": "2026-11-06T03:48:23.078799+00:00"
 }

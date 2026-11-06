@@ -6,16 +6,16 @@
 
 - 上游固定提交：`xinnan-tech/xiaozhi-esp32-server@c8e60d1325650c8a31d00e36d8528f8bb74aeb11`。
 - 任务分支：`feat/4-voice-protocol`，基于 `origin/main@46e7f33c9d0d94603c2a58c8e4dc197c1d9e0464`。
-- 最终镜像的实现源码提交：`c699d5b983d7553b8ec94b3f95f690c1623ec794`。标签 `org.opencontainers.image.revision` 指向该提交，`io.xiaozhi.upstream.revision` 记录上游版本；报告及证据在后续提交中保存。
-- `main/xiaozhi-server` 与导入基线的 diff 为空；本任务新增构建、隔离运行、协议客户端和检查脚本。
+- 最终镜像的实现源码提交：`8205dbb81f92478d0c52aa659939ec4fd9ecd8bd`。标签 `org.opencontainers.image.revision` 指向该提交，`io.xiaozhi.upstream.revision` 记录上游版本；报告及证据在后续提交中保存。
+- 在上游 `core/connection.py` 和 `core/websocket_server.py` 增加会话初始化状态与经过设备认证的 HTTP 就绪入口，确保后台配置错误不能被 `hello` 和 Pong 掩盖；保留正常握手时序。其他新增内容为构建、隔离运行、协议客户端和检查脚本。
 - 复用项目 `xiaozhi-baseline` 的真实管理 API、页面、MySQL、Redis、匹配的私有 `.env` 及既有本地测试账号。管理镜像继续使用 `fd104daaa3fc7c3017ece00d13deb319778f69c7`，没有重新初始化数据库或移除数据卷。
 - Docker Engine 29.8.0 / Compose 5.5.1，约 7.7 GiB 物理内存。语音端口仅发布到 `127.0.0.1:18000` 和 `127.0.0.1:18003`，管理页面为 `127.0.0.1:18002`。
 - 本机客户端在 Compose 网络内使用实际 OTA 返回的 `ws://voice:8000/xiaozhi/v1/`。管理端发布地址经过上游真实连通性校验，宿主机另行通过回环端口检查 HTTP 存活。
 
 | 产物 | 本机 Docker image ID | 镜像大小（字节） |
 | --- | --- | --- |
-| `xiaozhi-voice:c699d5b983d7553b8ec94b3f95f690c1623ec794` | `sha256:243f71d3593a703babf1578d15444d3fc0e15ffaa384f8bab49dd634da896653` | 1295220291 |
-| `xiaozhi-voice-tests:c699d5b983d7553b8ec94b3f95f690c1623ec794` | `sha256:d33eca63c9b83ddf8d77cce14bf01cdab43a472980368b788e43e7f98062c758` | 1314874407 |
+| `xiaozhi-voice:8205dbb81f92478d0c52aa659939ec4fd9ecd8bd` | `sha256:30bbbc3d21b4f379caeacd60b363c2c18b3a234f0726feb6732d1a9921806bce` | 1295230648 |
+| `xiaozhi-voice-tests:8205dbb81f92478d0c52aa659939ec4fd9ecd8bd` | `sha256:c69de746c7a78eb0b6f772499728f343dfbfb0328391f2bc2ee1ba589f1970a4` | 1314884849 |
 
 这是本机构建记录，镜像层之间有共享；没有发布到镜像仓库。基础镜像固定为 `python:3.10-slim-bookworm@sha256:5be5aaecb962a41567bc8041f1e9e3432cb085b037fe057f9a562630b2e4b370`。
 
@@ -44,16 +44,17 @@ Silero VAD 使用真实 ONNX Runtime 载入仓库模型：`models/snakers4_siler
 | 设备配置 | 实际智能体模型配置可读，ASR 与测试智能体一致，聊天记录关闭 |
 | 错误 WebSocket token | 服务返回 `认证失败` 并关闭连接 |
 | 正确 WebSocket token | 使用 Java OTA 签发的 token，Python 服务返回 `hello`、有效 session ID 和协商后的 Opus / 16 kHz / 单声道 / 60 ms 参数 |
+| 会话提供者就绪 | 同一设备 token 和会话返回 `ready / providers`；错误 token 为 `401`，另一已认证 Client-Id 为 `403`，连接关闭后为 `404` |
 | 消息交换 | 三次 WebSocket 控制帧 Ping/Pong，负载匹配；当前上游未启用应用层 JSON 心跳 |
 | 测试数据清理 | 删除本轮智能体后，列表不再包含它；同一设备激活入口恢复 `202`，确认设备记录也已移除 |
 | 原管理环境 | 页面、公共配置、匿名参数访问拒绝检查仍通过 |
 
-最终镜像上连续两轮各 15 个步骤全部通过：
+最终镜像上两轮独立身份各 19 个步骤全部通过，第二轮在音频参数恢复后执行：
 
 | 运行（UTC） | 设备 MAC | Client-Id | 结果 |
 | --- | --- | --- | --- |
-| 02:52:04–02:52:09 | `02:00:f3:c0:31:19` | `protocol-00f3c0311905407784345192ff33e1dd` | passed |
-| 02:52:55–02:52:59 | `02:53:f5:0e:78:66` | `protocol-53f50e78668941e9b8fcddb424c60e84` | passed |
+| 03:47:13–03:47:21 | `02:61:7a:e9:d8:4c` | `protocol-617ae9d84ce74afe864390e4b3689fba` | passed |
+| 03:48:16–03:48:22 | `02:72:85:7f:a0:2e` | `protocol-72857fa02eaa4926abc1cc802b7efe74` | passed |
 
 完整脱敏请求和响应见[首轮结果](issue-4-protocol-result.json)和[独立身份重复结果](issue-4-protocol-repeat.json)。实际服务密钥、管理 token、激活码和 OTA token 均不在证据中。设备 MAC、Client-Id、智能体 ID、session ID 和时间可用于关联本机私有日志。
 
@@ -74,25 +75,19 @@ Silero VAD 使用真实 ONNX Runtime 载入仓库模型：`models/snakers4_siler
 
 ## 提供者初始化与实际调用范围
 
-服务启动时实际初始化 ONNX VAD 和远程 ASR。握手后异步读取绑定设备的专属配置，并创建 Edge TTS、OpenAI 兼容 LLM、无意图识别和无记忆提供者。以下摘录来自最终运行日志（UTC，移除认证头和完整配置）：
+服务启动时实际初始化 ONNX VAD 和远程 ASR。握手后异步读取绑定设备的专属配置，并创建 Edge TTS、OpenAI 兼容 LLM、无意图识别和无记忆提供者。最终实际提供者类型、凭据状态及会话就绪响应见两轮协议证据；上游日志包含完整认证头，未直接提交日志。
 
-```text
-261106 02:49:26 初始化组件: vad成功 VAD_SileroVAD
-261106 02:49:26 初始化组件: asr成功 ASR_OpenaiASR
-261106 02:52:06 0.534290075302124 秒，异步获取差异化配置成功 [configuration omitted]
-261106 02:52:06 初始化组件: tts成功 TTS_EdgeTTS
-261106 02:52:07 初始化组件: llm成功 LLM_ChatGLMLLM
-261106 02:52:07 初始化组件: intent成功 Intent_nointent
-261106 02:52:07 初始化组件: memory成功 Memory_nomem
-```
+`hello` 先于初始化完成返回，客户端还必须从经过认证的 HTTP 就绪入口确认当前会话为 `ready`。服务端等待异步音频通道初始化，包括本地 Opus 编码器，并保留配置、提供者和本地组件初始化的首个失败阶段；就绪结果不包含原始配置或异常详情。ASR 当前没有有效 API key，LLM／SLM／VLLM 仍是上游占位 key。上游允许这些提供者创建对象，LLM 会记录密钥警告；初始化通过不能用于宣称识别或生成调用可用。实际 ASR 和 LLM 调用受有效端点、模型配置及凭据条件限制，未在本任务中执行。
 
-`hello` 先于初始化完成返回，所以单独核对了这些服务端结果。ASR 当前没有有效 API key，LLM／SLM／VLLM 仍是上游占位 key。上游允许这些提供者创建对象，LLM 会记录密钥警告；初始化通过不能用于宣称识别或生成调用可用。实际 ASR 和 LLM 调用受有效端点、模型配置及凭据条件限制，未在本任务中执行。
+提供者回归通过实际管理 API 创建专属 TTS 模型，先将类型设为不受支持：设备已经收到真实 `hello`，就绪接口仍返回 `failed / providers`，完整客户端返回退出码 `1`。修正同一模型为 Edge TTS 后，新的独立设备会话返回 `ready / providers`，检查通过。最后删除测试智能体、设备及专属模型，见[提供者失败和恢复证据](issue-4-provider-result.json)。
+
+另以管理 API 暂将 `xiaozhi` 参数中的输出采样率设为 Opus 不支持的 `22050` Hz，并重启实际语音进程。修复前（`367de09`）设备收到 `hello` 后仍被误判通过；等待 TTS／ASR 通道初始化 Future 后，最终镜像返回 `failed / components`、完整客户端退出 `1`。随后恢复原 `24000` Hz，按 JSON 内容读回核对，重启后第二轮 19 步检查通过。此负例仅在本机测试环境执行，原参数保存在本机私有备份，见[音频通道失败及恢复证据](issue-4-audio-channel-result.json)。
 
 Edge TTS 不需要用户 API key；独立上游 TTS 用例实际访问了 Bing 语音服务并通过，但该用例仅断言输出文件存在。经设备协议传输的音频识别、模型问答、语音合成、麦克风输入、音箱播放及音质均保持待验证。当前使用上游本地测试账号；集市 OIDC、规范通权限和计费不在这条基线中。
 
 ## Python 测试
 
-[完整输出](issue-4-python-tests.txt)：**129 passed, 5 skipped in 138.03s**。另行验证时间工具文件为 7 passed；Python 编译检查、Node 语法检查和 Git diff 格式检查通过。
+[完整输出](issue-4-python-tests.txt)：**129 passed, 5 skipped in 139.34s**。完整套件在修复后的工作树测试镜像执行，已核对最终固定版本镜像的服务源码 SHA-256 及依赖清单与该镜像完全一致，见[产物与资源明细](issue-4-artifacts.json)。另行验证时间工具文件为 7 passed；Python 编译检查、Node 语法检查和 Git diff 格式检查通过。
 
 上游两个测试模块包含固定的模块级跳过，三项 LLM 测试因占位 key 跳过。测试镜像使用独立公开配置；上游默认模式替换部分提供者网络与管理配置加载，所以这套测试与上面的实服务协议证据分别解释。
 
@@ -100,18 +95,20 @@ Edge TTS 不需要用户 API key；独立上游 TTS 用例实际访问了 Bing �
 
 ## 资源观测与限制
 
-最终两轮协议检查后、测试容器结束时的单次 `docker compose stats --no-stream`：
+最终协议检查及完整测试结束后的单次资源快照（UTC 2026-11-06 04:18:05），使用 `docker stats --no-stream`：
 
 | 服务 | CPU | Docker 显示内存 / 限制 |
 | --- | --- | --- |
-| voice | 0.00% | 10.93 MiB / 640 MiB |
-| web | 0.00% | 2.109 MiB / 96 MiB |
-| api | 2.13% | 47.6 MiB / 896 MiB |
-| redis | 0.51% | 5.125 MiB / 192 MiB |
-| mysql | 7.69% | 11.95 MiB / 640 MiB |
+| voice | 34.39% | 8.906MiB / 640MiB |
+| web | 0.00% | 4.348MiB / 96MiB |
+| api | 2.00% | 67.19MiB / 896MiB |
+| redis | 0.61% | 3.871MiB / 192MiB |
+| mysql | 0.42% | 16.22MiB / 640MiB |
 
-当时宿主机可用内存约 1.60 GiB。补充读取语音进程状态：`VmHWM=144500 kB`、`VmRSS=8760 kB`、`VmSwap=112824 kB`；容器 `memory.peak=435666944` 字节（约 415.5 MiB），`memory.swap.current=115564544` 字节。Docker 显示的当前内存扣除了部分缓存，且本机正在使用交换内存，不能将 10.93 MiB 解读为运行容量需求。容器峰值包含服务启动和容器内检查命令；没有持续采集构建峰值，没有并发压测。
+当时宿主机可用内存约 2.20 GiB。语音进程状态为 `VmHWM=158008 kB`、`VmRSS=10316 kB`、`VmSwap=111652 kB`；容器 `memory.peak=324882432` 字节（约 309.8 MiB），`memory.swap.current=114364416` 字节。Docker 显示的当前内存扣除了部分缓存，且本机正在使用交换内存，不能将 8.906 MiB 解读为运行容量需求。容器峰值包含服务启动和容器内检查命令；没有持续采集构建峰值，没有并发压测。
 
 首次依赖下载曾超时；补充下载缓存和镜像源后构建成功。首次启动定位到上游唤醒词模块必需的 `portalocker`，已将其固定版本纳入运行依赖。默认 ASR、认证和设备 URL 的原值已在本机私有备份中保存；正常停止只停止语音容器，数据与管理设置保留。
 
 本记录覆盖 Fedora 本机隔离环境及协议模拟。服务器部署、局域网真机地址、固件兼容、真实音频链路和生产容量属于后续验证条件。
+
+标准与规格双轴复审均无未解决问题；两项初始化漏报均已修复并完成真实负例／恢复验证，见[复审记录](issue-4-review.md)。
