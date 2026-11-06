@@ -10,7 +10,8 @@
 **/__pycache__
 **/.pytest_cache
 main/xiaozhi-server/data
-main/xiaozhi-server/models
+main/xiaozhi-server/models/*
+!main/xiaozhi-server/models/snakers4_silero-vad/
 **/.config.yaml
 **/.secrets.yaml
 **/.private_config.yaml

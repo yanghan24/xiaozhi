@@ -3,9 +3,10 @@
 基于上游小智服务端工程开发，接入元筑 AI 集市。当前阶段先建立可复现的管理端源码与运行环境，业务范围和职责以 [需求记录](docs/planning/voice-backend-discovery.md)、[领域词汇](GLOSSARY.md)及 [ADR](docs/adr/) 为准。
 
 - [本机管理端运行与验证](docs/development/manager-baseline.md)
+- [本机语音服务与设备协议验证](docs/development/voice-baseline.md)
 - [上游源码来源与导入范围](docs/development/upstream-baseline.md)
-- [实际验证记录](docs/verification/issue-3-manager-baseline.md)
-- [任务 #3](https://github.com/yanghan24/xiaozhi/issues/3)、[父规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)
+- 实际验证记录：[管理端](docs/verification/issue-3-manager-baseline.md)、[语音与设备协议](docs/verification/issue-4-voice-protocol.md)
+- [任务 #3](https://github.com/yanghan24/xiaozhi/issues/3)、[任务 #4](https://github.com/yanghan24/xiaozhi/issues/4)、[父规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)
 - [团队协作与回退](CONTRIBUTING.md)
 - [接续安排：本机测试与后续 Ubuntu 部署](docs/handoff/2026-11-05-ubuntu-server.md)
 - [AI 集市接口确认问卷](to-questionnaire-ai-market-integration.md)

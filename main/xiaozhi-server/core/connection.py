@@ -90,6 +90,7 @@ class ConnectionHandler:
         self.common_config = config
         self.config = copy.deepcopy(config)
         self.session_id = str(uuid.uuid4())
+        self.initialization = {"status": "pending", "stage": "configuration"}
         self.logger = setup_logging()
         self.server = server  # 保存server实例的引用
 
@@ -608,9 +609,10 @@ class ConnectionHandler:
             if self.tts is None:
                 self.tts = self._initialize_tts()
             # 打开语音合成通道
+            # This runs in the component worker; propagate asynchronous setup failures.
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
-            )
+            ).result(timeout=30)
             if self.need_bind:
                 self.bind_completed_event.set()
                 return
@@ -640,7 +642,7 @@ class ConnectionHandler:
             # 打开语音识别通道
             asyncio.run_coroutine_threadsafe(
                 self.asr.open_audio_channels(self), self.loop
-            )
+            ).result(timeout=30)
 
             """加载记忆"""
             self._initialize_memory()
@@ -654,6 +656,7 @@ class ConnectionHandler:
             self._inject_tool_call_fewshot()
 
         except Exception as e:
+            self._fail_initialization("components")
             self.logger.bind(tag=TAG).error(f"实例化组件失败: {e}")
 
     def _init_prompt_enhancement(self):
@@ -787,14 +790,28 @@ class ConnectionHandler:
         except Exception as e:
             self.logger.bind(tag=TAG).warning(f"声纹识别初始化失败: {str(e)}")
 
+    def _fail_initialization(self, stage):
+        # Keep the first failure without exposing configuration or credentials.
+        if self.initialization["status"] != "failed":
+            self.initialization = {"status": "failed", "stage": stage}
+
     async def _background_initialize(self):
         """在后台初始化配置和组件（完全不阻塞主循环）"""
         try:
             # 异步获取差异化配置
             await self._initialize_private_config_async()
             # 在线程池中初始化组件
-            self.executor.submit(self._initialize_components)
+            if self.initialization["status"] != "failed":
+                self.initialization = {"status": "pending", "stage": "components"}
+            await self.loop.run_in_executor(self.executor, self._initialize_components)
+            if self.need_bind:
+                self._fail_initialization("binding")
+            elif any(module is None for module in (self.vad, self.asr, self.tts, self.llm, self.memory, self.intent)):
+                self._fail_initialization("providers")
+            elif self.initialization["status"] != "failed":
+                self.initialization = {"status": "ready", "stage": "providers"}
         except Exception as e:
+            self._fail_initialization("components")
             self.logger.bind(tag=TAG).error(f"后台初始化失败: {e}")
 
     async def _initialize_private_config_async(self):
@@ -826,6 +843,7 @@ class ConnectionHandler:
             private_config = {}
         except Exception as e:
             self.need_bind = True
+            self._fail_initialization("configuration")
             self.logger.bind(tag=TAG).error(f"异步获取差异化配置失败: {e}")
             private_config = {}
 
@@ -941,6 +959,7 @@ class ConnectionHandler:
                 init_intent,
             )
         except Exception as e:
+            self._fail_initialization("providers")
             self.logger.bind(tag=TAG).error(f"初始化组件失败: {e}")
             modules = {}
         if modules.get("tts", None) is not None:
