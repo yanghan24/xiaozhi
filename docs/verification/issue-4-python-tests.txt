@@ -1,0 +1,9 @@
+ Container xiaozhi-baseline-voice-tests-run-c605500fbc34 Creating 
+ Container xiaozhi-baseline-voice-tests-run-c605500fbc34 Created 
+........................................................................ [ 54%]
+.........................................sss................             [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/core/utils/test_instance_creators.py:18: setup_logging() at module import requires data/.config.yaml; skipped
+SKIPPED [1] tests/plugins_func/test_loadplugins.py:15: plugins_func.functions import has side effects that need data/.config.yaml; skipped
+SKIPPED [3] tests/test_llm.py:60: LLM 'ChatGLMLLM' 的 api_key 是占位符（mock 模式不会真发请求）。真请求模式：export RUN_LIVE_API_TESTS=1 并填真 key 后再跑。
+129 passed, 5 skipped in 138.03s (0:02:18)
