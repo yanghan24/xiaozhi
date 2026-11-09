@@ -125,7 +125,7 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
                 });
             }
         } else if (on_incoming_json_ != nullptr) {
-            on_incoming_json_(root);
+            on_incoming_json_(root, 0, 0);
         }
         cJSON_Delete(root);
         last_incoming_time_ = std::chrono::steady_clock::now();
@@ -208,7 +208,7 @@ void MqttProtocol::CloseAudioChannel(bool send_goodbye) {
     }
 
     if (on_audio_channel_closed_ != nullptr) {
-        on_audio_channel_closed_();
+        on_audio_channel_closed_(0, 0);
     }
 }
 

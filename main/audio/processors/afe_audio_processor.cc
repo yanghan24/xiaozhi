@@ -14,9 +14,6 @@ void AfeAudioProcessor::Initialize(AudioCodec* codec, int frame_duration_ms, srm
     codec_ = codec;
     frame_samples_ = frame_duration_ms * 16000 / 1000;
 
-    // Pre-allocate output buffer capacity
-    output_buffer_.reserve(frame_samples_);
-
     int ref_num = codec_->input_reference() ? 1 : 0;
 
     std::string input_format;
@@ -88,14 +85,14 @@ size_t AfeAudioProcessor::GetFeedSize() {
     return afe_iface_->get_feed_chunksize(afe_data_);
 }
 
-void AfeAudioProcessor::Feed(std::vector<int16_t>&& data) {
+void AfeAudioProcessor::Feed(std::vector<int16_t>&& data, uint64_t generation) {
     if (afe_data_ == nullptr) {
         return;
     }
 
-    std::lock_guard<std::mutex> lock(input_buffer_mutex_);
+    std::scoped_lock lock(output_buffer_mutex_, input_buffer_mutex_);
     // Check running state inside lock to avoid TOCTOU race with Stop()
-    if (!IsRunning()) {
+    if (!IsRunning() || output_buffer_.GetSourceGeneration() != generation) {
         return;
     }
     input_buffer_.insert(input_buffer_.end(), data.begin(), data.end());
@@ -106,12 +103,20 @@ void AfeAudioProcessor::Feed(std::vector<int16_t>&& data) {
     }
 }
 
-void AfeAudioProcessor::Start() {
+void AfeAudioProcessor::Start(uint64_t generation) {
+    std::lock_guard<std::mutex> lock(output_buffer_mutex_);
+    output_buffer_.Start(generation);
+    is_speaking_ = false;
     xEventGroupSetBits(event_group_, PROCESSOR_RUNNING);
 }
 
 void AfeAudioProcessor::Stop() {
+    // Detach/reset the old run without waiting for callbacks or queue capacity.
+    // Already detached callbacks carry the old permission generation explicitly.
+    std::lock_guard<std::mutex> output_lock(output_buffer_mutex_);
     xEventGroupClearBits(event_group_, PROCESSOR_RUNNING);
+    output_buffer_.Stop();
+    is_speaking_ = false;
 
     std::lock_guard<std::mutex> lock(input_buffer_mutex_);
     if (afe_data_ != nullptr) {
@@ -124,11 +129,13 @@ bool AfeAudioProcessor::IsRunning() {
     return xEventGroupGetBits(event_group_) & PROCESSOR_RUNNING;
 }
 
-void AfeAudioProcessor::OnOutput(std::function<void(std::vector<int16_t>&& data)> callback) {
+void AfeAudioProcessor::OnOutput(
+    std::function<void(std::vector<int16_t>&& data, uint64_t generation)> callback) {
     output_callback_ = callback;
 }
 
-void AfeAudioProcessor::OnVadStateChange(std::function<void(bool speaking)> callback) {
+void AfeAudioProcessor::OnVadStateChange(
+    std::function<void(bool speaking, uint64_t generation)> callback) {
     vad_state_change_callback_ = callback;
 }
 
@@ -141,47 +148,55 @@ void AfeAudioProcessor::AudioProcessorTask() {
     while (true) {
         xEventGroupWaitBits(event_group_, PROCESSOR_RUNNING, pdFALSE, pdTRUE, portMAX_DELAY);
 
+        uint64_t generation;
+        {
+            std::lock_guard<std::mutex> lock(output_buffer_mutex_);
+            generation = output_buffer_.GetGeneration();
+        }
         auto res = afe_iface_->fetch_with_delay(afe_data_, portMAX_DELAY);
-        if ((xEventGroupGetBits(event_group_) & PROCESSOR_RUNNING) == 0) {
-            continue;
-        }
-        if (res == nullptr || res->ret_value == ESP_FAIL) {
-            if (res != nullptr) {
-                ESP_LOGI(TAG, "Error code: %d", res->ret_value);
+        std::vector<std::vector<int16_t>> frames;
+        uint64_t source_generation = 0;
+        bool vad_changed = false;
+        bool speaking = false;
+        {
+            std::lock_guard<std::mutex> output_lock(output_buffer_mutex_);
+            if (generation == 0 || generation != output_buffer_.GetGeneration() ||
+                (xEventGroupGetBits(event_group_) & PROCESSOR_RUNNING) == 0) {
+                continue;
             }
-            continue;
-        }
+            if (res == nullptr || res->ret_value == ESP_FAIL) {
+                if (res != nullptr) {
+                    ESP_LOGI(TAG, "Error code: %d", res->ret_value);
+                }
+                continue;
+            }
 
-        // VAD state change
-        if (vad_state_change_callback_) {
             if (res->vad_state == VAD_SPEECH && !is_speaking_) {
                 is_speaking_ = true;
-                vad_state_change_callback_(true);
+                vad_changed = true;
             } else if (res->vad_state == VAD_SILENCE && is_speaking_) {
                 is_speaking_ = false;
-                vad_state_change_callback_(false);
+                vad_changed = true;
+            }
+            speaking = is_speaking_;
+            source_generation = output_buffer_.GetSourceGeneration();
+
+            if (output_callback_) {
+                output_buffer_.Append(generation, res->data, res->data_size / sizeof(int16_t));
+                std::vector<int16_t> frame;
+                while (output_buffer_.PopFrame(generation, frame_samples_, frame)) {
+                    frames.push_back(std::move(frame));
+                }
             }
         }
 
-        if (output_callback_) {
-            size_t samples = res->data_size / sizeof(int16_t);
-            
-            // Add data to buffer
-            output_buffer_.insert(output_buffer_.end(), res->data, res->data + samples);
-            
-            // Output complete frames when buffer has enough data
-            while (output_buffer_.size() >= frame_samples_) {
-                if (output_buffer_.size() == frame_samples_) {
-                    // If buffer size equals frame size, move the entire buffer
-                    output_callback_(std::move(output_buffer_));
-                    output_buffer_.clear();
-                    output_buffer_.reserve(frame_samples_);
-                } else {
-                    // If buffer size exceeds frame size, copy one frame and remove it
-                    output_callback_(std::vector<int16_t>(output_buffer_.begin(), output_buffer_.begin() + frame_samples_));
-                    output_buffer_.erase(output_buffer_.begin(), output_buffer_.begin() + frame_samples_);
-                }
-            }
+        // A full encode/send queue must never block Stop() from resetting the
+        // processor. Source metadata makes late delivery safe after unlocking.
+        if (vad_changed && vad_state_change_callback_) {
+            vad_state_change_callback_(speaking, source_generation);
+        }
+        for (auto& frame : frames) {
+            output_callback_(std::move(frame), source_generation);
         }
     }
 }

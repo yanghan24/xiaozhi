@@ -6,6 +6,18 @@ config OTA_URL
     help
         The application will access this URL to check for new firmwares and server address.
 
+config XIAOZHI_DEVICE_CONTROL
+    bool "Enable registered-device binding and control v1"
+    depends on IDF_TARGET_ESP32P4
+    default n
+    select LV_USE_QRCODE
+    select MBEDTLS_CERTIFICATE_BUNDLE
+    help
+        Enable the product's authenticated control API, binding QR screen and
+        expiring voice permission. Requires private per-device provisioning and
+        a trusted HTTPS OTA origin. Missing configuration keeps product voice off.
+        Legacy OTA activation, MQTT fallback and stored voice tokens are not used.
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE

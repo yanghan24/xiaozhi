@@ -24,10 +24,11 @@
 
 #include "audio_codec.h"
 #include "audio_processor.h"
-#include "processors/audio_debugger.h"
-#include "wake_word.h"
-#include "protocol.h"
+#include "controlled_audio_access.h"
 #include "ogg_demuxer.h"
+#include "processors/audio_debugger.h"
+#include "protocol.h"
+#include "wake_word.h"
 
 /*
  * There are two types of audio data flow:
@@ -100,7 +101,9 @@ enum AudioTaskType {
 struct AudioTask {
     AudioTaskType type;
     std::vector<int16_t> pcm;
-    uint32_t timestamp;
+    uint32_t timestamp = 0;
+    bool requires_voice_permission = true;
+    uint64_t generation = 0;
 };
 
 struct DebugStatistics {
@@ -165,15 +168,25 @@ public:
     void ClearInputPcmObserver(AudioFocusOwner owner);
 
     bool PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> packet, bool wait = false);
-    bool PushPcmToPlaybackQueue(AudioFocusOwner owner, std::vector<int16_t>&& pcm, bool wait = false);
+    bool PushPcmToPlaybackQueue(AudioFocusOwner owner, std::vector<int16_t>&& pcm,
+                                uint64_t generation, bool wait = false);
     std::unique_ptr<AudioStreamPacket> PopPacketFromSendQueue();
-    void PlaySound(const std::string_view& sound);
+    void PlaySound(const std::string_view& sound, bool requires_voice_permission = false);
     bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
     void ResetDecoder();
+    void ApplyControlledAccess(uint64_t generation, bool allowed);
+    // Safe in the control timer callback: revocation never takes a queue/driver lock.
+    void RevokeControlledAccess(uint64_t generation);
+    // Main task only. Returns true after old queues and driver output are stopped.
+    bool StopControlledAudio();
     void SetModelsList(srmodel_list_t* models_list);
 
 private:
     AudioCodec* codec_ = nullptr;
+    ControlledAudioAccess controlled_access_;
+    std::mutex audio_output_mutex_;
+    std::atomic<uint64_t> voice_processing_generation_{0};
+    bool IsControlledAllowed(uint64_t generation) const;
     AudioServiceCallbacks callbacks_;
     std::unique_ptr<AudioProcessor> audio_processor_;
     std::unique_ptr<WakeWord> wake_word_;
@@ -183,6 +196,7 @@ private:
     std::mutex decoder_mutex_;
     std::mutex input_resampler_mutex_;
     esp_ae_rate_cvt_handle_t input_resampler_ = nullptr;
+    uint64_t input_resampler_generation_ = 0;
     esp_ae_rate_cvt_handle_t output_resampler_ = nullptr;
     
     // Encoder/Decoder state
@@ -234,10 +248,12 @@ private:
     void AudioInputTask();
     void AudioOutputTask();
     void OpusCodecTask();
-    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm);
+    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm, uint64_t generation);
+    bool IsProcessingAllowed(uint64_t generation) const;
     void SetDecodeSampleRate(int sample_rate, int frame_duration);
     void CheckAndUpdateAudioPowerState();
-    void NotifyInputPcmObserver(const std::vector<int16_t>& data, int sample_rate, int channels);
+    void NotifyInputPcmObserver(const std::vector<int16_t>& data, int sample_rate, int channels,
+                                AudioFocusOwner owner, const AudioPcmObserver& observer);
 };
 
 #endif

@@ -47,6 +47,11 @@ AudioRecorder& AudioRecorder::GetInstance() {
 }
 
 esp_err_t AudioRecorder::Start() {
+    auto& control = DeviceControl::GetInstance();
+    const auto permission_generation = control.GetGeneration();
+    if (!control.IsCurrentGeneration(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     esp_err_t storage_ret = Board::GetInstance().EnsureStorageReady();
 
     auto& storage = SdCardService::GetInstance();
@@ -83,6 +88,10 @@ esp_err_t AudioRecorder::Start() {
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!control.IsCurrentGeneration(permission_generation)) {
+        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+        return ESP_ERR_INVALID_STATE;
+    }
     if (state_ == AudioRecorderState::kRecording) {
         return ESP_OK;
     }
@@ -113,10 +122,15 @@ esp_err_t AudioRecorder::Start() {
     last_error_.clear();
     last_space_check_us_ = esp_timer_get_time();
     state_ = AudioRecorderState::kRecording;
+    permission_generation_ = permission_generation;
+    const auto recording_generation = ++recording_generation_;
 
-    bool observer_ok = audio.SetInputPcmObserver(kAudioFocusOwnerRecorder,
-        [this](const int16_t* data, size_t samples, int sample_rate, int channels) {
-            OnPcmData(data, samples, sample_rate, channels);
+    bool observer_ok = audio.SetInputPcmObserver(
+        kAudioFocusOwnerRecorder,
+        [this, recording_generation, permission_generation](const int16_t* data, size_t samples,
+                                                            int sample_rate, int channels) {
+            OnPcmData(data, samples, sample_rate, channels, recording_generation,
+                      permission_generation);
         });
     if (!observer_ok) {
         CloseWithErrorLocked("Failed to register recorder PCM observer.");
@@ -143,6 +157,12 @@ esp_err_t AudioRecorder::Pause() {
 }
 
 esp_err_t AudioRecorder::Resume() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!DeviceControl::GetInstance().IsCurrentGeneration(permission_generation_)) {
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
     auto& audio = Application::GetInstance().GetAudioService();
     if (!audio.RequestAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput,
             [](AudioFocusOwner owner, uint8_t resources) {
@@ -188,14 +208,15 @@ esp_err_t AudioRecorder::TogglePauseResume() {
 esp_err_t AudioRecorder::Stop() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        ++recording_generation_;
         if (file_ != nullptr) {
             FinalizeFileLocked();
         }
         if (state_ != AudioRecorderState::kError) {
             state_ = AudioRecorderState::kIdle;
         }
+        ClearObserverAndFocus();
     }
-    ClearObserverAndFocus();
     ESP_LOGI(TAG, "Recording stopped");
     return ESP_OK;
 }
@@ -228,12 +249,17 @@ std::string AudioRecorder::GetStatusText() {
     return text;
 }
 
-void AudioRecorder::OnPcmData(const int16_t* data, size_t samples, int sample_rate, int channels) {
+void AudioRecorder::OnPcmData(const int16_t* data, size_t samples, int sample_rate, int channels,
+                              uint64_t recording_generation, uint64_t permission_generation) {
     bool should_clear = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (state_ != AudioRecorderState::kRecording || file_ == nullptr ||
-                data == nullptr || samples == 0) {
+        if (recording_generation != recording_generation_ ||
+            !DeviceControl::GetInstance().IsCurrentGeneration(permission_generation)) {
+            return;
+        }
+        if (state_ != AudioRecorderState::kRecording || file_ == nullptr || data == nullptr ||
+            samples == 0) {
             return;
         }
         if (sample_rate != kRecorderPcmSampleRate || channels != kRecorderPcmChannels) {
@@ -242,9 +268,8 @@ void AudioRecorder::OnPcmData(const int16_t* data, size_t samples, int sample_ra
         } else if (!CheckFreeSpaceLocked(false)) {
             CloseWithErrorLocked("Low SD card free space; recording stopped.");
             should_clear = true;
-        } else if (bytes_written_ >=
-                kMaxRecordingSeconds * kRecorderPcmSampleRate *
-                    kRecorderPcmChannels * (kRecorderPcmBitsPerSample / 8)) {
+        } else if (bytes_written_ >= kMaxRecordingSeconds * kRecorderPcmSampleRate *
+                                         kRecorderPcmChannels * (kRecorderPcmBitsPerSample / 8)) {
             CloseWithErrorLocked("Maximum recording duration reached.");
             should_clear = true;
         } else {
@@ -256,10 +281,11 @@ void AudioRecorder::OnPcmData(const int16_t* data, size_t samples, int sample_ra
                 bytes_written_ += static_cast<uint32_t>(written * sizeof(int16_t));
             }
         }
-    }
-
-    if (should_clear) {
-        ClearObserverAndFocus();
+        if (should_clear) {
+            // Serialize cleanup with Start so an old callback cannot remove
+            // the observer or focus installed by a later recording.
+            ClearObserverAndFocus();
+        }
     }
 }
 

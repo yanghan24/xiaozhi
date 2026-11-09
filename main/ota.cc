@@ -1,7 +1,9 @@
 #include "ota.h"
-#include "system_info.h"
-#include "settings.h"
 #include "assets/lang_config.h"
+#include "device_control/control_model.h"
+#include "device_control/device_control.h"
+#include "settings.h"
+#include "system_info.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -75,6 +77,7 @@ std::unique_ptr<Http> Ota::SetupHttp() {
  * Specification: https://ccnphfhqs21z.feishu.cn/wiki/FjW6wZmisimNBBkov6OcmfvknVd
  */
 esp_err_t Ota::CheckVersion() {
+    device_control_url_.clear();
     auto& board = Board::GetInstance();
     auto app_desc = esp_app_get_description();
 
@@ -83,6 +86,14 @@ esp_err_t Ota::CheckVersion() {
     ESP_LOGI(TAG, "Current version: %s", current_version_.c_str());
 
     std::string url = GetCheckVersionUrl();
+    const bool control_enabled = DeviceControl::GetInstance().Enabled();
+    if (control_enabled) {
+        Settings provisioned("device_ctrl", false);
+        if (!device_control::IsTrustedOtaUrl(url, provisioned.GetString("ota_origin"))) {
+            ESP_LOGE(TAG, "Device control requires a provisioned HTTPS OTA origin");
+            return ESP_ERR_INVALID_ARG;
+        }
+    }
     if (url.length() < 10) {
         ESP_LOGE(TAG, "Check version URL is not properly set");
         return ESP_ERR_INVALID_ARG;
@@ -91,6 +102,24 @@ esp_err_t Ota::CheckVersion() {
     auto http = SetupHttp();
 
     std::string data = board.GetSystemInfoJson();
+    if (control_enabled) {
+        auto payload = cJSON_Parse(data.c_str());
+        if (!cJSON_IsObject(payload)) {
+            cJSON_Delete(payload);
+            return ESP_ERR_INVALID_RESPONSE;
+        }
+        cJSON_DeleteItemFromObjectCaseSensitive(payload, "device_control_capabilities");
+        auto capabilities = cJSON_AddArrayToObject(payload, "device_control_capabilities");
+        cJSON_AddItemToArray(capabilities, cJSON_CreateNumber(1));
+        auto encoded = cJSON_PrintUnformatted(payload);
+        if (encoded == nullptr) {
+            cJSON_Delete(payload);
+            return ESP_ERR_NO_MEM;
+        }
+        data = encoded;
+        cJSON_free(encoded);
+        cJSON_Delete(payload);
+    }
     std::string method = data.length() > 0 ? "POST" : "GET";
     http->SetContent(std::move(data));
 
@@ -122,7 +151,7 @@ esp_err_t Ota::CheckVersion() {
     has_activation_code_ = false;
     has_activation_challenge_ = false;
     cJSON *activation = cJSON_GetObjectItem(root, "activation");
-    if (cJSON_IsObject(activation)) {
+    if (!control_enabled && cJSON_IsObject(activation)) {
         cJSON* message = cJSON_GetObjectItem(activation, "message");
         if (cJSON_IsString(message)) {
             activation_message_ = message->valuestring;
@@ -145,7 +174,7 @@ esp_err_t Ota::CheckVersion() {
 
     has_mqtt_config_ = false;
     cJSON *mqtt = cJSON_GetObjectItem(root, "mqtt");
-    if (cJSON_IsObject(mqtt)) {
+    if (!control_enabled && cJSON_IsObject(mqtt)) {
         Settings settings("mqtt", true);
         cJSON *item = NULL;
         cJSON_ArrayForEach(item, mqtt) {
@@ -166,7 +195,7 @@ esp_err_t Ota::CheckVersion() {
 
     has_websocket_config_ = false;
     cJSON *websocket = cJSON_GetObjectItem(root, "websocket");
-    if (cJSON_IsObject(websocket)) {
+    if (!control_enabled && cJSON_IsObject(websocket)) {
         Settings settings("websocket", true);
         cJSON *item = NULL;
         cJSON_ArrayForEach(item, websocket) {
@@ -183,6 +212,17 @@ esp_err_t Ota::CheckVersion() {
         has_websocket_config_ = true;
     } else {
         ESP_LOGI(TAG, "No websocket section found!");
+    }
+
+    auto control = cJSON_GetObjectItemCaseSensitive(root, "device_control");
+    if (control_enabled && cJSON_IsObject(control)) {
+        auto version = cJSON_GetObjectItemCaseSensitive(control, "version");
+        auto base_url = cJSON_GetObjectItemCaseSensitive(control, "base_url");
+        if (cJSON_IsNumber(version) && version->valuedouble == 1 && cJSON_IsString(base_url) &&
+            base_url->valuestring != nullptr) {
+            // DeviceControl validates the provisioned origins before using any credential.
+            device_control_url_ = base_url->valuestring;
+        }
     }
 
     has_server_time_ = false;

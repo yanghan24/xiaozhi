@@ -12,11 +12,12 @@
 #include <memory>
 #include <functional>
 
-#include "protocol.h"
-#include "ota.h"
 #include "audio_service.h"
+#include "device_control/device_control.h"
 #include "device_state.h"
 #include "device_state_machine.h"
+#include "ota.h"
+#include "protocol.h"
 
 // Main event bits
 #define MAIN_EVENT_SCHEDULE             (1 << 0)
@@ -32,7 +33,7 @@
 #define MAIN_EVENT_START_LISTENING      (1 << 10)
 #define MAIN_EVENT_STOP_LISTENING       (1 << 11)
 #define MAIN_EVENT_STATE_CHANGED        (1 << 12)
-
+#define MAIN_EVENT_CONTROL_REVOKED (1 << 13)
 
 enum AecMode {
     kAecOff,
@@ -108,13 +109,14 @@ public:
     void WakeWordInvoke(const std::string& wake_word);
     bool UpgradeFirmware(const std::string& url, const std::string& version = "");
     bool CanEnterSleepMode();
-    void SendMcpMessage(const std::string& payload);
+    void SendMcpMessage(const std::string& payload, uint64_t generation, uint64_t connection_id);
     void RegisterMcpBroadcastCallback(std::function<void(const std::string&)> callback);
     void SetAecMode(AecMode mode);
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
-    
+    uint64_t GetVoiceConnectionId() const { return protocol_ ? protocol_->GetConnectionId() : 0; }
+
     /**
      * Reset protocol resources (thread-safe)
      * Can be called from any task to release resources allocated after network connected
@@ -145,6 +147,15 @@ private:
     bool assets_version_checked_ = false;
     bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
     int clock_ticks_ = 0;
+    uint64_t acknowledged_permission_version_ = 0;
+    std::atomic<uint64_t> applied_control_generation_{0};
+    bool VoiceAllowed() const;
+    bool VoiceGenerationCurrent(uint64_t generation) const;
+    void ScheduleVoice(uint64_t generation, std::function<void()>&& callback);
+    void ScheduleVoice(uint64_t generation, uint64_t connection_id,
+                       std::function<void()>&& callback);
+    void ApplyDeviceControlView(const DeviceControlView& view);
+    void HandleControlRevoked();
     TaskHandle_t activation_task_handle_ = nullptr;
 
 

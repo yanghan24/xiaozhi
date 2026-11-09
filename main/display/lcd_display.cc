@@ -1,8 +1,9 @@
 #include "lcd_display.h"
-#include "gif/lvgl_gif.h"
-#include "settings.h"
-#include "lvgl_theme.h"
 #include "assets/lang_config.h"
+#include "device_control/device_control.h"
+#include "gif/lvgl_gif.h"
+#include "lvgl_theme.h"
+#include "settings.h"
 
 #include <vector>
 #include <algorithm>
@@ -16,6 +17,9 @@
 #include <ctime>
 #include <cstring>
 #include <src/misc/cache/lv_cache.h>
+#if CONFIG_XIAOZHI_DEVICE_CONTROL && LV_USE_QRCODE
+#include <src/libs/qrcode/qrcodegen.h>
+#endif
 
 #include "application.h"
 #include "board.h"
@@ -312,7 +316,19 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
 
 LcdDisplay::~LcdDisplay() {
     SetPreviewImage(nullptr);
-    
+
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    if (binding_timer_ != nullptr) {
+        lv_timer_delete(binding_timer_);
+    }
+    if (binding_panel_ != nullptr) {
+        lv_obj_delete(binding_panel_);
+    }
+    if (account_button_ != nullptr) {
+        lv_obj_delete(account_button_);
+    }
+#endif
+
     // Clean up GIF controller
     if (gif_controller_) {
         gif_controller_->Stop();
@@ -428,6 +444,237 @@ void LcdDisplay::TopBarTouchEventCallback(lv_event_t* event) {
     if (display != nullptr) {
         display->ShowTopBarTemporarily();
     }
+}
+
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+void LcdDisplay::CreateDeviceBindingUi() {
+    // Use the top layer so chat, images and emotion changes cannot cover this view.
+    auto* layer = lv_display_get_layer_top(display_);
+    auto* theme = static_cast<LvglTheme*>(current_theme_);
+    auto* font = theme->text_font()->font();
+    binding_panel_ = lv_obj_create(layer);
+    lv_obj_set_size(binding_panel_, width_, height_);
+    lv_obj_set_style_radius(binding_panel_, 0, 0);
+    lv_obj_set_style_border_width(binding_panel_, 0, 0);
+    lv_obj_set_style_bg_color(binding_panel_, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(binding_panel_, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(binding_panel_, lv_color_black(), 0);
+    lv_obj_set_style_text_font(binding_panel_, font, 0);
+    lv_obj_set_style_pad_all(binding_panel_, 12, 0);
+    lv_obj_set_style_pad_top(binding_panel_, 44, 0);
+    lv_obj_set_style_pad_row(binding_panel_, 8, 0);
+    lv_obj_set_flex_flow(binding_panel_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(binding_panel_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_remove_flag(binding_panel_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+
+    binding_title_ = lv_label_create(binding_panel_);
+    lv_obj_set_width(binding_title_, LV_PCT(100));
+    lv_obj_set_style_text_align(binding_title_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(binding_title_, "正在连接，请稍候");
+
+#if LV_USE_QRCODE
+    binding_qr_frame_ = lv_obj_create(binding_panel_);
+    lv_obj_set_style_radius(binding_qr_frame_, 0, 0);
+    lv_obj_set_style_border_width(binding_qr_frame_, 0, 0);
+    lv_obj_set_style_pad_all(binding_qr_frame_, 0, 0);
+    lv_obj_set_style_bg_color(binding_qr_frame_, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(binding_qr_frame_, LV_OPA_COVER, 0);
+    lv_obj_remove_flag(binding_qr_frame_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(binding_qr_frame_, LV_OBJ_FLAG_HIDDEN);
+    binding_qr_ = lv_qrcode_create(binding_qr_frame_);
+    lv_qrcode_set_size(binding_qr_, 1);
+    lv_qrcode_set_dark_color(binding_qr_, lv_color_black());
+    lv_qrcode_set_light_color(binding_qr_, lv_color_white());
+    // The enclosing white frame provides an exact four-module quiet zone.
+    lv_qrcode_set_quiet_zone(binding_qr_, false);
+    lv_obj_center(binding_qr_);
+#endif
+
+    binding_detail_ = lv_label_create(binding_panel_);
+    lv_obj_set_width(binding_detail_, LV_PCT(100));
+    lv_obj_set_style_text_align(binding_detail_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(binding_detail_, "");
+
+    // This entry remains reachable even when the normal top bar auto-hides.
+    account_button_ = lv_button_create(layer);
+    lv_obj_set_size(account_button_, 76, 32);
+    lv_obj_align(account_button_, LV_ALIGN_TOP_RIGHT, -8, 6);
+    lv_obj_set_style_text_font(account_button_, font, 0);
+    lv_obj_add_state(account_button_, LV_STATE_DISABLED);
+    auto* account_label = lv_label_create(account_button_);
+    lv_label_set_text(account_label, "账号");
+    lv_obj_center(account_label);
+    lv_obj_add_event_cb(
+        account_button_,
+        [](lv_event_t* event) {
+            auto* self = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+            if (self->account_action_) {
+                // The action only signals the control task; it must not perform HTTP here.
+                self->account_action_();
+            }
+        },
+        LV_EVENT_CLICKED, this);
+
+    binding_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<LcdDisplay*>(lv_timer_get_user_data(timer));
+            self->UpdateBindingCountdown();
+        },
+        100, this);
+    lv_timer_pause(binding_timer_);
+}
+
+void LcdDisplay::UpdateBindingCountdown() {
+    const int64_t remaining_ms = binding_deadline_ms_ - esp_timer_get_time() / 1000;
+    if (remaining_ms <= 0) {
+        if (binding_qr_frame_ != nullptr) {
+            lv_obj_add_flag(binding_qr_frame_, LV_OBJ_FLAG_HIDDEN);
+        }
+        lv_label_set_text(binding_title_, "二维码已过期，正在更新");
+        lv_label_set_text(binding_detail_, "请等待新的二维码");
+        binding_seconds_ = -1;
+        lv_timer_pause(binding_timer_);
+        return;
+    }
+    const int64_t seconds = (remaining_ms + 999) / 1000;
+    if (seconds != binding_seconds_) {
+        binding_seconds_ = seconds;
+        char countdown[128];
+        snprintf(countdown, sizeof(countdown), "请在手机上完成操作  %02lld:%02lld",
+                 static_cast<long long>(seconds / 60), static_cast<long long>(seconds % 60));
+        lv_label_set_text(binding_detail_, countdown);
+    }
+}
+#endif
+
+void LcdDisplay::SetAccountAction(std::function<void()> action) {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    DisplayLockGuard lock(this);
+    account_action_ = std::move(action);
+#else
+    (void)action;
+#endif
+}
+
+void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    if (!setup_ui_called_) {
+        return;
+    }
+    DisplayLockGuard lock(this);
+    if (binding_panel_ == nullptr) {
+        return;
+    }
+    const bool can_open_account = view.reason == "ready" || view.reason == "user_signed_out" ||
+                                  view.reason == "market_auth_required";
+    if (can_open_account && account_action_) {
+        lv_obj_remove_state(account_button_, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_state(account_button_, LV_STATE_DISABLED);
+    }
+    lv_timer_pause(binding_timer_);
+    if (view.voice_allowed && view.verification_uri.empty()) {
+        lv_obj_add_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+        binding_uri_.clear();
+        binding_purpose_.clear();
+        binding_qr_valid_ = false;
+        return;
+    }
+
+    lv_obj_remove_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_to_index(account_button_, -1);
+    if (binding_qr_frame_ != nullptr) {
+        lv_obj_add_flag(binding_qr_frame_, LV_OBJ_FLAG_HIDDEN);
+    }
+    const char* title = "正在连接，请稍候";
+    const char* detail = "连接后将自动更新";
+    if (view.reason == "unbound") {
+        title = "扫码登录并绑定";
+    } else if (view.reason == "user_signed_out") {
+        title = "扫码恢复本台音箱";
+        detail = "请使用原归属账号登录";
+    } else if (view.reason == "market_auth_required") {
+        title = "请原账号扫码登录";
+    } else if (view.reason == "device_disabled") {
+        title = "设备已停用";
+        detail = "请联系维护人员";
+    } else if (view.reason == "not_configured") {
+        title = "设备尚未配置";
+        detail = "请联系维护人员";
+    } else if (view.reason == "device_auth_required") {
+        title = "设备认证失败";
+        detail = "请联系维护人员检查设备凭据";
+    } else if (view.reason == "tls_error" || view.reason == "invalid_state" ||
+               view.reason == "invalid_response") {
+        title = "连接信息异常";
+        detail = "请联系维护人员检查连接配置";
+    }
+    const bool can_show_qr = view.reason == "unbound" || view.reason == "ready" ||
+                             view.reason == "user_signed_out" ||
+                             view.reason == "market_auth_required";
+    if (can_show_qr && view.purpose == "account") {
+        title = "账号与绑定";
+        detail = "请使用原归属账号登录";
+    }
+    lv_label_set_text(binding_title_, title);
+    lv_label_set_text(binding_detail_, detail);
+
+    if (!can_show_qr || view.verification_uri.empty()) {
+        binding_uri_.clear();
+        binding_purpose_.clear();
+        binding_qr_valid_ = false;
+        return;
+    }
+
+    const bool uri_valid = view.verification_uri.size() <= 512 &&
+                           view.verification_uri.rfind("https://", 0) == 0 &&
+                           std::all_of(view.verification_uri.begin(), view.verification_uri.end(),
+                                       [](unsigned char ch) { return ch >= 0x21 && ch <= 0x7e; });
+    if (!uri_valid) {
+        lv_label_set_text(binding_title_, "暂时无法显示二维码");
+        lv_label_set_text(binding_detail_, "请稍后重试");
+        binding_qr_valid_ = false;
+        return;
+    }
+
+    if (binding_uri_ != view.verification_uri || binding_purpose_ != view.purpose) {
+        binding_uri_ = view.verification_uri;
+        binding_purpose_ = view.purpose;
+#if LV_USE_QRCODE
+        const int version = qrcodegen_getMinFitVersion(qrcodegen_Ecc_MEDIUM, binding_uri_.size());
+        const int modules = version > 0 ? qrcodegen_version2size(version) : 0;
+        const int available_size = std::min(width_ - 32, height_ - 128);
+        const int scale = modules > 0 ? available_size / (modules + 8) : 0;
+        binding_qr_valid_ = false;
+        if (scale > 0) {
+            const int frame_size = (modules + 8) * scale;
+            lv_obj_set_size(binding_qr_frame_, frame_size, frame_size);
+            lv_qrcode_set_size(binding_qr_, modules * scale);
+            lv_obj_center(binding_qr_);
+            binding_qr_valid_ = lv_qrcode_update(binding_qr_, binding_uri_.data(),
+                                                 binding_uri_.size()) == LV_RESULT_OK;
+        }
+#endif
+    }
+    if (!binding_qr_valid_) {
+        lv_label_set_text(binding_title_, "暂时无法显示二维码");
+        lv_label_set_text(binding_detail_, "请联系维护人员");
+        return;
+    }
+
+    binding_deadline_ms_ = view.qr_deadline_ms;
+    binding_seconds_ = -1;
+    if (binding_deadline_ms_ > esp_timer_get_time() / 1000 && binding_qr_frame_ != nullptr) {
+        lv_obj_remove_flag(binding_qr_frame_, LV_OBJ_FLAG_HIDDEN);
+        lv_timer_reset(binding_timer_);
+        lv_timer_resume(binding_timer_);
+    }
+    UpdateBindingCountdown();
+#else
+    (void)view;
+#endif
 }
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
@@ -1600,6 +1847,9 @@ void LcdDisplay::SetupUI() {
     CreateLichuangFeatureShell();
     SetTopBarVisible(false);
 #endif
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    CreateDeviceBindingUi();
+#endif
 }
 #if CONFIG_IDF_TARGET_ESP32P4
 #define  MAX_MESSAGES 40
@@ -2128,6 +2378,9 @@ void LcdDisplay::SetupUI() {
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     CreateLichuangFeatureShell();
     SetTopBarVisible(false);
+#endif
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    CreateDeviceBindingUi();
 #endif
 }
 

@@ -53,8 +53,11 @@ private:
     uint32_t bytes_written_ = 0;
     uint64_t last_free_bytes_ = 0;
     int64_t last_space_check_us_ = 0;
+    uint64_t recording_generation_ = 0;
+    uint64_t permission_generation_ = 0;
 
-    void OnPcmData(const int16_t* data, size_t samples, int sample_rate, int channels);
+    void OnPcmData(const int16_t* data, size_t samples, int sample_rate, int channels,
+                   uint64_t recording_generation, uint64_t permission_generation);
     void PauseFromFocusLoss();
     void FinalizeFileLocked();
     void CloseWithErrorLocked(const std::string& error);

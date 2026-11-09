@@ -38,6 +38,10 @@ set(SOURCES "audio/audio_codec.cc"
             "system_info.cc"
             "application.cc"
             "ota.cc"
+            "device_control/device_control.cc"
+            "device_control/control_model.cc"
+            "device_control/control_http.cc"
+            "device_control/control_transport.cc"
             "settings.cc"
             "device_state_machine.cc"
             "assets.cc"
@@ -1044,6 +1048,10 @@ idf_component_register(SRCS ${SOURCES}
                         esp_pm
                         esp_psram
                         esp_netif
+                        esp-tls
+                        http_parser
+                        lwip
+                        json
                         esp_eth
                         esp_driver_gpio
                         esp_driver_uart
@@ -1063,6 +1071,26 @@ idf_component_register(SRCS ${SOURCES}
                         sdmmc
                         ${MAIN_PRIV_REQUIRES_EXTRA}
                     )
+
+if(CONFIG_XIAOZHI_DEVICE_CONTROL)
+    # LVGL and esp_emote_gfx each bundle qrcodegen with the same exported names.
+    # Keep the managed packages intact and namespace LVGL's private copy, including
+    # the two sizing helpers used by our LCD binding screen.
+    idf_component_get_property(DEVICE_CONTROL_LVGL_LIB lvgl__lvgl COMPONENT_LIB)
+    set(DEVICE_CONTROL_QR_SYMBOLS
+        qrcodegen_encodeText qrcodegen_encodeBinary qrcodegen_encodeSegments
+        qrcodegen_encodeSegmentsAdvanced qrcodegen_isAlphanumeric qrcodegen_isNumeric
+        qrcodegen_calcSegmentBufferSize qrcodegen_makeBytes qrcodegen_makeNumeric
+        qrcodegen_makeAlphanumeric qrcodegen_makeEci qrcodegen_getSize
+        qrcodegen_getModule qrcodegen_version2size qrcodegen_getMinFitVersion)
+    set(DEVICE_CONTROL_QR_DEFINITIONS "")
+    foreach(QR_SYMBOL IN LISTS DEVICE_CONTROL_QR_SYMBOLS)
+        list(APPEND DEVICE_CONTROL_QR_DEFINITIONS "${QR_SYMBOL}=xiaozhi_lvgl_${QR_SYMBOL}")
+    endforeach()
+    target_compile_definitions(${DEVICE_CONTROL_LVGL_LIB} PRIVATE ${DEVICE_CONTROL_QR_DEFINITIONS})
+    set_property(SOURCE "display/lcd_display.cc" APPEND PROPERTY
+        COMPILE_DEFINITIONS ${DEVICE_CONTROL_QR_DEFINITIONS})
+endif()
 
 # Use target_compile_definitions to define BOARD_TYPE, BOARD_NAME
 # If BOARD_NAME is empty, use BOARD_TYPE

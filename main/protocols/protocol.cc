@@ -4,7 +4,8 @@
 
 #define TAG "Protocol"
 
-void Protocol::OnIncomingJson(std::function<void(const cJSON* root)> callback) {
+void Protocol::OnIncomingJson(
+    std::function<void(const cJSON* root, uint64_t generation, uint64_t connection_id)> callback) {
     on_incoming_json_ = callback;
 }
 
@@ -16,7 +17,8 @@ void Protocol::OnAudioChannelOpened(std::function<void()> callback) {
     on_audio_channel_opened_ = callback;
 }
 
-void Protocol::OnAudioChannelClosed(std::function<void()> callback) {
+void Protocol::OnAudioChannelClosed(
+    std::function<void(uint64_t generation, uint64_t connection_id)> callback) {
     on_audio_channel_closed_ = callback;
 }
 

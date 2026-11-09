@@ -80,6 +80,8 @@ private:
     TaskHandle_t deferred_playback_task_handle_ = nullptr;
     uint32_t playback_generation_ = 0;
     uint32_t deferred_playback_generation_ = 0;
+    uint64_t playback_permission_generation_ = 0;
+    uint64_t deferred_permission_generation_ = 0;
     int deferred_play_index_ = -1;
     bool deferred_resume_ = false;
     bool auto_resume_after_focus_loss_ = false;
@@ -90,18 +92,25 @@ private:
     int channels_ = 0;
 
     std::vector<MediaFile> BuildPlayablePlaylistLocked();
-    esp_err_t StartPlaybackLocked(int index, uint32_t resume_offset);
+    esp_err_t PlayForGeneration(int index, uint64_t permission_generation);
+    esp_err_t ResumeForGeneration(uint64_t permission_generation);
+    esp_err_t StartPlaybackLocked(int index, uint32_t resume_offset,
+                                  uint64_t permission_generation);
     void PauseFromFocusLoss();
-    esp_err_t SchedulePlayAfterVoiceInteraction(int index);
-    esp_err_t ScheduleResumeAfterVoiceInteraction();
-    esp_err_t StartDeferredPlaybackTaskLocked(int index, bool resume);
+    esp_err_t SchedulePlayAfterVoiceInteraction(int index, uint64_t permission_generation);
+    esp_err_t ScheduleResumeAfterVoiceInteraction(uint64_t permission_generation);
+    esp_err_t StartDeferredPlaybackTaskLocked(int index, bool resume,
+                                              uint64_t permission_generation);
     void CancelDeferredPlaybackLocked();
     void DeferredPlaybackLoop(uint32_t generation);
-    void PlaybackLoop(uint32_t generation);
-    void PlaybackWav(uint32_t generation, const MediaFile& track, uint32_t start_offset);
-    void PlaybackMp3(uint32_t generation, const MediaFile& track, uint32_t start_offset);
-    PlaybackLoopResult QueuePcmChunk(uint32_t generation, std::vector<int16_t>&& output,
-        uint32_t resume_offset, const std::string& error_on_cancel);
+    void PlaybackLoop(uint32_t generation, uint64_t permission_generation);
+    void PlaybackWav(uint32_t generation, uint64_t permission_generation, const MediaFile& track,
+                     uint32_t start_offset);
+    void PlaybackMp3(uint32_t generation, uint64_t permission_generation, const MediaFile& track,
+                     uint32_t start_offset);
+    PlaybackLoopResult QueuePcmChunk(uint32_t generation, uint64_t permission_generation,
+                                     std::vector<int16_t>&& output, uint32_t resume_offset,
+                                     const std::string& error_on_cancel);
     void FinishPlayback(uint32_t generation, MusicPlayerState state, const std::string& error);
     void SetLastErrorLocked(const std::string& error);
 

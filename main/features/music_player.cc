@@ -3,6 +3,7 @@
 #include "application.h"
 #include "audio_service.h"
 #include "board.h"
+#include "device_control/device_control.h"
 
 #include <esp_ae_rate_cvt.h>
 #include <esp_audio_simple_dec.h>
@@ -33,7 +34,14 @@ constexpr uint32_t kDeferredPlaybackSettleMs = 200;
 struct PlaybackTaskArg {
     MusicPlayer* player = nullptr;
     uint32_t generation = 0;
+    uint64_t permission_generation = 0;
 };
+
+bool IsMusicPermissionCurrent(uint64_t generation) {
+    auto& control = DeviceControl::GetInstance();
+    return !control.Enabled() ||
+           (control.IsVoiceAllowed() && control.IsCurrentGeneration(generation));
+}
 
 bool ReadExact(FILE* file, void* data, size_t size) {
     return fread(data, 1, size, file) == size;
@@ -232,6 +240,13 @@ MusicPlayer& MusicPlayer::GetInstance() {
 }
 
 esp_err_t MusicPlayer::Play(int index) {
+    return PlayForGeneration(index, DeviceControl::GetInstance().GetGeneration());
+}
+
+esp_err_t MusicPlayer::PlayForGeneration(int index, uint64_t permission_generation) {
+    if (!IsMusicPermissionCurrent(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     std::string storage_error;
     if (!EnsureStorageForPlayback(storage_error)) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -240,7 +255,7 @@ esp_err_t MusicPlayer::Play(int index) {
         return ESP_ERR_INVALID_STATE;
     }
     if (IsVoiceOutputActive()) {
-        return SchedulePlayAfterVoiceInteraction(index);
+        return SchedulePlayAfterVoiceInteraction(index, permission_generation);
     }
 
     auto& audio = Application::GetInstance().GetAudioService();
@@ -276,7 +291,7 @@ esp_err_t MusicPlayer::Play(int index) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    return StartPlaybackLocked(index, 0);
+    return StartPlaybackLocked(index, 0, permission_generation);
 }
 
 esp_err_t MusicPlayer::Pause() {
@@ -295,8 +310,15 @@ esp_err_t MusicPlayer::Pause() {
 }
 
 esp_err_t MusicPlayer::Resume() {
+    return ResumeForGeneration(DeviceControl::GetInstance().GetGeneration());
+}
+
+esp_err_t MusicPlayer::ResumeForGeneration(uint64_t permission_generation) {
+    if (!IsMusicPermissionCurrent(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     if (IsVoiceOutputActive()) {
-        return ScheduleResumeAfterVoiceInteraction();
+        return ScheduleResumeAfterVoiceInteraction(permission_generation);
     }
 
     auto& audio = Application::GetInstance().GetAudioService();
@@ -316,10 +338,10 @@ esp_err_t MusicPlayer::Resume() {
         std::lock_guard<std::mutex> lock(mutex_);
         if (state_ == MusicPlayerState::kPaused && current_index_ >= 0 &&
                 current_index_ < static_cast<int>(playlist_.size())) {
-            return StartPlaybackLocked(current_index_, resume_offset_);
+            return StartPlaybackLocked(current_index_, resume_offset_, permission_generation);
         }
     }
-    return Play();
+    return PlayForGeneration(-1, permission_generation);
 }
 
 esp_err_t MusicPlayer::TogglePlayPause() {
@@ -348,6 +370,10 @@ esp_err_t MusicPlayer::Stop() {
 }
 
 esp_err_t MusicPlayer::Next() {
+    const auto permission_generation = DeviceControl::GetInstance().GetGeneration();
+    if (!IsMusicPermissionCurrent(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     std::string storage_error;
     if (!EnsureStorageForPlayback(storage_error)) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -380,10 +406,14 @@ esp_err_t MusicPlayer::Next() {
     }
     int next = current_index_ < 0 ? 0 :
         (current_index_ + 1) % static_cast<int>(playlist_.size());
-    return StartPlaybackLocked(next, 0);
+    return StartPlaybackLocked(next, 0, permission_generation);
 }
 
 esp_err_t MusicPlayer::Previous() {
+    const auto permission_generation = DeviceControl::GetInstance().GetGeneration();
+    if (!IsMusicPermissionCurrent(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     std::string storage_error;
     if (!EnsureStorageForPlayback(storage_error)) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -417,7 +447,7 @@ esp_err_t MusicPlayer::Previous() {
     int previous = current_index_ < 0 ? 0 :
         (current_index_ - 1 + static_cast<int>(playlist_.size())) %
             static_cast<int>(playlist_.size());
-    return StartPlaybackLocked(previous, 0);
+    return StartPlaybackLocked(previous, 0, permission_generation);
 }
 
 MusicPlayerStatus MusicPlayer::GetStatus() {
@@ -480,13 +510,18 @@ std::vector<MediaFile> MusicPlayer::BuildPlayablePlaylistLocked() {
     return files;
 }
 
-esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset) {
+esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset,
+                                           uint64_t permission_generation) {
+    if (!IsMusicPermissionCurrent(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     if (index < 0 || index >= static_cast<int>(playlist_.size())) {
         SetLastErrorLocked("Track index is out of range.");
         return ESP_ERR_INVALID_ARG;
     }
 
     playback_generation_++;
+    playback_permission_generation_ = permission_generation;
     current_index_ = index;
     resume_offset_ = resume_offset;
     elapsed_seconds_ = 0;
@@ -502,6 +537,7 @@ esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset) {
     auto* arg = new PlaybackTaskArg();
     arg->player = this;
     arg->generation = playback_generation_;
+    arg->permission_generation = permission_generation;
     BaseType_t ret = xTaskCreate(&MusicPlayer::PlaybackTask, "music_player",
         kPlaybackTaskStackBytes, arg, 4, &playback_task_handle_);
     if (ret != pdPASS) {
@@ -524,25 +560,31 @@ void MusicPlayer::PauseFromFocusLoss() {
     if (state_ == MusicPlayerState::kPlaying) {
         state_ = MusicPlayerState::kPaused;
         auto_resume_after_focus_loss_ = true;
-        StartDeferredPlaybackTaskLocked(current_index_, true);
+        StartDeferredPlaybackTaskLocked(current_index_, true, playback_permission_generation_);
         ESP_LOGI(TAG, "Local music paused by audio focus loss");
     }
 }
 
-esp_err_t MusicPlayer::SchedulePlayAfterVoiceInteraction(int index) {
+esp_err_t MusicPlayer::SchedulePlayAfterVoiceInteraction(int index,
+                                                         uint64_t permission_generation) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto_resume_after_focus_loss_ = false;
-    return StartDeferredPlaybackTaskLocked(index, false);
+    return StartDeferredPlaybackTaskLocked(index, false, permission_generation);
 }
 
-esp_err_t MusicPlayer::ScheduleResumeAfterVoiceInteraction() {
+esp_err_t MusicPlayer::ScheduleResumeAfterVoiceInteraction(uint64_t permission_generation) {
     std::lock_guard<std::mutex> lock(mutex_);
-    return StartDeferredPlaybackTaskLocked(current_index_, true);
+    return StartDeferredPlaybackTaskLocked(current_index_, true, permission_generation);
 }
 
-esp_err_t MusicPlayer::StartDeferredPlaybackTaskLocked(int index, bool resume) {
+esp_err_t MusicPlayer::StartDeferredPlaybackTaskLocked(int index, bool resume,
+                                                       uint64_t permission_generation) {
+    if (!IsMusicPermissionCurrent(permission_generation)) {
+        return ESP_ERR_INVALID_STATE;
+    }
     deferred_play_index_ = index;
     deferred_resume_ = resume;
+    deferred_permission_generation_ = permission_generation;
     if (deferred_playback_task_handle_ != nullptr) {
         ESP_LOGI(TAG, "Updated deferred music playback request");
         return ESP_OK;
@@ -607,6 +649,7 @@ void MusicPlayer::DeferredPlaybackLoop(uint32_t generation) {
 
     int index = -1;
     bool resume = false;
+    uint64_t permission_generation;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (generation != deferred_playback_generation_) {
@@ -614,20 +657,22 @@ void MusicPlayer::DeferredPlaybackLoop(uint32_t generation) {
         }
         index = deferred_play_index_;
         resume = deferred_resume_ || auto_resume_after_focus_loss_;
+        permission_generation = deferred_permission_generation_;
         deferred_playback_task_handle_ = nullptr;
         deferred_play_index_ = -1;
         deferred_resume_ = false;
         auto_resume_after_focus_loss_ = false;
     }
 
-    esp_err_t ret = resume ? Resume() : Play(index);
+    esp_err_t ret = resume ? ResumeForGeneration(permission_generation)
+                           : PlayForGeneration(index, permission_generation);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Deferred local music playback failed: %s",
             esp_err_to_name(ret));
     }
 }
 
-void MusicPlayer::PlaybackLoop(uint32_t generation) {
+void MusicPlayer::PlaybackLoop(uint32_t generation, uint64_t permission_generation) {
     MediaFile track;
     uint32_t start_offset = 0;
     bool invalid_track = false;
@@ -650,15 +695,15 @@ void MusicPlayer::PlaybackLoop(uint32_t generation) {
     }
 
     if (IsMp3File(track)) {
-        PlaybackMp3(generation, track, start_offset);
+        PlaybackMp3(generation, permission_generation, track, start_offset);
         return;
     }
 
-    PlaybackWav(generation, track, start_offset);
+    PlaybackWav(generation, permission_generation, track, start_offset);
 }
 
-void MusicPlayer::PlaybackWav(uint32_t generation, const MediaFile& track,
-        uint32_t start_offset) {
+void MusicPlayer::PlaybackWav(uint32_t generation, uint64_t permission_generation,
+                              const MediaFile& track, uint32_t start_offset) {
     FILE* file = fopen(track.path.c_str(), "rb");
     if (file == nullptr) {
         FinishPlayback(generation, MusicPlayerState::kError,
@@ -778,8 +823,8 @@ void MusicPlayer::PlaybackWav(uint32_t generation, const MediaFile& track,
             return;
         }
 
-        auto queue_result = QueuePcmChunk(generation, std::move(output), playback_offset,
-            "Failed to queue WAV PCM.");
+        auto queue_result = QueuePcmChunk(generation, permission_generation, std::move(output),
+                                          playback_offset, "Failed to queue WAV PCM.");
         if (queue_result != PlaybackLoopResult::kContinue) {
             fclose(file);
             return;
@@ -798,8 +843,8 @@ void MusicPlayer::PlaybackWav(uint32_t generation, const MediaFile& track,
     FinishPlayback(generation, MusicPlayerState::kIdle, "");
 }
 
-void MusicPlayer::PlaybackMp3(uint32_t generation, const MediaFile& track,
-        uint32_t start_offset) {
+void MusicPlayer::PlaybackMp3(uint32_t generation, uint64_t permission_generation,
+                              const MediaFile& track, uint32_t start_offset) {
 #if CONFIG_AUDIO_DECODER_MP3_SUPPORT
     FILE* file = fopen(track.path.c_str(), "rb");
     if (file == nullptr) {
@@ -955,8 +1000,9 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, const MediaFile& track,
                     break;
                 }
 
-                auto queue_result = QueuePcmChunk(generation, std::move(output),
-                    resume_file_offset, "Failed to queue MP3 PCM.");
+                auto queue_result =
+                    QueuePcmChunk(generation, permission_generation, std::move(output),
+                                  resume_file_offset, "Failed to queue MP3 PCM.");
                 if (queue_result != PlaybackLoopResult::kContinue) {
                     esp_audio_simple_dec_close(decoder);
                     fclose(file);
@@ -999,6 +1045,7 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, const MediaFile& track,
     }
     FinishPlayback(generation, MusicPlayerState::kIdle, "");
 #else
+    (void)permission_generation;
     (void)track;
     (void)start_offset;
     FinishPlayback(generation, MusicPlayerState::kError,
@@ -1007,10 +1054,15 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, const MediaFile& track,
 }
 
 MusicPlayer::PlaybackLoopResult MusicPlayer::QueuePcmChunk(uint32_t generation,
-        std::vector<int16_t>&& output, uint32_t resume_offset,
-        const std::string& error_on_cancel) {
+                                                           uint64_t permission_generation,
+                                                           std::vector<int16_t>&& output,
+                                                           uint32_t resume_offset,
+                                                           const std::string& error_on_cancel) {
     auto& audio = Application::GetInstance().GetAudioService();
     while (true) {
+        if (!IsMusicPermissionCurrent(permission_generation)) {
+            return PlaybackLoopResult::kStopped;
+        }
         MusicPlayerState requested_state = MusicPlayerState::kPlaying;
         std::string requested_error;
         {
@@ -1035,8 +1087,8 @@ MusicPlayer::PlaybackLoopResult MusicPlayer::QueuePcmChunk(uint32_t generation,
             return PlaybackLoopResult::kError;
         }
 
-        if (audio.PushPcmToPlaybackQueue(kAudioFocusOwnerLocalMusic,
-                std::move(output), true)) {
+        if (audio.PushPcmToPlaybackQueue(kAudioFocusOwnerLocalMusic, std::move(output),
+                                         permission_generation, true)) {
             return PlaybackLoopResult::kContinue;
         }
         if (!audio.HasAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput)) {
@@ -1089,8 +1141,9 @@ void MusicPlayer::PlaybackTask(void* arg) {
     auto* task_arg = static_cast<PlaybackTaskArg*>(arg);
     MusicPlayer* player = task_arg->player;
     uint32_t generation = task_arg->generation;
+    const auto permission_generation = task_arg->permission_generation;
     delete task_arg;
-    player->PlaybackLoop(generation);
+    player->PlaybackLoop(generation, permission_generation);
     vTaskDelete(nullptr);
 }
 

@@ -39,6 +39,25 @@ protected:
     std::unique_ptr<LvglImage> preview_image_cached_ = nullptr;
     bool hide_subtitle_ = false;  // Control whether to hide chat messages/subtitles
 
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    lv_obj_t* binding_panel_ = nullptr;
+    lv_obj_t* binding_title_ = nullptr;
+    lv_obj_t* binding_qr_frame_ = nullptr;
+    lv_obj_t* binding_qr_ = nullptr;
+    lv_obj_t* binding_detail_ = nullptr;
+    lv_obj_t* account_button_ = nullptr;
+    lv_timer_t* binding_timer_ = nullptr;
+    std::function<void()> account_action_;
+    std::string binding_uri_;
+    std::string binding_purpose_;
+    int64_t binding_deadline_ms_ = 0;
+    int64_t binding_seconds_ = -1;
+    bool binding_qr_valid_ = false;
+
+    void CreateDeviceBindingUi();
+    void UpdateBindingCountdown();
+#endif
+
     void InitializeLcdThemes();
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
@@ -132,6 +151,8 @@ public:
     virtual void SetEmotion(const char* emotion) override;
     virtual void SetChatMessage(const char* role, const char* content) override;
     virtual void ClearChatMessages() override;
+    virtual void ShowDeviceBinding(const DeviceControlView& view) override;
+    virtual void SetAccountAction(std::function<void()> action) override;
     virtual void SetStatus(const char* status) override;
     virtual void UpdateStatusBar(bool update_all = false) override;
     virtual void SetPreviewImage(std::unique_ptr<LvglImage> image) override;

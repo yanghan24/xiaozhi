@@ -12,8 +12,11 @@
 #include <esp_log.h>
 #include <esp_pm.h>
 
-#include <string>
 #include <chrono>
+#include <functional>
+#include <string>
+
+struct DeviceControlView;
 
 class Theme {
 public:
@@ -36,6 +39,8 @@ public:
     virtual void SetEmotion(const char* emotion);
     virtual void SetChatMessage(const char* role, const char* content);
     virtual void ClearChatMessages();
+    virtual void ShowDeviceBinding(const DeviceControlView& view);
+    virtual void SetAccountAction(std::function<void()> action);
     virtual void SetTheme(Theme* theme);
     virtual Theme* GetTheme() { return current_theme_; }
     virtual void UpdateStatusBar(bool update_all = false);
