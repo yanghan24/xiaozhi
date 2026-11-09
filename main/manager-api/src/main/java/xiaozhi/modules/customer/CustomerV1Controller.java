@@ -70,7 +70,7 @@ public class CustomerV1Controller {
         };
         int status = code.equals("TEMPORARILY_UNAVAILABLE") ? 503 : failure.status;
         return ResponseEntity.status(status).header("Cache-Control","no-store")
-                .body(Map.of("version",1,"code",code));
+                .body(Map.of("version",1,"code",code,"message",code));
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, HttpMediaTypeNotSupportedException.class,

@@ -23,7 +23,15 @@
 
 针对性套件 `DeviceControlHttpTest,CustomerIdentityHttpTest`：60 tests，0 failures，0 errors，0 skipped。
 
-完整 Java 套件及浏览器结果将在本轮执行后补充。
+完整 Java 套件：267 tests，0 failures，0 errors，0 skipped；集成测试守卫通过，包含真实应用关闭/重建与双实例授权刷新验证。
+
+Ubuntu Chromium 浏览器通过：测试夹具只预登记设备，随后实际调用设备 HTTP 接口发码；真实手机页面按钮完成允许/拒绝、清理回调 URL、同浏览器标签页隔离、v1 查询、Cookie 属性及秘密不出现在页面的检查。Nginx 语法检查及管理/未知路径拒绝通过。[浏览器结果](evidence/2026-11-09-device-identity/browser-result.json)；[身份结果截图](evidence/2026-11-09-device-identity/identity-confirmed.png)。使用隔离自签名证书，不能当作公网 TLS 或真手机验收。
+
+## 双轴复核
+
+规范轴：0 项硬性违反；1 项非阻塞建议——后续实现最终确认/恢复时集中设备请求与身份模块之间的关联及有效性校验，保留事务边界。
+
+规格轴：发现 v1 错误响应缺少协议必填 `message`。新增真实 HTTP 断言后 5 个输入用例失败；补齐安全的非空消息，不返回上游响应或秘密。修复后再次完整执行 267 项测试全部通过，集成守卫通过；规格复核确认问题已解决，本切片无剩余阻塞项。完整绑定/语音能力仍为下节明确列出的剩余范围。
 
 ## 验收边界
 

@@ -31,9 +31,11 @@ try {
   assert.match(page.url(), /^https:\/\/bridge\.hncig\.cn:18443\/xiaozhi\/customer\/results\/[A-Za-z0-9_-]{43}$/);
   const firstResult = page.url();
   const flowId = firstResult.split('/').at(-1);
-  const versioned = await context.request.get(`${base}/xiaozhi/customer/v1/binding-flows/${flowId}`);
+  const statusPage = await context.newPage();
+  const versioned = await statusPage.goto(`${base}/xiaozhi/customer/v1/binding-flows/${flowId}`);
   assert.equal(versioned.status(), 200);
   const versionedBody = await versioned.json();
+  await statusPage.close();
   assert.equal(versionedBody.version, 1);
   assert.equal(versionedBody.code, 'OK');
   assert.equal(versionedBody.data.status, 'IDENTITY_VERIFIED');

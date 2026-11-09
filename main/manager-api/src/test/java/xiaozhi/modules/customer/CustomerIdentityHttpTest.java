@@ -97,6 +97,8 @@ class CustomerIdentityHttpTest {
         var response=http.postForEntity("/customer/v1/binding-flows",new HttpEntity<>(body,flow.headers()),Map.class);
         assertEquals(400,response.getStatusCode().value());
         assertEquals("INVALID_REQUEST",response.getBody().get("code"));
+        assertEquals(java.util.Set.of("version","code","message"),response.getBody().keySet());
+        assertTrue(response.getBody().get("message") instanceof String message && !message.isBlank());
     }
 
     @Test
