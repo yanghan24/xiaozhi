@@ -76,6 +76,15 @@ public class ShiroConfig {
          * role：拥有某个角色权限才能访问
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
+        // Customer identity has its own browser/CSRF/OIDC validation. Never
+        // authenticate these sessions as management users.
+        filterMap.put("/bind/*", "anon");
+        filterMap.put("/customer/binding-flows", "anon");
+        filterMap.put("/customer/binding-flows/*", "anon");
+        filterMap.put("/customer/oidc/callback", "anon");
+        filterMap.put("/customer/oidc/backchannel-logout", "anon");
+        filterMap.put("/customer/results/*", "anon");
+        filterMap.put("/customer/identity-error/*", "anon");
         filterMap.put("/ota/**", "anon");
         filterMap.put("/otaMag/download/**", "anon");
         filterMap.put("/webjars/**", "anon");

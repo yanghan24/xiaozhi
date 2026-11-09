@@ -6,6 +6,8 @@ services:
     extends:
       file: compose.yaml
       service: mysql
+    # Only this isolated database permits the real persistence-failure fixture trigger.
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M", "--max-connections=60", "--performance-schema=OFF", "--log-bin-trust-function-creators=1"]
   redis:
     extends:
       file: compose.yaml

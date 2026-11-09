@@ -767,3 +767,45 @@ databaseChangeLog:
         - sqlFile:
             encoding: utf8
             path: classpath:db/changelog/202611021200.sql
+  - changeSet:
+      id: 202611091900
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091900.sql
+  - changeSet:
+      id: 202611091910
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091910.sql
+  - changeSet:
+      id: 202611091920
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091920.sql
+  - changeSet:
+      id: 202611091930
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091930.sql
+  - changeSet:
+      id: 202611091940
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091940.sql
+  - changeSet:
+      id: 202611091950
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091950.sql
