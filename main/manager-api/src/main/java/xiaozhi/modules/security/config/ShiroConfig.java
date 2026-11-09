@@ -79,6 +79,17 @@ public class ShiroConfig {
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
         filterMap.put("/device-control/**", "deviceCredential");
+        // Customer identity has its own browser/CSRF/OIDC validation. Never
+        // authenticate these sessions as management users.
+        filterMap.put("/bind/*", "anon");
+        filterMap.put("/customer/binding-flows", "anon");
+        filterMap.put("/customer/binding-flows/*", "anon");
+        filterMap.put("/customer/v1/binding-flows", "anon");
+        filterMap.put("/customer/v1/binding-flows/*", "anon");
+        filterMap.put("/customer/oidc/callback", "anon");
+        filterMap.put("/customer/oidc/backchannel-logout", "anon");
+        filterMap.put("/customer/results/*", "anon");
+        filterMap.put("/customer/identity-error/*", "anon");
         filterMap.put("/ota/**", "anon");
         filterMap.put("/otaMag/download/**", "anon");
         filterMap.put("/webjars/**", "anon");

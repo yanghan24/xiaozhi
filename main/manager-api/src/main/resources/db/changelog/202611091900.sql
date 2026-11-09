@@ -1,14 +1,16 @@
--- Successful ACK replay is independent of the latest stop-confirmation evidence.
-CREATE TABLE dc_state_ack_history (
-    device_id VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    revision BIGINT NOT NULL,
+-- Identity preparation only. Request issuance and binding confirmation belong to #13.
+CREATE TABLE customer_device_request (
+    handle VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    device_id VARCHAR(32) NOT NULL,
+    purpose VARCHAR(16) NOT NULL,
     permission_version BIGINT NOT NULL,
-    audio_stopped BOOLEAN NOT NULL,
-    received_at_ms BIGINT NOT NULL,
-    PRIMARY KEY (device_id, revision, permission_version, audio_stopped),
-    FOREIGN KEY (device_id) REFERENCES dc_device(device_id)
-) ENGINE=InnoDB;
+    expires_at_ms BIGINT NOT NULL,
+    consumed BOOLEAN NOT NULL DEFAULT FALSE,
+    CONSTRAINT fk_customer_request_device FOREIGN KEY (device_id) REFERENCES ai_device(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Preserve the successful ACK available when upgrading the foundation schema.
-INSERT INTO dc_state_ack_history (device_id,revision,permission_version,audio_stopped,received_at_ms)
-SELECT device_id,revision,permission_version,audio_stopped,received_at_ms FROM dc_state_ack;
+CREATE TABLE customer_browser (
+    id_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    csrf VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    last_activity_ms BIGINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

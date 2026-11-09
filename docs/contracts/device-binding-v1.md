@@ -1,6 +1,6 @@
 # 音箱二维码绑定与设备控制协议 v1
 
-约定日期：2026-11-09。用途：固件与服务器并行实现 [#13](https://github.com/yanghan24/xiaozhi/issues/13)，衔接 #11、#14、#15、#18。本文规定新接口，不表示接口、二维码或真实登录已实现。产品范围和验收以对应 Issue 为准；双方更改本文的路径、字段、单位或状态含义时，必须同时更新 Schema、示例和另一端。
+约定日期：2026-11-09。用途：固件与服务器并行实现 [#13](https://github.com/yanghan24/xiaozhi/issues/13)，衔接 #11、#14、#15、#18。本文规定产品设备接口；#29 身份切片已合并且真实登录已通过，完整设备控制、二维码和绑定仍未实现。产品范围和验收以对应 Issue 为准；双方更改本文的路径、字段、单位或状态含义时，必须同时更新 Schema、示例和另一端。
 
 机器字段见 [JSON Schema](device-binding-v1.schema.json)，完整报文见 [示例](device-binding-v1.examples.json)，服务器交接见 [实施说明](../handoff/device-binding-v1-server.md)。`version: 1` 是本协议版本，与固件版本、OIDC 协议、语音协议版本分别管理。
 
@@ -11,7 +11,7 @@
 - 绑定请求从创建起有效 **600 秒**。扫描、开始登录、轮询均不延长或占用请求；最终确认仍须校验有效期。并发首个合法提交取得唯一归属，其余不能覆盖。
 - 手机页面的退出只停用目标设备，保留归属及设备接入凭据；其他音箱继续按各自许可使用。恢复只作用于本次设备请求，不隐式唤醒其他已退出设备。
 - 单台退出/解绑不撤销或删除共享集市 Key、Refresh Token、应用授权，不调用 OIDC 全局登出。真实集市撤销、账号停用和权限失效继续按实际影响范围执行。
-- 固件只持有小智设备接入凭据和设备专用语音令牌；集市 Secret、Token、Key 留在受控后端。绑定不以规范通权限或余额为前提；“本地许可允许”不保证某次集市资源调用成功。
+- 固件只持有小智设备接入凭据和设备专用语音令牌；集市 Secret、Token、Key 留在受控后端。绑定不以所选智能体权限或余额为前提；“本地许可允许”不保证某次集市资源调用成功。
 
 ```mermaid
 sequenceDiagram
@@ -118,9 +118,10 @@ Content-Type: application/json
 | 已绑定、本地可用 | bound | allowed | ready | 正常使用；进入“账号与绑定”菜单才显示账号页码 |
 | 单台主动退出 | bound | blocked | user_signed_out | 申请并显示原账号恢复码 |
 | 需要重新授权 | bound | blocked | market_auth_required | 申请并显示原账号恢复码 |
+| 授权待确认 | bound | blocked | market_auth_pending | 暂停新调用，提示原账号重新授权；不声称已撤销 |
 | 设备禁用 | unbound 或 bound | blocked | device_disabled | 停用说明，不申请绑定码 |
 
-所有 blocked 状态的 `lease`、`voice` 必须为 `null`。未取得、格式错误或未知状态不能作为 allowed。无规范通权限、余额不足或普通网络错误不能直接被分类成账号退出或解绑。
+所有 blocked 状态的 `lease`、`voice` 必须为 `null`。未取得、格式错误或未知状态不能作为 allowed。无所选智能体权限、余额不足或普通网络错误不能直接被分类成账号退出或解绑。
 
 `lease` 为 `{permission_version, expires_at_ms, expires_in_ms}`。首版每个 allowed 响应均从**响应生成时**新发 60000 ms 租约，`expires_in_ms` 固定 60000，绝对到期为 server_time_ms + 60000；blocked 不发租约。它是技术上的失联保护，与账号登录寿命无关。设备收到响应时，用单调时钟计算期限，并扣除本次完整请求耗时，得到保守剩余时间；不依赖未校准的设备墙上时钟。不能由缓存、ACK 或失败响应续租。
 
@@ -190,19 +191,20 @@ expected_permission_version 与当前版本不一致时返回 409 STATE_CHANGED�
 
 ## 5. 手机网页与 OIDC
 
-以下 JSON 接口均在 `/xiaozhi/customer/v1/` 下。匿名流程也须与浏览器会话绑定并防 CSRF；授权 URL 由后端使用正式 OIDC 库生成。完整 URI 的 path/port 与登记一致。
+以下产品 JSON 接口均在 `/xiaozhi/customer/v1/` 下；#29 已实现的无版本身份入口保留兼容，#13 按[接入约定](customer-identity-integration.md)新增适配层，不更换已登记的 OIDC 回调。匿名流程也须与浏览器会话绑定并防 CSRF；授权 URL 由后端使用正式 OIDC 库生成。完整 URI 的 path/port 与登记一致。
 
 | 方法、路径 | 请求/结果与校验 |
 | --- | --- |
 | `GET /xiaozhi/bind/{request_handle}` | 返回网页及有限设备展示信息；未知/过期分别 404/410。扫描只读，不消费、不锁定、不更改许可 |
 | `POST binding-flows` | body `{request_handle}`；返回 `data: {flow_id, authorization_url}`。创建与本浏览器、请求、用途、设备许可版本关联的 OIDC state/nonce/PKCE 事务 |
+| `GET binding-flows/{flow_id}` | 仅原浏览器查询身份及当前授权状态，不延长闲置期限；返回 v1 封装的 flow_id/status/authorization_status/device_label/purpose/request_status，见 Schema |
 | `GET /xiaozhi/customer/oidc/callback` | 标准 code/state 回调；验签及校验 issuer/audience/nonce/PKCE、原始 redirect_uri 和一次性事务；身份只记录在服务端。返回对应 flow_id 的手机结果页面，等待手机确认，不自动 bind/resume |
 | `POST binding-flows/{flow_id}/confirm` | body `{}`，客户身份、CSRF、Idempotency-Key；只接受 bind/resume。目标设备和账号分别取自服务端流程记录及验证身份，不接受 body 自报 device_id/账号。成功 `data: {device_session_id, revision, permission_version}` |
 | `POST binding-flows/{flow_id}/open-account` | body `{}`，客户身份、CSRF、Idempotency-Key；只接受 account。原子校验请求未过期/未被替换、凭据代际及许可版本未变、身份仍为原归属账号，消费请求并建立本台页面上下文；不改变归属或调用许可。成功字段同 confirm |
 | `POST device-sessions/{device_session_id}/sign-out` | body `{}`，原归属身份、CSRF、Idempotency-Key；仅停目标设备。成功 `data: {operation_id, permission_version, execution:"stored"}`，包括离线设备。不是集市全局登出 |
 | `GET device-operations/{operation_id}` | 原归属客户会话，只读；`execution` 为 stored/device_acknowledged/superseded，附 permission_version；不能查看别人的操作 |
 
-`device_session_id` 是服务器保存的设备页面上下文选择符，不是持有码即可使用的认证凭据；每次操作仍验证客户会话、归属及归属代际。首次 bind/resume 确认后建立该上下文；account 由 open-account 建立，不经 confirm 自动绑定或恢复许可。页面上下文保存对应许可版本，sign-out 必须与当前版本匹配；旧操作的同键重试只返回历史结果，旧页面的新变更请求须先刷新/重新确认，不能误停后来已恢复的会话。解绑行为继续按 #15 实现。二维码的 600 秒用于请求提交，已建立页面上下文的客户会话期限另按 #11 落实，不能混为一谈。
+`device_session_id` 是服务器保存的设备页面上下文选择符，不是持有码即可使用的认证凭据；每次操作仍验证客户会话、归属及归属代际。首次 bind/resume 确认后建立该上下文；account 由 open-account 建立，不经 confirm 自动绑定或恢复许可。页面上下文保存对应许可版本，sign-out 必须与当前版本匹配；旧操作的同键重试只返回历史结果，旧页面的新变更请求须先刷新/重新确认，不能误停后来已恢复的会话。解绑行为继续按 #15 实现。二维码的 600 秒用于请求提交，已建立页面上下文的客户会话闲置期限为 30 分钟，按下节落实，不能混为一谈。
 
 所有涉及设备变更的幂等键作用域包括操作者/浏览器会话、设备页面上下文、操作及请求；重放成功结果不重复变更许可。幂等记录与修改同一事务持久化。重新查看历史成功结果不得重新启用设备。
 
@@ -210,16 +212,22 @@ expected_permission_version 与当前版本不一致时返回 409 STATE_CHANGED�
 
 1. 浏览器事务和身份有效，flow 与该请求/用途一一对应。
 2. 请求尚未过期、未被替换或消费，准入凭据代际仍有效，permission_version 与创建时匹配。
-3. bind 时仍无归属；resume 时仍是原归属账号且已取得本次所需有效集市授权（身份 Token 不等于业务 Key）。授权取得失败不得恢复 allowed，保持 blocked 并按真实错误提示。缺少规范通权限或余额不阻止建立归属，不在绑定阶段增加相关提示。
+3. bind 时仍无归属；resume 时仍是原归属账号且已取得本次所需有效集市授权（身份 Token 不等于业务 Key）。授权取得失败不得恢复 allowed，保持 blocked 并按真实错误提示。缺少所选智能体权限或余额不阻止建立归属，不在绑定阶段增加相关提示。
 4. 原子建立唯一归属及适用本台许可、递增版本、消费请求并记录幂等结果。bind 时若身份有效但调用所需授权未具备，可以完成归属，返回状态仍 blocked/market_auth_required；不能为了签发 voice 强行阻止建立归属。数据库唯一约束作最后保障，不能仅靠进程内锁。
 
 相同原操作成功后的安全重试可返回原结果；不同竞争者即使同账号也不能把已消费请求再次用于修改许可。退出与旧恢复、解绑/转交与旧账号操作必须由许可版本、归属代际和事务约束隔离。
 
 OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jti 去重。真实上游失效关联到当前授权链，旧通知不能误伤新授权或转交后的新账号；浏览器注销不自动等于共享 Key 已撤销。
 
+### 5.1 已确认的客户会话与授权失效边界（2026-11-09）
+
+客户设备页面闲置满 30 分钟后，操作前须重新确认身份；自动轮询和后台刷新不延长闲置期。网页关闭或自然到期不改变音箱本地调用许可，不等于主动退出或集市授权撤销。该期限独立于设备请求、OIDC 事务和令牌期限。
+
+确认当前集市授权无法续期恢复时，停用依赖该授权的音箱，保留归属，提示扫码重新授权；Key 仍可用不构成继续调用依据。普通网络/5xx 或未知结果不直接判为授权失效，旧授权迟到失败不能误伤新授权。使用现有 blocked/market_auth_required 状态及许可版本传播；重登仅恢复本次目标音箱，不自动恢复其他停用设备。详见[产品规则收口](../planning/product-rules-2026-11-09.md)。后续用户确认：刷新结果未知且不能安全重试时暂停新调用、保留归属及共享凭据、提示重新授权。按接入约定传播 blocked/market_auth_pending，明确区别于远端已撤销；新 reason、错误码和流程查询 Schema/示例同步更新，v1 尚未交付的两端必须一起实现。
+
 ## 6. 退出、失联及语音闸门
 
-退出事务先保存目标设备 blocked/user_signed_out 并递增 permission_version/revision；同一管理数据库事务生成可可靠传播的状态事件。语音端立即禁止该台的新规范通/TTS 调用、停止发送和旧任务输出，唤醒控制长轮询。通知必须支持多实例，不能只修改本机内存或只依赖可能丢失的 pub/sub。
+退出事务先保存目标设备 blocked/user_signed_out 并递增 permission_version/revision；同一管理数据库事务生成可可靠传播的状态事件。语音端立即禁止该台的新智能体/TTS 调用、停止发送和旧任务输出，唤醒控制长轮询。通知必须支持多实例，不能只修改本机内存或只依赖可能丢失的 pub/sub。
 
 语音 token 签发、握手、调用及输出必须核对当前设备准入、归属、许可版本和有效业务授权；旧 token、现有多个连接、旧 TTS 回调、重启后的任务均不得绕过。对每次调用/输出采用权威校验或有明确撤销屏障的方案，不能把过期前的缓存许可当作退出后继续调用的理由。实际已被集市受理的生成可能继续结算，不能将本地停播描述为远端取消。
 
@@ -233,10 +241,10 @@ OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jt
 | --- | --- | --- |
 | 400 | INVALID_REQUEST / UNSUPPORTED_VERSION | 拒绝本次操作；未知版本保持语音关闭 |
 | 401 | INVALID_DEVICE_CREDENTIAL / CUSTOMER_AUTH_REQUIRED | 停止使用无效认证，分别提示维修/重新登录，不匿名回退 |
-| 403 | DEVICE_NOT_ADMITTED / OWNER_REQUIRED | 拒绝准入/原账号操作，不自动换账号或设备 |
-| 404 | REQUEST_NOT_FOUND | 提示重新取得设备入口，不泄露其他设备信息 |
+| 403 | DEVICE_NOT_ADMITTED / OWNER_REQUIRED / CSRF_REJECTED | 拒绝准入/原账号操作，不自动换账号或设备 |
+| 404 | REQUEST_NOT_FOUND / FLOW_NOT_FOUND | 提示重新取得设备入口，不泄露其他设备信息 |
 | 409 | STATE_CHANGED / REQUEST_CONSUMED / DEVICE_ALREADY_BOUND / REQUEST_NOT_NEEDED / PURPOSE_MISMATCH / IDEMPOTENCY_CONFLICT | 重新同步或提示当前状态；不覆盖、不盲目重复变更 |
-| 410 | REQUEST_EXPIRED | 隐藏旧码，新逻辑操作申请新码；已登录不延长旧请求 |
+| 410 | REQUEST_EXPIRED / FLOW_EXPIRED | 隐藏旧码，新逻辑操作申请新码；已登录不延长旧请求 |
 | 429 | RATE_LIMITED | 遵循 Retry-After；响应可含 retry_after_ms，不密集重试 |
 | 503 | TEMPORARILY_UNAVAILABLE | 状态同步可退避重试；不把失败变成授权成功 |
 
@@ -254,7 +262,7 @@ OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jt
 
 ## 9. 实施与验收交接
 
-固件与服务器分别按同一版本、Schema、示例实现。可在外部集市边界使用可控响应验证约定；后端和跨服务/真机运行按仓库约定在 Ubuntu 隔离环境执行。真实规范通测试继续暂停，正式集市 TTS 尚未上线；不因模拟通过关闭 #13/#14。
+固件与服务器分别按同一版本、Schema、示例实现。可在外部集市边界使用可控响应验证约定；后端和跨服务/真机运行按仓库约定在 Ubuntu 隔离环境执行。规范通暂停，智能体待选型，默认 Edge TTS；不以集市 TTS 上线为前置条件，也不因模拟或服务器合成通过关闭 #13/#14。
 
 | 验收 | 双方应看到的结果 |
 | --- | --- |
@@ -268,4 +276,4 @@ OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jt
 | 非 443 公网端口 | 真机 HTTPS、WSS Host/Upgrade、二维码、OIDC 回调与通知均使用实际外部端口 |
 | QR/固件体积与秘密 | 屏幕可扫，机密不入 URL/普通日志；构建镜像确实适配当前 OTA 槽 |
 
-当前仍待外部提供：实际公网域名/端口、证书和映射，实际 web 客户端登记与私有配置。仍待专项落实：逐设备凭据交付/恢复、实物 Flash/revision/分区、浏览器与本地登录自然到期的最终规则、正式规范通/TTS 契约。以上关卡不改变已定字段和单台退出行为，缺少时保留未验收状态。
+据 #11 最新记录，实际公网来源 https://bridge.hncig.cn:18443、TLS/TCP 映射及设备协议入口已验证，客户端凭据已私有交付；身份出站、#29 客户接口与真实登录/刷新/撤销/恢复已通过；后通道通知登记/发送及第二账号等验收仍待核实。本段只同步事实，不覆盖其他任务分支对第 5 节回调/通知的细化。仍待专项落实：逐设备凭据交付/恢复、实物 Flash/revision/分区、已定客户会话及授权失效规则的实现与验收、所选智能体的契约与默认 Edge TTS 的实际设备播放。以上关卡不改变已定字段和单台退出行为，缺少时保留未验收状态。

@@ -61,6 +61,7 @@ class DeviceControlHttpTest {
         db.update("DELETE FROM dc_state_ack_history WHERE device_id=?", DEVICE);
         db.update("DELETE FROM dc_state_ack WHERE device_id=?", DEVICE);
         db.update("DELETE FROM dc_request_operation WHERE device_id=?", DEVICE);
+        db.update("DELETE FROM customer_device_request WHERE control_request_id IN (SELECT request_id FROM dc_request WHERE device_id=?)", DEVICE);
         db.update("DELETE FROM dc_request WHERE device_id=?", DEVICE);
         db.update("DELETE FROM dc_device WHERE device_id=?", DEVICE);
         db.update("INSERT INTO dc_device(device_id, credential_hash) VALUES (?,?)", DEVICE,

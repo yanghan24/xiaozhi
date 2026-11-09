@@ -171,9 +171,12 @@ public class DeviceControlService {
                 }
                 long now = clock.millis();
                 String id = randomValue();
+                String handle = randomValue();
                 db.update("INSERT INTO dc_request(request_id,device_id,permission_version,purpose,verification_uri,created_at_ms,expires_at_ms) VALUES (?,?,?,?,?,?,?)",
                         id, identity.deviceId(), expectedVersion, purpose,
-                        publicOrigin + "/xiaozhi/bind/" + randomValue(), now, now + 600000);
+                        publicOrigin + "/xiaozhi/bind/" + handle, now, now + 600000);
+                db.update("INSERT INTO customer_device_request(handle,control_request_id,control_credential_hash,purpose,permission_version,expires_at_ms) VALUES (?,?,?,?,?,?)",
+                        handle, id, identity.hash(), purpose, expectedVersion, now + 600000);
                 bumpRevision(device);
                 db.update("UPDATE dc_device SET current_request_id=? WHERE device_id=?", id, identity.deviceId());
                 device.put("current_request_id", id);

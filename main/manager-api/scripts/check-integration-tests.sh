@@ -9,6 +9,8 @@ WATCHED=(
   "xiaozhi.modules.device.DeviceTest"
   "xiaozhi.modules.model.service.impl.ModelConfigPersistenceTest"
   "xiaozhi.modules.sys.loginControllerTest"
+  "xiaozhi.modules.customer.CustomerIdentityHttpTest"
+  "xiaozhi.modules.customer.CustomerIdentityRestartTest"
 )
 
 if [ ! -d "$REPORT_DIR" ]; then

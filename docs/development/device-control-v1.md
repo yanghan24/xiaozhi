@@ -1,6 +1,6 @@
-# 设备控制 v1：服务器首个切片
+# 设备控制 v1：准入与手机身份接入
 
-依据 [PR #25 的契约](../contracts/device-binding-v1.md) 和 [#13](https://github.com/yanghan24/xiaozhi/issues/13)。本切片交付设备准入，以及 `state`、`requests`、`state-acks` 三个 HTTPS 接口。默认关闭，尚不用于产品上线。
+依据 [设备控制契约](../contracts/device-binding-v1.md) 和 [#13](https://github.com/yanghan24/xiaozhi/issues/13)。本切片交付设备准入、`state`、`requests`、`state-acks` 三个 HTTPS 接口，并将正式发码接到 #29 手机身份模块。控制功能默认关闭，尚不用于产品上线。最新集成结果见[接入验证](../verification/2026-11-09-device-identity-integration.md)。
 
 Ubuntu 执行结果见[验证记录](../verification/2026-11-09-device-control-v1.md)。正文在 XSS/MVC 读取前限制为 4096 字节，包含分块传输；设备写接口只接受 application/json，错误响应沿用本协议的 HTTP 状态和字符串 code。
 
@@ -13,7 +13,11 @@ Ubuntu 执行结果见[验证记录](../verification/2026-11-09-device-control-v
 - 首次 ACK 必须匹配当前 revision 和 permission_version，且 blocked 时必须 audio_stopped=true。曾成功的相同 ACK 从独立历史表返回原成功结果，即使当前版本已变化，也不覆盖最新 ACK、时间或当前许可；未曾成功的旧 ACK 返回 409 STATE_CHANGED。后续客户操作查询须将最新 ACK 的许可版本与操作及设备当前版本一起比较，不能仅凭历史 ACK 存在认定停播。
 - 每份状态/请求响应使用同一时刻计算 server_time_ms 和 expires_in_ms，保证剩余时间严格等于 expires_at_ms 减 server_time_ms；到期请求不返回零寿命二维码。协议整数按 JSON number 输出，不沿用管理接口的 Long 字符串序列化。
 
-手机绑定页、OIDC、allowed 租约/语音令牌、OTA 发现扩展、旧 OTA/语音入口封堵、固件停播，以及正式凭据写入/补发工具尚未交付。生成的 verification_uri 固定了协议格式，但手机页面仍不可用。本切片不能作为完整产品准入或关闭 #13 的依据。
+正式请求现在在同一事务建立 `customer_device_request` 关联，二维码可进入手机页和 OIDC 流程；不再依赖 #29 的测试预置请求。产品请求引用 `dc_request`，记录凭据校验材料快照，不创建上游管理员设备归属。每次打开、创建流程、回调及查询都会核对当前请求、准入、凭据和许可版本；撤销、禁用、替换或版本变化使旧码不可继续。过期按原 600 秒期限处理。
+
+`/customer/v1/binding-flows` 的 JSON 创建与流程查询采用 `version/code/data`，共用 #29 身份服务、浏览器 Cookie 和 CSRF。手机表单使用同一 v1 入口；原无版本入口保留兼容，固定 OIDC 回调和通知地址不变。Nginx 仅增加精确的创建/查询路径。身份确认不修改设备归属或许可。
+
+最终 confirm/open-account/sign-out、身份有效但业务授权不具备的绑定、授权 pending 到设备的传播、allowed 租约/语音令牌、OTA 发现扩展、旧 OTA/语音入口封堵、固件停播，以及正式凭据写入/补发工具尚未交付。本切片不能作为完整产品准入或关闭 #13 的依据。
 
 ## 独立验证配置
 
@@ -64,4 +68,8 @@ bash scripts/check-integration-tests.sh
 
 测试从真实 HTTP/Tomcat/Shiro 入口观察结果，使用真实 MySQL/Redis，只有时钟可控。两套独立 Spring 应用实例连接同一测试库，验证并发创建、跨实例长轮询，以及关闭/重建第二实例后的请求读回。数据库写入仅用于预置登记、归属和撤销测试条件，不将这些夹具当作手机或运营功能已实现的证据。
 
-新增 Liquibase changeSet 不修改上游表或历史迁移。`202611091900.sql` 新增 ACK 历史表并回填已有最新成功 ACK；历史表与最新 ACK 在同一事务写入，目前不自动清理。回退代码时保留新表及设备数据，旧版不读取新增历史表；Git revert 不删除已登记凭据。新增凭据和状态仍需纳入私有数据备份。没有运行数据破坏性迁移，也没有自动更新现有服务的流程。
+主线 #29 已使用 `202611091900` 建立身份请求与浏览器表；保留该已合并迁移原文和校验和。PR #26 未发布的 ACK 历史迁移改用 `202611092000`，`202611092010` 扩展身份请求来源，并使集成前尚无手机关联的旧控制请求失效，设备下次申请取得新码。历史 ACK 和设备归属不删除。
+
+本次使用新的独立集成测试数据库，保留旧控制回归库及已有身份/部署数据。曾应用旧 PR #26 `202611091900` 的实验库存在编号冲突，不能直接按主线升级，也不能通过清空校验和绕过；需要单独核对并迁移 changelog 记录后才能复用。该实验分支从未部署到现有服务，本次也不部署。
+
+回退应用时保留新增表、关联及私有密钥；Git revert 不恢复已失效二维码。回退到集成前控制代码时关闭 `device-control.enabled`，避免旧代码继续发出没有手机关联的新码。新增凭据和状态仍需纳入私有数据备份。
