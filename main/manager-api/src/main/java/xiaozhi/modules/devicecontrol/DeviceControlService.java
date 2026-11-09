@@ -1,0 +1,260 @@
+package xiaozhi.modules.devicecontrol;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Base64;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/** Authoritative product state; no upstream administrator identity or voice token is reused. */
+@Service
+public class DeviceControlService {
+    static final long MAX_VERSION = 9007199254740991L;
+    private final SecureRandom random = new SecureRandom();
+    private final Semaphore waiters = new Semaphore(64);
+    private final JdbcTemplate db;
+    private final TransactionTemplate transactions;
+    private final Clock clock;
+    private final boolean enabled;
+    private final String publicOrigin;
+
+    public DeviceControlService(JdbcTemplate db, PlatformTransactionManager transactionManager,
+            @Qualifier("deviceControlClock") Clock clock,
+            @Value("${device-control.enabled:false}") boolean enabled,
+            @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin) {
+        this.db = db;
+        this.transactions = new TransactionTemplate(transactionManager);
+        this.clock = clock;
+        this.enabled = enabled;
+        this.publicOrigin = publicOrigin;
+        if (enabled) {
+            URI origin = URI.create(publicOrigin);
+            if (!"https".equals(origin.getScheme()) || origin.getHost() == null
+                    || origin.getRawUserInfo() != null || origin.getRawQuery() != null
+                    || origin.getRawFragment() != null || !origin.getRawPath().isEmpty()
+                    || origin.getPort() == 0 || origin.getPort() > 65535
+                    || !publicOrigin.matches("[\\x21-\\x7e]+")
+                    || publicOrigin.length() + "/xiaozhi/bind/".length() + 43 > 512) {
+                throw new IllegalArgumentException("device-control.public-origin must be an HTTPS origin fitting the QR limit");
+            }
+        }
+    }
+
+    record Identity(String deviceId, String hash) { }
+
+    Identity authenticate(String authorization, String deviceId) {
+        if (!enabled) throw new ControlFailure(503, "TEMPORARILY_UNAVAILABLE");
+        if (authorization == null || !authorization.matches("Bearer [A-Za-z0-9_-]{43,128}")
+                || deviceId == null || !deviceId.matches("[A-Za-z0-9_.:-]{1,128}")) {
+            throw new ControlFailure(401, "INVALID_DEVICE_CREDENTIAL");
+        }
+        var identity = new Identity(deviceId, hash(authorization.substring(7)));
+        load(identity, false);
+        return identity;
+    }
+
+    private Map<String, Object> load(Identity identity, boolean lock) {
+        var rows = db.queryForList("SELECT * FROM dc_device WHERE credential_hash=?" +
+                (lock ? " FOR UPDATE" : ""), identity.hash());
+        if (rows.size() != 1 || !identity.deviceId().equals(rows.getFirst().get("device_id"))) {
+            throw new ControlFailure(401, "INVALID_DEVICE_CREDENTIAL");
+        }
+        var row = rows.getFirst();
+        if (!Boolean.TRUE.equals(row.get("admitted")) && !Integer.valueOf(1).equals(row.get("admitted"))) {
+            throw new ControlFailure(403, "DEVICE_NOT_ADMITTED");
+        }
+        return row;
+    }
+
+    Map<String, Object> state(Identity identity) {
+        return transactions.execute(tx -> {
+            var row = load(identity, true);
+            var current = currentRequest(row);
+            var state = new LinkedHashMap<String, Object>();
+            state.put("device_id", identity.deviceId());
+            state.put("revision", row.get("revision"));
+            state.put("permission_version", row.get("permission_version"));
+            state.put("server_time_ms", clock.millis());
+            state.put("binding_state", row.get("owner_subject") == null ? "unbound" : "bound");
+            state.put("use_permission", "blocked");
+            state.put("reason", row.get("reason"));
+            state.put("binding_request", current == null ? null : requestBody(current));
+            state.put("lease", null);
+            state.put("voice", null);
+            return state;
+        });
+    }
+
+    Map<String, Object> poll(Identity identity, Long afterRevision, int waitMs) {
+        var snapshot = state(identity);
+        if (afterRevision == null || waitMs == 0 || number(snapshot, "revision") != afterRevision) return snapshot;
+        if (!waiters.tryAcquire()) throw new ControlFailure(429, "RATE_LIMITED");
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(waitMs);
+        try {
+            // The database is the durable cross-instance notification source. No transaction or
+            // connection is held while sleeping, and each read rechecks credential revocation.
+            while (number(snapshot, "revision") == afterRevision) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) break;
+                TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(200)));
+                snapshot = state(identity);
+            }
+            return snapshot;
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new ControlFailure(503, "TEMPORARILY_UNAVAILABLE");
+        } finally {
+            waiters.release();
+        }
+    }
+
+    Map<String, Object> createRequest(Identity identity, String key, String intent, long expectedVersion) {
+        if (key == null || !key.matches("[A-Za-z0-9_.:-]{1,128}")) {
+            throw new ControlFailure(400, "INVALID_REQUEST");
+        }
+        return transactions.execute(tx -> {
+            var device = load(identity, true);
+            var operations = db.queryForList("SELECT * FROM dc_request_operation WHERE device_id=? AND key_hash=?",
+                    identity.deviceId(), hash(key));
+            if (!operations.isEmpty()) {
+                var operation = operations.getFirst();
+                if (!intent.equals(operation.get("intent"))
+                        || expectedVersion != number(operation, "expected_permission_version")) {
+                    throw new ControlFailure(409, "IDEMPOTENCY_CONFLICT");
+                }
+            }
+            if (expectedVersion != number(device, "permission_version")) {
+                throw new ControlFailure(409, "STATE_CHANGED");
+            }
+            if ("device_disabled".equals(device.get("reason"))) {
+                throw new ControlFailure(403, "DEVICE_NOT_ADMITTED");
+            }
+            boolean bound = device.get("owner_subject") != null;
+            if ("account".equals(intent) && !bound) throw new ControlFailure(409, "STATE_CHANGED");
+            String purpose = "account".equals(intent) ? "account" : bound ? "resume" : "bind";
+            var current = currentRequest(device);
+            if (!operations.isEmpty()) {
+                var previous = db.queryForMap("SELECT * FROM dc_request WHERE request_id=?",
+                        operations.getFirst().get("request_id"));
+                String status = (String) previous.get("status");
+                if ("replaced".equals(status) || "consumed".equals(status)) {
+                    throw new ControlFailure(409, "REQUEST_CONSUMED");
+                }
+                if (number(previous, "expires_at_ms") <= clock.millis()) {
+                    throw new ControlFailure(410, "REQUEST_EXPIRED");
+                }
+                if (current == null || !previous.get("request_id").equals(current.get("request_id"))
+                        || !purpose.equals(previous.get("purpose"))) {
+                    throw new ControlFailure(409, "STATE_CHANGED");
+                }
+                return requestResponse(device, previous);
+            }
+            if (current == null || !purpose.equals(current.get("purpose"))
+                    || number(current, "permission_version") != expectedVersion) {
+                if (current != null) {
+                    db.update("UPDATE dc_request SET status='replaced' WHERE request_id=?", current.get("request_id"));
+                }
+                long now = clock.millis();
+                String id = randomValue();
+                db.update("INSERT INTO dc_request(request_id,device_id,permission_version,purpose,verification_uri,created_at_ms,expires_at_ms) VALUES (?,?,?,?,?,?,?)",
+                        id, identity.deviceId(), expectedVersion, purpose,
+                        publicOrigin + "/xiaozhi/bind/" + randomValue(), now, now + 600000);
+                bumpRevision(device);
+                db.update("UPDATE dc_device SET current_request_id=? WHERE device_id=?", id, identity.deviceId());
+                device.put("current_request_id", id);
+                current = db.queryForMap("SELECT * FROM dc_request WHERE request_id=?", id);
+            }
+            db.update("INSERT INTO dc_request_operation(device_id,key_hash,intent,expected_permission_version,request_id,created_at_ms) VALUES (?,?,?,?,?,?)",
+                    identity.deviceId(), hash(key), intent, expectedVersion, current.get("request_id"), clock.millis());
+            return requestResponse(device, current);
+        });
+    }
+
+    private Map<String, Object> currentRequest(Map<String, Object> device) {
+        if (device.get("current_request_id") == null) return null;
+        var current = db.queryForMap("SELECT * FROM dc_request WHERE request_id=? AND device_id=?",
+                device.get("current_request_id"), device.get("device_id"));
+        boolean expired = number(current, "expires_at_ms") <= clock.millis();
+        boolean stale = number(current, "permission_version") != number(device, "permission_version")
+                || "device_disabled".equals(device.get("reason"));
+        if (expired || stale || !"active".equals(current.get("status"))) {
+            if ("active".equals(current.get("status"))) {
+                db.update("UPDATE dc_request SET status=? WHERE request_id=?",
+                        stale ? "replaced" : "expired", current.get("request_id"));
+            }
+            bumpRevision(device);
+            db.update("UPDATE dc_device SET current_request_id=NULL WHERE device_id=?", device.get("device_id"));
+            device.put("current_request_id", null);
+            return null;
+        }
+        return current;
+    }
+
+    Map<String, Object> acknowledge(Identity identity, long revision, long permissionVersion, boolean audioStopped) {
+        return transactions.execute(tx -> {
+            var device = load(identity, true);
+            currentRequest(device);
+            if (revision != number(device, "revision") || permissionVersion != number(device, "permission_version")) {
+                throw new ControlFailure(409, "STATE_CHANGED");
+            }
+            if (!audioStopped) throw new ControlFailure(400, "INVALID_REQUEST");
+            db.update("INSERT INTO dc_state_ack(device_id,revision,permission_version,audio_stopped,received_at_ms) VALUES (?,?,?,?,?) "
+                    + "ON DUPLICATE KEY UPDATE received_at_ms=IF(revision=VALUES(revision) AND permission_version=VALUES(permission_version),received_at_ms,VALUES(received_at_ms)), "
+                    + "revision=VALUES(revision),permission_version=VALUES(permission_version),audio_stopped=VALUES(audio_stopped)",
+                    identity.deviceId(), revision, permissionVersion, audioStopped, clock.millis());
+            return Map.of("accepted", true, "revision", revision, "permission_version", permissionVersion);
+        });
+    }
+
+    private void bumpRevision(Map<String, Object> device) {
+        long revision = number(device, "revision");
+        if (revision >= MAX_VERSION) throw new ControlFailure(503, "TEMPORARILY_UNAVAILABLE");
+        db.update("UPDATE dc_device SET revision=? WHERE device_id=?", revision + 1, device.get("device_id"));
+        device.put("revision", revision + 1);
+    }
+
+    private Map<String, Object> requestResponse(Map<String, Object> device, Map<String, Object> request) {
+        return Map.of("revision", device.get("revision"), "permission_version", device.get("permission_version"),
+                "server_time_ms", clock.millis(), "binding_request", requestBody(request));
+    }
+
+    private Map<String, Object> requestBody(Map<String, Object> request) {
+        return Map.of("request_id", request.get("request_id"), "purpose", request.get("purpose"),
+                "verification_uri", request.get("verification_uri"), "created_at_ms", request.get("created_at_ms"),
+                "expires_at_ms", request.get("expires_at_ms"),
+                "expires_in_ms", Math.max(0, number(request, "expires_at_ms") - clock.millis()));
+    }
+
+    private static long number(Map<String, Object> row, String key) {
+        return ((Number) row.get(key)).longValue();
+    }
+
+    private String randomValue() {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static String hash(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+    }
+}

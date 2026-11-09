@@ -52,7 +52,8 @@ public class ShiroConfig {
 
     @Bean("shiroFilter")
     public static ShiroFilterFactoryBean shirFilter(@Lazy WebSecurityManager securityManager,
-            @Lazy SysParamsService sysParamsService) {
+            @Lazy SysParamsService sysParamsService,
+            @Lazy xiaozhi.modules.devicecontrol.DeviceControlService deviceControlService) {
         ShiroFilterConfiguration config = new ShiroFilterConfiguration();
         config.setFilterOncePerRequest(true);
 
@@ -63,6 +64,7 @@ public class ShiroConfig {
         Map<String, Filter> filters = new HashMap<>();
         // oauth过滤
         filters.put("oauth2", new Oauth2Filter());
+        filters.put("deviceCredential", new xiaozhi.modules.devicecontrol.DeviceCredentialFilter(deviceControlService));
         // 服务密钥过滤
         filters.put("server", new ServerSecretFilter(sysParamsService));
         shiroFilter.setFilters(filters);
@@ -76,6 +78,7 @@ public class ShiroConfig {
          * role：拥有某个角色权限才能访问
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
+        filterMap.put("/device-control/**", "deviceCredential");
         filterMap.put("/ota/**", "anon");
         filterMap.put("/otaMag/download/**", "anon");
         filterMap.put("/webjars/**", "anon");
