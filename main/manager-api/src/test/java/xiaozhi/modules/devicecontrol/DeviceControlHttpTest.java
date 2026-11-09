@@ -30,6 +30,10 @@ import java.io.ByteArrayInputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicLong;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
@@ -54,6 +58,7 @@ class DeviceControlHttpTest {
     @BeforeEach
     void preregisterDevice() throws Exception {
         when(clock.millis()).thenReturn(NOW);
+        db.update("DELETE FROM dc_state_ack_history WHERE device_id=?", DEVICE);
         db.update("DELETE FROM dc_state_ack WHERE device_id=?", DEVICE);
         db.update("DELETE FROM dc_request_operation WHERE device_id=?", DEVICE);
         db.update("DELETE FROM dc_request WHERE device_id=?", DEVICE);
@@ -82,6 +87,85 @@ class DeviceControlHttpTest {
         var snapshot = json.readTree(getState(DEVICE, CREDENTIAL).body()).path("data");
         assertEquals(retry.path("binding_request"), snapshot.path("binding_request"));
         assertEquals(1, snapshot.path("permission_version").asLong());
+    }
+
+    @Test
+    void advancingClockKeepsCreationRetryAndStateTimesConsistent() throws Exception {
+        var ticks = new AtomicLong(NOW);
+        when(clock.millis()).thenAnswer(invocation -> ticks.getAndIncrement());
+        String body = "{\"intent\":\"auto\",\"expected_permission_version\":1}";
+        var firstResponse = post("requests", "moving-clock", body);
+        assertEquals(200, firstResponse.statusCode(), firstResponse.body());
+        var first = json.readTree(firstResponse.body()).path("data");
+        assertRequestTime(first);
+        long deadline = first.path("binding_request").path("expires_at_ms").asLong();
+        ticks.addAndGet(1000);
+        var retryResponse = post("requests", "moving-clock", body);
+        assertEquals(200, retryResponse.statusCode(), retryResponse.body());
+        var retry = json.readTree(retryResponse.body()).path("data");
+        assertRequestTime(retry);
+        var stateResponse = getState(DEVICE, CREDENTIAL);
+        assertEquals(200, stateResponse.statusCode(), stateResponse.body());
+        var state = json.readTree(stateResponse.body()).path("data");
+        assertRequestTime(state);
+        for (var data : new JsonNode[] {retry, state}) {
+            assertEquals(deadline, data.path("binding_request").path("expires_at_ms").asLong());
+            assertEquals(first.path("binding_request").path("request_id"), data.path("binding_request").path("request_id"));
+        }
+        // Synthetic HTTP responses for the independent firmware-model compatibility check.
+        var artifacts = Files.createDirectories(Path.of("target", "device-control-compatibility"));
+        Files.writeString(artifacts.resolve("created.json"), firstResponse.body());
+        Files.writeString(artifacts.resolve("retried.json"), retryResponse.body());
+        Files.writeString(artifacts.resolve("state.json"), stateResponse.body());
+    }
+
+    private void assertRequestTime(JsonNode data) {
+        var binding = data.path("binding_request");
+        long remaining = binding.path("expires_in_ms").asLong();
+        assertTrue(remaining > 0, "An active QR must not be returned with zero remaining time");
+        assertEquals(binding.path("expires_at_ms").asLong() - data.path("server_time_ms").asLong(), remaining);
+    }
+
+    @Test
+    void protocolVersionsAndTimesAreJsonIntegersRatherThanAdministratorIdStrings() throws Exception {
+        var created = post("requests", "wire-numbers", "{\"intent\":\"auto\",\"expected_permission_version\":1}");
+        var state = getState(DEVICE, CREDENTIAL);
+        var ack = post("state-acks", null, ackBody(2, 1));
+        for (var response : java.util.List.of(created, state, ack)) {
+            assertEquals(200, response.statusCode(), response.body());
+            var envelope = json.readTree(response.body());
+            assertTrue(envelope.path("version").isIntegralNumber());
+            var data = envelope.path("data");
+            for (String field : new String[] {"revision", "permission_version"}) {
+                assertTrue(data.path(field).isIntegralNumber(), field + " must be a JSON integer: " + response.body());
+            }
+            if (data.has("server_time_ms")) assertTrue(data.path("server_time_ms").isIntegralNumber());
+            if (data.hasNonNull("binding_request")) {
+                for (String field : new String[] {"created_at_ms", "expires_at_ms", "expires_in_ms"}) {
+                    assertTrue(data.path("binding_request").path(field).isIntegralNumber(), field);
+                }
+            }
+        }
+        var artifacts = Files.createDirectories(Path.of("target", "device-control-compatibility"));
+        Files.writeString(artifacts.resolve("ack.json"), ack.body());
+    }
+
+    @Test
+    void responseAtExpirationNeverAdvertisesAZeroLifetimeRequest() throws Exception {
+        String body = "{\"intent\":\"auto\",\"expected_permission_version\":1}";
+        assertEquals(200, post("requests", "edge-clock", body).statusCode());
+        long deadline = NOW + 600000;
+        when(clock.millis()).thenReturn(deadline - 1, deadline - 1, deadline);
+        assertEquals(410, post("requests", "edge-clock", body).statusCode());
+        when(clock.millis()).thenReturn(deadline - 1, deadline);
+        var response = getState(DEVICE, CREDENTIAL);
+        var state = json.readTree(response.body()).path("data");
+        if (!state.path("binding_request").isNull()) assertRequestTime(state);
+        when(clock.millis()).thenReturn(deadline);
+        state = json.readTree(getState(DEVICE, CREDENTIAL).body()).path("data");
+        assertTrue(state.path("binding_request").isNull());
+        assertEquals(3, state.path("revision").asLong());
+        assertEquals(410, post("requests", "edge-clock", body).statusCode());
     }
 
     private HttpResponse<String> post(String path, String key, String body) throws Exception {
@@ -117,11 +201,69 @@ class DeviceControlHttpTest {
         assertEquals(400, post("state-acks", null,
                 "{\"revision\":1,\"permission_version\":1,\"audio_stopped\":false}").statusCode());
         post("requests", "advance-revision", "{\"intent\":\"auto\",\"expected_permission_version\":1}");
-        assertEquals(409, post("state-acks", null, ack).statusCode());
+        assertEquals(response.body(), post("state-acks", null, ack).body());
         var state = json.readTree(getState(DEVICE, CREDENTIAL).body()).path("data");
         assertEquals("blocked", state.path("use_permission").asText());
         assertEquals(1, state.path("permission_version").asLong());
         assertTrue(state.path("lease").isNull());
+    }
+
+    @Test
+    void neverAcceptedOldAcknowledgementsAreRejectedAfterQrRevisionChanges() throws Exception {
+        post("requests", "new-revision", "{\"intent\":\"auto\",\"expected_permission_version\":1}");
+        assertEquals(409, post("state-acks", null, ackBody(1, 1)).statusCode());
+        var accepted = post("state-acks", null, ackBody(2, 1));
+        assertEquals(200, accepted.statusCode(), accepted.body());
+        when(clock.millis()).thenReturn(NOW + 600000);
+        var state = json.readTree(getState(DEVICE, CREDENTIAL).body()).path("data");
+        assertEquals(3, state.path("revision").asLong());
+        var replay = post("state-acks", null, ackBody(2, 1));
+        assertEquals(200, replay.statusCode(), replay.body());
+        assertEquals(accepted.body(), replay.body());
+        assertEquals(409, post("state-acks", null, ackBody(1, 1)).statusCode());
+    }
+
+    @Test
+    void historicalAckReplayCannotConfirmANewPermissionOrOverwriteItsAcknowledgement() throws Exception {
+        var first = post("state-acks", null, ackBody(1, 1));
+        assertEquals(200, first.statusCode());
+        post("requests", "ack-history", "{\"intent\":\"auto\",\"expected_permission_version\":1}");
+        var second = post("state-acks", null, ackBody(2, 1));
+        assertEquals(200, second.statusCode());
+        assertEquals(first.body(), post("state-acks", null, ackBody(1, 1)).body());
+
+        // Fixture for a subsequent independent stop operation; no customer endpoint is implied.
+        db.update("UPDATE dc_device SET owner_issuer='https://issuer.example',owner_subject='fixture-owner',"
+                + "reason='user_signed_out',revision=revision+1,permission_version=2 WHERE device_id=?", DEVICE);
+        var current = json.readTree(getState(DEVICE, CREDENTIAL).body()).path("data");
+        long revision = current.path("revision").asLong();
+        var pendingAck = latestAck();
+        assertEquals(1L, ((Number) pendingAck.get("permission_version")).longValue());
+        var replay = post("state-acks", null, ackBody(1, 1));
+        assertEquals(200, replay.statusCode(), replay.body());
+        assertEquals(first.body(), replay.body());
+        // The phone execution endpoint is a later slice; check its persisted source of truth directly.
+        assertEquals(pendingAck, latestAck(), "Historical success must not confirm the new permission version");
+        assertEquals(409, post("state-acks", null, ackBody(revision, 1)).statusCode());
+        var currentAck = post("state-acks", null, ackBody(revision, 2));
+        assertEquals(200, currentAck.statusCode(), currentAck.body());
+        var latest = latestAck();
+        when(clock.millis()).thenReturn(NOW + 1000);
+        assertEquals(first.body(), post("state-acks", null, ackBody(1, 1)).body());
+        assertEquals(second.body(), post("state-acks", null, ackBody(2, 1)).body());
+        assertEquals(latest, latestAck(), "Replay must not overwrite the latest ACK or received timestamp");
+        var after = json.readTree(getState(DEVICE, CREDENTIAL).body()).path("data");
+        assertEquals(revision, after.path("revision").asLong());
+        assertEquals(2, after.path("permission_version").asLong());
+        assertEquals("blocked", after.path("use_permission").asText());
+    }
+
+    private String ackBody(long revision, long permissionVersion) {
+        return "{\"revision\":" + revision + ",\"permission_version\":" + permissionVersion + ",\"audio_stopped\":true}";
+    }
+
+    private java.util.Map<String, Object> latestAck() {
+        return db.queryForMap("SELECT revision,permission_version,audio_stopped,received_at_ms FROM dc_state_ack WHERE device_id=?", DEVICE);
     }
 
     @Test

@@ -83,16 +83,17 @@ public class DeviceControlService {
     Map<String, Object> state(Identity identity) {
         return transactions.execute(tx -> {
             var row = load(identity, true);
-            var current = currentRequest(row);
+            long responseNow = clock.millis();
+            var current = currentRequest(row, responseNow);
             var state = new LinkedHashMap<String, Object>();
             state.put("device_id", identity.deviceId());
             state.put("revision", row.get("revision"));
             state.put("permission_version", row.get("permission_version"));
-            state.put("server_time_ms", clock.millis());
+            state.put("server_time_ms", responseNow);
             state.put("binding_state", row.get("owner_subject") == null ? "unbound" : "bound");
             state.put("use_permission", "blocked");
             state.put("reason", row.get("reason"));
-            state.put("binding_request", current == null ? null : requestBody(current));
+            state.put("binding_request", current == null ? null : requestBody(current, responseNow));
             state.put("lease", null);
             state.put("voice", null);
             return state;
@@ -146,7 +147,7 @@ public class DeviceControlService {
             boolean bound = device.get("owner_subject") != null;
             if ("account".equals(intent) && !bound) throw new ControlFailure(409, "STATE_CHANGED");
             String purpose = "account".equals(intent) ? "account" : bound ? "resume" : "bind";
-            var current = currentRequest(device);
+            var current = currentRequest(device, clock.millis());
             if (!operations.isEmpty()) {
                 var previous = db.queryForMap("SELECT * FROM dc_request WHERE request_id=?",
                         operations.getFirst().get("request_id"));
@@ -184,11 +185,11 @@ public class DeviceControlService {
         });
     }
 
-    private Map<String, Object> currentRequest(Map<String, Object> device) {
+    private Map<String, Object> currentRequest(Map<String, Object> device, long now) {
         if (device.get("current_request_id") == null) return null;
         var current = db.queryForMap("SELECT * FROM dc_request WHERE request_id=? AND device_id=?",
                 device.get("current_request_id"), device.get("device_id"));
-        boolean expired = number(current, "expires_at_ms") <= clock.millis();
+        boolean expired = number(current, "expires_at_ms") <= now;
         boolean stale = number(current, "permission_version") != number(device, "permission_version")
                 || "device_disabled".equals(device.get("reason"));
         if (expired || stale || !"active".equals(current.get("status"))) {
@@ -207,16 +208,25 @@ public class DeviceControlService {
     Map<String, Object> acknowledge(Identity identity, long revision, long permissionVersion, boolean audioStopped) {
         return transactions.execute(tx -> {
             var device = load(identity, true);
-            currentRequest(device);
+            Map<String, Object> result = Map.of("accepted", true, "revision", revision, "permission_version", permissionVersion);
+            var history = db.queryForList("SELECT 1 FROM dc_state_ack_history WHERE device_id=? AND revision=? AND permission_version=? AND audio_stopped=?",
+                    identity.deviceId(), revision, permissionVersion, audioStopped);
+            // A historical success acknowledges only its original version. Do not touch the
+            // current device state, latest ACK, or receive timestamp when replaying it.
+            if (!history.isEmpty()) return result;
+            currentRequest(device, clock.millis());
             if (revision != number(device, "revision") || permissionVersion != number(device, "permission_version")) {
                 throw new ControlFailure(409, "STATE_CHANGED");
             }
             if (!audioStopped) throw new ControlFailure(400, "INVALID_REQUEST");
+            long receivedAt = clock.millis();
+            db.update("INSERT INTO dc_state_ack_history(device_id,revision,permission_version,audio_stopped,received_at_ms) VALUES (?,?,?,?,?)",
+                    identity.deviceId(), revision, permissionVersion, audioStopped, receivedAt);
             db.update("INSERT INTO dc_state_ack(device_id,revision,permission_version,audio_stopped,received_at_ms) VALUES (?,?,?,?,?) "
                     + "ON DUPLICATE KEY UPDATE received_at_ms=IF(revision=VALUES(revision) AND permission_version=VALUES(permission_version),received_at_ms,VALUES(received_at_ms)), "
                     + "revision=VALUES(revision),permission_version=VALUES(permission_version),audio_stopped=VALUES(audio_stopped)",
-                    identity.deviceId(), revision, permissionVersion, audioStopped, clock.millis());
-            return Map.of("accepted", true, "revision", revision, "permission_version", permissionVersion);
+                    identity.deviceId(), revision, permissionVersion, audioStopped, receivedAt);
+            return result;
         });
     }
 
@@ -228,15 +238,18 @@ public class DeviceControlService {
     }
 
     private Map<String, Object> requestResponse(Map<String, Object> device, Map<String, Object> request) {
+        long responseNow = clock.millis();
+        // Recheck at response generation: persistence work may have crossed the deadline.
+        if (number(request, "expires_at_ms") <= responseNow) throw new ControlFailure(410, "REQUEST_EXPIRED");
         return Map.of("revision", device.get("revision"), "permission_version", device.get("permission_version"),
-                "server_time_ms", clock.millis(), "binding_request", requestBody(request));
+                "server_time_ms", responseNow, "binding_request", requestBody(request, responseNow));
     }
 
-    private Map<String, Object> requestBody(Map<String, Object> request) {
+    private Map<String, Object> requestBody(Map<String, Object> request, long responseNow) {
         return Map.of("request_id", request.get("request_id"), "purpose", request.get("purpose"),
                 "verification_uri", request.get("verification_uri"), "created_at_ms", request.get("created_at_ms"),
                 "expires_at_ms", request.get("expires_at_ms"),
-                "expires_in_ms", Math.max(0, number(request, "expires_at_ms") - clock.millis()));
+                "expires_in_ms", number(request, "expires_at_ms") - responseNow);
     }
 
     private static long number(Map<String, Object> row, String key) {
