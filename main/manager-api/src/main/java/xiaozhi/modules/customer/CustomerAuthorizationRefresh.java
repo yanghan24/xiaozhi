@@ -33,12 +33,23 @@ final class CustomerAuthorizationRefresh {
         String subject = grant.get("subject_key").toString(), generation = grant.get("generation").toString();
         if (db.update("UPDATE customer_authorization SET status='REFRESHING',refresh_token='',updated_at_ms=? WHERE subject_key=? AND generation=? AND status='ACTIVE' AND access_expires_at_ms=?",
                 clock.millis(), subject, generation, grant.get("access_expires_at_ms")) != 1) return;
+        CustomerMarket.Refreshed response = null;
         try {
-            var response = market.refresh(config.decrypt(grant.get("refresh_token").toString()));
-            db.update("UPDATE customer_authorization SET access_token=?,refresh_token=?,access_expires_at_ms=?,status='ACTIVE',updated_at_ms=? WHERE subject_key=? AND generation=? AND status='REFRESHING'",
-                    config.encrypt(response.access()), config.encrypt(response.refresh()), response.expiresAt(), clock.millis(), subject, generation);
+            response = market.refresh(config.decrypt(grant.get("refresh_token").toString()));
+            String access = config.encrypt(response.access()), refresh = config.encrypt(response.refresh());
+            // Retry only saving this SAME successful response. Never reissue the refresh request.
+            for (int attempt=0; attempt<3; attempt++) {
+                try {
+                    db.update("UPDATE customer_authorization SET access_token=?,refresh_token=?,access_expires_at_ms=?,status='ACTIVE',updated_at_ms=? WHERE subject_key=? AND generation=? AND status='REFRESHING'",
+                            access, refresh, response.expiresAt(), clock.millis(), subject, generation);
+                    return;
+                } catch (org.springframework.dao.DataAccessException failure) {
+                    if (attempt==2) throw failure;
+                }
+            }
         } catch (Exception failure) {
-            String status = failure instanceof CustomerFailure error && error.getMessage().equals("REAUTH_REQUIRED") ? "REAUTH_REQUIRED" : "REFRESH_UNCERTAIN";
+            boolean unrecoverable = response != null || failure instanceof CustomerFailure error && error.getMessage().equals("REAUTH_REQUIRED");
+            String status = unrecoverable ? "REAUTH_REQUIRED" : "REFRESH_UNCERTAIN";
             db.update("UPDATE customer_authorization SET status=?,updated_at_ms=? WHERE subject_key=? AND generation=? AND status='REFRESHING'",
                     status, clock.millis(), subject, generation);
         }

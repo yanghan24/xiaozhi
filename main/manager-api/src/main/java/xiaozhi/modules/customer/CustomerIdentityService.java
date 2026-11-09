@@ -61,7 +61,7 @@ final class CustomerIdentityService {
         String status=flow.get("status").toString();
         if ((status.equals("AWAITING_IDENTITY") || status.equals("EXCHANGING")) && number(flow,"expires_at_ms")<=clock.millis()) status="FLOW_EXPIRED";
         String requestStatus=number(flow,"request_expires_at_ms")<=clock.millis() ? "EXPIRED" : Boolean.TRUE.equals(flow.get("consumed")) ? "CONSUMED" : "AVAILABLE";
-        return Map.of("flow_id", id, "status", status, "authorization_status", authorization, "device_permission_changed", false,
+        return Map.of("flow_id", id, "status", status, "authorization_status", authorization,
                 "device_label", flow.get("alias")==null ? "小智设备" : flow.get("alias"), "purpose",flow.get("purpose"),"request_status",requestStatus);
     }
     String callback(String cookie, String state, String code, String error) {

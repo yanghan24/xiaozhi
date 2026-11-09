@@ -26,9 +26,9 @@
 
 `GET /xiaozhi/customer/binding-flows/{flow_id}` 仅接受原浏览器，返回脱敏身份状态、设备显示名、用途、请求状态和授权状态；不会延长闲置时间。页面扫描和创建 flow 不消费设备请求。`POST /xiaozhi/customer/binding-flows` 接受 JSON `{request_handle}`、`X-CSRF-Token` 和精确 Origin；手机页面使用等价表单。成功返回 `data.flow_id`、`data.authorization_url`。回调只将 flow 置为 `IDENTITY_VERIFIED`，清除临时参数后显示等待确认。它不是设备已绑定/恢复的证明。
 
-授权状态：`ACTIVE`、`REFRESHING`、`REFRESH_UNCERTAIN`、`REAUTH_REQUIRED`。#13 必须读取当前 `generation` 和状态，不能凭旧 flow 的授权快照恢复设备。`REAUTH_REQUIRED` 表示确认的当前刷新授权不可恢复，须按已确认产品规则停用关联本地调用许可；`REFRESH_UNCERTAIN` 表示响应或保存结果不确定，不得把网络/5xx 当作集市退出，也不得删除仍独立存在的业务 Key。补充服务端消费接口时须保留这些含义。
+授权状态：`ACTIVE`、`REFRESHING`、`REFRESH_UNCERTAIN`、`REAUTH_REQUIRED`。#13 必须读取当前 `generation` 和状态，不能凭旧 flow 的授权快照恢复设备。`REAUTH_REQUIRED` 表示收到 invalid_grant，或已确认轮换成功但新响应经三次保存尝试仍无法持久化，当前刷新链不可恢复；须按已确认产品规则停用关联本地调用许可。`REFRESH_UNCERTAIN` 表示响应或崩溃结果不确定，不得把网络/5xx 当作集市退出，也不得删除仍独立存在的业务 Key。补充服务端消费接口时须保留这些含义。
 
-刷新提前 30 秒触发，数据库条件更新跨实例抢占，发请求前提交 `REFRESHING` 并清空旧刷新令牌的可重用存储；成功持久化新的轮换令牌后恢复 ACTIVE。响应丢失、保存失败和崩溃遗留不重发旧令牌，超时遗留变为 UNCERTAIN。新登录使用数据库流程顺序和授权代际保护，旧回调/旧刷新结果不能覆盖新授权。
+刷新提前 30 秒触发，数据库条件更新跨实例抢占，发请求前提交 `REFRESHING` 并清空旧刷新令牌的可重用存储；成功持久化新的轮换令牌后恢复 ACTIVE。响应丢失和崩溃遗留不重发旧令牌，超时遗留变为 UNCERTAIN。收到成功轮换响应后，保存失败只重试持久化同一份新响应，最多三次；仍失败时标记 REAUTH_REQUIRED，不把共享 Key 说成已撤销。新登录使用数据库流程顺序和授权代际保护，旧回调/旧刷新结果不能覆盖新授权。
 
 后通道单独使用 Nimbus LogoutTokenValidator 并检查时间、events、jti、sid/sub、禁用 nonce。sid 优先，否则按 issuer+sub；会话失效与共享授权状态分开。短数据库锁只覆盖身份落库与通知处理，不覆盖外部请求，防止“通知先到、回调后到”恢复旧身份。重复 jti 幂等 204。无效通知返回 400，不修改会话。
 
@@ -58,7 +58,7 @@ java -cp "target/test-classes:target/classes:$(cat target/browser-classpath.txt)
 在 Ubuntu 安装该脚本固定版本的依赖后执行：
 
 ```bash
-npm --prefix scripts/customer-identity install --ignore-scripts --no-audit --no-fund
+npm --prefix scripts/customer-identity ci --ignore-scripts --no-audit --no-fund
 FIXTURE_FILE=/path/to/browser-fixture.json EVIDENCE_DIR=/private/evidence \
 CHROME_PATH=/path/to/chrome-headless-shell BROWSER_PROXY_IP=TEST_PROXY_IP \
 node scripts/customer-identity/check-browser.mjs

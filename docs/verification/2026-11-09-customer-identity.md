@@ -30,6 +30,12 @@
 - 通知先到、回调后到会恢复会话；持久化通知、短事务锁及流程发起时间判断后通过。
 - Chromium 表单在 `no-referrer` 下提交 `Origin: null`，触发 403；手机入口改为 `same-origin`，仍严格校验公网 Origin，允许固定集市的表单重定向后通过。
 
+## 审查与构建
+
+规范轴发现一处请求校验重复，已统一复用服务校验。规格轴发现成功轮换后的保存失败被永久当作不确定，已改为重试保存同一响应，无法恢复时明确产生 REAUTH_REQUIRED；网络/5xx 仍为不确定，旧刷新令牌不重发。对应真实 MySQL 失败测试先复现错误状态，再验证修复。两项均已复查确认解决，修复后全套 239 项测试及浏览器回归再次通过。
+
+`mvn package -DskipTests` 成功；检查正式 JAR 确认不含可控集市、浏览器 fixture、测试 Clock 或私有客户端 JSON。
+
 ## 证据与边界
 
 Ubuntu 私有运行目录 `.runtime/` 保存 `customer-test.log`、`customer-restart.log`、`full-java.log`、`browser-evidence/browser-result.json` 和截图。仓库只保存本脱敏报告和截图，不保存完整运行日志或凭据。

@@ -2,7 +2,6 @@
 """Operator-only #11 test-account check. Never called by the product sign-out path."""
 import argparse
 import json
-import os
 from pathlib import Path
 import stat
 import urllib.error

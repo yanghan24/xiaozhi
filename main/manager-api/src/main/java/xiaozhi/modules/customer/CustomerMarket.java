@@ -36,9 +36,13 @@ final class CustomerMarket {
     private final java.time.Clock clock;
     CustomerMarket(CustomerOidcConfig config, java.time.Clock clock) { this.config = config; this.clock = clock; }
     record Identity(String subject, String sid, long issuedAt, String access, String refresh,
-                    long accessExpiresAt, String businessKey, Long keyExpiresAt) {}
+                    long accessExpiresAt, String businessKey, Long keyExpiresAt) {
+        @Override public String toString() { return "Identity[redacted]"; }
+    }
     record Logout(String issuer, String jti, String sid, String subject, long issuedAt, long expiresAt) {}
-    record Refreshed(String access, String refresh, long expiresAt) {}
+    record Refreshed(String access, String refresh, long expiresAt) {
+        @Override public String toString() { return "Refreshed[redacted]"; }
+    }
     Refreshed refresh(String refreshToken) {
         try {
             var request = new TokenRequest(metadata().getTokenEndpointURI(),

@@ -101,8 +101,8 @@ class CustomerIdentityHttpTest {
         try {
             CustomerTestTime.offset.set(271_000);
             long deadline=System.nanoTime()+java.time.Duration.ofSeconds(8).toNanos();
-            while (!"REFRESH_UNCERTAIN".equals(status(flow).get("authorization_status")) && System.nanoTime()<deadline) Thread.sleep(50);
-            assertEquals("REFRESH_UNCERTAIN",status(flow).get("authorization_status"));
+            while (!"REAUTH_REQUIRED".equals(status(flow).get("authorization_status")) && System.nanoTime()<deadline) Thread.sleep(50);
+            assertEquals("REAUTH_REQUIRED",status(flow).get("authorization_status"));
             Thread.sleep(500);
             assertEquals(1,market.refreshAttempts.get(original).get());
         } finally { db.execute("DROP TRIGGER issue29_fail_refresh_save"); }
@@ -253,7 +253,7 @@ class CustomerIdentityHttpTest {
         return new Flow(headers, data.get("flow_id").toString(), data.get("authorization_url").toString());
     }
     @Test
-    void oidcSuccessConfirmsIdentityWithoutBindingAndRemovesCodeFromAddress() {
+    void oidcSuccessConfirmsIdentityAndRemovesCodeFromAddress() {
         Flow flow = start();
         String code = market.approve(flow.url());
         String state = ControlledMarket.params(java.net.URI.create(flow.url()).getRawQuery()).get("state");
@@ -267,7 +267,6 @@ class CustomerIdentityHttpTest {
         var data = (Map<?, ?>) status.getBody().get("data");
         assertEquals("IDENTITY_VERIFIED", data.get("status"));
         assertEquals("ACTIVE", data.get("authorization_status"));
-        assertEquals(false, data.get("device_permission_changed"));
     }
 
     @Test

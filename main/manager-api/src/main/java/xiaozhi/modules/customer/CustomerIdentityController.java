@@ -95,14 +95,17 @@ public class CustomerIdentityController {
     @GetMapping("/bind/{handle}")
     public ResponseEntity<String> bindingPage(@PathVariable String handle,
             @CookieValue(name="customer_browser", required=false) String existingCookie) {
-        var rows = db.queryForList("SELECT r.*, d.alias FROM customer_device_request r JOIN ai_device d ON d.id=r.device_id WHERE r.handle=?", handle);
-        if (rows.isEmpty()) return ResponseEntity.status(404).body("设备请求不存在");
-        var request = rows.getFirst();
+        Map<String,Object> request;
+        try { request=identities.request(handle); }
+        catch (CustomerFailure failure) {
+            String message = switch (failure.status) {
+                case 404 -> "设备请求不存在";
+                case 410 -> "设备请求已过期，请重新扫码";
+                default -> "设备请求已使用";
+            };
+            return ResponseEntity.status(failure.status).header("Cache-Control","no-store").body(message);
+        }
         long now = clock.millis();
-        if (((Number) request.get("expires_at_ms")).longValue() <= now)
-            return ResponseEntity.status(410).body("设备请求已过期，请重新扫码");
-        if (Boolean.TRUE.equals(request.get("consumed")))
-            return ResponseEntity.status(409).body("设备请求已使用");
         String browser = existingCookie;
         String csrf;
         boolean created = false;
