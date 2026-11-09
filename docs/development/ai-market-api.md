@@ -114,7 +114,7 @@ curl --request POST 'https://aimarket.hncig.cn:4090/api/ai_apaas/v1/app/conversa
 
 用户确认测试先用微软免费 `TTS_EdgeTTS`，无需等待集市 TTS 上线，也不要求另开 Azure 付费资源。已在 Ubuntu voice 容器使用 `zh-CN-XiaoxiaoNeural` 完成实际合成：MP3 21888 字节、24000 Hz 单声道、3.648 秒，ffprobe 识别及 FFmpeg 解码通过。证据与边界见 [#12](https://github.com/yanghan24/xiaozhi/issues/12)。
 
-该测试未验证音箱播放、集市鉴权或结算。用户已有独立账号，但暂不开展规范通真实调用；真实登录联调待公网映射就绪。以下请求保留为接口资料，不能当作已经执行的测试。
+该测试未验证音箱播放、集市鉴权或结算。用户已有独立账号，但暂不开展规范通真实调用。2026-11-09 公网 HTTPS/WSS 已验证，真实集市登录仍待客户端核对、回调实现及 Ubuntu 到集市出站恢复，见[登记交接](../handoff/ai-market-registration-2026-11-09.md)。以下请求保留为接口资料，不能当作已经执行的测试。
 
 ## 集市语音合成候选：千问（尚未上线）
 

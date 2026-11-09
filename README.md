@@ -15,5 +15,6 @@
 - [集市当前接入基线](docs/planning/voice-backend-discovery.md#当前集市接入基线2026-11-06)、[契约核对](docs/development/ai-market-contract-review-2026-11-06.md)
 - [新版集市接入原文](<元筑AI集市应用接入接口文档(1).md>)、[旧版对照](元筑AI集市应用接入接口文档.md)
 - [规范通与 TTS 资料](docs/development/ai-market-api.md)、[原始问卷及更新说明](to-questionnaire-ai-market-integration.md)
+- [发给集市的 web 应用登记与联调信息](docs/handoff/ai-market-registration-2026-11-09.md)、[公网 HTTPS/WSS 验证](docs/verification/2026-11-09-public-tls-entry.md)
 
 本项目使用根目录 `compose.yaml` 启动独立测试环境。保留的 [上游 README](README.upstream.md)、`docs/Deployment_all.md` 和 `main/xiaozhi-server/docker-compose_all.yml` 是来源资料；其中的预构建镜像、全局容器名和清理步骤不是本项目本机运行流程。

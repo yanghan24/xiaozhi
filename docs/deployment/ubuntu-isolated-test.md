@@ -1,5 +1,7 @@
 # Ubuntu 独立测试部署与复验
 
+**2026-11-09 入口更新：** 已复用现有环境启用独立 TLS 入口，公网 `bridge.hncig.cn:18443` 纯 TCP 转发到 `192.168.168.114:443`，正式 HTTPS OTA/WSS 地址已发布，Ubuntu 直接公网协议验证通过。部署、证书和回退见[本轮记录](../verification/2026-11-09-public-tls-entry.md)。登录回调/注销通知尚未实现，集市出站 443/4090 仍受阻；对外交接见[应用登记信息](../handoff/ai-market-registration-2026-11-09.md)。下文 2026-11-06 状态与 LAN 模板流程保留原有验收范围，不再表示当前无 443 监听。
+
 记录日期：2026-11-06，Asia/Hong_Kong。后续后台服务、回归测试与设备协议检查统一在 Ubuntu `192.168.168.114` 进行，本机用于编辑、SSH 和浏览器访问。小智已部署到 `/home/jt/xiaozhi-ubuntu-test`，管理端、内部设备协议及同设备跨服务重启检查已通过，详见 [Ubuntu 实际验收](../verification/2026-11-06-ubuntu-deployment.md)。设备网络入口及真机音频仍待验证。[Windows 本机复验](../verification/2026-11-06-windows-ubuntu.md)保留为历史结果。
 
 当前环境复用服务器已有 `.env`、账号和数据卷。下文 clone、解压、初始化密码只用于全新环境；服务器 GitHub/Docker Registry 直连失败时使用已校验的[离线部署包](offline-bundle.md)。不要在当前数据库上重新初始化密码。
