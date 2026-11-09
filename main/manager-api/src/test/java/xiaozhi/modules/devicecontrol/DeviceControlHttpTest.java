@@ -26,6 +26,10 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.boot.context.logging.LoggingApplicationListener;
 import xiaozhi.AdminApplication;
+import java.io.ByteArrayInputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
@@ -267,6 +271,43 @@ class DeviceControlHttpTest {
         assertNotEquals(resume.path("binding_request").path("request_id"), account.path("binding_request").path("request_id"));
         assertEquals(409, post("requests", "resume", "{\"intent\":\"auto\",\"expected_permission_version\":1}").statusCode());
         assertEquals(1, account.path("permission_version").asLong());
+    }
+
+    @Test
+    void unsupportedContentTypesAndChunkedOversizedBodiesUseProtocolErrors() throws Exception {
+        for (String contentType : new String[] {"", "text/plain", "application/json"}) {
+            var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/xiaozhi/device-control/v1/requests"))
+                    .header("Device-Id", DEVICE).header("Authorization", "Bearer " + CREDENTIAL)
+                    .header("X-Forwarded-Proto", "https").header("Idempotency-Key", "body-limit");
+            if (!contentType.isEmpty()) request.header("Content-Type", contentType);
+            var publisher = contentType.equals("application/json")
+                    ? HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(new byte[8192]))
+                    : HttpRequest.BodyPublishers.ofString("{\"intent\":\"auto\",\"expected_permission_version\":1}");
+            var response = http.send(request.POST(publisher).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, response.statusCode(), "Content-Type=" + contentType + " " + response.body());
+            assertEquals("INVALID_REQUEST", json.readTree(response.body()).path("code").asText());
+            assertEquals("no-store", response.headers().firstValue("Cache-Control").orElse(""));
+        }
+    }
+
+    @Test
+    void oversizedChunkedUploadIsRejectedBeforeTheSenderFinishes() throws Exception {
+        try (var socket = new Socket("localhost", port)) {
+            socket.setSoTimeout(3000);
+            var output = socket.getOutputStream();
+            String headers = "POST /xiaozhi/device-control/v1/requests HTTP/1.1\r\nHost: localhost\r\n"
+                    + "Device-Id: " + DEVICE + "\r\nAuthorization: Bearer " + CREDENTIAL + "\r\n"
+                    + "X-Forwarded-Proto: https\r\nContent-Type: application/json\r\n"
+                    + "Idempotency-Key: chunked-incomplete\r\nTransfer-Encoding: chunked\r\n\r\n2000\r\n";
+            output.write(headers.getBytes(StandardCharsets.US_ASCII));
+            output.write(" ".repeat(8192).getBytes(StandardCharsets.US_ASCII));
+            output.write("\r\n".getBytes(StandardCharsets.US_ASCII));
+            output.flush();
+            // No final chunk: an unbounded converter would wait here for the rest of the body.
+            String status = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII)).readLine();
+            assertNotNull(status);
+            assertTrue(status.contains(" 400 "), status);
+        }
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.apache.shiro.web.filter.PathMatchingFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
 import java.util.Set;
+import org.springframework.http.MediaType;
 
 /** Device credentials never fall through to administrator authentication. */
 public class DeviceCredentialFilter extends PathMatchingFilter {
@@ -45,7 +46,7 @@ public class DeviceCredentialFilter extends PathMatchingFilter {
     }
 
     private void validateRequest(HttpServletRequest request) {
-        for (String header : Set.of("Authorization", "Device-Id", "Idempotency-Key")) {
+        for (String header : Set.of("Authorization", "Device-Id", "Idempotency-Key", "Content-Type")) {
             if (Collections.list(request.getHeaders(header)).size() > 1) throw new ControlFailure(400, "INVALID_REQUEST");
         }
         String path = request.getRequestURI().substring(request.getContextPath().length());
@@ -54,10 +55,19 @@ public class DeviceCredentialFilter extends PathMatchingFilter {
         boolean mutation = Set.of("/device-control/v1/requests", "/device-control/v1/state-acks").contains(path)
                 && request.getMethod().equals("POST");
         if (!state && !mutation) throw new ControlFailure(400, "INVALID_REQUEST");
+        if (mutation) {
+            try {
+                MediaType type = MediaType.parseMediaType(request.getContentType() == null ? "" : request.getContentType());
+                if (!"application".equalsIgnoreCase(type.getType()) || !"json".equalsIgnoreCase(type.getSubtype())) {
+                    throw new ControlFailure(400, "INVALID_REQUEST");
+                }
+            } catch (IllegalArgumentException invalid) {
+                throw new ControlFailure(400, "INVALID_REQUEST");
+            }
+        }
         var allowedQuery = state ? Set.of("after_revision", "wait_ms") : Set.<String>of();
         request.getParameterMap().forEach((key, values) -> {
             if (!allowedQuery.contains(key) || values.length != 1) throw new ControlFailure(400, "INVALID_REQUEST");
         });
-        if (request.getContentLengthLong() > 4096) throw new ControlFailure(400, "INVALID_REQUEST");
     }
 }
