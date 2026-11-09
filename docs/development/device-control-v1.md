@@ -2,6 +2,8 @@
 
 依据 [PR #25 的契约](../contracts/device-binding-v1.md) 和 [#13](https://github.com/yanghan24/xiaozhi/issues/13)。本切片交付设备准入，以及 `state`、`requests`、`state-acks` 三个 HTTPS 接口。默认关闭，尚不用于产品上线。
 
+Ubuntu 执行结果见[验证记录](../verification/2026-11-09-device-control-v1.md)。正文在 XSS/MVC 读取前限制为 4096 字节，包含分块传输；设备写接口只接受 application/json，错误响应沿用本协议的 HTTP 状态和字符串 code。
+
 ## 范围
 
 - 凭据使用 32 字节安全随机数；服务器只保存 SHA-256 校验材料，以唯一哈希定位设备，再核对 Device-Id。设备标识不作为秘密。准入档案与上游 `ai_device.user_id` 分开，避免把运营账号当作集市归属账号。
