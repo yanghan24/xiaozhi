@@ -1,0 +1,726 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "小智设备绑定与控制 v1",
+  "description": "Use endpoint-specific $defs for request and response validation. Cross-field, identity and timing rules also apply as documented in device-binding-v1.md.",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/stateResponse"
+    },
+    {
+      "$ref": "#/$defs/requestResponse"
+    },
+    {
+      "$ref": "#/$defs/stateAckResponse"
+    },
+    {
+      "$ref": "#/$defs/bindingFlowResponse"
+    },
+    {
+      "$ref": "#/$defs/confirmResponse"
+    },
+    {
+      "$ref": "#/$defs/signOutResponse"
+    },
+    {
+      "$ref": "#/$defs/operationResponse"
+    },
+    {
+      "$ref": "#/$defs/errorResponse"
+    },
+    {
+      "$ref": "#/$defs/otaDiscoveryExtension"
+    }
+  ],
+  "$defs": {
+    "safeInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "httpsUrl": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^https://[^\\s]+$",
+      "format": "uri"
+    },
+    "qrUrl": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^https://[\\x21-\\x7e]+$",
+      "format": "uri",
+      "maxLength": 512
+    },
+    "wssUrl": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^wss://[^\\s]+$",
+      "format": "uri"
+    },
+    "bindingRequest": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "bind",
+            "resume",
+            "account"
+          ]
+        },
+        "verification_uri": {
+          "$ref": "#/$defs/qrUrl"
+        },
+        "created_at_ms": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at_ms": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_in_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        }
+      },
+      "required": [
+        "request_id",
+        "purpose",
+        "verification_uri",
+        "created_at_ms",
+        "expires_at_ms",
+        "expires_in_ms"
+      ],
+      "additionalProperties": false
+    },
+    "lease": {
+      "type": "object",
+      "properties": {
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "expires_at_ms": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_in_ms": {
+          "const": 60000
+        }
+      },
+      "required": [
+        "permission_version",
+        "expires_at_ms",
+        "expires_in_ms"
+      ],
+      "additionalProperties": false
+    },
+    "voice": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/wssUrl"
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "expires_at_ms": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "protocol_version": {
+          "const": 1
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        }
+      },
+      "required": [
+        "url",
+        "token",
+        "expires_at_ms",
+        "protocol_version",
+        "permission_version"
+      ],
+      "additionalProperties": false
+    },
+    "stateData": {
+      "type": "object",
+      "properties": {
+        "device_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "server_time_ms": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "binding_state": {
+          "type": "string",
+          "enum": [
+            "unbound",
+            "bound"
+          ]
+        },
+        "use_permission": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "blocked"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "unbound",
+            "ready",
+            "user_signed_out",
+            "market_auth_required",
+            "device_disabled"
+          ]
+        },
+        "binding_request": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/bindingRequest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lease": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/lease"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "voice": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/voice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "device_id",
+        "revision",
+        "permission_version",
+        "server_time_ms",
+        "binding_state",
+        "use_permission",
+        "reason",
+        "binding_request",
+        "lease",
+        "voice"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "binding_state": {
+              "const": "unbound"
+            },
+            "use_permission": {
+              "const": "blocked"
+            },
+            "reason": {
+              "const": "unbound"
+            },
+            "lease": {
+              "type": "null"
+            },
+            "voice": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "binding_state": {
+              "const": "bound"
+            },
+            "use_permission": {
+              "const": "allowed"
+            },
+            "reason": {
+              "const": "ready"
+            },
+            "lease": {
+              "$ref": "#/$defs/lease"
+            },
+            "voice": {
+              "$ref": "#/$defs/voice"
+            }
+          }
+        },
+        {
+          "properties": {
+            "binding_state": {
+              "const": "bound"
+            },
+            "use_permission": {
+              "const": "blocked"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "user_signed_out",
+                "market_auth_required"
+              ]
+            },
+            "lease": {
+              "type": "null"
+            },
+            "voice": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "use_permission": {
+              "const": "blocked"
+            },
+            "reason": {
+              "const": "device_disabled"
+            },
+            "lease": {
+              "type": "null"
+            },
+            "voice": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "stateResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/stateData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "requestCreateBody": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "account"
+          ]
+        },
+        "expected_permission_version": {
+          "$ref": "#/$defs/safeInt"
+        }
+      },
+      "required": [
+        "intent",
+        "expected_permission_version"
+      ],
+      "additionalProperties": false
+    },
+    "requestData": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "server_time_ms": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "binding_request": {
+          "$ref": "#/$defs/bindingRequest"
+        }
+      },
+      "required": [
+        "revision",
+        "permission_version",
+        "server_time_ms",
+        "binding_request"
+      ],
+      "additionalProperties": false
+    },
+    "requestResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/requestData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "stateAckBody": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "audio_stopped": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "revision",
+        "permission_version",
+        "audio_stopped"
+      ],
+      "additionalProperties": false
+    },
+    "stateAckData": {
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "revision": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        }
+      },
+      "required": [
+        "accepted",
+        "revision",
+        "permission_version"
+      ],
+      "additionalProperties": false
+    },
+    "stateAckResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/stateAckData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "bindingFlowBody": {
+      "type": "object",
+      "properties": {
+        "request_handle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "request_handle"
+      ],
+      "additionalProperties": false
+    },
+    "bindingFlowData": {
+      "type": "object",
+      "properties": {
+        "flow_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "authorization_url": {
+          "$ref": "#/$defs/httpsUrl"
+        }
+      },
+      "required": [
+        "flow_id",
+        "authorization_url"
+      ],
+      "additionalProperties": false
+    },
+    "bindingFlowResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/bindingFlowData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "emptyBody": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "confirmData": {
+      "type": "object",
+      "properties": {
+        "device_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        }
+      },
+      "required": [
+        "device_session_id",
+        "revision",
+        "permission_version"
+      ],
+      "additionalProperties": false
+    },
+    "confirmResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/confirmData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "signOutData": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "execution": {
+          "const": "stored"
+        }
+      },
+      "required": [
+        "operation_id",
+        "permission_version",
+        "execution"
+      ],
+      "additionalProperties": false
+    },
+    "signOutResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/signOutData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "operationData": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "execution": {
+          "type": "string",
+          "enum": [
+            "stored",
+            "device_acknowledged",
+            "superseded"
+          ]
+        }
+      },
+      "required": [
+        "operation_id",
+        "permission_version",
+        "execution"
+      ],
+      "additionalProperties": false
+    },
+    "operationResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/operationData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "errorResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "INVALID_REQUEST",
+            "UNSUPPORTED_VERSION",
+            "INVALID_DEVICE_CREDENTIAL",
+            "CUSTOMER_AUTH_REQUIRED",
+            "DEVICE_NOT_ADMITTED",
+            "OWNER_REQUIRED",
+            "REQUEST_NOT_FOUND",
+            "STATE_CHANGED",
+            "REQUEST_CONSUMED",
+            "DEVICE_ALREADY_BOUND",
+            "REQUEST_NOT_NEEDED",
+            "PURPOSE_MISMATCH",
+            "IDEMPOTENCY_CONFLICT",
+            "REQUEST_EXPIRED",
+            "RATE_LIMITED",
+            "TEMPORARILY_UNAVAILABLE"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retry_after_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "otaDiscoveryExtension": {
+      "type": "object",
+      "properties": {
+        "device_control": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "base_url": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^https://[^\\s]+/$",
+              "maxLength": 512
+            }
+          },
+          "required": [
+            "version",
+            "base_url"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "device_control"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
