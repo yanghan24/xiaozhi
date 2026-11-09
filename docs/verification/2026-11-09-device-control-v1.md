@@ -1,5 +1,34 @@
 # 设备控制 v1 首个切片：Ubuntu 验证
 
+## PR #26 修改意见复验（最新）
+
+2026-11-09：业务修复提交 `8b9f497f5bf89ace8f8b3caa6b53d49b34d441b5`，对应 [审查意见](https://github.com/yanghan24/xiaozhi/pull/26#issuecomment-6735842564)。以下为最新结果，后文 218 项记录保留为首轮历史证据。
+
+- P1：使用递进时钟复现响应时间差 1 ms 和截止边界零寿命请求，两个失败用例修复后通过；同一响应只采样一次时间，过期请求返回 410。
+- P2：复现成功 ACK 在二维码或许可版本变化后重放失败。新增历史成功表，与最新 ACK 分离；重放不回写最新证据，未知旧 ACK 仍拒绝。针对性回归先出现 3 项失败，修复后全部通过。
+- 额外发现全局 Long 序列化把协议整数变成字符串。真实 HTTP 数字类型断言先失败；控制接口改用整数 JSON 节点后通过，管理接口序列化保持原行为。
+- Ubuntu 完整 Java 回归 **223 项，0 失败、0 错误、0 跳过**；其中设备控制 HTTP 用例 17 项。集成测试守卫和 API package 均通过。日志：`/home/jt/device-control-v1-build/pr26-full.log`。
+- 使用独立 Compose 项目 `xiaozhi-control-review-tests` 的 MySQL/Redis。导出的 created、retried、state、ack 四份真实 HTTP 响应全部通过仓库 JSON Schema；请求时间差严格一致且为正。报文位于构建目录 `main/manager-api/target/device-control-compatibility/`，仅含合成测试数据。
+- 两路独立复核（规范轴、规格轴）未发现本轮修复的可操作问题。
+
+本轮 API JAR SHA-256：
+
+```text
+014f7554ac4daadf9b252d10878b2261242ec3b2a48c197309a4db71d88c0739
+```
+
+### 固件原始模型兼容性
+
+仓库固件分支 `feat/13-device-binding-v1` 的固定提交 `16f6fd5204927ebb8509a7adde1b2edf4efed2df` 已取回，未修改其模型或测试源码。Ubuntu 临时容器使用 GCC 13.3.0、C++17 和 `-Wall -Wextra -Werror`，运行原有 device_control、controlled_audio_access、processing_audio_buffer 三个主机测试，**3/3 通过**。
+
+依赖选用符合固件 `idf >=5.5.2` 声明的 ESP-IDF v5.5.2 portable HTTP parser，以及其 cJSON 子模块提交 `c859b25da02955fef659d658b8f324b5cde87be3`。这里只构建主机测试，没有构建完整 ESP-IDF 固件。
+
+额外 C++ 驱动直接调用未修改的 `Model::ApplyState`、`Model::ApplyRequest`、`ValidateAckResponse`：上述四份真实服务器 HTTP 报文全部接受，blocked 始终不授予语音；将 state 的 expires_in_ms 减少 1 ms 后，原模型仍返回 Invalid。兼容性结论来自实际解析执行，而非放宽固件验证或只检查 JSON Schema。
+
+源码快照、驱动、依赖及日志保存在 Ubuntu `/home/jt/pr26-firmware-check/`，日志为 `host-tests.log`。本轮临时构建容器及专用数据库/Redis 容器、卷已清理；服务端构建日志和报文保留。本轮没有改动部署目录、重启现有服务或刷机；公网 HTTPS、OIDC 和真机交互仍未验收。
+
+## 首轮记录
+
 日期：2026-11-09，Asia/Hong_Kong。基础提交 `9ea32edf536ff510d92f58e77555796ed2d2c49b`（PR #25）；本次业务代码提交 `4df93e5ed159d019aede1a3c83768124e292b5ac`。交付范围见[运行说明](../development/device-control-v1.md)。本记录不代表 #13 完成或产品已上线。
 
 ## 环境与结果
