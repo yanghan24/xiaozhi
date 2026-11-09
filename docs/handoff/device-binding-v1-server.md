@@ -35,6 +35,8 @@ git show origin/codex/11-public-tls-entry:docs/contracts/device-binding-v1.examp
 
 ## 仍待输入
 
-公网域名/端口、证书和 TCP 映射已落实，设备 HTTPS/WSS 已验证。运维仍需核对 Ubuntu 到集市 443/4090 出站和集市到待实现通知路径的可达性。集市侧请使用[应用登记交接材料](ai-market-registration-2026-11-09.md)，核对实际客户端登记和获准范围及已有私有配置，不重新索取整份协议。固件/交付：正式逐设备凭据写入、保留和恢复、实物板型/Flash/revision。客户会话自然到期规则仍按 #11 落实，不把 60 秒设备技术租约当作客户登录期限。
+2026-11-09 用户提供的实际 Client ID/Secret 已保存在 Ubuntu `/home/jt/xiaozhi-ubuntu-test/.runtime/ai-market/oidc-client.json`，目录 700、文件 600，jt 所有，回读一致；JSON 含 issuer、client_id、client_secret、redirect_uri、backchannel_logout_uri、requested_scopes。该文件是私有交付材料，现有应用尚未读取；实现时接入受保护的服务配置，不打包进镜像、返回浏览器或记录秘密。`requested_scopes` 是申请值，不是已获准证据，无需再次索取同一凭据。
+
+公网域名/端口、证书和 TCP 映射已落实，设备 HTTPS/WSS 已验证。运维仍需核对 Ubuntu 到集市 443/4090 出站（本次复查仍超时）和集市到待实现通知路径的可达性。集市侧请使用[应用登记交接材料](ai-market-registration-2026-11-09.md)，核对实际客户端类型/认证、登记、获准范围、刷新设置及凭据可用性。固件/交付：正式逐设备凭据写入、保留和恢复、实物板型/Flash/revision。客户会话自然到期规则仍按 #11 落实，不把 60 秒设备技术租约当作客户登录期限。
 
 规范通真实测试继续暂停；正式集市 TTS 等外部条件。可以准备接口和可控响应回归，但不能以此解除 #11 依赖、勾选真机验收或关闭 #13/#14。实现遇到必须改变协议的事实时，先更新本文链接的契约与 Schema/示例，双方同步版本后再实施，避免各自改字段。

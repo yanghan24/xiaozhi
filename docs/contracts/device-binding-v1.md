@@ -211,7 +211,7 @@ expected_permission_version 与当前版本不一致时返回 409 STATE_CHANGED�
 
 **后通道通知：** 此端点依据签名 JWT 认证，不依赖客户/管理员 Cookie 或浏览器 CSRF Token；不能因放行该通知而放行其他客户/运营接口。验证签名、iss、aud、iat、exp、jti 以及 `events` 中的 `http://schemas.openid.net/event/backchannel-logout`，拒绝含 nonce 或同时缺失 sid/sub 的通知。按已验证的 sid 定位匹配本地会话；无 sid 而有 sub 时，处理该 issuer + sub 在本应用的会话。有效重复 jti 幂等成功，无效通知返回错误且不改变会话。去重与会话失效记录须跨服务重启有效。旧通知不得误伤新会话；浏览器注销不直接等于共享 Key、Refresh Token 或应用授权已撤销，真实授权失效另按实际关联范围处理。
 
-以上补充依据[集市接入文档](../../元筑AI集市应用接入接口文档(1).md)第 4、5 节。当前回调及通知路径均为 404；实现时须同时加入公网代理允许路径，再分别验证浏览器跳转与集市服务器通知。请求 scope 为 `openid profile credentials:manage offline_access`，实际获准范围、Client ID/Secret 和登记结果仍由 #11 提供；客户会话自然到期数值尚未确定。
+以上补充依据[集市接入文档](../../元筑AI集市应用接入接口文档(1).md)第 4、5 节。当前回调及通知路径均为 404；实现时须同时加入公网代理允许路径，再分别验证浏览器跳转与集市服务器通知。实际 Client ID/Secret 已由用户提供并保存在 Ubuntu 私有文件，见[服务器交接](../handoff/device-binding-v1-server.md)；尚未接入应用或验证凭据可用性。请求 scope 为 `openid profile credentials:manage offline_access`，实际获准范围和登记结果仍由 #11 核实；客户会话自然到期数值尚未确定。
 
 `device_session_id` 是服务器保存的设备页面上下文选择符，不是持有码即可使用的认证凭据；每次操作仍验证客户会话、归属及归属代际。首次 bind/resume 确认后建立该上下文；account 由 open-account 建立，不经 confirm 自动绑定或恢复许可。页面上下文保存对应许可版本，sign-out 必须与当前版本匹配；旧操作的同键重试只返回历史结果，旧页面的新变更请求须先刷新/重新确认，不能误停后来已恢复的会话。解绑行为继续按 #15 实现。二维码的 600 秒用于请求提交，已建立页面上下文的客户会话期限另按 #11 落实，不能混为一谈。
 
@@ -281,4 +281,4 @@ expected_permission_version 与当前版本不一致时返回 409 STATE_CHANGED�
 | 非 443 公网端口 | 真机 HTTPS、WSS Host/Upgrade、二维码、OIDC 回调与通知均使用实际外部端口 |
 | QR/固件体积与秘密 | 屏幕可扫，机密不入 URL/普通日志；构建镜像确实适配当前 OTA 槽 |
 
-当前公网域名/端口、证书、TCP 映射及设备 HTTPS/WSS 已取得并验证，见[公网记录](../verification/2026-11-09-public-tls-entry.md)。仍待外部核对：实际 web 客户端登记与私有配置、Ubuntu 到集市 443/4090 的出站网络。仍待专项落实：客户/OIDC 接口实现、逐设备凭据交付/恢复、实物 Flash/revision/分区、浏览器与本地登录自然到期的最终规则、正式规范通/TTS 契约。以上关卡不改变已定字段和单台退出行为，缺少时保留未验收状态。
+当前公网域名/端口、证书、TCP 映射及设备 HTTPS/WSS 已取得并验证，见[公网记录](../verification/2026-11-09-public-tls-entry.md)。集市客户端凭据已收到并私有保存；仍待外部核对：实际 web 客户端设置/登记/获准范围及凭据可用性、Ubuntu 到集市 443/4090 的出站网络。仍待专项落实：客户/OIDC 接口与私有配置接入、逐设备凭据交付/恢复、实物 Flash/revision/分区、浏览器与本地登录自然到期的最终规则、正式规范通/TTS 契约。以上关卡不改变已定字段和单台退出行为，缺少时保留未验收状态。
