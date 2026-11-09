@@ -1,0 +1,28 @@
+# Standalone ingress project; connects to the already running application network.
+# Use its own --env-file, never initialize or recreate the application services.
+name: ${XIAOZHI_PROJECT_NAME:?Set the existing application project name}-public-entry
+services:
+  public-entry:
+    image: ${PUBLIC_ENTRY_IMAGE:-nginx:1.27.4-alpine@sha256:4ff102c5d78d254a6f0da062b3cf39eaf07f01eec0927fd21e219d0af8bc0591}
+    ports:
+      - "${PUBLIC_ENTRY_BIND_IP:?Set the Ubuntu LAN address}:443:443"
+    volumes:
+      - type: bind
+        source: ${PUBLIC_ENTRY_CONFIG:?Set the absolute nginx-tls.conf path}
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${PUBLIC_ENTRY_CERT_DIR:?Set the private certificate directory}
+        target: /etc/nginx/tls
+        read_only: true
+        bind:
+          create_host_path: false
+    networks:
+      - application
+    mem_limit: 96m
+networks:
+  application:
+    external: true
+    name: ${XIAOZHI_PROJECT_NAME:?Set the existing application project name}_default
