@@ -1,0 +1,229 @@
+[
+  {
+    "name": "ota_discovery_nondefault_public_port",
+    "schema_ref": "#/$defs/otaDiscoveryExtension",
+    "payload": {
+      "device_control": {
+        "version": 1,
+        "base_url": "https://speaker.example.com:8443/xiaozhi/device-control/v1/"
+      }
+    }
+  },
+  {
+    "name": "create_auto_request",
+    "schema_ref": "#/$defs/requestCreateBody",
+    "payload": {
+      "intent": "auto",
+      "expected_permission_version": 3
+    }
+  },
+  {
+    "name": "create_request_response",
+    "schema_ref": "#/$defs/requestResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "revision": 27,
+        "permission_version": 3,
+        "server_time_ms": 1794182400000,
+        "binding_request": {
+          "request_id": "req_example",
+          "purpose": "bind",
+          "verification_uri": "https://speaker.example.com:8443/xiaozhi/bind/EXAMPLE_NOT_A_REAL_HANDLE",
+          "created_at_ms": 1794182400000,
+          "expires_at_ms": 1794183000000,
+          "expires_in_ms": 600000
+        }
+      }
+    }
+  },
+  {
+    "name": "unbound_show_bind_qr",
+    "schema_ref": "#/$defs/stateResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "device_id": "device_example_a",
+        "revision": 27,
+        "permission_version": 3,
+        "server_time_ms": 1794182400000,
+        "binding_state": "unbound",
+        "use_permission": "blocked",
+        "reason": "unbound",
+        "binding_request": {
+          "request_id": "req_example",
+          "purpose": "bind",
+          "verification_uri": "https://speaker.example.com:8443/xiaozhi/bind/EXAMPLE_NOT_A_REAL_HANDLE",
+          "created_at_ms": 1794182400000,
+          "expires_at_ms": 1794183000000,
+          "expires_in_ms": 600000
+        },
+        "lease": null,
+        "voice": null
+      }
+    }
+  },
+  {
+    "name": "active_hide_default_qr",
+    "schema_ref": "#/$defs/stateResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "device_id": "device_example_a",
+        "revision": 28,
+        "permission_version": 4,
+        "server_time_ms": 1794182400000,
+        "binding_state": "bound",
+        "use_permission": "allowed",
+        "reason": "ready",
+        "binding_request": null,
+        "lease": {
+          "permission_version": 4,
+          "expires_at_ms": 1794182460000,
+          "expires_in_ms": 60000
+        },
+        "voice": {
+          "url": "wss://speaker.example.com:8443/xiaozhi/v1/",
+          "token": "EXAMPLE_VOICE_TOKEN_NOT_A_DEVICE_OR_MARKET_CREDENTIAL",
+          "expires_at_ms": 1794182700000,
+          "protocol_version": 1,
+          "permission_version": 4
+        }
+      }
+    }
+  },
+  {
+    "name": "single_device_signed_out_show_resume_qr",
+    "schema_ref": "#/$defs/stateResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "device_id": "device_example_a",
+        "revision": 29,
+        "permission_version": 5,
+        "server_time_ms": 1794182400000,
+        "binding_state": "bound",
+        "use_permission": "blocked",
+        "reason": "user_signed_out",
+        "binding_request": {
+          "request_id": "req_resume_example",
+          "purpose": "resume",
+          "verification_uri": "https://speaker.example.com:8443/xiaozhi/bind/EXAMPLE_NOT_A_REAL_HANDLE",
+          "created_at_ms": 1794182400000,
+          "expires_at_ms": 1794183000000,
+          "expires_in_ms": 600000
+        },
+        "lease": null,
+        "voice": null
+      }
+    }
+  },
+  {
+    "name": "applied_stop_ack",
+    "schema_ref": "#/$defs/stateAckBody",
+    "payload": {
+      "revision": 29,
+      "permission_version": 5,
+      "audio_stopped": true
+    }
+  },
+  {
+    "name": "stop_ack_response",
+    "schema_ref": "#/$defs/stateAckResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "accepted": true,
+        "revision": 29,
+        "permission_version": 5
+      }
+    }
+  },
+  {
+    "name": "create_customer_flow",
+    "schema_ref": "#/$defs/bindingFlowBody",
+    "payload": {
+      "request_handle": "EXAMPLE_NOT_A_REAL_HANDLE"
+    }
+  },
+  {
+    "name": "customer_flow_response",
+    "schema_ref": "#/$defs/bindingFlowResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "flow_id": "flow_example",
+        "authorization_url": "https://aimarket.hncig.cn/oidc/auth?client_id=EXAMPLE&state=EXAMPLE&redirect_uri=https%3A%2F%2Fspeaker.example.com%3A8443%2Fxiaozhi%2Fcustomer%2Foidc%2Fcallback"
+      }
+    }
+  },
+  {
+    "name": "confirm_body",
+    "schema_ref": "#/$defs/emptyBody",
+    "payload": {}
+  },
+  {
+    "name": "confirm_response",
+    "schema_ref": "#/$defs/confirmResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "device_session_id": "session_example",
+        "revision": 28,
+        "permission_version": 4
+      }
+    }
+  },
+  {
+    "name": "single_device_signout_stored",
+    "schema_ref": "#/$defs/signOutResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "operation_id": "op_example",
+        "permission_version": 5,
+        "execution": "stored"
+      }
+    }
+  },
+  {
+    "name": "device_stop_confirmed",
+    "schema_ref": "#/$defs/operationResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "operation_id": "op_example",
+        "permission_version": 5,
+        "execution": "device_acknowledged"
+      }
+    }
+  },
+  {
+    "name": "expired_request",
+    "schema_ref": "#/$defs/errorResponse",
+    "payload": {
+      "version": 1,
+      "code": "REQUEST_EXPIRED",
+      "message": "请重新扫码"
+    }
+  },
+  {
+    "name": "rate_limited",
+    "schema_ref": "#/$defs/errorResponse",
+    "payload": {
+      "version": 1,
+      "code": "RATE_LIMITED",
+      "message": "请稍后重试",
+      "retry_after_ms": 5000
+    }
+  }
+]
