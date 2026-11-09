@@ -68,6 +68,8 @@ node scripts/customer-identity/check-browser.mjs
 
 ## #11 真实集市验证
 
+2026-11-09 已完成真实登录、刷新、共享撤销、拒绝与恢复，见[真实验收记录](../verification/2026-11-09-real-market-identity.md)。有效后通道通知尚未送达，下一步见[管理员检查清单](../handoff/2026-11-10-market-logout-notification.md)。下述步骤用于后续复验，不再表示全部尚未执行。
+
 接通 #28 的环境与登记后，使用专用集市测试账号从真实有效请求扫码，复核实际批准 scope、允许/拒绝、刷新、通知及客户端配置。不能将本切片的可控集市结果当作真实集市或真机验收。
 
 共享撤销工具仅为 `scripts/customer-identity/verify-shared-revocation.py`，没有产品 HTTP 入口。运维从专用测试账号的受保护验收会话准备 `0600` JSON（`access_token`、`subject`、`client_id`），不从客户页面导出。显式指定 `--client-config`、`--private-test-session`、`--confirm-revoke-test-subject` 后，工具先核对 UserInfo 和应用，检查 Key 可访问模型列表，再撤销该用户在该应用的共享授权，验证同一 Key 被拒绝；只输出 HTTP 状态，不打印凭据，不发起模型推理。该动作影响此测试账号在同一应用的所有终端，不能用于单台音箱退出。
