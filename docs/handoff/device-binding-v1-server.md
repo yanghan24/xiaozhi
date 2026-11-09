@@ -4,13 +4,13 @@
 
 ## 取得约定
 
-分支为 `docs/13-device-binding-contract-v1`。在现有 clone 中只读取文档即可，不需要切换正在运行服务的源码目录：
+原始 v1 已随 PR #25 合并；本轮公网事实与 OIDC 细则补充位于 `codex/11-public-tls-entry`（尚未合并）。以 #13 正文记录的固定提交为准。在现有 clone 中只读取文档即可，不需要切换正在运行服务的源码目录：
 
 ```bash
 git fetch origin
-git show origin/docs/13-device-binding-contract-v1:docs/contracts/device-binding-v1.md
-git show origin/docs/13-device-binding-contract-v1:docs/contracts/device-binding-v1.schema.json
-git show origin/docs/13-device-binding-contract-v1:docs/contracts/device-binding-v1.examples.json
+git show origin/codex/11-public-tls-entry:docs/contracts/device-binding-v1.md
+git show origin/codex/11-public-tls-entry:docs/contracts/device-binding-v1.schema.json
+git show origin/codex/11-public-tls-entry:docs/contracts/device-binding-v1.examples.json
 ```
 
 执行前确认仓库 origin 为 `yanghan24/xiaozhi`，并记录实际读取的分支提交。服务端实现从最新主线建独立任务分支/worktree，遵循 CONTRIBUTING.md；不要在已部署的固定提交目录直接 pull、切分支或初始化数据库。文档合并后也可以从主线读取。真实 `.env`、管理员 token、设备凭据和客户授权均继续留在私有配置中。

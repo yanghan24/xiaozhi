@@ -19,7 +19,7 @@
 | #2 | 基线父规格：A 已完成、B 待 #6 | 实际设备闭环，不重做已验收的 A 层 |
 | #6 | 上游账号/激活码下的真机对话和设备重启 | 样机、可达设备入口、有效 ASR/LLM、现场播放确认；无需等待新二维码固件 |
 | #10 | 产品范围、不变量及 #11–#19 的交付边界 | 所有适用子任务与最终验收，不以临时提供者降低要求 |
-| #11 | web 客户端、HTTPS 入口与真实授权证据 | Ubuntu 已部署；先核对私有配置，真实登录等公网映射 |
+| #11 | web 客户端、HTTPS 入口与真实授权证据 | 公网 HTTPS/WSS 已通过协议检查；仍缺实际客户端登记、回调实现、集市出站及真实授权证据 |
 | #12 | 已知资源契约、缺口与正式调用证据 | 原始 SSE/取消、正式 TTS 契约；真实规范通暂停，集市 TTS 未上线 |
 | #13 | 预登记、独立凭据、二维码和归属/授权状态 | 已定仅手机确认、单台退出；按设备控制 v1 协作，凭据交付及实机验证仍待落实，#11 依赖保留 |
 | #14 | 真实规范通与正式集市 TTS 的设备语音闭环 | #6/#12/#13；临时 Edge TTS 只作为独立测试记录 |
@@ -43,4 +43,4 @@
 
 ## 固件与服务器协作约定
 
-2026-11-09 新增[二维码绑定与设备控制 v1](../contracts/device-binding-v1.md)，附 [JSON Schema](../contracts/device-binding-v1.schema.json)、[报文示例](../contracts/device-binding-v1.examples.json)和[服务器交接说明](../handoff/device-binding-v1-server.md)。双方按同一版本实现，协议发布不表示功能已完成。公网可使用运维分配的非 443 端口，完整外部地址必须含实际端口；真实入口与 #11 客户端配置仍待验收。
+2026-11-09 新增[二维码绑定与设备控制 v1](../contracts/device-binding-v1.md)，附 [JSON Schema](../contracts/device-binding-v1.schema.json)、[报文示例](../contracts/device-binding-v1.examples.json)和[服务器交接说明](../handoff/device-binding-v1-server.md)。双方按同一版本实现，协议发布不表示功能已完成。实际公网来源为 `https://bridge.hncig.cn:18443`，TCP 转发到 Ubuntu 内网 443，完整外部地址保留 18443；设备 HTTPS/WSS 的 22 项直接公网协议检查已通过，见[证据](../verification/2026-11-09-public-tls-entry.md)。手机/真机、客户/OIDC 路径、集市登记与出站网络仍待验收；最小回调和后通道通知规则已补入契约第 5 节。

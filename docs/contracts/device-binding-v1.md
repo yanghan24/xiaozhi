@@ -198,11 +198,20 @@ expected_permission_version 与当前版本不一致时返回 409 STATE_CHANGED�
 | --- | --- |
 | `GET /xiaozhi/bind/{request_handle}` | 返回网页及有限设备展示信息；未知/过期分别 404/410。扫描只读，不消费、不锁定、不更改许可 |
 | `POST binding-flows` | body `{request_handle}`；返回 `data: {flow_id, authorization_url}`。创建与本浏览器、请求、用途、设备许可版本关联的 OIDC state/nonce/PKCE 事务 |
-| `GET /xiaozhi/customer/oidc/callback` | 标准 code/state 回调；验签及校验 issuer/audience/nonce/PKCE、原始 redirect_uri 和一次性事务；身份只记录在服务端。返回对应 flow_id 的手机结果页面，等待手机确认，不自动 bind/resume |
+| `GET /xiaozhi/customer/oidc/callback` | 标准 code/state 或 error/state 回调；核对浏览器及一次性事务，按下述规则兑换和验证。身份只记录在服务端，返回对应 flow_id 的手机结果页面，等待手机确认，不自动 bind/resume |
+| `POST /xiaozhi/customer/oidc/backchannel-logout` | 集市服务器以 `application/x-www-form-urlencoded` 提交 `logout_token`；独立执行通知验签与会话定位，成功返回 HTTP 200/204，不套客户 JSON 封装 |
 | `POST binding-flows/{flow_id}/confirm` | body `{}`，客户身份、CSRF、Idempotency-Key；只接受 bind/resume。目标设备和账号分别取自服务端流程记录及验证身份，不接受 body 自报 device_id/账号。成功 `data: {device_session_id, revision, permission_version}` |
 | `POST binding-flows/{flow_id}/open-account` | body `{}`，客户身份、CSRF、Idempotency-Key；只接受 account。原子校验请求未过期/未被替换、凭据代际及许可版本未变、身份仍为原归属账号，消费请求并建立本台页面上下文；不改变归属或调用许可。成功字段同 confirm |
 | `POST device-sessions/{device_session_id}/sign-out` | body `{}`，原归属身份、CSRF、Idempotency-Key；仅停目标设备。成功 `data: {operation_id, permission_version, execution:"stored"}`，包括离线设备。不是集市全局登出 |
 | `GET device-operations/{operation_id}` | 原归属客户会话，只读；`execution` 为 stored/device_acknowledged/superseded，附 permission_version；不能查看别人的操作 |
+
+**登录事务与回调：** web 后端采用授权码、PKCE S256 和 `client_secret_basic`；issuer 为 `https://aimarket.hncig.cn/oidc`。`state`、`nonce`、verifier 仅保存在服务端，与发起浏览器、flow、设备请求、用途及许可版本关联；技术登录事务最长 **300 秒**，不能超过所关联设备请求的剩余期限。授权码按集市文档有效 60 秒且只能兑换一次。这两个期限均不等于 600 秒设备请求或客户本地会话期限。
+
+成功与错误回调均先核对 state、原浏览器和事务有效期；拒绝缺失/错配、跨浏览器、过期和已处理事务，不盲目重试已使用或结果不明的 code。成功兑换使用原始精确 redirect_uri 和本事务 verifier，由正式 OIDC 库验证签名、iss、aud、exp、nonce 及适用的标准字段。调用 UserInfo 时，其 sub 必须与已验证 ID Token 的 sub 一致；以 issuer + sub 记录身份。若已验证 ID Token 含 sid，则保存供通知关联；缺少 sid 不单独拒绝合法登录，通知可按下述 sub 规则关联。拒绝授权、上游网络/令牌验证失败不得建立客户身份、设备归属或恢复许可。处理结束后清除地址栏中的 code 等临时参数，页面和日志不暴露令牌或秘密。
+
+**后通道通知：** 此端点依据签名 JWT 认证，不依赖客户/管理员 Cookie 或浏览器 CSRF Token；不能因放行该通知而放行其他客户/运营接口。验证签名、iss、aud、iat、exp、jti 以及 `events` 中的 `http://schemas.openid.net/event/backchannel-logout`，拒绝含 nonce 或同时缺失 sid/sub 的通知。按已验证的 sid 定位匹配本地会话；无 sid 而有 sub 时，处理该 issuer + sub 在本应用的会话。有效重复 jti 幂等成功，无效通知返回错误且不改变会话。去重与会话失效记录须跨服务重启有效。旧通知不得误伤新会话；浏览器注销不直接等于共享 Key、Refresh Token 或应用授权已撤销，真实授权失效另按实际关联范围处理。
+
+以上补充依据[集市接入文档](../../元筑AI集市应用接入接口文档(1).md)第 4、5 节。当前回调及通知路径均为 404；实现时须同时加入公网代理允许路径，再分别验证浏览器跳转与集市服务器通知。请求 scope 为 `openid profile credentials:manage offline_access`，实际获准范围、Client ID/Secret 和登记结果仍由 #11 提供；客户会话自然到期数值尚未确定。
 
 `device_session_id` 是服务器保存的设备页面上下文选择符，不是持有码即可使用的认证凭据；每次操作仍验证客户会话、归属及归属代际。首次 bind/resume 确认后建立该上下文；account 由 open-account 建立，不经 confirm 自动绑定或恢复许可。页面上下文保存对应许可版本，sign-out 必须与当前版本匹配；旧操作的同键重试只返回历史结果，旧页面的新变更请求须先刷新/重新确认，不能误停后来已恢复的会话。解绑行为继续按 #15 实现。二维码的 600 秒用于请求提交，已建立页面上下文的客户会话期限另按 #11 落实，不能混为一谈。
 
@@ -217,7 +226,7 @@ expected_permission_version 与当前版本不一致时返回 409 STATE_CHANGED�
 
 相同原操作成功后的安全重试可返回原结果；不同竞争者即使同账号也不能把已消费请求再次用于修改许可。退出与旧恢复、解绑/转交与旧账号操作必须由许可版本、归属代际和事务约束隔离。
 
-OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jti 去重。真实上游失效关联到当前授权链，旧通知不能误伤新授权或转交后的新账号；浏览器注销不自动等于共享 Key 已撤销。
+真实上游失效关联到当前授权链，旧通知不能误伤新授权或转交后的新账号。
 
 ## 6. 退出、失联及语音闸门
 
@@ -263,6 +272,8 @@ OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jt
 | 未登记、错误/撤销凭据、跨设备标识 | 不能申请请求、拿到有效语音令牌或从旧入口绕过 |
 | 两台设备及并发创建 | 请求不串号；同用途复用；重试不延长期限、不静默换码 |
 | 手机登录与确认 | 回调只验证身份；手机确认成功，无音箱点击；多账号争抢恰好一个归属 |
+| OIDC 成功/拒绝与重放 | 正确事务返回待确认页；错误 state/nonce、跨浏览器、过期、无效签名/issuer/audience、UserInfo.sub 不符及重复回调均不能建立身份或修改归属/许可；网络失败不伪报登录成功 |
+| 后通道通知 | 真实 HTTP 表单可独立认证；错误签名/接收方/时间/事件、带 nonce 或缺 sid/sub 被拒；重复 jti 与重启后重放不重复失效会话；sid/sub 范围及新旧会话隔离正确 |
 | 600 秒边界、扫码后登录过期 | 后台最终确认拒绝；旧码隐藏，新操作换码；关闭/刷新页面不延长 |
 | A/B/C 同账号 | A 退出即服务端停用，B 仍可调用/刷新；恢复 A 不恢复此前退出的 C |
 | ACK/失联/重启 | 存储停用与真实停播分别记录；旧 ACK 不确认新操作；租约过期停播，重启不复活 |
