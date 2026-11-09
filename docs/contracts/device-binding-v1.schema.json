@@ -16,6 +16,9 @@
       "$ref": "#/$defs/bindingFlowResponse"
     },
     {
+      "$ref": "#/$defs/flowStatusResponse"
+    },
+    {
       "$ref": "#/$defs/confirmResponse"
     },
     {
@@ -190,7 +193,8 @@
             "ready",
             "user_signed_out",
             "market_auth_required",
-            "device_disabled"
+            "device_disabled",
+            "market_auth_pending"
           ]
         },
         "binding_request": {
@@ -288,7 +292,8 @@
               "type": "string",
               "enum": [
                 "user_signed_out",
-                "market_auth_required"
+                "market_auth_required",
+                "market_auth_pending"
               ]
             },
             "lease": {
@@ -674,7 +679,10 @@
             "IDEMPOTENCY_CONFLICT",
             "REQUEST_EXPIRED",
             "RATE_LIMITED",
-            "TEMPORARILY_UNAVAILABLE"
+            "TEMPORARILY_UNAVAILABLE",
+            "CSRF_REJECTED",
+            "FLOW_NOT_FOUND",
+            "FLOW_EXPIRED"
           ]
         },
         "message": {
@@ -719,6 +727,81 @@
       },
       "required": [
         "device_control"
+      ],
+      "additionalProperties": false
+    },
+    "flowStatusData": {
+      "type": "object",
+      "properties": {
+        "flow_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "AWAITING_IDENTITY",
+            "EXCHANGING",
+            "IDENTITY_VERIFIED",
+            "IDENTITY_REFUSED",
+            "IDENTITY_FAILED",
+            "FLOW_EXPIRED",
+            "SESSION_ENDED"
+          ]
+        },
+        "authorization_status": {
+          "enum": [
+            "NONE",
+            "ACTIVE",
+            "REFRESHING",
+            "REFRESH_UNCERTAIN",
+            "REAUTH_REQUIRED"
+          ]
+        },
+        "device_label": {
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "bind",
+            "resume",
+            "account"
+          ]
+        },
+        "request_status": {
+          "enum": [
+            "AVAILABLE",
+            "CONSUMED",
+            "EXPIRED"
+          ]
+        }
+      },
+      "required": [
+        "flow_id",
+        "status",
+        "authorization_status",
+        "device_label",
+        "purpose",
+        "request_status"
+      ],
+      "additionalProperties": false
+    },
+    "flowStatusResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/flowStatusData"
+        }
+      },
+      "required": [
+        "version",
+        "code",
+        "data"
       ],
       "additionalProperties": false
     }
