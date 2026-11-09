@@ -1,5 +1,7 @@
 # #29 客户身份切片验证
 
+本报告保留 #29 实现阶段的可控外部服务测试范围。同日晚间另行完成的真实集市登录、刷新和撤销等结果见[真实身份联调记录](2026-11-09-real-market-identity.md)，不得将两组证据混用。
+
 基线：`8091f87b8c1fe6d18da1487ae23ff9746c6f8fc4`。任务分支：`codex/29-customer-oidc`。验证日期：2026-11-09。
 
 在 Ubuntu `192.168.168.114` 的独立源码 `/home/jt/xiaozhi-issue29`、`issue29-test` 网络和独立 MySQL/Redis 中运行；没有修改既有部署容器或数据库。Java 21、Maven 3.9.9，真实 Spring HTTP/Shiro/XSS/Liquibase；外部 AI 集市为本地 HTTP 可控替代，不是对真实集市的验收。

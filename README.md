@@ -5,6 +5,7 @@
 - [本机管理端运行与验证](docs/development/manager-baseline.md)
 - [首版产品规则收口](docs/planning/product-rules-2026-11-09.md)
 - [实施规格、任务边界与验收导航](docs/planning/task-spec-index.md)
+- [真实集市身份联调结果](docs/verification/2026-11-09-real-market-identity.md)、[注销通知管理员检查清单](docs/handoff/2026-11-10-market-logout-notification.md)
 - [本机语音服务与设备协议验证](docs/development/voice-baseline.md)
 - [上游源码来源与导入范围](docs/development/upstream-baseline.md)
 - 实际验证记录：[管理端](docs/verification/issue-3-manager-baseline.md)、[语音与设备协议](docs/verification/issue-4-voice-protocol.md)
