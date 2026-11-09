@@ -225,5 +225,48 @@
       "message": "请稍后重试",
       "retry_after_ms": 5000
     }
+  },
+  {
+    "name": "refresh_uncertain_show_resume_qr",
+    "schema_ref": "#/$defs/stateResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "device_id": "device_example_a",
+        "revision": 29,
+        "permission_version": 5,
+        "server_time_ms": 1794182400000,
+        "binding_state": "bound",
+        "use_permission": "blocked",
+        "reason": "market_auth_pending",
+        "binding_request": {
+          "request_id": "req_resume_example",
+          "purpose": "resume",
+          "verification_uri": "https://speaker.example.com:8443/xiaozhi/bind/EXAMPLE_NOT_A_REAL_HANDLE",
+          "created_at_ms": 1794182400000,
+          "expires_at_ms": 1794183000000,
+          "expires_in_ms": 600000
+        },
+        "lease": null,
+        "voice": null
+      }
+    }
+  },
+  {
+    "name": "verified_identity_without_call_authorization",
+    "schema_ref": "#/$defs/flowStatusResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "flow_id": "flow_example",
+        "status": "IDENTITY_VERIFIED",
+        "authorization_status": "NONE",
+        "device_label": "示例音箱",
+        "purpose": "bind",
+        "request_status": "AVAILABLE"
+      }
+    }
   }
 ]
