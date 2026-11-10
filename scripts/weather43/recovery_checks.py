@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import json
 import hashlib
 import os
+import re
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -29,7 +30,7 @@ class Experiment:
     def __init__(self, args):
         self.args = args
         self.root = args.root.resolve()
-        self.evidence = self.root / "evidence/recovery"
+        self.evidence = self.root / "evidence" / args.label
         self.evidence.mkdir(exist_ok=False)
         self.fault_path = self.root / "private/fault.json"
         self.compose = ["docker", "compose", "--env-file", "private/acceptance.env", "-p",
@@ -43,6 +44,10 @@ class Experiment:
         self.gateway = dict(line.strip().split("=", 1) for line in
                             (self.root / "private/acceptance.env").read_text().splitlines()
                             if line.strip() and not line.startswith("#"))["WEATHER43_GATEWAY"]
+
+    def private_directory(self, name):
+        prefix = "" if self.args.label == "recovery" else self.args.label + "-"
+        return self.root / "private" / (prefix + name)
 
     def cmd(self, args, timeout=90):
         result = subprocess.run(args, cwd=self.root, capture_output=True, text=True, timeout=timeout)
@@ -100,7 +105,7 @@ class Experiment:
 
     def start_fixture(self, folder, engine="http://openmeteo:8080", short_timeout=False, prewarm=0,
                       copy_all=False, ttl=300, cities_file="private/cities.json"):
-        data = self.root / "private" / folder
+        data = self.private_directory(folder)
         data.mkdir(exist_ok=False)
         os.chown(data, 65532, 65532)
         if short_timeout or copy_all:
@@ -130,7 +135,8 @@ class Experiment:
         self.cmd(["docker", "rm", name])
 
     def stored_fingerprints(self, folder):
-        with sqlite3.connect(str(self.root / "private" / folder / "results.sqlite3")) as database:
+        directory = self.root / "private/result-data" if folder == "result-data" else self.private_directory(folder)
+        with sqlite3.connect(str(directory / "results.sqlite3")) as database:
             values = list(database.execute("SELECT city,kind,payload FROM results ORDER BY city,kind"))
         fields = {city + "/" + kind: {name: json.loads(payload)[name]
                                        for name in ("hourly", "units", "fetched_at", "payload_sha256")}
@@ -158,7 +164,9 @@ class Experiment:
     def run(self):
         assert self.get()["data"]["cache_entries"] == 700
         assert self.environment()["data"]["complete"]
-        self.record("before", {"health": self.get(), "response": self.environment()})
+        self.record("before", {"health": self.get(), "response": self.environment(),
+                               "weather_only_mode": self.args.weather_only,
+                               "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()})
         try:
             self.start_fixture("concentrated-ttl-results", copy_all=True, ttl=10)
             started = time.monotonic()
@@ -245,13 +253,13 @@ class Experiment:
             # Complete cold result AND model cache for 1,000 clients / 1,000 places.
             # Stop only our original engine so two 8GiB limits do not overlap.
             self.cmd(self.compose + ["stop", "openmeteo"])
-            cold = self.root / "private/full-cold-1000-model"
+            cold = self.private_directory("full-cold-1000-model")
             cold.mkdir(exist_ok=False)
             original = (self.root / "private/model-data").stat()
             os.chown(cold, original.st_uid, original.st_gid)
             self.record("full-cold-before", {"model_files": len(list(cold.rglob("*"))),
                                               "main_engine_stopped": True,
-                                              "result_directory_does_not_yet_exist": not (self.root / "private/full-cold-1000-results").exists()})
+                                              "result_directory_does_not_yet_exist": not self.private_directory("full-cold-1000-results").exists()})
             self.cmd(["docker", "run", "-d", "--name", self.cold_engine, "--network",
                       "xiaozhi-weather43-acceptance_default", "--network-alias", self.cold_engine,
                       "--read-only", "--memory", "8g", "--memory-swap", "8g", "--cpus", "2",
@@ -266,7 +274,8 @@ class Experiment:
             cold_started_at = utc()
             counts = self.load("full-cold-1000-cities1000", devices=1000, cities=1000, port=18087, data_dir=cold,
                                cities_file="private/cities-1000.json")
-            self.start_cold_voice()
+            if not self.args.weather_only:
+                self.start_cold_voice()
             points = []
             while time.monotonic() - started < 1800:
                 point = snapshot(cold)
@@ -283,11 +292,16 @@ class Experiment:
                                              "health": self.get(port=18087), "resources": points})
             assert self.get(port=18087)["data"]["cache_entries"] == 2000
             cold_complete_at = utc()
-            assert self.cold_voice_process.wait(timeout=1200) == 0
-            self.record("voice-during-cold-warmup", {"summary": json.loads(
-                (self.root / "evidence/voice/during-full-cold-1000/summary.json").read_text()),
-                "warmup_started_at": cold_started_at,
-                "warmup_complete_observed_at": cold_complete_at})
+            if self.cold_voice_process is not None:
+                assert self.cold_voice_process.wait(timeout=1200) == 0
+                self.record("voice-during-cold-warmup", {"summary": json.loads(
+                    (self.root / "evidence/voice/during-full-cold-1000/summary.json").read_text()),
+                    "warmup_started_at": cold_started_at,
+                    "warmup_complete_observed_at": cold_complete_at})
+            else:
+                self.record("voice-during-cold-warmup", {"status": "not_run",
+                            "reason": "Existing ASR account returned insufficient credits; no replacement or purchase",
+                            "weather_only_mode": True})
             self.record("full-cold-cgroup-memory", {"containers": docker_memory([self.cold_engine, self.fixture])})
             for round_number in range(1, 4):
                 assert self.load("after-full-cold-1000-cities1000-round" + str(round_number), devices=1000,
@@ -312,6 +326,10 @@ class Experiment:
             assert self.environment(18087)["data"]["fresh"]
             self.remove_fixture(self.fixture)
             self.record("after", {"health": self.get(), "response": self.environment()})
+            (self.root / "evidence/latest-recovery.json").write_text(json.dumps({
+                "evidence_directory": self.args.label, "weather_only": self.args.weather_only,
+                "cold_model_directory": str(cold.relative_to(self.root)),
+                "cold_result_directory": str(self.private_directory("full-cold-1000-results").relative_to(self.root))}, indent=2) + "\n")
             (self.root / "evidence/recovery-complete").write_text(utc() + "\n")
         finally:
             self.fault({})
@@ -332,10 +350,26 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--runtime", required=True)
     parser.add_argument("--engine-image", required=True)
+    parser.add_argument("--label", default="recovery", help="New evidence/private-data prefix for a distinct run")
+    parser.add_argument("--weather-only", action="store_true",
+                        help="Continue independent weather checks after a documented ASR credit rejection; does not pass voice acceptance")
     args = parser.parse_args()
+    if not re.fullmatch(r"[a-z0-9-]{1,40}", args.label):
+        parser.error("Use a simple unique run label")
     if os.name != "posix" or os.geteuid() != 0 or "Ubuntu" not in Path("/etc/os-release").read_text():
         parser.error("Run only as root on the designated Ubuntu test server")
-    if not (args.root / "evidence/coexistence-complete").exists():
+    if args.weather_only:
+        summary = args.root / "evidence/coexist-weather-350/summary.json"
+        diagnostic = args.root / "evidence/voice/asr-upstream-diagnostic-message.json"
+        if not summary.exists() or not diagnostic.exists():
+            parser.error("Finish the active 350 weather baseline and document ASR rejection before independent faults")
+        baseline = json.loads(summary.read_text())
+        if baseline["offered"] != 2100 or baseline["elapsed_s"] < 1800 or baseline["counts"]["failure"] or baseline["counts"]["timeout"]:
+            parser.error("The independent weather continuation requires a complete successful 350 weather baseline")
+        data = json.loads(diagnostic.read_text())
+        if not any(s.get("http") == 400 and "积分不足" in s.get("sanitized_message", "") for s in data.get("stages", [])):
+            parser.error("Weather-only continuation requires the actual credit rejection evidence")
+    elif not (args.root / "evidence/coexistence-complete").exists():
         parser.error("Finish the undisturbed coexistence baseline before faults")
     Experiment(args).run()
 

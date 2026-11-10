@@ -50,7 +50,8 @@ class Gateway:
                 self.cities["changsha"] = match[0]
         self.entries, self.errors, self.pending, self.accessed = {}, {}, set(), set()
         self.metadata, self.meta_errors, self.meta_locks = {}, {}, {k: asyncio.Lock() for k in KINDS}
-        self.queue = asyncio.Queue(maxsize=2 * len(self.cities))
+        # A stalled weather source must not occupy every AQ worker (or vice versa).
+        self.queues = {kind: asyncio.Queue(maxsize=len(self.cities)) for kind in KINDS}
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="weather43-sqlite")
         args.data.mkdir(parents=True, exist_ok=True)
         self.database = args.data / "results.sqlite3"
@@ -101,11 +102,12 @@ class Gateway:
             if not background:
                 self.metrics["coalesced"] += 1
             return
-        if self.queue.full():
+        queue = self.queues[kind]
+        if queue.full():
             self.metrics["queue_full"] += 1
             return
         self.pending.add(key)
-        self.queue.put_nowait(key)
+        queue.put_nowait(key)
         self.metrics["scheduled"] += 1
 
     async def get_metadata(self, kind, force=False):
@@ -225,9 +227,10 @@ class Gateway:
             self.metrics["engine_failures"] += 1
             raise
 
-    async def worker(self):
+    async def worker(self, kind):
+        queue = self.queues[kind]
         while True:
-            key = await self.queue.get()
+            key = await queue.get()
             try:
                 await self.refresh(key)
             except asyncio.CancelledError:
@@ -241,7 +244,7 @@ class Gateway:
                 self.event("refresh_failed", city=key[0], kind=key[1], error=type(exc).__name__)
             finally:
                 self.pending.discard(key)
-                self.queue.task_done()
+                queue.task_done()
 
     async def background(self):
         while True:
@@ -313,6 +316,7 @@ class Gateway:
         return web.json_response({"status": "ok", "started_at": iso(self.started),
                                   "runtime_source_sha256": self.source_sha256,
                                   "cache_entries": len(self.entries), "pending": len(self.pending),
+                                  "pending_by_kind": {kind: sum(k[1] == kind for k in self.pending) for kind in KINDS},
                                   "metrics": self.metrics, "scope": "isolated_feasibility_service",
                                   "model_source_errors": self.meta_errors,
                                   "recent_errors": [{"city": k[0], "kind": k[1], **v}
@@ -320,7 +324,8 @@ class Gateway:
 
     async def start(self, app):
         self.client = aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=32))
-        self.workers = [asyncio.create_task(self.worker()) for _ in range(self.args.workers)]
+        kinds = list(KINDS)
+        self.workers = [asyncio.create_task(self.worker(kinds[i % len(kinds)])) for i in range(self.args.workers)]
         self.scheduler = asyncio.create_task(self.background())
         if self.args.prewarm:
             self.accessed.update(str(c["id"]) for c in list(self.cities.values())[:self.args.prewarm])
@@ -356,6 +361,8 @@ def main():
     p.add_argument("--aq-max-age", type=int, default=64800)
     p.add_argument("--prewarm", type=int, default=1)
     args = p.parse_args()
+    if not len(KINDS) <= args.workers <= 32:
+        p.error("Workers must reserve at least one per component and remain bounded")
     service = Gateway(args)
     app = web.Application(client_max_size=4096)
     app.router.add_get("/v1/environment", service.environment)
