@@ -80,6 +80,8 @@ public class ShiroConfig {
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
         filterMap.put("/device-delivery/v1/authorize", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/credentials", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/credentials/*/revoke", "deliveryAdmin");
         // Tool grants and pending device credentials have separate, bounded validation.
         filterMap.put("/device-delivery/v1/operations", "anon");
         filterMap.put("/device-delivery/v1/operations/*", "anon");

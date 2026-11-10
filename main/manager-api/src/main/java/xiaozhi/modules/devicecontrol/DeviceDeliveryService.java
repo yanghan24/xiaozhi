@@ -23,14 +23,16 @@ public class DeviceDeliveryService {
     private final boolean enabled;
     private final String origin;
     private final DeviceDeliverySecrets secrets;
+    private final DeviceDeliveryCredentials credentials;
 
-    public DeviceDeliveryService(JdbcTemplate db, PlatformTransactionManager manager,
+    public DeviceDeliveryService(JdbcTemplate db, PlatformTransactionManager manager, DeviceDeliveryCredentials credentials,
             @Qualifier("deviceControlClock") Clock clock,
             @Value("${device-delivery.enabled:false}") boolean enabled,
             @Value("${device-control.enabled:false}") boolean controlEnabled,
             @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String origin,
             @Value("${device-delivery.encryption-key-file:}") String encryptionFile) {
         this.db = db;
+        this.credentials = credentials;
         transactions = new TransactionTemplate(manager);
         this.clock = clock;
         this.enabled = enabled;
@@ -65,8 +67,8 @@ public class DeviceDeliveryService {
         String hash = bearerHash(authorization, "TOOL_AUTH_REQUIRED");
         var rows = db.queryForList("SELECT operator_id FROM dc_delivery_tool WHERE token_hash=? AND expires_at_ms>?",
                 hash, clock.millis());
-        if (rows.size() != 1) throw new ControlFailure(401, "TOOL_AUTH_REQUIRED");
-        long operator = number(rows.getFirst(), "operator_id");
+        Long operator = rows.isEmpty() ? credentials.authenticate(hash) : Long.valueOf(number(rows.getFirst(), "operator_id"));
+        if (operator == null) throw new ControlFailure(401, "TOOL_AUTH_REQUIRED");
         requireOperator(operator);
         return operator;
     }

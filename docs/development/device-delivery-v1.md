@@ -17,6 +17,8 @@ PR #48 只归档 `885918d` 的公网部署；它没有实现本文接口。新�
 
 ## 身份与授权
 
+长期工作站授权及撤销见[长期烧录工具凭据](long-lived-delivery-credentials.md)；以下一小时工具授权继续兼容。
+
 - `hardware_id`：P4 eFuse 工厂 MAC，12 位小写十六进制。
 - `network_hardware_id`：C6 STA MAC，同样为 12 位小写十六进制；不能与 P4 标识混用。
 - `device_id`：后台生成的稳定标识，与上述两个 MAC 分别记录。
