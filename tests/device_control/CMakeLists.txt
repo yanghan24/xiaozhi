@@ -39,3 +39,10 @@ target_include_directories(device_identity_tests PRIVATE stubs "${CONTROL_DIR}"
   "${IDF_PATH}/components/json/cJSON")
 target_compile_options(device_identity_tests PRIVATE -Wall -Wextra -Werror)
 add_test(NAME device_identity_tests COMMAND device_identity_tests)
+
+add_executable(device_delivery_tests delivery_test.cc
+  "${CONTROL_DIR}/delivery_model.cc" "${IDF_PATH}/components/json/cJSON/cJSON.c")
+target_include_directories(device_delivery_tests PRIVATE "${CONTROL_DIR}"
+  "${IDF_PATH}/components/json/cJSON")
+target_compile_options(device_delivery_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME device_delivery_tests COMMAND device_delivery_tests)

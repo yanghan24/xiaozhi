@@ -3,6 +3,7 @@
 #include "device_control/control_model.h"
 #include "device_control/device_control.h"
 #include "device_control/device_identity.h"
+#include "device_control/delivery_bootstrap.h"
 #include "settings.h"
 #include "system_info.h"
 
@@ -99,6 +100,9 @@ esp_err_t Ota::CheckVersion() {
             ESP_LOGE(TAG, "Device control requires a provisioned HTTPS OTA origin");
             return ESP_ERR_INVALID_ARG;
         }
+        const auto delivery = device_control::CheckDeviceDelivery(identity);
+        if (delivery != ESP_OK)
+            return delivery;
     }
     if (url.length() < 10) {
         ESP_LOGE(TAG, "Check version URL is not properly set");

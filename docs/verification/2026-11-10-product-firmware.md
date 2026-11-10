@@ -1,5 +1,8 @@
 # 2026-11-10 产品固件构建验证
 
+后续流程已按 #41 改为[在线交付](../online-device-delivery-v1.md)。本文的 SQL/私有 JSON 交接描述是历史准备，
+不能作为当前正式流程；后续源码、产物和验证结果另行记录。PR #48 已归档 PR #26 的实际公网部署。
+
 源码提交：`4eb9083767dca717b316b0e2d0b6e9f5471d43dd`。
 本地分支：`feat/13-product-device-integration`。
 配套服务端：`yanghan24/xiaozhi` PR #26，`885918d24d69f0b2ed87114f1937292727111d4e`。

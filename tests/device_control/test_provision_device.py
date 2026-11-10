@@ -87,6 +87,18 @@ class ProvisioningTests(unittest.TestCase):
         provisioning.provision(port, manifest(), repair=True)
         self.assertEqual(json.loads(port.written[0])["action"], "repair")
 
+    def test_durable_write_id_is_reused_and_receipt_is_returned(self):
+        operation = "c" * 32
+        for attempt in range(2):
+            port = Serial()
+            receipt = provisioning.provision(port, manifest(), operation_id=operation)
+            self.assertEqual(receipt, dict(version=1, operation_id=operation, result="stored"))
+            self.assertEqual(json.loads(port.written[0])["operation_id"], operation)
+        port = Serial()
+        with self.assertRaises(provisioning.ProvisioningError):
+            provisioning.provision(port, manifest(), operation_id="unsafe")
+        self.assertEqual(port.written, [])
+
 
 if __name__ == "__main__":
     unittest.main()

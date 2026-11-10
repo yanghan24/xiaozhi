@@ -3,6 +3,7 @@
 #if CONFIG_XIAOZHI_DEVICE_PROVISIONING
 #include "device_identity.h"
 
+#include <driver/uart.h>
 #include <driver/usb_serial_jtag.h>
 #include <esp_log.h>
 #include <cJSON.h>
@@ -14,8 +15,14 @@ namespace device_control {
 namespace {
 void Reply(const std::string& json) {
     const auto line = json + "\n";
+#if CONFIG_ESP_CONSOLE_UART
+    const auto port = static_cast<uart_port_t>(CONFIG_ESP_CONSOLE_UART_NUM);
+    uart_write_bytes(port, line.data(), line.size());
+    uart_wait_tx_done(port, pdMS_TO_TICKS(1000));
+#else
     usb_serial_jtag_write_bytes(line.data(), line.size(), pdMS_TO_TICKS(1000));
     usb_serial_jtag_wait_tx_done(pdMS_TO_TICKS(1000));
+#endif
 }
 void Ready() {
     Reply("{\"version\":1,\"mode\":\"device_provisioning\",\"hardware_id\":\"" +
@@ -63,19 +70,43 @@ void Apply(const std::string& line) {
 
 void RunDeviceProvisioning() {
     // This is a separate bench image: app_main never starts WiFi, UI or audio.
-    // Receive directly from USB; no console interpreter or terminal echo sees the secret.
+    // Receive directly from the maintenance transport, without a console interpreter or echo.
     esp_log_level_set("*", ESP_LOG_NONE);
+#if CONFIG_ESP_CONSOLE_UART
+    const auto port = static_cast<uart_port_t>(CONFIG_ESP_CONSOLE_UART_NUM);
+    uart_config_t config{};
+    config.baud_rate = CONFIG_ESP_CONSOLE_UART_BAUDRATE;
+    config.data_bits = UART_DATA_8_BITS;
+    config.parity = UART_PARITY_DISABLE;
+    config.stop_bits = UART_STOP_BITS_1;
+    config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    config.source_clk = UART_SCLK_DEFAULT;
+    ESP_ERROR_CHECK(uart_param_config(port, &config));
+#if CONFIG_ESP_CONSOLE_UART_CUSTOM
+    ESP_ERROR_CHECK(uart_set_pin(port, CONFIG_ESP_CONSOLE_UART_TX_GPIO,
+                                 CONFIG_ESP_CONSOLE_UART_RX_GPIO, UART_PIN_NO_CHANGE,
+                                 UART_PIN_NO_CHANGE));
+#endif
+    if (!uart_is_driver_installed(port))
+        ESP_ERROR_CHECK(uart_driver_install(port, 4096, 1024, 0, nullptr, 0));
+#else
     usb_serial_jtag_driver_config_t config{};
     config.rx_buffer_size = 4096;
     config.tx_buffer_size = 1024;
     ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&config));
+#endif
     Ready();
     std::string line;
     bool oversized = false;
     int idle = 0;
     while (true) {
         char byte;
-        if (usb_serial_jtag_read_bytes(&byte, 1, pdMS_TO_TICKS(500)) != 1) {
+#if CONFIG_ESP_CONSOLE_UART
+        const auto count = uart_read_bytes(port, &byte, 1, pdMS_TO_TICKS(500));
+#else
+        const auto count = usb_serial_jtag_read_bytes(&byte, 1, pdMS_TO_TICKS(500));
+#endif
+        if (count != 1) {
             if (line.empty() && ++idle >= 8) {
                 Ready();
                 idle = 0;

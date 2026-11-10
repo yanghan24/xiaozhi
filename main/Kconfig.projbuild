@@ -18,6 +18,14 @@ config XIAOZHI_DEVICE_CONTROL
         a trusted HTTPS OTA origin. Missing configuration keeps product voice off.
         Legacy OTA activation, MQTT fallback and stored voice tokens are not used.
 
+config XIAOZHI_ONLINE_DELIVERY
+    bool "Verify online device delivery before starting product control"
+    depends on XIAOZHI_DEVICE_CONTROL
+    default n
+    help
+        Requires the v1 delivery API. Only starts ordinary product control after
+        the authorized host tool has completed issuance, writing and live device verification.
+
 config XIAOZHI_AMAP_API_KEY
     string "AMap Web Service API key"
     default ""

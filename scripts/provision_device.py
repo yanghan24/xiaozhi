@@ -88,7 +88,12 @@ def read_frame(port, deadline):
     raise ProvisioningError("Timed out waiting for the maintenance image")
 
 
-def provision(port, manifest, repair=False):
+def provision(port, manifest, repair=False, operation_id=None):
+    validate_manifest(manifest)
+    if operation_id is None:
+        operation_id = secrets.token_hex(16)
+    if not isinstance(operation_id, str) or not re.fullmatch(r"[0-9a-f]{32}", operation_id):
+        raise ProvisioningError("Invalid write operation ID")
     deadline = time.monotonic() + 15
     while True:
         ready = read_frame(port, deadline)
@@ -96,7 +101,6 @@ def provision(port, manifest, repair=False):
             break
     if ready.get("hardware_id") != manifest["hardware_id"]:
         raise ProvisioningError("Connected hardware does not match the private manifest")
-    operation_id = secrets.token_hex(16)
     request = {"version": 1, "operation_id": operation_id,
                "action": "repair" if repair else "write", "identity": manifest}
     port.write(json.dumps(request, ensure_ascii=True, separators=(",", ":")).encode() + b"\n")
@@ -108,6 +112,9 @@ def provision(port, manifest, repair=False):
             break
     if result.get("result") != "stored":
         raise ProvisioningError("Device rejected the manifest or could not commit it")
+    if set(result) != {"version", "operation_id", "result"}:
+        raise ProvisioningError("Invalid maintenance receipt")
+    return result
 
 
 def main():

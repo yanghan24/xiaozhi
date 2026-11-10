@@ -3,6 +3,7 @@
 #include "assets/lang_config.h"
 #include "audio_codec.h"
 #include "board.h"
+#include "device_control/delivery_bootstrap.h"
 #include "display.h"
 #include "features/audio_recorder.h"
 #include "features/music_player.h"
@@ -304,6 +305,7 @@ void Application::Run() {
 
 void Application::HandleNetworkConnectedEvent() {
     ESP_LOGI(TAG, "Network connected");
+    device_control::ReportDeliveryHardware();
     DeviceControl::GetInstance().NotifyNetwork(true);
     EnvironmentService::GetInstance().RefreshAsync(true);
     auto state = GetDeviceState();

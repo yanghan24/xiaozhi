@@ -24,7 +24,8 @@ LVGL 二维码与 CA 证书包，适用微雪 ESP32-P4 WiFi6 Touch LCD 4.3。
 
 ## 独立设备身份
 
-先由小智管理后台预登记设备并签发逐台独立、可撤销的接入凭据，再通过离线 USB 维护镜像写入。
+当前交付采用 [#41 在线烧录流程](online-device-delivery-v1.md)：管理员授权工具后，由后台预登记并签发逐台独立凭据，
+工具通过维护镜像写入并读回、恢复产品镜像，经设备自身联网验证后才启用准入。
 固件不生成匿名替代凭据。集市 Secret、Token、Key 不进入设备。
 
 私有交付文件使用以下完整结构；下例全部是测试值，不能直接用于真实设备：
@@ -52,14 +53,10 @@ LVGL 二维码与 CA 证书包，适用微雪 ESP32-P4 WiFi6 Touch LCD 4.3。
 控制传输一致，IPv6 保持关闭。文件放在 Git 忽略的 `.private/` 下，POSIX 权限为 `600`。
 普通日志、二维码和工具输出不回显秘密。
 
-PR #26 的服务端[预登记工具](https://github.com/yanghan24/xiaozhi/blob/885918d24d69f0b2ed87114f1937292727111d4e/scripts/prepare-device-credential.py)
-由有数据库管理权限的交付人员在 Ubuntu 私有目录运行，使用后台确定的稳定设备 ID。
-它生成 `registration.sql` 和 `device.json`；先通过已有私有管理通道成功导入登记 SQL，再交付该 JSON。
-SQL 只保存凭据校验哈希，工具本身不连接数据库。
-其中 `device.json` 仅含 `device_id`、`credential`，须与经实物核对的 `hardware_id`、`version: 1`、
-完整 `ota_url` 和 `control_origin` 合成上面的六字段配置，不能直接传给固件写入工具。
-本次部署使用 `https://bridge.hncig.cn:18443/xiaozhi/ota/`，同 origin 控制服务的 `control_origin` 留空。
-P4 主芯片 eFuse MAC 与 C6 WiFi STA MAC 分别记录，写入配置使用前者。
+PR #26 的 SQL 预登记脚本属于早期开发准备，不能作为 #41 的正式交付步骤。
+在线接口直接返回完整六字段 identity，并在独立元数据中分别保存 P4 和 C6 标识。
+现有公网部署为 `885918d`；须先部署含在线交付 API 的配套版本，再执行新工具。
+本次 OTA 为 `https://bridge.hncig.cn:18443/xiaozhi/ota/`，同 origin 的 `control_origin` 留空。
 
 产品模式从此身份读取 `ota_url`，不再使用历史 `wifi/ota_url` 或编译默认值。OTA origin
 由完整 URL 导出，跨 origin 控制服务必须在 `control_origin` 中授权；合法 TLS 证书不能自行授权新目标。
@@ -72,8 +69,10 @@ NVS 持久化不等于已启用 Flash Encryption 或 Secure Boot。
 
 ## 离线 USB 交付与恢复
 
-维护镜像是独立的最小 ESP-IDF 项目 `tools/device-provisioning/`，只包含 USB、NVS 和配置校验，
+以下是低层维护能力说明，正式交付由在线工具自动编排，不另行手工导入 SQL。
+维护镜像是独立的最小 ESP-IDF 项目 `tools/device-provisioning/`，只包含 UART/原生 USB、NVS 和配置校验，
 不启动网络、UI 或音频。产品镜像不包含维护入口，维护镜像不进入 OTA 发布。
+当前 CH343 连接器使用默认 UART 控制台，原生 USB 配置仅适用于对应的另一物理端口。
 
 在已经加载 ESP-IDF 5.5.5 环境的固件根目录构建：
 

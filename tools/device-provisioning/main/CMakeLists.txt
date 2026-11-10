@@ -5,4 +5,4 @@ idf_component_register(SRCS "provision_main.cc"
     "${CONTROL_DIR}/identity_config.cc"
     "${CONTROL_DIR}/control_model.cc"
     INCLUDE_DIRS "${CONTROL_DIR}"
-    PRIV_REQUIRES nvs_flash json esp_driver_usb_serial_jtag esp_hw_support)
+    PRIV_REQUIRES nvs_flash json esp_driver_usb_serial_jtag esp_driver_uart esp_hw_support)
