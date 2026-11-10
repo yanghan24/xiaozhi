@@ -16,22 +16,30 @@
 
 #define TAG "SdCardService"
 
-#if defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) && defined(CONFIG_FATFS_LFN_NONE)
-#error "Lichuang Dev SD media paths require FatFS long filename support. Enable CONFIG_FATFS_LFN_HEAP and CONFIG_FATFS_MAX_LFN=255."
+#if (defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) ||                         \
+     defined(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)) && \
+    defined(CONFIG_FATFS_LFN_NONE)
+#error \
+    "SD media paths require FatFS long filename support. Enable CONFIG_FATFS_LFN_HEAP and CONFIG_FATFS_MAX_LFN=255."
 #endif
 
-#if defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) && \
-        !defined(CONFIG_FATFS_LFN_HEAP) && !defined(CONFIG_FATFS_LFN_STACK)
-#error "Lichuang Dev SD media paths require FatFS long filename support. Enable CONFIG_FATFS_LFN_HEAP or CONFIG_FATFS_LFN_STACK."
+#if (defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) ||                         \
+     defined(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)) && \
+    !defined(CONFIG_FATFS_LFN_HEAP) && !defined(CONFIG_FATFS_LFN_STACK)
+#error \
+    "SD media paths require FatFS long filename support. Enable CONFIG_FATFS_LFN_HEAP or CONFIG_FATFS_LFN_STACK."
 #endif
 
-#if defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) && defined(CONFIG_FATFS_MAX_LFN) && \
-        CONFIG_FATFS_MAX_LFN < 32
-#error "CONFIG_FATFS_MAX_LFN is too small for Lichuang Dev recording file names."
+#if (defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) ||                         \
+     defined(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)) && \
+    defined(CONFIG_FATFS_MAX_LFN) && CONFIG_FATFS_MAX_LFN < 32
+#error "CONFIG_FATFS_MAX_LFN is too small for SD media file names."
 #endif
 
-#if defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) && !defined(CONFIG_FATFS_API_ENCODING_UTF_8)
-#error "Lichuang Dev SD media scanning requires CONFIG_FATFS_API_ENCODING_UTF_8 for non-ASCII music file names."
+#if (defined(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3) ||                         \
+     defined(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)) && \
+    !defined(CONFIG_FATFS_API_ENCODING_UTF_8)
+#error "SD media scanning requires CONFIG_FATFS_API_ENCODING_UTF_8 for non-ASCII music file names."
 #endif
 
 namespace {
@@ -39,8 +47,20 @@ constexpr const char* kMusicDirectory = SDCARD_MOUNT_POINT "/music";
 constexpr const char* kRecordingsDirectory = SDCARD_MOUNT_POINT "/recordings";
 constexpr int kMaxMediaScanDepth = 3;
 
+std::string ToLower(std::string value);
+
 void AddUniquePath(std::vector<std::string>& paths, const std::string& path) {
-    if (path.empty() || std::find(paths.begin(), paths.end(), path) != paths.end()) {
+    if (path.empty()) {
+        return;
+    }
+
+    // FAT path lookup is case-insensitive. Treat /music, /Music and /MUSIC as
+    // the same directory, otherwise the same files are scanned repeatedly.
+    const std::string normalized = ToLower(path);
+    auto duplicate = std::find_if(
+        paths.begin(), paths.end(),
+        [&normalized](const std::string& existing) { return ToLower(existing) == normalized; });
+    if (duplicate != paths.end()) {
         return;
     }
     paths.push_back(path);

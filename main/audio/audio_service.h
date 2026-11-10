@@ -89,6 +89,7 @@ struct AudioServiceCallbacks {
     std::function<void(const std::string&)> on_wake_word_detected;
     std::function<void(bool)> on_vad_change;
     std::function<void(void)> on_audio_testing_queue_full;
+    std::function<void(const std::string&, uint64_t, uint64_t)> on_playback_text;
 };
 
 
@@ -104,6 +105,8 @@ struct AudioTask {
     uint32_t timestamp = 0;
     bool requires_voice_permission = true;
     uint64_t generation = 0;
+    std::string playback_text;
+    uint64_t connection_id = 0;
 };
 
 struct DebugStatistics {
@@ -175,6 +178,8 @@ public:
     bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
     void ResetDecoder();
     void ApplyControlledAccess(uint64_t generation, bool allowed);
+    // The audio tasks read this fence without dereferencing the protocol owner.
+    void SetVoiceConnection(uint64_t connection_id) { voice_connection_id_.store(connection_id); }
     // Safe in the control timer callback: revocation never takes a queue/driver lock.
     void RevokeControlledAccess(uint64_t generation);
     // Main task only. Returns true after old queues and driver output are stopped.
@@ -186,7 +191,9 @@ private:
     ControlledAudioAccess controlled_access_;
     std::mutex audio_output_mutex_;
     std::atomic<uint64_t> voice_processing_generation_{0};
+    std::atomic<uint64_t> voice_connection_id_{0};
     bool IsControlledAllowed(uint64_t generation) const;
+    bool IsOutputCurrent(const AudioTask& task) const;
     AudioServiceCallbacks callbacks_;
     std::unique_ptr<AudioProcessor> audio_processor_;
     std::unique_ptr<WakeWord> wake_word_;

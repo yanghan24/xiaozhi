@@ -31,3 +31,11 @@ target_include_directories(processing_audio_buffer_tests PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/../../main/audio")
 target_compile_options(processing_audio_buffer_tests PRIVATE -Wall -Wextra -Werror)
 add_test(NAME processing_audio_buffer_tests COMMAND processing_audio_buffer_tests)
+
+add_executable(device_identity_tests identity_test.cc
+  "${CONTROL_DIR}/identity_config.cc" "${CONTROL_DIR}/device_identity.cc"
+  "${CONTROL_DIR}/control_model.cc" "${IDF_PATH}/components/json/cJSON/cJSON.c")
+target_include_directories(device_identity_tests PRIVATE stubs "${CONTROL_DIR}"
+  "${IDF_PATH}/components/json/cJSON")
+target_compile_options(device_identity_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME device_identity_tests COMMAND device_identity_tests)

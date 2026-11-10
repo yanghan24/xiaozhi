@@ -1,9 +1,15 @@
-#include "wifi_board.h"
-#include "codecs/box_audio_codec.h"
 #include "application.h"
+#include "board.h"
+#include "codecs/box_audio_codec.h"
 #include "display/lcd_display.h"
+#include "wifi_board.h"
 // #include "display/no_display.h"
+#include "assets/lang_config.h"
 #include "button.h"
+#include "features/pomodoro_timer.h"
+#include "mcp_server.h"
+#include "services/environment_service.h"
+#include "storage/sd_card_service.h"
 
 #include "esp_video.h"
 #include "esp_video_init.h"
@@ -29,10 +35,17 @@
 #include "config.h"
 #include "lcd_init_cmds.h"
 
-#include <esp_log.h>
 #include <driver/i2c_master.h>
+#include <driver/sdspi_host.h>
+#include <driver/spi_common.h>
+#include <esp_log.h>
 #include <esp_lvgl_port.h>
+#include <esp_vfs_fat.h>
+#include <sd_pwr_ctrl_by_on_chip_ldo.h>
+#include <sdmmc_cmd.h>
 #include "esp_lcd_touch_gt911.h"
+
+#include <mutex>
 #define TAG "WaveshareEsp32p4"
 
 class WaveshareEsp32p4 : public WifiBoard {
@@ -41,7 +54,12 @@ private:
     Button boot_button_;
     LcdDisplay *display_;
     EspVideo* camera_ = nullptr;
-
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    std::mutex storage_mutex_;
+    sdmmc_card_t* sd_card_ = nullptr;
+    sd_pwr_ctrl_handle_t sd_power_handle_ = nullptr;
+    bool sd_spi_bus_initialized_ = false;
+#endif
 
     esp_err_t i2c_device_probe(uint8_t addr) {
         return i2c_master_probe(i2c_bus_, addr, 100);
@@ -328,7 +346,13 @@ private:
         esp_lcd_panel_init(disp_panel);
 
         display_ = new MipiLcdDisplay(io, disp_panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
-                                       DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+                                      DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X,
+                                      DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY,
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                                      LV_DISPLAY_ROTATION_270);
+#else
+                                      LV_DISPLAY_ROTATION_0);
+#endif
     }
     void InitializeTouch()
     {
@@ -412,6 +436,223 @@ private:
         });
     }
 
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    esp_err_t InitializeSdCard() {
+        std::lock_guard<std::mutex> lock(storage_mutex_);
+        auto& storage = SdCardService::GetInstance();
+        if (storage.IsMounted()) {
+            return ESP_OK;
+        }
+
+        if (sd_power_handle_ == nullptr) {
+            sd_pwr_ctrl_ldo_config_t ldo_config = {
+                .ldo_chan_id = 4,
+            };
+            esp_err_t power_ret = sd_pwr_ctrl_new_on_chip_ldo(&ldo_config, &sd_power_handle_);
+            if (power_ret != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to enable SD LDO channel 4: %s", esp_err_to_name(power_ret));
+                return power_ret;
+            }
+            ESP_LOGI(TAG, "SD LDO channel 4 initialized");
+        }
+
+        // ESP-Hosted already uses the P4 SDMMC peripheral for the Wi-Fi 6
+        // coprocessor. Initializing the microSD card through SDMMC resets that
+        // shared peripheral and eventually crashes the hosted SDIO RX task.
+        // Use the card's SPI-compatible pins instead so both devices can run.
+        gpio_set_pull_mode(SDCARD_SDMMC_CLK_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_CMD_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_D0_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_D1_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_D2_PIN, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(SDCARD_SDMMC_D3_PIN, GPIO_PULLUP_ONLY);
+
+        if (!sd_spi_bus_initialized_) {
+            spi_bus_config_t bus_config = {};
+            bus_config.mosi_io_num = SDCARD_SDMMC_CMD_PIN;
+            bus_config.miso_io_num = SDCARD_SDMMC_D0_PIN;
+            bus_config.sclk_io_num = SDCARD_SDMMC_CLK_PIN;
+            bus_config.quadwp_io_num = GPIO_NUM_NC;
+            bus_config.quadhd_io_num = GPIO_NUM_NC;
+            bus_config.max_transfer_sz = 16 * 1024;
+
+            esp_err_t bus_ret = spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO);
+            if (bus_ret != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to initialize SD SPI bus: %s", esp_err_to_name(bus_ret));
+                return bus_ret;
+            }
+            sd_spi_bus_initialized_ = true;
+        }
+
+        sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+        host.slot = SPI2_HOST;
+        host.max_freq_khz = 10000;
+        host.pwr_ctrl_handle = sd_power_handle_;
+        sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+        slot_config.host_id = SPI2_HOST;
+        slot_config.gpio_cs = SDCARD_SDMMC_D3_PIN;
+
+        esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+            .format_if_mount_failed = false,
+            .max_files = 8,
+            .allocation_unit_size = 16 * 1024,
+            .disk_status_check_enable = true,
+        };
+        esp_err_t ret = esp_vfs_fat_sdspi_mount(SDCARD_MOUNT_POINT, &host, &slot_config,
+                                                &mount_config, &sd_card_);
+        if (ret != ESP_OK) {
+            sd_card_ = nullptr;
+            ESP_LOGW(TAG, "Failed to mount SD card at %s: %s", SDCARD_MOUNT_POINT,
+                     esp_err_to_name(ret));
+            return ret;
+        }
+
+        sdmmc_card_print_info(stdout, sd_card_);
+        ESP_LOGI(TAG, "SD card mounted over SPI at %s", SDCARD_MOUNT_POINT);
+        ret = storage.EnsureMediaDirectories();
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to prepare SD media directories: %s", esp_err_to_name(ret));
+        }
+        return ret;
+    }
+#endif
+
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    void InitializeDashboardTools() {
+        auto& pomodoro = PomodoroTimer::GetInstance();
+        pomodoro.SetFinishCallback([]() {
+            Application::GetInstance().Schedule([]() {
+                if (PomodoroTimer::GetInstance().GetStatus().state != PomodoroState::kFinished) {
+                    return;
+                }
+                auto* display = Board::GetInstance().GetDisplay();
+                if (display != nullptr) {
+                    display->ShowPomodoroTimerView();
+                    display->ShowNotification("番茄钟已完成", 5000);
+                }
+                Application::GetInstance().PlaySound(Lang::Sounds::OGG_SUCCESS);
+            });
+        });
+
+        auto& mcp_server = McpServer::GetInstance();
+        mcp_server.AddTool(
+            "self.pomodoro.start",
+            "Start or restart a Pomodoro focus timer with a custom duration from 1 to 180 minutes. "
+            "Use this when the user asks to start or set a Pomodoro timer.",
+            PropertyList(
+                {Property("duration_minutes", kPropertyTypeInteger,
+                          PomodoroTimer::kMinDurationMinutes, PomodoroTimer::kMaxDurationMinutes)}),
+            [](const PropertyList& properties) -> ReturnValue {
+                int duration_minutes = properties["duration_minutes"].value<int>();
+                esp_err_t ret = PomodoroTimer::GetInstance().Start(duration_minutes);
+                if (ret != ESP_OK) {
+                    return std::string("Duration must be between 1 and 180 minutes.");
+                }
+                auto* display = Board::GetInstance().GetDisplay();
+                if (display != nullptr) {
+                    display->ShowPomodoroTimerView();
+                }
+                return std::string("Pomodoro started for ") + std::to_string(duration_minutes) +
+                       " minutes.";
+            });
+
+        mcp_server.AddTool("self.pomodoro.pause",
+                           "Pause the running Pomodoro timer and preserve its remaining time.",
+                           PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                               PomodoroTimer::GetInstance().Pause();
+                               auto* display = Board::GetInstance().GetDisplay();
+                               if (display != nullptr) {
+                                   display->ShowPomodoroTimerView();
+                               }
+                               return PomodoroTimer::GetInstance().GetStatusText();
+                           });
+
+        mcp_server.AddTool("self.pomodoro.resume", "Resume a paused Pomodoro timer.",
+                           PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                               PomodoroTimer::GetInstance().Resume();
+                               auto* display = Board::GetInstance().GetDisplay();
+                               if (display != nullptr) {
+                                   display->ShowPomodoroTimerView();
+                               }
+                               return PomodoroTimer::GetInstance().GetStatusText();
+                           });
+
+        mcp_server.AddTool(
+            "self.pomodoro.cancel",
+            "Stop, close, or cancel the current Pomodoro timer and close its countdown screen.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                PomodoroTimer::GetInstance().Cancel();
+                auto* display = Board::GetInstance().GetDisplay();
+                if (display != nullptr) {
+                    display->ClosePomodoroTimerView();
+                }
+                return std::string("Pomodoro canceled and closed.");
+            });
+
+        mcp_server.AddTool("self.pomodoro.get_status",
+                           "Get the current Pomodoro timer state and remaining time.",
+                           PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                               return PomodoroTimer::GetInstance().GetStatusText();
+                           });
+
+        mcp_server.AddUserOnlyTool(
+            "self.environment.set_config",
+            "Configure standby weather using an AMap Web Service API key. The key is stored in "
+            "NVS.",
+            PropertyList({Property("amap_api_key", kPropertyTypeString),
+                          Property("aggregate_url", kPropertyTypeString, ""),
+                          Property("refresh_interval_minutes", kPropertyTypeInteger, 30, 5, 1440),
+                          Property("fallback_adcode", kPropertyTypeString, ""),
+                          Property("fallback_city", kPropertyTypeString, "")}),
+            [](const PropertyList& properties) -> ReturnValue {
+                EnvironmentConfig config;
+                config.amap_api_key = properties["amap_api_key"].value<std::string>();
+                config.aggregate_url = properties["aggregate_url"].value<std::string>();
+                config.refresh_interval_minutes =
+                    properties["refresh_interval_minutes"].value<int>();
+                config.fallback_adcode = properties["fallback_adcode"].value<std::string>();
+                config.fallback_city = properties["fallback_city"].value<std::string>();
+                EnvironmentService::GetInstance().SaveConfig(config);
+                EnvironmentService::GetInstance().RefreshAsync(true);
+                return std::string("Environment configuration saved and refresh started.");
+            });
+
+        mcp_server.AddTool("self.environment.refresh",
+                           "Refresh standby location, weather, and air-quality data now.",
+                           PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                               EnvironmentService::GetInstance().RefreshAsync(true);
+                               return std::string("Environment refresh started.");
+                           });
+
+        mcp_server.AddTool(
+            "self.environment.get_status",
+            "Get current standby location and weather status, including configuration errors.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                auto snapshot = EnvironmentService::GetInstance().GetSnapshot();
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddBoolToObject(json, "configured", snapshot.configured);
+                cJSON_AddBoolToObject(json, "refresh_in_progress", snapshot.refresh_in_progress);
+                cJSON_AddBoolToObject(json, "weather_available", snapshot.weather_available);
+                cJSON_AddStringToObject(json, "city", snapshot.city.c_str());
+                cJSON_AddStringToObject(json, "adcode", snapshot.adcode.c_str());
+                cJSON_AddStringToObject(json, "weather", snapshot.weather_text.c_str());
+                cJSON_AddStringToObject(json, "temperature_c", snapshot.temperature_c.c_str());
+                cJSON_AddStringToObject(json, "last_error", snapshot.last_error.c_str());
+                return json;
+            });
+
+        mcp_server.AddTool(
+            "self.system.enter_standby",
+            "Enter standby mode immediately. Use this whenever the user asks to enter standby, "
+            "idle, stop everything, or return to the clock and weather dashboard. This stops "
+            "music, recording, Pomodoro, previews, and the current voice interaction. Treat this "
+            "as the final action for the request and do not speak or call another tool afterward.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                return Application::GetInstance().EnterStandby();
+            });
+    }
+#endif
+
 public:
     WaveshareEsp32p4() :
         boot_button_(BOOT_BUTTON_GPIO) {
@@ -420,6 +661,9 @@ public:
         InitializeTouch();
         InitializeCamera();
         InitializeButtons();
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        InitializeDashboardTools();
+#endif
         GetBacklight()->RestoreBrightness();
     }
 
@@ -438,6 +682,14 @@ public:
             AUDIO_CODEC_ES7210_ADDR, 
             AUDIO_INPUT_REFERENCE);
         return &audio_codec;
+    }
+
+    virtual esp_err_t EnsureStorageReady() override {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        return InitializeSdCard();
+#else
+        return ESP_ERR_NOT_SUPPORTED;
+#endif
     }
 
     virtual Display *GetDisplay() override {

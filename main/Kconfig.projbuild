@@ -18,6 +18,14 @@ config XIAOZHI_DEVICE_CONTROL
         a trusted HTTPS OTA origin. Missing configuration keeps product voice off.
         Legacy OTA activation, MQTT fallback and stored voice tokens are not used.
 
+config XIAOZHI_AMAP_API_KEY
+    string "AMap Web Service API key"
+    default ""
+    help
+        API key used by the standby dashboard for AMap IP location and live
+        weather queries. Keep the default empty in shared configurations and
+        set the key only in the local, Git-ignored sdkconfig file.
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE
@@ -989,6 +997,49 @@ config RECEIVE_CUSTOM_MESSAGE
     default n
     help
         Enable custom message reception, allow the device to receive custom messages from the server (preferably through the MQTT protocol)
+
+menu "IoT Platform HTTP Mirroring"
+
+config IOT_PLATFORM_ENABLE
+    bool "Mirror device status and chat records to IoT platform"
+    default y if BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    default n
+    help
+        Send an independent HTTP property heartbeat and voice fact events to the
+        JetLinks integration gateway. This side channel does not replace or
+        modify the Xiaozhi MQTT/WebSocket AI connection.
+
+config IOT_PLATFORM_BASE_URL
+    string "IoT HTTP gateway base URL"
+    default "http://192.168.168.114:1884"
+    depends on IOT_PLATFORM_ENABLE
+
+config IOT_PLATFORM_PRODUCT_ID
+    string "Xiaozhi product ID"
+    default "2115358572383096832"
+    depends on IOT_PLATFORM_ENABLE
+
+config IOT_PLATFORM_DEVICE_ID
+    string "Xiaozhi device ID"
+    default "2115359051913678848"
+    depends on IOT_PLATFORM_ENABLE
+
+config IOT_PLATFORM_HTTP_TOKEN
+    string "Per-device integration HTTP token"
+    default ""
+    depends on IOT_PLATFORM_ENABLE
+    help
+        Bearer token assigned to this Xiaozhi device. Keep this empty in shared
+        source control and configure it only in the local sdkconfig or NVS.
+        The IoT mirror remains inactive while the token is empty.
+
+config IOT_PLATFORM_HEARTBEAT_SECONDS
+    int "Status heartbeat interval (seconds)"
+    range 10 300
+    default 30
+    depends on IOT_PLATFORM_ENABLE
+
+endmenu
 
 menu "Camera Configuration"
     depends on !IDF_TARGET_ESP32

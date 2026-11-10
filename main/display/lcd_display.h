@@ -3,6 +3,9 @@
 
 #include "lvgl_display.h"
 #include "gif/lvgl_gif.h"
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+#include "standby_dashboard.h"
+#endif
 
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
@@ -14,7 +17,6 @@
 #include <memory>
 
 #define PREVIEW_IMAGE_DURATION_MS 5000
-
 
 class LcdDisplay : public LvglDisplay {
 protected:
@@ -46,6 +48,7 @@ protected:
     lv_obj_t* binding_qr_ = nullptr;
     lv_obj_t* binding_detail_ = nullptr;
     lv_obj_t* account_button_ = nullptr;
+    lv_obj_t* binding_close_button_ = nullptr;
     lv_timer_t* binding_timer_ = nullptr;
     std::function<void()> account_action_;
     std::string binding_uri_;
@@ -55,7 +58,17 @@ protected:
     bool binding_qr_valid_ = false;
 
     void CreateDeviceBindingUi();
+    void UpdateAccountButtonPosition();
     void UpdateBindingCountdown();
+#endif
+
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    std::unique_ptr<StandbyDashboard> standby_dashboard_ = nullptr;
+    lv_obj_t* cyber_exit_button_ = nullptr;
+    lv_obj_t* cyber_exit_label_ = nullptr;
+    lv_obj_t* cyber_brand_name_label_ = nullptr;
+    lv_obj_t* cyber_company_name_label_ = nullptr;
+    bool cyber_logo_animation_running_ = false;
 #endif
 
     void InitializeLcdThemes();
@@ -65,6 +78,19 @@ protected:
     void ShowTopBarTemporarily();
     void AttachTopBarTouchTarget(lv_obj_t* object);
     static void TopBarTouchEventCallback(lv_event_t* event);
+
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    void CreateCyberConversationUI();
+    void UpdateCyberExitButtonVisibility();
+    void StartCyberLogoAnimation();
+    void StopCyberLogoAnimation();
+    static void CyberLogoRotationAnimCallback(void* object, int32_t value);
+    static void CyberLogoScaleAnimCallback(void* object, int32_t value);
+    static void CyberExitEventCallback(lv_event_t* event);
+    void CreateStandbyDashboard();
+    void UpdateStandbyDashboardVisibility();
+    void UpdateStandbyDashboard(bool force = false);
+#endif
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
     enum class LichuangFeatureView {
@@ -148,16 +174,21 @@ protected:
     
 public:
     ~LcdDisplay();
+    using LvglDisplay::ShowNotification;
     virtual void SetEmotion(const char* emotion) override;
     virtual void SetChatMessage(const char* role, const char* content) override;
     virtual void ClearChatMessages() override;
     virtual void ShowDeviceBinding(const DeviceControlView& view) override;
     virtual void SetAccountAction(std::function<void()> action) override;
     virtual void SetStatus(const char* status) override;
+    virtual void ShowNotification(const char* notification, int duration_ms = 3000) override;
     virtual void UpdateStatusBar(bool update_all = false) override;
     virtual void SetPreviewImage(std::unique_ptr<LvglImage> image) override;
+    virtual void ClearPreviewImage() override;
     virtual void SetupUI() override;
     virtual void ShowPomodoroTimerView() override;
+    virtual void ClosePomodoroTimerView() override;
+    virtual void CloseStandbyFeatureViews() override;
     // Add theme switching function
     virtual void SetTheme(Theme* theme) override;
     
@@ -184,9 +215,9 @@ public:
 // MIPI LCD display
 class MipiLcdDisplay : public LcdDisplay {
 public:
-    MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
-                   int width, int height, int offset_x, int offset_y,
-                   bool mirror_x, bool mirror_y, bool swap_xy);
+    MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width,
+                   int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y,
+                   bool swap_xy, lv_display_rotation_t rotation = LV_DISPLAY_ROTATION_0);
 };
 
 #endif // LCD_DISPLAY_H

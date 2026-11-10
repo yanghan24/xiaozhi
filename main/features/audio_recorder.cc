@@ -21,6 +21,7 @@ constexpr uint32_t kMaxRecordingSeconds = 60 * 60;
 constexpr uint64_t kMinFreeBytesToStart = 1024 * 1024;
 constexpr uint64_t kMinFreeBytesDuringRecording = 512 * 1024;
 constexpr int64_t kSpaceCheckIntervalUs = 1000000;
+constexpr uint8_t kRecorderFocusResources = kAudioFocusResourceInputOutput;
 
 void WriteLe16(FILE* file, uint16_t value) {
     uint8_t bytes[2] = {
@@ -73,14 +74,16 @@ esp_err_t AudioRecorder::Start() {
         return ret;
     }
 
+    Application::GetInstance().EndVoiceInteraction();
+
     auto& audio = Application::GetInstance().GetAudioService();
-    if (!audio.RequestAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput,
-            [](AudioFocusOwner owner, uint8_t resources) {
-                (void)owner;
-                if (resources & kAudioFocusResourceInput) {
-                    AudioRecorder::GetInstance().PauseFromFocusLoss();
-                }
-            })) {
+    if (!audio.RequestAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources,
+                                 [](AudioFocusOwner owner, uint8_t resources) {
+                                     (void)owner;
+                                     if (resources & kRecorderFocusResources) {
+                                         AudioRecorder::GetInstance().StopFromFocusLoss();
+                                     }
+                                 })) {
         std::lock_guard<std::mutex> lock(mutex_);
         last_error_ = "Audio input is busy.";
         state_ = AudioRecorderState::kError;
@@ -89,7 +92,7 @@ esp_err_t AudioRecorder::Start() {
 
     std::lock_guard<std::mutex> lock(mutex_);
     if (!control.IsCurrentGeneration(permission_generation)) {
-        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources);
         return ESP_ERR_INVALID_STATE;
     }
     if (state_ == AudioRecorderState::kRecording) {
@@ -103,7 +106,7 @@ esp_err_t AudioRecorder::Start() {
     if (last_free_bytes_ < kMinFreeBytesToStart) {
         last_error_ = "Not enough free space to start recording.";
         state_ = AudioRecorderState::kError;
-        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources);
         return ESP_ERR_NO_MEM;
     }
 
@@ -113,7 +116,7 @@ esp_err_t AudioRecorder::Start() {
     if (file_ == nullptr) {
         last_error_ = std::string("Failed to create recording: errno=") + std::to_string(errno);
         state_ = AudioRecorderState::kError;
-        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources);
         return ESP_FAIL;
     }
 
@@ -134,7 +137,7 @@ esp_err_t AudioRecorder::Start() {
         });
     if (!observer_ok) {
         CloseWithErrorLocked("Failed to register recorder PCM observer.");
-        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources);
         return ESP_FAIL;
     }
 
@@ -150,8 +153,8 @@ esp_err_t AudioRecorder::Pause() {
         }
         state_ = AudioRecorderState::kPaused;
     }
-    Application::GetInstance().GetAudioService().ReleaseAudioFocus(
-        kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+    Application::GetInstance().GetAudioService().ReleaseAudioFocus(kAudioFocusOwnerRecorder,
+                                                                   kRecorderFocusResources);
     ESP_LOGI(TAG, "Recording paused");
     return ESP_OK;
 }
@@ -163,14 +166,16 @@ esp_err_t AudioRecorder::Resume() {
             return ESP_ERR_INVALID_STATE;
         }
     }
+    Application::GetInstance().EndVoiceInteraction();
+
     auto& audio = Application::GetInstance().GetAudioService();
-    if (!audio.RequestAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput,
-            [](AudioFocusOwner owner, uint8_t resources) {
-                (void)owner;
-                if (resources & kAudioFocusResourceInput) {
-                    AudioRecorder::GetInstance().PauseFromFocusLoss();
-                }
-            })) {
+    if (!audio.RequestAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources,
+                                 [](AudioFocusOwner owner, uint8_t resources) {
+                                     (void)owner;
+                                     if (resources & kRecorderFocusResources) {
+                                         AudioRecorder::GetInstance().StopFromFocusLoss();
+                                     }
+                                 })) {
         std::lock_guard<std::mutex> lock(mutex_);
         last_error_ = "Audio input is busy.";
         return ESP_ERR_INVALID_STATE;
@@ -190,7 +195,7 @@ esp_err_t AudioRecorder::Resume() {
         return ESP_OK;
     }
 
-    audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+    audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources);
     return Start();
 }
 
@@ -289,12 +294,9 @@ void AudioRecorder::OnPcmData(const int16_t* data, size_t samples, int sample_ra
     }
 }
 
-void AudioRecorder::PauseFromFocusLoss() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (state_ == AudioRecorderState::kRecording) {
-        state_ = AudioRecorderState::kPaused;
-        ESP_LOGI(TAG, "Recording paused by audio focus loss");
-    }
+void AudioRecorder::StopFromFocusLoss() {
+    ESP_LOGI(TAG, "Recording stopped by audio focus loss");
+    Stop();
 }
 
 void AudioRecorder::FinalizeFileLocked() {
@@ -317,7 +319,7 @@ void AudioRecorder::CloseWithErrorLocked(const std::string& error) {
 void AudioRecorder::ClearObserverAndFocus() {
     auto& audio = Application::GetInstance().GetAudioService();
     audio.ClearInputPcmObserver(kAudioFocusOwnerRecorder);
-    audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kAudioFocusResourceInput);
+    audio.ReleaseAudioFocus(kAudioFocusOwnerRecorder, kRecorderFocusResources);
 }
 
 bool AudioRecorder::CheckFreeSpaceLocked(bool force) {

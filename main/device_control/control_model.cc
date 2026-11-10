@@ -289,6 +289,26 @@ void PendingCreate::Complete(int status) {
         Clear();
 }
 
+void PendingAck::Set(uint64_t revision, uint64_t permission, bool audio_stopped) {
+    pending_ = true;
+    revision_ = revision;
+    permission_ = permission;
+    audio_stopped_ = audio_stopped;
+}
+void PendingAck::Rebase(const DeviceControlView& view) {
+    if (!pending_)
+        return;
+    if (permission_ != view.permission_version) {
+        Clear();  // The application must first apply and stop the new permission version.
+        return;
+    }
+    revision_ = view.revision;
+}
+void PendingAck::Confirm(uint64_t revision, uint64_t permission, bool audio_stopped) {
+    if (revision_ == revision && permission_ == permission && audio_stopped_ == audio_stopped)
+        Clear();
+}
+
 ApplyResult Model::ApplyState(const std::string& json, int64_t now, int64_t elapsed) {
     // Expiry is a generation boundary even if the timer task has not run yet.
     Tick(now);
@@ -320,7 +340,8 @@ ApplyResult Model::ApplyState(const std::string& json, int64_t now, int64_t elap
     bool valid = (binding == "unbound" && permission == "blocked" && reason == "unbound") ||
                  (binding == "bound" && permission == "allowed" && reason == "ready") ||
                  (binding == "bound" && permission == "blocked" &&
-                  (reason == "user_signed_out" || reason == "market_auth_required")) ||
+                  (reason == "user_signed_out" || reason == "market_auth_required" ||
+                   reason == "market_auth_pending")) ||
                  ((binding == "bound" || binding == "unbound") && permission == "blocked" &&
                   reason == "device_disabled");
     std::string stable, request_id;
@@ -498,7 +519,7 @@ std::string Model::AutoIntent() const {
     if (!have_state_ || server_request_active_)
         return {};
     if (view_.reason == "unbound" || view_.reason == "user_signed_out" ||
-        view_.reason == "market_auth_required")
+        view_.reason == "market_auth_required" || view_.reason == "market_auth_pending")
         return "auto";
     return {};
 }

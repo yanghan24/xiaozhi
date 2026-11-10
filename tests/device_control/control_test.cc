@@ -184,5 +184,49 @@ int main() {
             R"({"version":1,"code":"RATE_LIMITED","message":"slow","retry_after_ms":120000,"retry_after_ms":1})",
             1700000000000) == 2000,
         "duplicate JSON retry fields must not be trusted over the HTTP delay");
+
+    device_control::Model lifecycle("speaker-a", "https://speaker.example:8443");
+    lifecycle.ApplyState(AllowedState, 1000, 1);
+    const auto playing_generation = lifecycle.View().generation;
+    auto pending = Replace(Replace(changed_fact, "user_signed_out", "market_auth_pending"),
+                           "\"permission_version\":4", "\"permission_version\":5");
+    Check(lifecycle.ApplyState(pending, 2000, 1) == device_control::ApplyResult::Applied &&
+              !lifecycle.Allowed(2000) && lifecycle.View().generation > playing_generation &&
+              lifecycle.AutoIntent() == "auto",
+          "uncertain shared authorization must stop old audio and request an owner recovery QR");
+    auto pending_qr = Replace(Replace(Replace(unbound, "\"revision\":1", "\"revision\":30"),
+                                      "\"permission_version\":1", "\"permission_version\":5"),
+                              "\"binding_state\":\"unbound\"", "\"binding_state\":\"bound\"");
+    pending_qr =
+        Replace(Replace(pending_qr, "\"reason\":\"unbound\"", "\"reason\":\"market_auth_pending\""),
+                "\"purpose\":\"bind\"", "\"purpose\":\"resume\"");
+    Check(lifecycle.ApplyState(pending_qr, 3000, 1) == device_control::ApplyResult::Applied &&
+              lifecycle.View().purpose == "resume" && !lifecycle.View().verification_uri.empty() &&
+              !lifecycle.Allowed(3000),
+          "the current server pending state must display its recovery QR without permitting voice");
+
+    device_control::PendingAck stopped;
+    stopped.Set(29, 5, true);  // Driver stop completed; first ACK raced QR creation and got 409.
+    stopped.Rebase(lifecycle.View());
+    Check(stopped.Pending() && stopped.Revision() == 30 && stopped.Permission() == 5 &&
+              stopped.AudioStopped(),
+          "a QR-only conflict must retry the actual stopped permission at the current revision");
+    stopped.Confirm(29, 5, true);
+    Check(stopped.Pending(), "a late old ACK response must not clear a rebased pending ACK");
+    stopped.Confirm(30, 5, true);
+    Check(!stopped.Pending(), "only a matching ACK confirms delivery");
+    stopped.Set(30, 5, true);
+    auto recovered = Replace(Replace(AllowedState, "\"revision\":28", "\"revision\":31"),
+                             "\"permission_version\":4", "\"permission_version\":6");
+    // The fixture has permission_version in the state, lease and voice.
+    recovered = Replace(recovered, "\"permission_version\":4", "\"permission_version\":6");
+    recovered = Replace(recovered, "\"permission_version\":4", "\"permission_version\":6");
+    Check(lifecycle.ApplyState(recovered, 4000, 1) == device_control::ApplyResult::Applied &&
+              lifecycle.Allowed(4000),
+          "a later explicit restore permits a fresh voice generation");
+    stopped.Rebase(lifecycle.View());
+    Check(!stopped.Pending(), "old stop evidence cannot acknowledge a later restored permission");
+    device_control::Model rebooted("speaker-a", "https://speaker.example:8443");
+    Check(!rebooted.Allowed(0), "reboot never restores an old voice lease before synchronization");
     std::cout << "device control host tests passed\n";
 }

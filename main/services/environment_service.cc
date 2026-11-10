@@ -8,9 +8,10 @@
 #include <cstring>
 #include <ctime>
 
-#include <cJSON.h>
 #include <esp_log.h>
 #include <esp_timer.h>
+#include <cJSON.h>
+#include <sdkconfig.h>
 
 #define TAG "EnvironmentService"
 
@@ -202,6 +203,17 @@ void EnvironmentService::LoadConfigLocked() {
         config_.refresh_interval_minutes, kMinRefreshMinutes, kMaxRefreshMinutes);
     config_.fallback_adcode = settings.GetString(kFallbackAdcodeKey);
     config_.fallback_city = settings.GetString(kFallbackCityKey);
+
+#if defined(CONFIG_XIAOZHI_AMAP_API_KEY)
+    if (CONFIG_XIAOZHI_AMAP_API_KEY[0] != '\0' &&
+        config_.amap_api_key != CONFIG_XIAOZHI_AMAP_API_KEY) {
+        config_.amap_api_key = CONFIG_XIAOZHI_AMAP_API_KEY;
+        Settings writable_settings(kSettingsNamespace, true);
+        writable_settings.SetString(kAmapKey, config_.amap_api_key);
+        ESP_LOGI(TAG, "Applied AMap API key from local build configuration");
+    }
+#endif
+
     snapshot_.configured = !config_.amap_api_key.empty();
     config_loaded_ = true;
 }
@@ -264,11 +276,11 @@ void EnvironmentService::SaveCacheLocked() {
 }
 
 bool EnvironmentService::ShouldRefreshLocked(int64_t now_us, bool force) const {
-    if (force) {
-        return true;
-    }
     if (config_.amap_api_key.empty()) {
         return false;
+    }
+    if (force) {
+        return true;
     }
     if (last_refresh_attempt_us_ == 0) {
         return true;

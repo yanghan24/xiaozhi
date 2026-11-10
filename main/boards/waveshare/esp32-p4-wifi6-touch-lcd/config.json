@@ -44,6 +44,10 @@
                 "CONFIG_CAMERA_OV5647_AUTO_DETECT_MIPI_INTERFACE_SENSOR=y",
                 "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X800_50FPS=y",
                 "CONFIG_XIAOZHI_ENABLE_CAMERA_ENDIANNESS_SWAP=y",
+                "CONFIG_FATFS_LFN_HEAP=y",
+                "CONFIG_FATFS_MAX_LFN=255",
+                "CONFIG_FATFS_CODEPAGE_936=y",
+                "CONFIG_FATFS_API_ENCODING_UTF_8=y",
                 "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y",
                 "CONFIG_ESP32P4_REV_MIN_100=y"
             ]
@@ -59,7 +63,11 @@
                 "CONFIG_CAMERA_OV5647=y",
                 "CONFIG_CAMERA_OV5647_AUTO_DETECT_MIPI_INTERFACE_SENSOR=y",
                 "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X800_50FPS=y",
-                "CONFIG_XIAOZHI_ENABLE_CAMERA_ENDIANNESS_SWAP=y"
+                "CONFIG_XIAOZHI_ENABLE_CAMERA_ENDIANNESS_SWAP=y",
+                "CONFIG_FATFS_LFN_HEAP=y",
+                "CONFIG_FATFS_MAX_LFN=255",
+                "CONFIG_FATFS_CODEPAGE_936=y",
+                "CONFIG_FATFS_API_ENCODING_UTF_8=y"
             ]
         },
         {

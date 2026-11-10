@@ -8,6 +8,7 @@
 #include <freertos/task.h>
 
 #include "application.h"
+#include "device_control/device_identity.h"
 
 #define TAG "main"
 
@@ -16,9 +17,15 @@ extern "C" void app_main(void)
     // Initialize NVS flash for WiFi configuration
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+        // Never erase a registered identity to repair user settings automatically.
+        ESP_LOGE(TAG, "NVS requires maintenance; device identity was not erased");
+        return;
+#else
         ESP_LOGW(TAG, "Erasing NVS flash to fix corruption");
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
+#endif
     }
     ESP_ERROR_CHECK(ret);
 

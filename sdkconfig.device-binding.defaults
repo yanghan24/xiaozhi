@@ -1,5 +1,7 @@
 # Append after sdkconfig.defaults and sdkconfig.defaults.esp32p4 for the target board.
 CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3=y
+# The acceptance speaker is revision 3.2; retain the verified 3.1+ build target.
+CONFIG_ESP32P4_REV_MIN_301=y
 CONFIG_XIAOZHI_DEVICE_CONTROL=y
 CONFIG_LV_USE_QRCODE=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y

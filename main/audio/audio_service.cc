@@ -41,21 +41,6 @@
 #define TAG "AudioService"
 
 namespace {
-int GetAudioFocusPriority(AudioFocusOwner owner) {
-    switch (owner) {
-        case kAudioFocusOwnerVoiceInteraction:
-            return 400;
-        case kAudioFocusOwnerPromptSound:
-            return 300;
-        case kAudioFocusOwnerRecorder:
-            return 200;
-        case kAudioFocusOwnerLocalMusic:
-            return 100;
-        default:
-            return 0;
-    }
-}
-
 const char* AudioFocusOwnerName(AudioFocusOwner owner) {
     switch (owner) {
         case kAudioFocusOwnerLocalMusic:
@@ -72,9 +57,8 @@ const char* AudioFocusOwnerName(AudioFocusOwner owner) {
 }
 
 bool CanPreemptAudioFocus(AudioFocusOwner current, AudioFocusOwner requester) {
-    return current == kAudioFocusOwnerNone ||
-        current == requester ||
-        GetAudioFocusPriority(requester) >= GetAudioFocusPriority(current);
+    return current == kAudioFocusOwnerNone || current == requester ||
+           requester != kAudioFocusOwnerNone;
 }
 } // namespace
 
@@ -372,13 +356,13 @@ void AudioService::AudioOutputTask() {
 
         const bool controlled =
             DeviceControl::GetInstance().Enabled() && task->requires_voice_permission;
-        if (controlled && (!IsControlledAllowed(task->generation) ||
-                           !controlled_access_.TryBeginOutput(task->generation))) {
+        if (!IsOutputCurrent(*task) ||
+            (controlled && !controlled_access_.TryBeginOutput(task->generation))) {
             continue;
         }
         {
             std::lock_guard<std::mutex> output_lock(audio_output_mutex_);
-            if (!controlled || IsControlledAllowed(task->generation)) {
+            if (IsOutputCurrent(*task)) {
                 if (!codec_->output_enabled()) {
                     esp_timer_stop(audio_power_timer_);
                     esp_timer_start_periodic(audio_power_timer_,
@@ -386,7 +370,11 @@ void AudioService::AudioOutputTask() {
                     codec_->EnableOutput(true);
                 }
                 // Revocation may have raced codec setup; check again at the driver seam.
-                if (!controlled || IsControlledAllowed(task->generation)) {
+                if (IsOutputCurrent(*task)) {
+                    if (!task->playback_text.empty() && callbacks_.on_playback_text) {
+                        callbacks_.on_playback_text(task->playback_text, task->generation,
+                                                    task->connection_id);
+                    }
                     codec_->OutputData(task->pcm);
                 }
             }
@@ -435,16 +423,18 @@ void AudioService::OpusCodecTask() {
             task->timestamp = packet->timestamp;
             task->requires_voice_permission = packet->requires_voice_permission;
             task->generation = packet->generation;
-            if (task->requires_voice_permission && !IsControlledAllowed(task->generation)) {
+            task->connection_id = packet->connection_id;
+            if (!IsOutputCurrent(*task)) {
                 lock.lock();
                 continue;
             }
+            task->playback_text = std::move(packet->playback_text);
 
             // Reset/revocation covers configuration, decode and resampler history.
             // Recheck only after owning that barrier so an old packet cannot
             // repopulate codec state after the next login has reset it.
             std::unique_lock<std::mutex> decoder_lock(decoder_mutex_);
-            if (task->requires_voice_permission && !IsControlledAllowed(task->generation)) {
+            if (!IsOutputCurrent(*task)) {
                 decoder_lock.unlock();
                 lock.lock();
                 continue;
@@ -479,7 +469,7 @@ void AudioService::OpusCodecTask() {
                     }
                     decoder_lock.unlock();
                     lock.lock();
-                    if (!task->requires_voice_permission || IsControlledAllowed(task->generation)) {
+                    if (IsOutputCurrent(*task)) {
                         audio_playback_queue_.push_back(std::move(task));
                     }
                     audio_queue_cv_.notify_all();
@@ -755,6 +745,11 @@ std::unique_ptr<AudioStreamPacket> AudioService::PopWakeWordPacket() {
 void AudioService::EnableWakeWordDetection(bool enable) {
     if (!wake_word_) {
         return;
+    }
+    // Local music/focus callbacks must not restart the microphone after logout.
+    if (enable && DeviceControl::GetInstance().Enabled() &&
+        !DeviceControl::GetInstance().IsVoiceAllowed()) {
+        enable = false;
     }
 
     ESP_LOGD(TAG, "%s wake word detection", enable ? "Enabling" : "Disabling");
@@ -1080,6 +1075,11 @@ bool AudioService::IsControlledAllowed(uint64_t generation) const {
             controlled_access_.IsCurrent(generation));
 }
 
+bool AudioService::IsOutputCurrent(const AudioTask& task) const {
+    return (!task.requires_voice_permission || IsControlledAllowed(task.generation)) &&
+           (task.connection_id == 0 || task.connection_id == voice_connection_id_.load());
+}
+
 void AudioService::ApplyControlledAccess(uint64_t generation, bool allowed) {
     if (allowed) {
         controlled_access_.Grant(generation);
@@ -1090,6 +1090,7 @@ void AudioService::ApplyControlledAccess(uint64_t generation, bool allowed) {
 
 void AudioService::RevokeControlledAccess(uint64_t generation) {
     controlled_access_.Revoke(generation);
+    SetVoiceConnection(0);
     audio_queue_cv_.notify_all();
 }
 

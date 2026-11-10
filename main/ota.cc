@@ -2,6 +2,7 @@
 #include "assets/lang_config.h"
 #include "device_control/control_model.h"
 #include "device_control/device_control.h"
+#include "device_control/device_identity.h"
 #include "settings.h"
 #include "system_info.h"
 
@@ -46,6 +47,10 @@ Ota::~Ota() {
 }
 
 std::string Ota::GetCheckVersionUrl() {
+    if (DeviceControl::GetInstance().Enabled()) {
+        device_control::IdentityConfig identity;
+        return device_control::LoadDeviceIdentity(identity) ? identity.ota_url : "";
+    }
     Settings settings("wifi", false);
     std::string url = settings.GetString("ota_url");
     if (url.empty()) {
@@ -88,8 +93,9 @@ esp_err_t Ota::CheckVersion() {
     std::string url = GetCheckVersionUrl();
     const bool control_enabled = DeviceControl::GetInstance().Enabled();
     if (control_enabled) {
-        Settings provisioned("device_ctrl", false);
-        if (!device_control::IsTrustedOtaUrl(url, provisioned.GetString("ota_origin"))) {
+        device_control::IdentityConfig identity;
+        if (!device_control::LoadDeviceIdentity(identity) ||
+            !device_control::IsTrustedOtaUrl(url, identity.ota_origin)) {
             ESP_LOGE(TAG, "Device control requires a provisioned HTTPS OTA origin");
             return ESP_ERR_INVALID_ARG;
         }

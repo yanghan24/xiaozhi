@@ -30,6 +30,7 @@ constexpr uint32_t kDeferredPlaybackTaskStackBytes = 4096;
 constexpr uint32_t kDeferredPlaybackPollMs = 100;
 constexpr uint32_t kDeferredPlaybackTimeoutMs = 20000;
 constexpr uint32_t kDeferredPlaybackSettleMs = 200;
+constexpr uint8_t kMusicFocusResources = kAudioFocusResourceOutput;
 
 struct PlaybackTaskArg {
     MusicPlayer* player = nullptr;
@@ -212,6 +213,13 @@ bool PrepareOutputChunk(const int16_t* input, size_t frames, int input_channels,
     return rate_converter.Process(output, error);
 }
 
+uint64_t NormalizeMp3Bitrate(uint32_t bitrate) {
+    // esp_audio_simple_dec reports MP3 bitrate in kbps on some decoder versions
+    // and in bps on others.
+    return bitrate > 0 && bitrate < 10000 ? static_cast<uint64_t>(bitrate) * 1000
+                                          : static_cast<uint64_t>(bitrate);
+}
+
 bool EnsureStorageForPlayback(std::string& error) {
     esp_err_t ret = Board::GetInstance().EnsureStorageReady();
     if (ret == ESP_OK || SdCardService::GetInstance().IsMounted()) {
@@ -231,6 +239,22 @@ bool IsVoiceOutputActive() {
     }
     return app.GetAudioService().HasAudioFocus(
         kAudioFocusOwnerVoiceInteraction, kAudioFocusResourceOutput);
+}
+
+void SuspendAudioInputForMusic() {
+    auto& audio = Application::GetInstance().GetAudioService();
+    audio.EnableVoiceProcessing(false);
+    audio.EnableWakeWordDetection(false);
+}
+
+void RestoreIdleAudioInput() {
+    auto& app = Application::GetInstance();
+    auto& audio = app.GetAudioService();
+    if (app.GetDeviceState() == kDeviceStateIdle &&
+        !audio.HasAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput)) {
+        audio.EnableVoiceProcessing(false);
+        audio.EnableWakeWordDetection(true);
+    }
 }
 } // namespace
 
@@ -254,30 +278,32 @@ esp_err_t MusicPlayer::PlayForGeneration(int index, uint64_t permission_generati
         SetLastErrorLocked(storage_error);
         return ESP_ERR_INVALID_STATE;
     }
-    if (IsVoiceOutputActive()) {
-        return SchedulePlayAfterVoiceInteraction(index, permission_generation);
-    }
+    Application::GetInstance().EndVoiceInteraction();
 
     auto& audio = Application::GetInstance().GetAudioService();
-    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
-            [](AudioFocusOwner owner, uint8_t resources) {
-                (void)owner;
-                if (resources & kAudioFocusResourceOutput) {
-                    MusicPlayer::GetInstance().PauseFromFocusLoss();
-                }
-            })) {
+    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources,
+                                 [](AudioFocusOwner owner, uint8_t resources) {
+                                     (void)owner;
+                                     if (resources & kMusicFocusResources) {
+                                         MusicPlayer::GetInstance().StopFromFocusLoss();
+                                     }
+                                 })) {
         std::lock_guard<std::mutex> lock(mutex_);
         SetLastErrorLocked("Audio output is busy.");
         return ESP_ERR_INVALID_STATE;
     }
+    SuspendAudioInputForMusic();
 
     std::lock_guard<std::mutex> lock(mutex_);
-    playlist_ = BuildPlayablePlaylistLocked();
+    if (playlist_.empty()) {
+        playlist_ = BuildPlayablePlaylistLocked();
+    }
     if (playlist_.empty()) {
         state_ = MusicPlayerState::kIdle;
         current_index_ = -1;
         SetLastErrorLocked("No WAV/MP3 files found under /sdcard/music or /sdcard/recordings.");
-        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources);
+        RestoreIdleAudioInput();
         return ESP_ERR_NOT_FOUND;
     }
 
@@ -287,7 +313,8 @@ esp_err_t MusicPlayer::PlayForGeneration(int index, uint64_t permission_generati
     }
     if (index < 0 || index >= static_cast<int>(playlist_.size())) {
         SetLastErrorLocked("Track index is out of range.");
-        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources);
+        RestoreIdleAudioInput();
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -304,8 +331,9 @@ esp_err_t MusicPlayer::Pause() {
         }
         state_ = MusicPlayerState::kPaused;
     }
-    Application::GetInstance().GetAudioService().ReleaseAudioFocus(
-        kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+    Application::GetInstance().GetAudioService().ReleaseAudioFocus(kAudioFocusOwnerLocalMusic,
+                                                                   kMusicFocusResources);
+    RestoreIdleAudioInput();
     return ESP_OK;
 }
 
@@ -317,22 +345,21 @@ esp_err_t MusicPlayer::ResumeForGeneration(uint64_t permission_generation) {
     if (!IsMusicPermissionCurrent(permission_generation)) {
         return ESP_ERR_INVALID_STATE;
     }
-    if (IsVoiceOutputActive()) {
-        return ScheduleResumeAfterVoiceInteraction(permission_generation);
-    }
+    Application::GetInstance().EndVoiceInteraction();
 
     auto& audio = Application::GetInstance().GetAudioService();
-    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
-            [](AudioFocusOwner owner, uint8_t resources) {
-                (void)owner;
-                if (resources & kAudioFocusResourceOutput) {
-                    MusicPlayer::GetInstance().PauseFromFocusLoss();
-                }
-            })) {
+    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources,
+                                 [](AudioFocusOwner owner, uint8_t resources) {
+                                     (void)owner;
+                                     if (resources & kMusicFocusResources) {
+                                         MusicPlayer::GetInstance().StopFromFocusLoss();
+                                     }
+                                 })) {
         std::lock_guard<std::mutex> lock(mutex_);
         SetLastErrorLocked("Audio output is busy.");
         return ESP_ERR_INVALID_STATE;
     }
+    SuspendAudioInputForMusic();
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -356,16 +383,25 @@ esp_err_t MusicPlayer::TogglePlayPause() {
 }
 
 esp_err_t MusicPlayer::Stop() {
+    bool had_active_playback = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        had_active_playback = state_ == MusicPlayerState::kPlaying ||
+                              state_ == MusicPlayerState::kPaused ||
+                              playback_task_handle_ != nullptr;
         CancelDeferredPlaybackLocked();
         playback_generation_++;
         state_ = MusicPlayerState::kIdle;
         resume_offset_ = 0;
         elapsed_seconds_ = 0;
+        progress_per_mille_ = 0;
     }
-    Application::GetInstance().GetAudioService().ReleaseAudioFocus(
-        kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+    auto& audio = Application::GetInstance().GetAudioService();
+    if (had_active_playback) {
+        audio.ResetDecoder();
+    }
+    audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources);
+    RestoreIdleAudioInput();
     return ESP_OK;
 }
 
@@ -382,26 +418,32 @@ esp_err_t MusicPlayer::Next() {
         return ESP_ERR_INVALID_STATE;
     }
 
+    Application::GetInstance().EndVoiceInteraction();
+
     auto& audio = Application::GetInstance().GetAudioService();
-    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
-            [](AudioFocusOwner owner, uint8_t resources) {
-                (void)owner;
-                if (resources & kAudioFocusResourceOutput) {
-                    MusicPlayer::GetInstance().PauseFromFocusLoss();
-                }
-            })) {
+    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources,
+                                 [](AudioFocusOwner owner, uint8_t resources) {
+                                     (void)owner;
+                                     if (resources & kMusicFocusResources) {
+                                         MusicPlayer::GetInstance().StopFromFocusLoss();
+                                     }
+                                 })) {
         std::lock_guard<std::mutex> lock(mutex_);
         SetLastErrorLocked("Audio output is busy.");
         return ESP_ERR_INVALID_STATE;
     }
+    SuspendAudioInputForMusic();
 
     std::lock_guard<std::mutex> lock(mutex_);
-    playlist_ = BuildPlayablePlaylistLocked();
+    if (playlist_.empty()) {
+        playlist_ = BuildPlayablePlaylistLocked();
+    }
     if (playlist_.empty()) {
         state_ = MusicPlayerState::kIdle;
         current_index_ = -1;
         SetLastErrorLocked("No WAV/MP3 files found under /sdcard/music or /sdcard/recordings.");
-        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources);
+        RestoreIdleAudioInput();
         return ESP_ERR_NOT_FOUND;
     }
     int next = current_index_ < 0 ? 0 :
@@ -422,26 +464,32 @@ esp_err_t MusicPlayer::Previous() {
         return ESP_ERR_INVALID_STATE;
     }
 
+    Application::GetInstance().EndVoiceInteraction();
+
     auto& audio = Application::GetInstance().GetAudioService();
-    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput,
-            [](AudioFocusOwner owner, uint8_t resources) {
-                (void)owner;
-                if (resources & kAudioFocusResourceOutput) {
-                    MusicPlayer::GetInstance().PauseFromFocusLoss();
-                }
-            })) {
+    if (!audio.RequestAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources,
+                                 [](AudioFocusOwner owner, uint8_t resources) {
+                                     (void)owner;
+                                     if (resources & kMusicFocusResources) {
+                                         MusicPlayer::GetInstance().StopFromFocusLoss();
+                                     }
+                                 })) {
         std::lock_guard<std::mutex> lock(mutex_);
         SetLastErrorLocked("Audio output is busy.");
         return ESP_ERR_INVALID_STATE;
     }
+    SuspendAudioInputForMusic();
 
     std::lock_guard<std::mutex> lock(mutex_);
-    playlist_ = BuildPlayablePlaylistLocked();
+    if (playlist_.empty()) {
+        playlist_ = BuildPlayablePlaylistLocked();
+    }
     if (playlist_.empty()) {
         state_ = MusicPlayerState::kIdle;
         current_index_ = -1;
         SetLastErrorLocked("No WAV/MP3 files found under /sdcard/music or /sdcard/recordings.");
-        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+        audio.ReleaseAudioFocus(kAudioFocusOwnerLocalMusic, kMusicFocusResources);
+        RestoreIdleAudioInput();
         return ESP_ERR_NOT_FOUND;
     }
     int previous = current_index_ < 0 ? 0 :
@@ -466,6 +514,7 @@ MusicPlayerStatus MusicPlayer::GetStatus() {
     status.channels = channels_;
     status.elapsed_seconds = elapsed_seconds_;
     status.duration_seconds = duration_seconds_;
+    status.progress_per_mille = progress_per_mille_;
     return status;
 }
 
@@ -524,7 +573,10 @@ esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset,
     playback_permission_generation_ = permission_generation;
     current_index_ = index;
     resume_offset_ = resume_offset;
-    elapsed_seconds_ = 0;
+    if (resume_offset == 0) {
+        elapsed_seconds_ = 0;
+        progress_per_mille_ = 0;
+    }
     duration_seconds_ = 0;
     sample_rate_ = 0;
     channels_ = 0;
@@ -545,8 +597,9 @@ esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset,
         playback_task_handle_ = nullptr;
         state_ = MusicPlayerState::kError;
         SetLastErrorLocked("Failed to create music playback task.");
-        Application::GetInstance().GetAudioService().ReleaseAudioFocus(
-            kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+        Application::GetInstance().GetAudioService().ReleaseAudioFocus(kAudioFocusOwnerLocalMusic,
+                                                                       kMusicFocusResources);
+        RestoreIdleAudioInput();
         return ESP_ERR_NO_MEM;
     }
 
@@ -555,14 +608,9 @@ esp_err_t MusicPlayer::StartPlaybackLocked(int index, uint32_t resume_offset,
     return ESP_OK;
 }
 
-void MusicPlayer::PauseFromFocusLoss() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (state_ == MusicPlayerState::kPlaying) {
-        state_ = MusicPlayerState::kPaused;
-        auto_resume_after_focus_loss_ = true;
-        StartDeferredPlaybackTaskLocked(current_index_, true, playback_permission_generation_);
-        ESP_LOGI(TAG, "Local music paused by audio focus loss");
-    }
+void MusicPlayer::StopFromFocusLoss() {
+    ESP_LOGI(TAG, "Local music stopped by audio focus loss");
+    Stop();
 }
 
 esp_err_t MusicPlayer::SchedulePlayAfterVoiceInteraction(int index,
@@ -769,6 +817,11 @@ void MusicPlayer::PlaybackWav(uint32_t generation, uint64_t permission_generatio
                 static_cast<int>(info.data_size / info.byte_rate) : 0;
             elapsed_seconds_ = info.byte_rate > 0 ?
                 static_cast<int>(playback_offset / info.byte_rate) : 0;
+            progress_per_mille_ =
+                info.data_size > 0
+                    ? static_cast<int>((static_cast<uint64_t>(playback_offset) * 1000) /
+                                       info.data_size)
+                    : 0;
         }
     }
 
@@ -832,14 +885,29 @@ void MusicPlayer::PlaybackWav(uint32_t generation, uint64_t permission_generatio
 
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (generation == playback_generation_ && info.byte_rate > 0) {
+            if (generation == playback_generation_) {
                 resume_offset_ = playback_offset;
-                elapsed_seconds_ = static_cast<int>(playback_offset / info.byte_rate);
+                if (info.byte_rate > 0) {
+                    elapsed_seconds_ = static_cast<int>(playback_offset / info.byte_rate);
+                }
+                progress_per_mille_ =
+                    info.data_size > 0
+                        ? std::clamp(
+                              static_cast<int>((static_cast<uint64_t>(playback_offset) * 1000) /
+                                               info.data_size),
+                              0, 1000)
+                        : 0;
             }
         }
     }
 
     fclose(file);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (generation == playback_generation_) {
+            progress_per_mille_ = 1000;
+        }
+    }
     FinishPlayback(generation, MusicPlayerState::kIdle, "");
 }
 
@@ -900,7 +968,22 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, uint64_t permission_generatio
     int source_channels = 0;
     uint64_t decoded_source_frames = 0;
     uint32_t resume_file_offset = static_cast<uint32_t>(ftell(file));
+    int elapsed_base_seconds = 0;
     std::string error;
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (generation == playback_generation_) {
+            elapsed_base_seconds = elapsed_seconds_;
+            progress_per_mille_ =
+                track.size_bytes > 0
+                    ? std::clamp(
+                          static_cast<int>((static_cast<uint64_t>(resume_file_offset) * 1000) /
+                                           track.size_bytes),
+                          0, 1000)
+                    : 0;
+        }
+    }
 
     while (true) {
         MusicPlayerState requested_state = MusicPlayerState::kPlaying;
@@ -987,8 +1070,10 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, uint64_t permission_generatio
                     if (generation == playback_generation_) {
                         sample_rate_ = source_sample_rate;
                         channels_ = source_channels;
-                        duration_seconds_ = info.bitrate > 0 ?
-                            static_cast<int>((track.size_bytes * 8) / info.bitrate) : 0;
+                        uint64_t bitrate_bps = NormalizeMp3Bitrate(info.bitrate);
+                        duration_seconds_ =
+                            bitrate_bps > 0 ? static_cast<int>((track.size_bytes * 8) / bitrate_bps)
+                                            : 0;
                     }
                 }
 
@@ -1013,11 +1098,21 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, uint64_t permission_generatio
                 std::lock_guard<std::mutex> lock(mutex_);
                 if (generation == playback_generation_ && source_sample_rate > 0) {
                     resume_offset_ = resume_file_offset;
-                    elapsed_seconds_ = static_cast<int>(
-                        decoded_source_frames / static_cast<uint64_t>(source_sample_rate));
+                    elapsed_seconds_ = elapsed_base_seconds +
+                                       static_cast<int>(decoded_source_frames /
+                                                        static_cast<uint64_t>(source_sample_rate));
+                    progress_per_mille_ =
+                        track.size_bytes > 0
+                            ? std::clamp(static_cast<int>(
+                                             (static_cast<uint64_t>(resume_file_offset) * 1000) /
+                                             track.size_bytes),
+                                         0, 1000)
+                            : 0;
                     if (duration_seconds_ == 0 && info.bitrate > 0) {
-                        duration_seconds_ = static_cast<int>(
-                            (track.size_bytes * 8) / info.bitrate);
+                        uint64_t bitrate_bps = NormalizeMp3Bitrate(info.bitrate);
+                        duration_seconds_ =
+                            bitrate_bps > 0 ? static_cast<int>((track.size_bytes * 8) / bitrate_bps)
+                                            : 0;
                     }
                 }
             }
@@ -1042,6 +1137,12 @@ void MusicPlayer::PlaybackMp3(uint32_t generation, uint64_t permission_generatio
     if (!error.empty()) {
         FinishPlayback(generation, MusicPlayerState::kError, error);
         return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (generation == playback_generation_) {
+            progress_per_mille_ = 1000;
+        }
     }
     FinishPlayback(generation, MusicPlayerState::kIdle, "");
 #else
@@ -1128,8 +1229,9 @@ void MusicPlayer::FinishPlayback(uint32_t generation, MusicPlayerState state,
         playback_task_handle_ = nullptr;
     }
     if (release_focus) {
-        Application::GetInstance().GetAudioService().ReleaseAudioFocus(
-            kAudioFocusOwnerLocalMusic, kAudioFocusResourceOutput);
+        Application::GetInstance().GetAudioService().ReleaseAudioFocus(kAudioFocusOwnerLocalMusic,
+                                                                       kMusicFocusResources);
+        RestoreIdleAudioInput();
     }
 }
 

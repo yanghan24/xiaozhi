@@ -39,6 +39,25 @@ private:
     uint64_t permission_version_ = 0;
 };
 
+// Keep a stopped-state acknowledgement across response loss and QR-only revisions.
+class PendingAck {
+public:
+    void Set(uint64_t revision, uint64_t permission, bool audio_stopped);
+    void Rebase(const DeviceControlView& view);
+    void Confirm(uint64_t revision, uint64_t permission, bool audio_stopped);
+    void Clear() { pending_ = false; }
+    bool Pending() const { return pending_; }
+    uint64_t Revision() const { return revision_; }
+    uint64_t Permission() const { return permission_; }
+    bool AudioStopped() const { return audio_stopped_; }
+
+private:
+    bool pending_ = false;
+    uint64_t revision_ = 0;
+    uint64_t permission_ = 0;
+    bool audio_stopped_ = false;
+};
+
 // Portable protocol boundary: responses and monotonic time in; UI/voice permission out.
 class Model {
 public:

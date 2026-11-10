@@ -32,6 +32,7 @@ struct MusicPlayerStatus {
     int channels = 0;
     int elapsed_seconds = 0;
     int duration_seconds = 0;
+    int progress_per_mille = 0;
 };
 
 class MusicPlayer {
@@ -88,6 +89,7 @@ private:
     uint32_t resume_offset_ = 0;
     int elapsed_seconds_ = 0;
     int duration_seconds_ = 0;
+    int progress_per_mille_ = 0;
     int sample_rate_ = 0;
     int channels_ = 0;
 
@@ -96,7 +98,7 @@ private:
     esp_err_t ResumeForGeneration(uint64_t permission_generation);
     esp_err_t StartPlaybackLocked(int index, uint32_t resume_offset,
                                   uint64_t permission_generation);
-    void PauseFromFocusLoss();
+    void StopFromFocusLoss();
     esp_err_t SchedulePlayAfterVoiceInteraction(int index, uint64_t permission_generation);
     esp_err_t ScheduleResumeAfterVoiceInteraction(uint64_t permission_generation);
     esp_err_t StartDeferredPlaybackTaskLocked(int index, bool resume,

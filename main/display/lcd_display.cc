@@ -28,6 +28,10 @@
 #include "features/pomodoro_timer.h"
 #include "services/environment_service.h"
 #include "storage/sd_card_service.h"
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+#include "assets/hncig_logo_i2.h"
+#include "standby_dashboard.h"
+#endif
 
 #define TAG "LcdDisplay"
 
@@ -264,10 +268,9 @@ RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 }
 
 MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
-                            int width, int height,  int offset_x, int offset_y,
-                            bool mirror_x, bool mirror_y, bool swap_xy)
+                               int width, int height, int offset_x, int offset_y, bool mirror_x,
+                               bool mirror_y, bool swap_xy, lv_display_rotation_t rotation)
     : LcdDisplay(panel_io, panel, width, height) {
-
     ESP_LOGI(TAG, "Initialize LVGL library");
     lv_init();
 
@@ -312,9 +315,24 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
     if (offset_x != 0 || offset_y != 0) {
         lv_display_set_offset(display_, offset_x, offset_y);
     }
+
+    if (rotation != LV_DISPLAY_ROTATION_0) {
+        if (lvgl_port_lock(0)) {
+            lv_display_set_rotation(display_, rotation);
+            lvgl_port_unlock();
+        }
+        if (rotation == LV_DISPLAY_ROTATION_90 || rotation == LV_DISPLAY_ROTATION_270) {
+            std::swap(width_, height_);
+        }
+        ESP_LOGI(TAG, "Display rotated to %d degrees, logical resolution %dx%d",
+                 static_cast<int>(rotation) * 90, width_, height_);
+    }
 }
 
 LcdDisplay::~LcdDisplay() {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    standby_dashboard_.reset();
+#endif
     SetPreviewImage(nullptr);
 
 #if CONFIG_XIAOZHI_DEVICE_CONTROL
@@ -326,6 +344,9 @@ LcdDisplay::~LcdDisplay() {
     }
     if (account_button_ != nullptr) {
         lv_obj_delete(account_button_);
+    }
+    if (binding_close_button_ != nullptr) {
+        lv_obj_delete(binding_close_button_);
     }
 #endif
 
@@ -403,6 +424,315 @@ bool LcdDisplay::Lock(int timeout_ms) {
 void LcdDisplay::Unlock() {
     lvgl_port_unlock();
 }
+
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+void LcdDisplay::CreateCyberConversationUI() {
+    constexpr uint32_t kBackground = 0x030B16;
+    constexpr uint32_t kChrome = 0x020713;
+    constexpr uint32_t kGrid = 0x123048;
+    constexpr uint32_t kCyan = 0x18DFF6;
+    constexpr uint32_t kBlue = 0x1679D3;
+    constexpr uint32_t kPurple = 0x6C51C8;
+    constexpr uint32_t kText = 0xF4F8FF;
+
+    auto box = [](lv_obj_t* parent, int x, int y, int width, int height) {
+        lv_obj_t* object = lv_obj_create(parent);
+        lv_obj_set_pos(object, x, y);
+        lv_obj_set_size(object, width, height);
+        lv_obj_set_style_pad_all(object, 0, 0);
+        lv_obj_set_style_border_width(object, 0, 0);
+        lv_obj_set_style_radius(object, 0, 0);
+        lv_obj_remove_flag(object, LV_OBJ_FLAG_SCROLLABLE);
+        return object;
+    };
+
+    auto* screen = lv_screen_active();
+    auto* lvgl_theme = static_cast<LvglTheme*>(current_theme_);
+    lv_obj_set_style_text_font(screen, lvgl_theme->text_font()->font(), 0);
+    lv_obj_set_style_bg_color(screen, lv_color_hex(kBackground), 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+    container_ = box(screen, 0, 0, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_style_bg_color(container_, lv_color_hex(kBackground), 0);
+    lv_obj_set_style_bg_opa(container_, LV_OPA_COVER, 0);
+
+    // Fine technical grid across the conversation area.
+    for (int x = 20; x < 800; x += 52) {
+        lv_obj_t* line = box(container_, x, 48, 1, 365);
+        lv_obj_set_style_bg_color(line, lv_color_hex(kGrid), 0);
+        lv_obj_set_style_bg_opa(line, LV_OPA_30, 0);
+    }
+    for (int y = 74; y < 413; y += 44) {
+        lv_obj_t* line = box(container_, 0, y, 800, 1);
+        lv_obj_set_style_bg_color(line, lv_color_hex(kGrid), 0);
+        lv_obj_set_style_bg_opa(line, LV_OPA_30, 0);
+    }
+
+    // Concentric cyan/purple radar rings from the reference design.
+    const int ring_sizes[] = {244, 202, 144};
+    const uint32_t ring_colors[] = {kCyan, kPurple, kCyan};
+    const lv_opa_t ring_opacity[] = {LV_OPA_90, LV_OPA_80, LV_OPA_50};
+    for (int i = 0; i < 3; ++i) {
+        const int size = ring_sizes[i];
+        lv_obj_t* ring = box(container_, (800 - size) / 2, 112 + (244 - size) / 2, size, size);
+        lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(ring, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(ring, 1, 0);
+        lv_obj_set_style_border_color(ring, lv_color_hex(ring_colors[i]), 0);
+        lv_obj_set_style_border_opa(ring, ring_opacity[i], 0);
+    }
+
+    // The official mark is stored as a compact 2-bit indexed pixel matrix.
+    // Palette index 0 is transparent, so the original royal-blue background
+    // is removed and only the white/light-blue logo participates in animation.
+    emoji_box_ = box(container_, 321, 156, 158, 158);
+    lv_obj_set_style_bg_opa(emoji_box_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_transform_pivot_x(emoji_box_, 79, 0);
+    lv_obj_set_style_transform_pivot_y(emoji_box_, 79, 0);
+    lv_obj_set_style_transform_scale(emoji_box_, 256, 0);
+
+    emoji_label_ = lv_label_create(emoji_box_);
+    lv_label_set_text(emoji_label_, "");
+    lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+
+    emoji_image_ = lv_image_create(emoji_box_);
+    lv_image_set_src(emoji_image_, &hncig_logo_i2);
+    lv_obj_center(emoji_image_);
+
+    // Use a two-level company signature instead of shrinking the complete
+    // legal name into one hard-to-read line. Both labels inherit the runtime
+    // asset font so all Chinese glyphs render correctly.
+    cyber_brand_name_label_ = lv_label_create(container_);
+    lv_label_set_text(cyber_brand_name_label_, "中湘元筑未来");
+    lv_obj_set_style_text_color(cyber_brand_name_label_, lv_color_hex(kText), 0);
+    lv_obj_set_style_text_letter_space(cyber_brand_name_label_, 2, 0);
+    lv_obj_align(cyber_brand_name_label_, LV_ALIGN_TOP_MID, 0, 344);
+
+    cyber_company_name_label_ = lv_label_create(container_);
+    lv_label_set_text(cyber_company_name_label_, "（湖南）科技有限公司");
+    lv_obj_set_style_text_color(cyber_company_name_label_, lv_color_hex(kCyan), 0);
+    lv_obj_set_style_text_letter_space(cyber_company_name_label_, 1, 0);
+    lv_obj_set_style_transform_scale(cyber_company_name_label_, 190, 0);
+    lv_obj_align(cyber_company_name_label_, LV_ALIGN_TOP_MID, 0, 382);
+
+    lv_obj_t* brand_rule_left = box(container_, 118, 363, 150, 1);
+    lv_obj_set_style_bg_color(brand_rule_left, lv_color_hex(kBlue), 0);
+    lv_obj_set_style_bg_opa(brand_rule_left, LV_OPA_60, 0);
+    lv_obj_t* brand_rule_right = box(container_, 532, 363, 150, 1);
+    lv_obj_set_style_bg_color(brand_rule_right, lv_color_hex(kBlue), 0);
+    lv_obj_set_style_bg_opa(brand_rule_right, LV_OPA_60, 0);
+
+    preview_image_ = lv_image_create(screen);
+    lv_obj_set_size(preview_image_, width_ / 2, height_ / 2);
+    lv_obj_align(preview_image_, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
+
+    // Opaque chrome keeps status and subtitles readable over the grid.
+    top_bar_ = box(screen, 0, 0, 800, 48);
+    lv_obj_set_style_bg_color(top_bar_, lv_color_hex(kChrome), 0);
+    lv_obj_set_style_bg_opa(top_bar_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(top_bar_, 1, 0);
+    lv_obj_set_style_border_side(top_bar_, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_color(top_bar_, lv_color_hex(kBlue), 0);
+
+    lv_obj_t* accent = box(top_bar_, 18, 18, 20, 12);
+    lv_obj_set_style_bg_color(accent, lv_color_hex(kCyan), 0);
+    lv_obj_set_style_bg_opa(accent, LV_OPA_COVER, 0);
+
+    // Keep the legacy status labels alive for the shared status updater, but
+    // hide them on this conversation screen. Reserve room for the account entry.
+    network_label_ = lv_label_create(top_bar_);
+    mute_label_ = lv_label_create(top_bar_);
+    battery_label_ = lv_label_create(top_bar_);
+    lv_label_set_text(network_label_, "");
+    lv_label_set_text(mute_label_, "");
+    lv_label_set_text(battery_label_, "");
+    lv_obj_add_flag(network_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mute_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(battery_label_, LV_OBJ_FLAG_HIDDEN);
+
+    cyber_exit_button_ = lv_button_create(top_bar_);
+    lv_obj_set_pos(cyber_exit_button_, 560, 4);
+    lv_obj_set_size(cyber_exit_button_, 136, 40);
+    lv_obj_remove_flag(cyber_exit_button_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(cyber_exit_button_, lv_color_hex(0x081B31), 0);
+    lv_obj_set_style_bg_opa(cyber_exit_button_, LV_OPA_80, 0);
+    lv_obj_set_style_border_color(cyber_exit_button_, lv_color_hex(0xFFB020), 0);
+    lv_obj_set_style_border_opa(cyber_exit_button_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(cyber_exit_button_, 1, 0);
+    lv_obj_set_style_radius(cyber_exit_button_, 10, 0);
+    lv_obj_set_style_pad_all(cyber_exit_button_, 0, 0);
+    lv_obj_set_style_bg_color(cyber_exit_button_, lv_color_hex(0xFFB020), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(cyber_exit_button_, LV_OPA_40, LV_STATE_PRESSED);
+    cyber_exit_label_ = lv_label_create(cyber_exit_button_);
+    lv_label_set_text(cyber_exit_label_, "结束对话");
+    lv_obj_set_style_text_color(cyber_exit_label_, lv_color_hex(kText), 0);
+    lv_obj_set_style_transform_scale(cyber_exit_label_, 210, 0);
+    lv_obj_center(cyber_exit_label_);
+    lv_obj_add_event_cb(cyber_exit_button_, CyberExitEventCallback, LV_EVENT_CLICKED, this);
+
+    status_bar_ = box(screen, 240, 0, 320, 48);
+    lv_obj_set_style_bg_opa(status_bar_, LV_OPA_TRANSP, 0);
+    status_label_ = lv_label_create(status_bar_);
+    lv_obj_set_width(status_label_, 310);
+    lv_label_set_long_mode(status_label_, LV_LABEL_LONG_DOT);
+    lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
+    lv_obj_set_style_text_color(status_label_, lv_color_hex(kText), 0);
+    lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(status_label_);
+    notification_label_ = lv_label_create(status_bar_);
+    lv_obj_set_width(notification_label_, 310);
+    lv_label_set_text(notification_label_, "");
+    lv_obj_set_style_text_color(notification_label_, lv_color_hex(kText), 0);
+    lv_obj_set_style_text_align(notification_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(notification_label_);
+    lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
+
+    bottom_bar_ = box(screen, 0, 413, 800, 67);
+    lv_obj_set_style_bg_color(bottom_bar_, lv_color_hex(kChrome), 0);
+    lv_obj_set_style_bg_opa(bottom_bar_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(bottom_bar_, 1, 0);
+    lv_obj_set_style_border_side(bottom_bar_, LV_BORDER_SIDE_TOP, 0);
+    lv_obj_set_style_border_color(bottom_bar_, lv_color_hex(kBlue), 0);
+    chat_message_label_ = lv_label_create(bottom_bar_);
+    lv_obj_set_width(chat_message_label_, 744);
+    lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_text(chat_message_label_, "");
+    lv_obj_set_style_text_color(chat_message_label_, lv_color_hex(kText), 0);
+    lv_obj_set_style_text_align(chat_message_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(chat_message_label_);
+    lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
+
+    low_battery_popup_ = box(screen, 140, 340, 520, 64);
+    lv_obj_set_style_bg_color(low_battery_popup_, lv_color_hex(0xB62045), 0);
+    lv_obj_set_style_bg_opa(low_battery_popup_, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(low_battery_popup_, 8, 0);
+    low_battery_label_ = lv_label_create(low_battery_popup_);
+    lv_label_set_text(low_battery_label_, Lang::Strings::BATTERY_NEED_CHARGE);
+    lv_obj_set_style_text_color(low_battery_label_, lv_color_white(), 0);
+    lv_obj_center(low_battery_label_);
+    lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
+
+    UpdateCyberExitButtonVisibility();
+}
+
+void LcdDisplay::CyberLogoRotationAnimCallback(void* object, int32_t value) {
+    if (object != nullptr) {
+        lv_obj_set_style_transform_rotation(static_cast<lv_obj_t*>(object), value, 0);
+    }
+}
+
+void LcdDisplay::CyberLogoScaleAnimCallback(void* object, int32_t value) {
+    if (object != nullptr) {
+        lv_obj_set_style_transform_scale(static_cast<lv_obj_t*>(object), value, 0);
+    }
+}
+
+void LcdDisplay::StartCyberLogoAnimation() {
+    if (emoji_box_ == nullptr || cyber_logo_animation_running_) {
+        return;
+    }
+
+    lv_anim_t rotation;
+    lv_anim_init(&rotation);
+    lv_anim_set_var(&rotation, emoji_box_);
+    lv_anim_set_exec_cb(&rotation, CyberLogoRotationAnimCallback);
+    lv_anim_set_values(&rotation, -24, 24);
+    lv_anim_set_duration(&rotation, 3400);
+    lv_anim_set_reverse_duration(&rotation, 3400);
+    lv_anim_set_repeat_count(&rotation, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&rotation, lv_anim_path_ease_in_out);
+    lv_anim_start(&rotation);
+
+    lv_anim_t scale;
+    lv_anim_init(&scale);
+    lv_anim_set_var(&scale, emoji_box_);
+    lv_anim_set_exec_cb(&scale, CyberLogoScaleAnimCallback);
+    lv_anim_set_values(&scale, 248, 263);
+    lv_anim_set_duration(&scale, 2700);
+    lv_anim_set_reverse_duration(&scale, 2700);
+    lv_anim_set_repeat_count(&scale, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&scale, lv_anim_path_ease_in_out);
+    lv_anim_start(&scale);
+
+    cyber_logo_animation_running_ = true;
+}
+
+void LcdDisplay::StopCyberLogoAnimation() {
+    if (emoji_box_ == nullptr) {
+        return;
+    }
+    lv_anim_delete(emoji_box_, CyberLogoRotationAnimCallback);
+    lv_anim_delete(emoji_box_, CyberLogoScaleAnimCallback);
+    lv_obj_set_style_transform_rotation(emoji_box_, 0, 0);
+    lv_obj_set_style_transform_scale(emoji_box_, 256, 0);
+    cyber_logo_animation_running_ = false;
+}
+
+void LcdDisplay::UpdateCyberExitButtonVisibility() {
+    if (cyber_exit_button_ == nullptr) {
+        return;
+    }
+    DeviceState state = Application::GetInstance().GetDeviceState();
+    bool voice_active = state == kDeviceStateConnecting || state == kDeviceStateListening ||
+                        state == kDeviceStateSpeaking;
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    UpdateAccountButtonPosition();
+#endif
+    if (voice_active) {
+        lv_obj_remove_state(cyber_exit_button_, LV_STATE_DISABLED);
+        lv_obj_remove_flag(cyber_exit_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_to_index(cyber_exit_button_, -1);
+        StartCyberLogoAnimation();
+    } else {
+        lv_obj_add_flag(cyber_exit_button_, LV_OBJ_FLAG_HIDDEN);
+        StopCyberLogoAnimation();
+    }
+}
+
+void LcdDisplay::CyberExitEventCallback(lv_event_t* event) {
+    auto* display = static_cast<LcdDisplay*>(lv_event_get_user_data(event));
+    if (display == nullptr || display->cyber_exit_button_ == nullptr) {
+        return;
+    }
+    lv_obj_add_state(display->cyber_exit_button_, LV_STATE_DISABLED);
+    Application::GetInstance().Schedule([]() { Application::GetInstance().EndVoiceInteraction(); });
+}
+void LcdDisplay::CreateStandbyDashboard() {
+    if (standby_dashboard_ != nullptr) {
+        return;
+    }
+    auto* lvgl_theme = static_cast<LvglTheme*>(current_theme_);
+    standby_dashboard_ = std::make_unique<StandbyDashboard>(
+        lv_screen_active(), lvgl_theme->text_font()->font(), lvgl_theme->icon_font()->font());
+    if (low_battery_popup_ != nullptr) {
+        lv_obj_move_to_index(low_battery_popup_, -1);
+    }
+    UpdateStandbyDashboardVisibility();
+}
+
+void LcdDisplay::UpdateStandbyDashboardVisibility() {
+    if (standby_dashboard_ == nullptr) {
+        return;
+    }
+    bool should_show = Application::GetInstance().GetDeviceState() == kDeviceStateIdle ||
+                       standby_dashboard_->IsPomodoroActive();
+    bool was_visible = standby_dashboard_->IsVisible();
+    standby_dashboard_->SetVisible(should_show);
+    if (should_show && !was_visible) {
+        standby_dashboard_->Update(true);
+        if (low_battery_popup_ != nullptr) {
+            lv_obj_move_to_index(low_battery_popup_, -1);
+        }
+    }
+}
+
+void LcdDisplay::UpdateStandbyDashboard(bool force) {
+    UpdateStandbyDashboardVisibility();
+    if (standby_dashboard_ != nullptr && standby_dashboard_->IsVisible()) {
+        standby_dashboard_->Update(force);
+    }
+}
+#endif
 
 void LcdDisplay::SetTopBarVisible(bool visible) {
     if (top_bar_ != nullptr) {
@@ -517,6 +847,18 @@ void LcdDisplay::CreateDeviceBindingUi() {
         },
         LV_EVENT_CLICKED, this);
 
+    binding_close_button_ = lv_button_create(layer);
+    lv_obj_set_size(binding_close_button_, 76, 32);
+    lv_obj_align(binding_close_button_, LV_ALIGN_TOP_LEFT, 8, 6);
+    lv_obj_set_style_text_font(binding_close_button_, font, 0);
+    lv_obj_add_flag(binding_close_button_, LV_OBJ_FLAG_HIDDEN);
+    auto* close_label = lv_label_create(binding_close_button_);
+    lv_label_set_text(close_label, "返回");
+    lv_obj_center(close_label);
+    lv_obj_add_event_cb(
+        binding_close_button_, [](lv_event_t*) { DeviceControl::GetInstance().CloseAccount(); },
+        LV_EVENT_CLICKED, nullptr);
+
     binding_timer_ = lv_timer_create(
         [](lv_timer_t* timer) {
             auto* self = static_cast<LcdDisplay*>(lv_timer_get_user_data(timer));
@@ -524,6 +866,20 @@ void LcdDisplay::CreateDeviceBindingUi() {
         },
         100, this);
     lv_timer_pause(binding_timer_);
+}
+
+void LcdDisplay::UpdateAccountButtonPosition() {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (account_button_ == nullptr || binding_panel_ == nullptr)
+        return;
+    const auto state = Application::GetInstance().GetDeviceState();
+    const bool voice_active = state == kDeviceStateConnecting || state == kDeviceStateListening ||
+                              state == kDeviceStateSpeaking;
+    const bool dashboard = !voice_active && lv_obj_has_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+    // The dashboard's top-right area contains network/battery indicators.
+    lv_obj_align(account_button_, dashboard ? LV_ALIGN_BOTTOM_RIGHT : LV_ALIGN_TOP_RIGHT, -16,
+                 dashboard ? -8 : 6);
+#endif
 }
 
 void LcdDisplay::UpdateBindingCountdown() {
@@ -568,15 +924,18 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         return;
     }
     const bool can_open_account = view.reason == "ready" || view.reason == "user_signed_out" ||
-                                  view.reason == "market_auth_required";
+                                  view.reason == "market_auth_required" ||
+                                  view.reason == "market_auth_pending";
     if (can_open_account && account_action_) {
         lv_obj_remove_state(account_button_, LV_STATE_DISABLED);
     } else {
         lv_obj_add_state(account_button_, LV_STATE_DISABLED);
     }
     lv_timer_pause(binding_timer_);
+    lv_obj_add_flag(binding_close_button_, LV_OBJ_FLAG_HIDDEN);
     if (view.voice_allowed && view.verification_uri.empty()) {
         lv_obj_add_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+        UpdateAccountButtonPosition();
         binding_uri_.clear();
         binding_purpose_.clear();
         binding_qr_valid_ = false;
@@ -584,7 +943,10 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
     }
 
     lv_obj_remove_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+    UpdateAccountButtonPosition();
     lv_obj_move_to_index(account_button_, -1);
+    if (view.voice_allowed && view.purpose == "account")
+        lv_obj_remove_flag(binding_close_button_, LV_OBJ_FLAG_HIDDEN);
     if (binding_qr_frame_ != nullptr) {
         lv_obj_add_flag(binding_qr_frame_, LV_OBJ_FLAG_HIDDEN);
     }
@@ -597,6 +959,9 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         detail = "请使用原归属账号登录";
     } else if (view.reason == "market_auth_required") {
         title = "请原账号扫码登录";
+    } else if (view.reason == "market_auth_pending") {
+        title = "授权待确认，请扫码";
+        detail = "请使用原归属账号重新授权";
     } else if (view.reason == "device_disabled") {
         title = "设备已停用";
         detail = "请联系维护人员";
@@ -611,9 +976,9 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         title = "连接信息异常";
         detail = "请联系维护人员检查连接配置";
     }
-    const bool can_show_qr = view.reason == "unbound" || view.reason == "ready" ||
-                             view.reason == "user_signed_out" ||
-                             view.reason == "market_auth_required";
+    const bool can_show_qr =
+        view.reason == "unbound" || view.reason == "ready" || view.reason == "user_signed_out" ||
+        view.reason == "market_auth_required" || view.reason == "market_auth_pending";
     if (can_show_qr && view.purpose == "account") {
         title = "账号与绑定";
         detail = "请使用原归属账号登录";
@@ -1847,6 +2212,9 @@ void LcdDisplay::SetupUI() {
     CreateLichuangFeatureShell();
     SetTopBarVisible(false);
 #endif
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    CreateStandbyDashboard();
+#endif
 #if CONFIG_XIAOZHI_DEVICE_CONTROL
     CreateDeviceBindingUi();
 #endif
@@ -2176,6 +2544,15 @@ void LcdDisplay::SetupUI() {
     auto icon_font = lvgl_theme->icon_font()->font();
     auto large_icon_font = lvgl_theme->large_icon_font()->font();
 
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    CreateCyberConversationUI();
+    CreateStandbyDashboard();
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    CreateDeviceBindingUi();
+#endif
+    return;
+#endif
+
     auto screen = lv_screen_active();
     lv_obj_set_style_text_font(screen, text_font, 0);
     lv_obj_set_style_text_color(screen, lvgl_theme->text_color(), 0);
@@ -2379,6 +2756,9 @@ void LcdDisplay::SetupUI() {
     CreateLichuangFeatureShell();
     SetTopBarVisible(false);
 #endif
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    CreateStandbyDashboard();
+#endif
 #if CONFIG_XIAOZHI_DEVICE_CONTROL
     CreateDeviceBindingUi();
 #endif
@@ -2465,46 +2845,115 @@ void LcdDisplay::ClearChatMessages() {
 #endif
 
 void LcdDisplay::ShowPomodoroTimerView() {
-#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
-    DisplayLockGuard lock(this);
-    if (lichuang_feature_shell_ == nullptr) {
-        return;
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    {
+        DisplayLockGuard lock(this);
+        if (standby_dashboard_ != nullptr) {
+            standby_dashboard_->ShowPomodoroView();
+            UpdateStandbyDashboardVisibility();
+        }
     }
+#endif
+#if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    {
+        DisplayLockGuard lock(this);
+        if (lichuang_feature_shell_ == nullptr) {
+            return;
+        }
 
-    lichuang_feature_shell_override_until_us_ =
-        esp_timer_get_time() + kLichuangPomodoroVoiceOverrideUs;
-    SetLichuangFeatureView(LichuangFeatureView::kPomodoro);
-    ShowLichuangFeatureShell();
+        lichuang_feature_shell_override_until_us_ =
+            esp_timer_get_time() + kLichuangPomodoroVoiceOverrideUs;
+        SetLichuangFeatureView(LichuangFeatureView::kPomodoro);
+        ShowLichuangFeatureShell();
+    }
 #endif
 }
 
+void LcdDisplay::ClosePomodoroTimerView() {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    DisplayLockGuard lock(this);
+    if (standby_dashboard_ != nullptr) {
+        standby_dashboard_->ClosePomodoroView();
+        UpdateStandbyDashboardVisibility();
+    }
+#endif
+}
+
+void LcdDisplay::CloseStandbyFeatureViews() {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    DisplayLockGuard lock(this);
+    if (standby_dashboard_ != nullptr) {
+        standby_dashboard_->CloseFeatureViews();
+    }
+#else
+    ClosePomodoroTimerView();
+#endif
+}
+
+void LcdDisplay::ClearPreviewImage() { SetPreviewImage(nullptr); }
+
 void LcdDisplay::SetStatus(const char* status) {
     LvglDisplay::SetStatus(status);
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    {
+        DisplayLockGuard lock(this);
+        UpdateCyberExitButtonVisibility();
+        UpdateStandbyDashboardVisibility();
+    }
+#endif
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
+    {
+        DisplayLockGuard lock(this);
+        UpdateLichuangFeatureShellVisibility();
+    }
+#endif
+}
+
+void LcdDisplay::ShowNotification(const char* notification, int duration_ms) {
+    LvglDisplay::ShowNotification(notification, duration_ms);
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     DisplayLockGuard lock(this);
-    UpdateLichuangFeatureShellVisibility();
+    if (standby_dashboard_ != nullptr) {
+        standby_dashboard_->ShowNotification(notification, duration_ms);
+    }
 #endif
 }
 
 void LcdDisplay::UpdateStatusBar(bool update_all) {
     LvglDisplay::UpdateStatusBar(update_all);
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    {
+        DisplayLockGuard lock(this);
+        UpdateCyberExitButtonVisibility();
+        UpdateStandbyDashboard(update_all);
+    }
+#endif
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3
-    DisplayLockGuard lock(this);
-    UpdateLichuangFeatureShellVisibility();
-    if (IsLichuangFeatureShellVisible()) {
-        UpdateLichuangHomeView(update_all);
-        if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kPomodoro)) {
-            UpdateLichuangPomodoroView(update_all);
-        } else if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kMusic)) {
-            UpdateLichuangMusicView(update_all);
-        } else if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kRecorder)) {
-            UpdateLichuangRecorderView(update_all);
+    {
+        DisplayLockGuard lock(this);
+        UpdateLichuangFeatureShellVisibility();
+        if (IsLichuangFeatureShellVisible()) {
+            UpdateLichuangHomeView(update_all);
+            if (lichuang_feature_view_index_ == static_cast<int>(LichuangFeatureView::kPomodoro)) {
+                UpdateLichuangPomodoroView(update_all);
+            } else if (lichuang_feature_view_index_ ==
+                       static_cast<int>(LichuangFeatureView::kMusic)) {
+                UpdateLichuangMusicView(update_all);
+            } else if (lichuang_feature_view_index_ ==
+                       static_cast<int>(LichuangFeatureView::kRecorder)) {
+                UpdateLichuangRecorderView(update_all);
+            }
         }
     }
 #endif
 }
 
 void LcdDisplay::SetEmotion(const char* emotion) {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    // Keep the fixed geometric mark instead of replacing it with legacy emoji.
+    (void)emotion;
+    return;
+#endif
     if (!setup_ui_called_) {
         ESP_LOGW(TAG, "SetEmotion('%s') called before SetupUI() - emotion will not be displayed!", emotion);
     }
@@ -2598,6 +3047,57 @@ void LcdDisplay::SetTheme(Theme* theme) {
     auto text_font = lvgl_theme->text_font()->font();
     auto icon_font = lvgl_theme->icon_font()->font();
     auto large_icon_font = lvgl_theme->large_icon_font()->font();
+
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (standby_dashboard_ != nullptr) {
+        standby_dashboard_->SetFonts(text_font, icon_font);
+    }
+
+    // Keep the conversation screen on the same deep navy background used
+    // while the device is configuring Wi-Fi. The global light theme must not
+    // repaint this board-specific interface white when voice chat starts.
+    constexpr uint32_t kCyberBackground = 0x030B16;
+    constexpr uint32_t kCyberChrome = 0x020713;
+    constexpr uint32_t kCyberText = 0xF4F8FF;
+    constexpr uint32_t kCyberCyan = 0x18DFF6;
+    lv_obj_set_style_bg_color(screen, lv_color_hex(kCyberBackground), 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_font(screen, text_font, 0);
+    lv_obj_set_style_text_color(screen, lv_color_hex(kCyberText), 0);
+
+    if (container_ != nullptr) {
+        lv_obj_set_style_bg_image_src(container_, nullptr, 0);
+        lv_obj_set_style_bg_color(container_, lv_color_hex(kCyberBackground), 0);
+        lv_obj_set_style_bg_opa(container_, LV_OPA_COVER, 0);
+    }
+    if (top_bar_ != nullptr) {
+        lv_obj_set_style_bg_color(top_bar_, lv_color_hex(kCyberChrome), 0);
+        lv_obj_set_style_bg_opa(top_bar_, LV_OPA_COVER, 0);
+    }
+    if (bottom_bar_ != nullptr) {
+        lv_obj_set_style_bg_color(bottom_bar_, lv_color_hex(kCyberChrome), 0);
+        lv_obj_set_style_bg_opa(bottom_bar_, LV_OPA_COVER, 0);
+    }
+
+    lv_obj_t* fixed_text_labels[] = {
+        status_label_,     notification_label_,     chat_message_label_,      low_battery_label_,
+        cyber_exit_label_, cyber_brand_name_label_, cyber_company_name_label_};
+    for (lv_obj_t* label : fixed_text_labels) {
+        if (label != nullptr) {
+            lv_obj_set_style_text_font(label, text_font, 0);
+            lv_obj_set_style_text_color(label, lv_color_hex(kCyberText), 0);
+        }
+    }
+    if (cyber_company_name_label_ != nullptr) {
+        lv_obj_set_style_text_color(cyber_company_name_label_, lv_color_hex(kCyberCyan), 0);
+    }
+
+    if (low_battery_popup_ != nullptr) {
+        lv_obj_set_style_bg_color(low_battery_popup_, lv_color_hex(0xB62045), 0);
+    }
+    Display::SetTheme(lvgl_theme);
+    return;
+#endif
 
     if (text_font->line_height >= 40) {
         lv_obj_set_style_text_font(mute_label_, large_icon_font, 0);

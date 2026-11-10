@@ -45,6 +45,9 @@ public:
     virtual Theme* GetTheme() { return current_theme_; }
     virtual void UpdateStatusBar(bool update_all = false);
     virtual void ShowPomodoroTimerView() {}
+    virtual void ClosePomodoroTimerView() {}
+    virtual void CloseStandbyFeatureViews() { ClosePomodoroTimerView(); }
+    virtual void ClearPreviewImage() {}
     virtual void SetPowerSaveMode(bool on);
     virtual void SetupUI() { 
         setup_ui_called_ = true;

@@ -15,6 +15,8 @@ set(SOURCES "audio/audio_codec.cc"
             "led/gpio_led.cc"
             "display/display.cc"
             "display/lcd_display.cc"
+            "display/assets/hncig_logo_i2.c"
+            "display/standby_dashboard.cc"
             "display/oled_display.cc"
             "display/lvgl_display/lvgl_display.cc"
             "display/emote_display.cc"
@@ -31,6 +33,7 @@ set(SOURCES "audio/audio_codec.cc"
             "features/music_player.cc"
             "features/pomodoro_timer.cc"
             "services/environment_service.cc"
+            "services/iot_telemetry_service.cc"
             "protocols/protocol.cc"
             "protocols/mqtt_protocol.cc"
             "protocols/websocket_protocol.cc"
@@ -42,6 +45,8 @@ set(SOURCES "audio/audio_codec.cc"
             "device_control/control_model.cc"
             "device_control/control_http.cc"
             "device_control/control_transport.cc"
+            "device_control/identity_config.cc"
+            "device_control/device_identity.cc"
             "settings.cc"
             "device_state_machine.cc"
             "assets.cc"
@@ -1073,6 +1078,10 @@ idf_component_register(SRCS ${SOURCES}
                     )
 
 if(CONFIG_XIAOZHI_DEVICE_CONTROL)
+    # The existing 16 MB layout has 0x3f0000-byte app slots. Keep the complete
+    # P4 UI and optimize application glue for size; DSP/codec components retain
+    # their existing optimization settings.
+    target_compile_options(${COMPONENT_LIB} PRIVATE -Os)
     # LVGL and esp_emote_gfx each bundle qrcodegen with the same exported names.
     # Keep the managed packages intact and namespace LVGL's private copy, including
     # the two sizing helpers used by our LCD binding screen.
@@ -1118,6 +1127,7 @@ add_custom_command(
 add_custom_target(lang_header ALL
     DEPENDS ${LANG_HEADER}
 )
+add_dependencies(${COMPONENT_LIB} lang_header)
 
 # Find ESP-SR component dynamically
 find_component_by_pattern("espressif__esp-sr" ESP_SR_COMPONENT ESP_SR_COMPONENT_PATH)
@@ -1285,6 +1295,7 @@ if ("${size}" AND "${offset}")
         # Build default assets based on configuration
         build_default_assets_bin()
         esptool_py_flash_to_partition(flash "assets" "${GENERATED_ASSETS_LOCAL_FILE}")
+        add_dependencies(flash generated_default_assets)
         message(STATUS "Generated default assets flash configured: ${GENERATED_ASSETS_LOCAL_FILE} -> assets partition")
     elseif(CONFIG_FLASH_CUSTOM_ASSETS)
         # Flash custom assets

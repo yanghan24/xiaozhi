@@ -14,7 +14,7 @@
 #include <utility>
 #include "control_model.h"
 #include "control_transport.h"
-#include "settings.h"
+#include "device_identity.h"
 
 namespace {
 int64_t Now() { return esp_timer_get_time() / 1000; }
@@ -47,10 +47,7 @@ struct DeviceControl::Impl {
     bool account_mode = false;
     bool account_switch_pending = false;
     bool stopping = false;
-    bool pending_ack = false;
-    uint64_t ack_revision = 0;
-    uint64_t ack_permission = 0;
-    bool ack_audio = false;
+    device_control::PendingAck pending_ack;
     std::string base;
     std::string device_id;
     std::string credential;
@@ -122,11 +119,25 @@ struct DeviceControl::Impl {
             if (!dirty)
                 return;
             dirty = false;
-            view = model.View();
+            view = View(Now());
             cb = on_changed;
         }
         if (cb)
             cb(view);
+    }
+    // Called with mutex held. Local account-menu visibility never changes the
+    // server's request or permission and cannot dismiss a blocked-state screen.
+    DeviceControlView View(int64_t now) const {
+        auto view = model.View();
+        if (!model.Allowed(now))
+            view.voice_allowed = false;
+        if ((!view.verification_uri.empty() && now >= view.qr_deadline_ms) ||
+            (view.voice_allowed && view.purpose == "account" && !account_mode)) {
+            view.verification_uri.clear();
+            view.purpose.clear();
+            view.qr_deadline_ms = 0;
+        }
+        return view;
     }
     void FailClosed(const std::string& reason) {
         std::function<void(uint64_t)> cb;
@@ -152,6 +163,8 @@ struct DeviceControl::Impl {
             applied = request ? model.ApplyRequest(result.body, Now(), result.elapsed_ms)
                               : model.ApplyState(result.body, Now(), result.elapsed_ms);
             const auto next = model.View();
+            if (!request && applied == device_control::ApplyResult::Applied)
+                pending_ack.Rebase(next);
             if (!request && applied == device_control::ApplyResult::Applied && account_mode &&
                 (old.permission_version != next.permission_version ||
                  (!old.verification_uri.empty() && old.purpose == "account" &&
@@ -187,7 +200,7 @@ struct DeviceControl::Impl {
                 continue;
             }
             std::string endpoint, method = "GET", body, key, id, secret, origin;
-            bool create = false, ack = false, can_run = false;
+            bool create = false, ack = false, can_run = false, sent_ack_audio = false;
             uint64_t sent_ack_revision = 0, sent_ack_permission = 0;
             const auto epoch = interrupt.load();
             {
@@ -203,15 +216,16 @@ struct DeviceControl::Impl {
                         account_mode && (account_switch_pending || !model.HasServerRequest())
                             ? std::string("account")
                             : model.AutoIntent();
-                    if (!refresh && !need_lease && pending_ack) {
+                    if (!refresh && !need_lease && pending_ack.Pending()) {
                         ack = true;
                         endpoint = "state-acks";
                         method = "POST";
-                        sent_ack_revision = ack_revision;
-                        sent_ack_permission = ack_permission;
-                        body = "{\"revision\":" + std::to_string(ack_revision) +
-                               ",\"permission_version\":" + std::to_string(ack_permission) +
-                               ",\"audio_stopped\":" + (ack_audio ? "true" : "false") + "}";
+                        sent_ack_revision = pending_ack.Revision();
+                        sent_ack_permission = pending_ack.Permission();
+                        sent_ack_audio = pending_ack.AudioStopped();
+                        body = "{\"revision\":" + std::to_string(sent_ack_revision) +
+                               ",\"permission_version\":" + std::to_string(sent_ack_permission) +
+                               ",\"audio_stopped\":" + (sent_ack_audio ? "true" : "false") + "}";
                     } else if (!refresh && !need_lease && !intent.empty()) {
                         create = true;
                         endpoint = "requests";
@@ -282,9 +296,7 @@ struct DeviceControl::Impl {
                         retry = true;
                     } else {
                         std::lock_guard<std::mutex> lock(mutex);
-                        if (ack_revision == sent_ack_revision &&
-                            ack_permission == sent_ack_permission)
-                            pending_ack = false;
+                        pending_ack.Confirm(sent_ack_revision, sent_ack_permission, sent_ack_audio);
                         backoff = 1000;
                     }
                 } else {
@@ -306,8 +318,8 @@ struct DeviceControl::Impl {
                     model.DiscardRequest();
                     dirty = true;
                 }
-                if (ack)
-                    pending_ack = false;
+                // A QR-only revision may race the ACK. Keep its applied permission and
+                // rebase after the authoritative snapshot, without claiming a new stop.
                 refresh = true;
             } else {
                 FailClosed("invalid_response");
@@ -345,12 +357,13 @@ void DeviceControl::SetCallbacks(std::function<void(const DeviceControlView&)> c
     impl_->Wake(false);
 }
 void DeviceControl::Start(const std::string& ota, const std::string& base) {
-    Settings settings("device_ctrl", false);
-    const auto id = settings.GetString("device_id"), credential = settings.GetString("credential");
-    const bool valid = impl_->timer_ready && id.size() <= 128 && credential.size() <= 4096 &&
-                       device_control::HeaderValue(id) && device_control::HeaderValue(credential) &&
-                       device_control::TrustedDiscovery(ota, base, settings.GetString("ota_origin"),
-                                                        settings.GetString("control_origin"));
+    device_control::IdentityConfig identity;
+    const bool loaded = device_control::LoadDeviceIdentity(identity);
+    const auto& id = identity.device_id;
+    const auto& credential = identity.credential;
+    const bool valid =
+        loaded && impl_->timer_ready &&
+        device_control::TrustedDiscovery(ota, base, identity.ota_origin, identity.control_origin);
     impl_->Wake(true);
     std::function<void(uint64_t)> revoked;
     uint64_t generation = 0;
@@ -372,7 +385,7 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
                 impl_->model.AdvanceGeneration(old_generation + 1);
             }
             impl_->pending_create.Clear();
-            impl_->pending_ack = false;
+            impl_->pending_ack.Clear();
             impl_->account_mode = false;
             impl_->account_switch_pending = false;
         }
@@ -431,15 +444,7 @@ bool DeviceControl::GetVoiceConfig(DeviceVoiceConfig& out) {
 }
 DeviceControlView DeviceControl::GetView() const {
     std::lock_guard<std::mutex> lock(impl_->mutex);
-    auto view = impl_->model.View();
-    if (!impl_->model.Allowed(Now()))
-        view.voice_allowed = false;
-    if (!view.verification_uri.empty() && Now() >= view.qr_deadline_ms) {
-        view.verification_uri.clear();
-        view.purpose.clear();
-        view.qr_deadline_ms = 0;
-    }
-    return view;
+    return impl_->View(Now());
 }
 void DeviceControl::Refresh() {
     {
@@ -460,6 +465,17 @@ void DeviceControl::RequestAccount() {
     }
     impl_->Wake(true);
 }
+void DeviceControl::CloseAccount() {
+    {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        impl_->account_mode = false;
+        impl_->account_switch_pending = false;
+        impl_->pending_create.Clear();
+        impl_->refresh = true;
+        impl_->dirty = true;
+    }
+    impl_->Wake(true);
+}
 void DeviceControl::AcknowledgeState(uint64_t revision, uint64_t pv, bool stopped) {
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
@@ -467,12 +483,10 @@ void DeviceControl::AcknowledgeState(uint64_t revision, uint64_t pv, bool stoppe
         if (pv != view.permission_version || revision > view.revision ||
             (!view.voice_allowed && !stopped))
             return;
-        if (impl_->pending_ack && impl_->ack_permission == pv && impl_->ack_audio && !stopped)
+        if (impl_->pending_ack.Pending() && impl_->pending_ack.Permission() == pv &&
+            impl_->pending_ack.AudioStopped() && !stopped)
             return;
-        impl_->ack_revision = revision;
-        impl_->ack_permission = pv;
-        impl_->ack_audio = stopped;
-        impl_->pending_ack = true;
+        impl_->pending_ack.Set(revision, pv, stopped);
     }
     impl_->Wake(true);
 }
@@ -493,6 +507,7 @@ bool DeviceControl::GetVoiceConfig(DeviceVoiceConfig&) { return false; }
 DeviceControlView DeviceControl::GetView() const { return {}; }
 void DeviceControl::Refresh() {}
 void DeviceControl::RequestAccount() {}
+void DeviceControl::CloseAccount() {}
 void DeviceControl::AcknowledgeState(uint64_t, uint64_t, bool) {}
 #endif
 

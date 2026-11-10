@@ -11,6 +11,10 @@ struct AudioStreamPacket {
     int sample_rate = 0;
     int frame_duration = 0;
     uint32_t timestamp = 0;
+    // Optional text marker displayed when this packet actually reaches the
+    // speaker. This keeps TTS subtitles aligned with queued audio playback.
+    std::string playback_text;
+    uint64_t connection_id = 0;
     std::vector<uint8_t> payload;
     bool requires_voice_permission = true;
     uint64_t generation = 0;

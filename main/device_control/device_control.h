@@ -42,6 +42,7 @@ public:
     DeviceControlView GetView() const;
     void Refresh();
     void RequestAccount();
+    void CloseAccount();
     void AcknowledgeState(uint64_t revision, uint64_t permission_version, bool audio_stopped);
 
     DeviceControl(const DeviceControl&) = delete;

@@ -1,12 +1,12 @@
 #include "system_reset.h"
 
-#include <esp_log.h>
-#include <nvs_flash.h>
 #include <driver/gpio.h>
+#include <esp_log.h>
 #include <esp_partition.h>
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
-
+#include <nvs_flash.h>
+#include "device_control/device_identity.h"
 
 #define TAG "SystemReset"
 
@@ -37,6 +37,9 @@ void SystemReset::CheckButtons() {
 }
 
 void SystemReset::ResetNvsFlash() {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    ESP_ERROR_CHECK(device_control::ResetUserSettings());
+#else
     ESP_LOGI(TAG, "Resetting NVS flash");
     esp_err_t ret = nvs_flash_erase();
     if (ret != ESP_OK) {
@@ -46,9 +49,15 @@ void SystemReset::ResetNvsFlash() {
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize NVS flash");
     }
+#endif
 }
 
 void SystemReset::ResetToFactory() {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    // Keep the installed product gate; selecting an older image could bypass it.
+    RestartInSeconds(3);
+    return;
+#endif
     ESP_LOGI(TAG, "Resetting to factory");
     // Erase otadata partition
     const esp_partition_t* partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_OTA, NULL);

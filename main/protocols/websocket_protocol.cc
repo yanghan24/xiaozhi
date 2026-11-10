@@ -176,6 +176,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
                             .sample_rate = server_sample_rate_,
                             .frame_duration = server_frame_duration_,
                             .timestamp = bp2->timestamp,
+                            .connection_id = connection_id,
                             .payload = std::vector<uint8_t>(payload, payload + bp2->payload_size),
                             .generation = generation}));
                     } else if (version_ == 3) {
@@ -187,6 +188,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
                             .sample_rate = server_sample_rate_,
                             .frame_duration = server_frame_duration_,
                             .timestamp = 0,
+                            .connection_id = connection_id,
                             .payload = std::vector<uint8_t>(payload, payload + bp3->payload_size),
                             .generation = generation}));
                     } else {
@@ -194,6 +196,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
                             .sample_rate = server_sample_rate_,
                             .frame_duration = server_frame_duration_,
                             .timestamp = 0,
+                            .connection_id = connection_id,
                             .payload = std::vector<uint8_t>((uint8_t*)data, (uint8_t*)data + len),
                             .generation = generation}));
                     }

@@ -58,7 +58,7 @@ private:
 
     void OnPcmData(const int16_t* data, size_t samples, int sample_rate, int channels,
                    uint64_t recording_generation, uint64_t permission_generation);
-    void PauseFromFocusLoss();
+    void StopFromFocusLoss();
     void FinalizeFileLocked();
     void CloseWithErrorLocked(const std::string& error);
     void ClearObserverAndFocus();
