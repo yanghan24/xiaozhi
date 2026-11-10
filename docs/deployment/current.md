@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-10（Asia/Hong_Kong），依据 [PR #26 Ubuntu 部署记录](../verification/2026-11-10-pr26-server-deployment.md)。这是最近确认的部署状态；操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-10（Asia/Hong_Kong），依据[长期烧录凭据部署记录](../verification/2026-11-10-long-lived-delivery.md)。产品 API 已在 PR #52 基础上增加长期烧录凭据，语音继续使用 [PR #26 部署](../verification/2026-11-10-pr26-server-deployment.md)的版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -21,12 +21,17 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| 源码 | PR #26，`885918d24d69f0b2ed87114f1937292727111d4e` |
+| API 源码 | `3f963b6d5ce6110b3d68ff473f722f726d3c659e`，长期烧录凭据，基于 PR #52 `87839aa` 与当前主线 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:885918d` |
+| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:3f963b6` |
 | 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:885918d`，单实例 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
+| 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，仅通过 SSH 隧道访问 |
+
+本机连接 `ssh -N -L 127.0.0.1:28052:127.0.0.1:18052 jt@192.168.168.114` 后打开 `http://127.0.0.1:28052/#/login`。外网烧录工作站可使用管理员签发的[长期烧录工具凭据](../development/long-lived-delivery-credentials.md)，直接调用现有公网交付 API，无需管理页面或管理员密码。凭据不自动到期但可撤销；签发管理员停用/降权期间不可用。不要将管理员登录令牌、工具凭据或音箱接入凭据相互替换。
+
+公网只新增 credentials 签发/元数据查询/撤销精确路径，要求正常超级管理员 Bearer；普通管理登录、配置和内部 API 仍为 404。实际 API/数据库、语音、入口及必要数据备份的完整证据见[本次部署记录](../verification/2026-11-10-long-lived-delivery.md)。
 
 服务、回归和设备协议验证在 Ubuntu 执行。授权 sudo 操作前按私有凭据说明使用已有凭据通道；本页不存放密码或密钥。在服务器部署目录查看状态：
 
