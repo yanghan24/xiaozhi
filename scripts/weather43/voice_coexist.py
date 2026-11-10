@@ -183,10 +183,11 @@ async def run(args):
                               "elapsed_s": row["elapsed_s"], "failure_stage": row.get("failure_stage")}), flush=True)
             await asyncio.sleep(args.interval)
     summary = {"count": len(rows), "success": sum(r["success"] for r in rows),
-               "failure": sum(not r["success"] for r in rows), "finished_at": utc(), "timing_s": {}}
+               "failure": sum(not r["success"] for r in rows), "finished_at": utc(),
+               "percentile_method": "nearest_rank_on_successful_attempts", "timing_s": {}}
     for name in ("stt_after_input", "llm_after_input", "first_audio_after_input", "complete_after_input"):
         values = sorted(r["timing_s"][name] for r in rows if r["success"] and name in r["timing_s"])
-        summary["timing_s"][name] = {"samples": len(values), "p50": values[len(values) // 2] if values else None,
+        summary["timing_s"][name] = {"samples": len(values), "p50": values[max(0, math.ceil(len(values) * .5) - 1)] if values else None,
                                            "p95": values[max(0, math.ceil(len(values) * .95) - 1)] if values else None,
                                            "max": max(values) if values else None}
     (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
