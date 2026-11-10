@@ -1,0 +1,445 @@
+{
+  "captured_at": "2026-11-10T07:54:25.006717+00:00",
+  "system": "Linux-5.11.0-27-generic-x86_64-with-glibc2.29",
+  "cpu_count": 8,
+  "image_verification": {
+    "source_manifest_digest": "sha256:5f23284824917315514aa356acf4184961d9be19f72b3c74b119faccdacd527f",
+    "config_digest": "sha256:7b1114b8a78e27fabac5c08a322ceb8d540b0a3c75419941d9e26d54dfc379df",
+    "layers": [
+      "sha256:40d16f30db405106ef8074779bdf41f012465c2a785bbeaa2eab9f2081099b47",
+      "sha256:6bd37119aafe335d4eb81d8fd513889395d749aee910be19d280f03c962fb5c3",
+      "sha256:1bae91651dcb26f64658bb4c464a5c582ad27991c700c14e1527440d8af99d57",
+      "sha256:11b3c9e18f69e9bfe369a638a3410f60a3b56db3667aa32b9a76e0ae262031f8",
+      "sha256:fddf655c39279a16d194407939230ef40f9752e5f0dd63b792c7fa19d875cbff",
+      "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "sha256:945062d1411f8ae8264343460bec5623b3a7e2d47f1248f8f9ff8e7bc6e6b42f",
+      "sha256:f435c6570e2ab559c9a36b4cfb3fd03fe5a03b75f120f64eba62984d219c4954",
+      "sha256:9dd359ea1926814b464f34fb7ca836b0b83b2333e2925465bb8536c71d98e26b",
+      "sha256:83cc4d172daaa8d21ba100e8faa98d4cd0109b1d1df23829580b9ed8632f3576",
+      "sha256:f423ebdead9c2c6641954df46cc72113087e5bcc3a78882d0ec2687a960838f8"
+    ],
+    "local_tag": "xiaozhi-weather43-openmeteo:verified-amd64"
+  },
+  "containers": {
+    "xiaozhi-weather43-openmeteo-1": {
+      "id": "5f0459694c4894fe1197c3ce95f007e4fa6a53162b2e487a825e605154d219e4",
+      "image_id": "sha256:7b1114b8a78e27fabac5c08a322ceb8d540b0a3c75419941d9e26d54dfc379df",
+      "state": {
+        "Status": "running",
+        "Running": true,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 3305448,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-10T07:51:34.309521722Z",
+        "FinishedAt": "2026-11-10T07:51:33.884319777Z"
+      },
+      "limits": {
+        "Memory": 8589934592,
+        "MemorySwap": 8589934592,
+        "NanoCpus": 2000000000,
+        "PidsLimit": 256,
+        "ReadonlyRootfs": true,
+        "PortBindings": {
+          "8080/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "18084"
+            }
+          ]
+        }
+      }
+    },
+    "xiaozhi-pr26-voice": {
+      "id": "da95c4e966f79e3995948e06e76dd0e79936f07f8f9fd42f29cffb1e2a965fa6",
+      "image_id": "sha256:e519f14843fefbeab0e3c966da0733b81be7e1512b1c9774579f5d252a0a67a8",
+      "state": {
+        "Status": "running",
+        "Running": true,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 3249109,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-10T06:34:45.979709949Z",
+        "FinishedAt": "2026-11-10T06:34:45.216656161Z"
+      },
+      "limits": {
+        "Memory": 805306368,
+        "MemorySwap": 1610612736,
+        "NanoCpus": 0,
+        "PidsLimit": null,
+        "ReadonlyRootfs": false,
+        "PortBindings": {}
+      }
+    },
+    "xiaozhi-pr26-api": {
+      "id": "f75663df825049c6849491d9a4604890a2c3fab13b18bcc2c9b0469ed830eaae",
+      "image_id": "sha256:f58e48cbd2cb3ce1bf831e6c38471dfbc419ec8555868347e626142525cb60a7",
+      "state": {
+        "Status": "running",
+        "Running": true,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 3249105,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-10T06:34:45.989478839Z",
+        "FinishedAt": "2026-11-10T06:34:45.374819459Z"
+      },
+      "limits": {
+        "Memory": 805306368,
+        "MemorySwap": 1610612736,
+        "NanoCpus": 0,
+        "PidsLimit": null,
+        "ReadonlyRootfs": false,
+        "PortBindings": {}
+      }
+    }
+  },
+  "trials": [
+    {
+      "name": "diagnostic-after-relay-fix",
+      "counts": {
+        "success": 1,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 2,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:43:26.500916+00:00",
+      "finished_at": "2026-11-10T07:45:16.913608+00:00",
+      "p95_s": 108.94955014484003,
+      "max_s": 108.94955014484003,
+      "elapsed_s": 110.40427445806563,
+      "nofile": null
+    },
+    {
+      "name": "first-request",
+      "counts": {
+        "success": 0,
+        "failure": 1,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 0,
+        "failure": 2,
+        "timeout": 0
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:41:46.322458+00:00",
+      "finished_at": "2026-11-10T07:41:48.926450+00:00",
+      "p95_s": 1.0994329960085452,
+      "max_s": 1.0994329960085452,
+      "elapsed_s": 2.5946080507710576,
+      "nofile": null
+    },
+    {
+      "name": "first-source-readable",
+      "counts": {
+        "success": 0,
+        "failure": 1,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 1,
+        "failure": 1,
+        "timeout": 0
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:42:26.153159+00:00",
+      "finished_at": "2026-11-10T07:42:39.549636+00:00",
+      "p95_s": 13.177822042722255,
+      "max_s": 13.177822042722255,
+      "elapsed_s": 13.385476829018444,
+      "nofile": null
+    },
+    {
+      "name": "gfs-diagnostic-completion",
+      "counts": {
+        "success": 1,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 2,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:46:33.855057+00:00",
+      "finished_at": "2026-11-10T07:46:36.461978+00:00",
+      "p95_s": 0.00656883092597127,
+      "max_s": 0.00656883092597127,
+      "elapsed_s": 2.598110467661172,
+      "nofile": null
+    },
+    {
+      "name": "gfs-first-request",
+      "counts": {
+        "success": 0,
+        "failure": 0,
+        "timeout": 1
+      },
+      "http_counts": {
+        "success": 1,
+        "failure": 0,
+        "timeout": 1
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:45:28.862872+00:00",
+      "finished_at": "2026-11-10T07:46:00.239596+00:00",
+      "p95_s": 30.005362295079976,
+      "max_s": 30.005362295079976,
+      "elapsed_s": 31.36816966626793,
+      "nofile": null
+    },
+    {
+      "name": "gfs-followup-ten-cities-1000",
+      "counts": {
+        "success": 1000,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 2000,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 2000,
+      "started_at": "2026-11-10T07:48:14.931083+00:00",
+      "finished_at": "2026-11-10T07:48:16.888154+00:00",
+      "p95_s": 1.7572643109597266,
+      "max_s": 1.759839721955359,
+      "elapsed_s": 1.9467538259923458,
+      "nofile": [
+        8192,
+        8192
+      ]
+    },
+    {
+      "name": "gfs-followup-ten-cities-350",
+      "counts": {
+        "success": 350,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 700,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 700,
+      "started_at": "2026-11-10T07:48:12.890010+00:00",
+      "finished_at": "2026-11-10T07:48:14.844879+00:00",
+      "p95_s": 0.6196704772301018,
+      "max_s": 0.620591705199331,
+      "elapsed_s": 1.9452883652411401,
+      "nofile": [
+        8192,
+        8192
+      ]
+    },
+    {
+      "name": "gfs-partially-cold-ten-cities-350",
+      "counts": {
+        "success": 350,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 700,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 700,
+      "started_at": "2026-11-10T07:47:52.881267+00:00",
+      "finished_at": "2026-11-10T07:48:12.801967+00:00",
+      "p95_s": 19.660775976255536,
+      "max_s": 19.661954225040972,
+      "elapsed_s": 19.908858966082335,
+      "nofile": [
+        8192,
+        8192
+      ]
+    },
+    {
+      "name": "gfs-warm-same-city-1000",
+      "counts": {
+        "success": 507,
+        "failure": 493,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 1015,
+        "failure": 985,
+        "timeout": 0
+      },
+      "http_calls": 2000,
+      "started_at": "2026-11-10T07:46:38.628789+00:00",
+      "finished_at": "2026-11-10T07:46:40.543889+00:00",
+      "p95_s": 0.9362363452091813,
+      "max_s": 0.9399745729751885,
+      "elapsed_s": 1.8774274783208966,
+      "nofile": null
+    },
+    {
+      "name": "gfs-warm-same-city-1000-fd8192",
+      "counts": {
+        "success": 1000,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 2000,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 2000,
+      "started_at": "2026-11-10T07:47:50.165276+00:00",
+      "finished_at": "2026-11-10T07:47:52.790196+00:00",
+      "p95_s": 1.7358351307921112,
+      "max_s": 1.739764022640884,
+      "elapsed_s": 2.59526383690536,
+      "nofile": [
+        8192,
+        8192
+      ]
+    },
+    {
+      "name": "gfs-warm-same-city-350",
+      "counts": {
+        "success": 350,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 700,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 700,
+      "started_at": "2026-11-10T07:46:36.540986+00:00",
+      "finished_at": "2026-11-10T07:46:38.493677+00:00",
+      "p95_s": 0.623422559350729,
+      "max_s": 0.624311069957912,
+      "elapsed_s": 1.9432116160169244,
+      "nofile": null
+    },
+    {
+      "name": "restart-and-source-recovery",
+      "counts": {
+        "success": 1,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 2,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:51:34.386583+00:00",
+      "finished_at": "2026-11-10T07:51:48.069118+00:00",
+      "p95_s": 13.67072626017034,
+      "max_s": 13.67072626017034,
+      "elapsed_s": 13.672457916196436,
+      "nofile": [
+        8192,
+        8192
+      ]
+    },
+    {
+      "name": "source-outage-engine-restart",
+      "counts": {
+        "success": 0,
+        "failure": 0,
+        "timeout": 1
+      },
+      "http_counts": {
+        "success": 0,
+        "failure": 0,
+        "timeout": 2
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:49:58.535943+00:00",
+      "finished_at": "2026-11-10T07:50:08.551310+00:00",
+      "p95_s": 10.004026887007058,
+      "max_s": 10.004026887007058,
+      "elapsed_s": 10.005800880957395,
+      "nofile": [
+        8192,
+        8192
+      ]
+    },
+    {
+      "name": "source-outage-warm-engine",
+      "counts": {
+        "success": 1,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_counts": {
+        "success": 2,
+        "failure": 0,
+        "timeout": 0
+      },
+      "http_calls": 2,
+      "started_at": "2026-11-10T07:49:55.132461+00:00",
+      "finished_at": "2026-11-10T07:49:57.731983+00:00",
+      "p95_s": 0.006555182859301567,
+      "max_s": 0.006555182859301567,
+      "elapsed_s": 2.590689437929541,
+      "nofile": [
+        8192,
+        8192
+      ]
+    }
+  ],
+  "sampled_engine_max_memory_bytes_docker_stats": 122159104.0,
+  "sampled_engine_max_cpu_percent": 183.27,
+  "sampled_host_min_mem_available_kib": 13001800,
+  "cache_logical_bytes": 8589934080,
+  "cache_allocated_bytes": 8589946880,
+  "disk_free_bytes": 462659469312,
+  "source_relay_read_bytes": 106652921,
+  "source_relay_status_counts": {
+    "event_or_error": 3,
+    "200": 170,
+    "403": 3,
+    "206": 185
+  },
+  "model_update_comparison": [
+    {
+      "model": "ncep_gfs013",
+      "run_before": 1794268800,
+      "run_after": 1794268800,
+      "metadata_sha_equal": true
+    },
+    {
+      "model": "cams_global",
+      "run_before": 1794225600,
+      "run_after": 1794225600,
+      "metadata_sha_equal": true
+    }
+  ],
+  "limitations": [
+    "Docker memory sample subtracts cache on Linux; not the total cgroup memory footprint",
+    "CPU and memory sampled, short batch peaks may be missed",
+    "Load generator ran on the same host",
+    "Source route depends on a temporary SSH tunnel and developer workstation Clash",
+    "No active speech workload, no 30-minute soak, no complete cold/TTL result-cache or national-city test",
+    "Models did not publish a different run during this short observation"
+  ]
+}
