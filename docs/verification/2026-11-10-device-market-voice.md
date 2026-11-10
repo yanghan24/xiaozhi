@@ -45,6 +45,8 @@
 
 ## 证据与恢复
 
+两轮识别原文、回答摘要、会话顺序关联、音频标记、等待时间缺口、服务重启与网络检查，以及后续错误日志增强见[补充记录](2026-11-10-device-market-rounds.md)。未采集字段保留明确标注，没有重新跑整套真机测试。
+
 服务器版本、对话关联、耗时和资源已另行[归档](2026-11-10-device-market-archive.md)。11:27 的后续快照观察到累计 ASR 73 次提交、13 次成功及适配服务 60 次失败，原因尚未诊断；此前两轮成功验收不代表此后持续运行无异常。资源为事后单点采样，端到端延迟未采集。
 
 服务器私有目录 `.runtime/market-test-bridge/` 保存 `agent-before.json`、`agent-after.json`、`model-ids.json`、Nginx 原配置以及 `evidence/real-chain.json`、`evidence/protocol-chain.json`、`evidence/restart-before.json`、`evidence/restart-after.json`。完整录音、管理员令牌、能力 URL、集市 Key 和适配凭据不提交到版本库。

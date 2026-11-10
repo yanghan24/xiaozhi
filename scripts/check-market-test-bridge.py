@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 import wave
+import contextlib
 from pathlib import Path
 
 import aiohttp
@@ -51,6 +52,8 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         body = await request.json()
         self.assertEqual(body['model'], module.ASR)
         self.submissions += 1
+        if self.mode == 'http_error':
+            return web.json_response({'code': 'InvalidParameter', 'message': 'secret-message-private-account-key'}, status=400)
         self.audio_url = body['input']['file_urls'][0]
         async with aiohttp.ClientSession() as session:
             async with session.get(self.audio_url) as audio:
@@ -68,7 +71,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         status = 'FAILED' if self.mode == 'subtask_failure' else 'SUCCEEDED'
         url = 'https://untrusted.invalid/result' if self.mode == 'bad_origin' else str(self.market.make_url('/result'))
         return web.json_response({'output': {'task_status': 'SUCCEEDED', 'results': [
-            {'subtask_status': status, 'transcription_url': url}]}})
+            {'subtask_status': status, 'code': 'FILE_DOWNLOAD_FAILED' if status == 'FAILED' else None, 'transcription_url': url}]}})
 
     async def result(self, request):
         self.result_authorization = request.headers.get('Authorization')
@@ -139,6 +142,30 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertIn('[DONE]', await response.text())
         self.assertEqual(self.bridge.stats['llm_succeeded'], 1)
+
+    async def test_failure_audit_is_correlated_bounded_and_redacted(self):
+        records = []
+        for mode, expected_stage, status, code in [
+                ('http_error', 'asr_submit', 400, 'InvalidParameter'),
+                ('subtask_failure', 'asr_poll', 200, 'FILE_DOWNLOAD_FAILED')]:
+            self.mode = mode
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                response = await self.client.post('/v1/audio/transcriptions', headers=self.headers, data=self.form())
+                await response.read()
+            self.assertEqual(response.status, 502)
+            record = json.loads(captured.getvalue())
+            records.append(record)
+            self.assertEqual(record['stage'], expected_stage)
+            self.assertEqual(record['upstream_http_status'], status)
+            self.assertEqual(record['upstream_error_code'], code)
+            self.assertEqual(record['bridge_http_status'], 502)
+            self.assertGreater(record['elapsed_ms'], 0)
+            self.assertIn('started_at_utc', record)
+            self.assertIn('finished_at_utc', record)
+            for secret in ['private-account-key', 'test-bridge-token', 'secret-message', 'file_urls', 'transcription_url', 'recording.wav']:
+                self.assertNotIn(secret, captured.getvalue())
+        self.assertNotEqual(records[0]['request_id'], records[1]['request_id'])
 
 
 if __name__ == '__main__':

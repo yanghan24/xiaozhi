@@ -1,0 +1,17 @@
+{
+  "scope": "supplementary network restart and logging evidence; original archive retained",
+  "files": {
+    "logging-deployment.json": {
+      "bytes": 865,
+      "sha256": "3e5510b2f1af0347bd35fccf5caa3ca5150fc00b2eb61df8369b48645c646caf"
+    },
+    "network-restart.json": {
+      "bytes": 5551,
+      "sha256": "17c72cc0cb1838544b76732722fb9a8ab2d624b2941a8fd7956881fd9b1df6dc"
+    },
+    "request-log-sample.json": {
+      "bytes": 163,
+      "sha256": "21ede410dbb7194461053cd522b8d1b98bafc1f0fddfed9cc93b2d4c7066f4e9"
+    }
+  }
+}
