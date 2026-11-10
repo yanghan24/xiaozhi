@@ -52,6 +52,15 @@ LVGL 二维码与 CA 证书包，适用微雪 ESP32-P4 WiFi6 Touch LCD 4.3。
 控制传输一致，IPv6 保持关闭。文件放在 Git 忽略的 `.private/` 下，POSIX 权限为 `600`。
 普通日志、二维码和工具输出不回显秘密。
 
+PR #26 的服务端[预登记工具](https://github.com/yanghan24/xiaozhi/blob/885918d24d69f0b2ed87114f1937292727111d4e/scripts/prepare-device-credential.py)
+由有数据库管理权限的交付人员在 Ubuntu 私有目录运行，使用后台确定的稳定设备 ID。
+它生成 `registration.sql` 和 `device.json`；先通过已有私有管理通道成功导入登记 SQL，再交付该 JSON。
+SQL 只保存凭据校验哈希，工具本身不连接数据库。
+其中 `device.json` 仅含 `device_id`、`credential`，须与经实物核对的 `hardware_id`、`version: 1`、
+完整 `ota_url` 和 `control_origin` 合成上面的六字段配置，不能直接传给固件写入工具。
+本次部署使用 `https://bridge.hncig.cn:18443/xiaozhi/ota/`，同 origin 控制服务的 `control_origin` 留空。
+P4 主芯片 eFuse MAC 与 C6 WiFi STA MAC 分别记录，写入配置使用前者。
+
 产品模式从此身份读取 `ota_url`，不再使用历史 `wifi/ota_url` 或编译默认值。OTA origin
 由完整 URL 导出，跨 origin 控制服务必须在 `control_origin` 中授权；合法 TLS 证书不能自行授权新目标。
 控制请求禁止跟随重定向。
