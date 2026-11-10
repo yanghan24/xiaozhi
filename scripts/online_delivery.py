@@ -220,22 +220,115 @@ def validate_hardware(report, state, expected_device):
         raise DeliveryError("Connected hardware changed; refusing to issue or write credentials")
 
 
+def validate_journal(state, backend, artifacts):
+    if (state.get("version") != 1 or state.get("origin") != backend.origin
+            or state.get("artifacts") != artifacts
+            or state.get("phase") not in {"prepared", "identifying", "registering", "writing", "written", "verifying", "delivered"}
+            or any(not isinstance(state.get(key), str) or not re.fullmatch(r"[0-9a-f]{32}", state[key])
+                   for key in ("operation_id", "write_operation_id"))):
+        raise DeliveryError("Journal, backend or artifacts changed; keep the existing delivery state")
+
+
+def validate_product_change(previous, replacement):
+    if (set(previous) != set(replacement)
+            or any(previous[key] != replacement[key] for key in previous
+                   if key not in {"product", "product_elf_sha256"})
+            or previous.get("product") == replacement.get("product")
+            or previous.get("product_elf_sha256") == replacement.get("product_elf_sha256")):
+        raise DeliveryError("Only the product image may change; retain the board, maintenance image and partition layout")
+
+
+def registration_state(state):
+    revision = state.get("product_revision")
+    if revision is None:
+        return state
+    if (not isinstance(revision, dict) or revision.get("phase") != "verified"
+            or revision.get("replacement_artifacts") != state["artifacts"]):
+        raise DeliveryError("Product replacement is incomplete; resume the same replace-product command")
+    previous = revision["previous_artifacts"]
+    validate_product_change(previous, state["artifacts"])
+    registered = dict(state, artifacts=previous)
+    validate_hardware(revision.get("previous_report"), registered, state["identity"]["device_id"])
+    validate_hardware(revision.get("replacement_report"), state, state["identity"]["device_id"])
+    return registered
+
+
+def validate_written_identity(state, registered):
+    validate_manifest(state.get("identity"))
+    validate_hardware(state.get("hardware"), registered, None)
+    if state.get("write_receipt") != dict(version=1, operation_id=state["write_operation_id"], result="stored"):
+        raise DeliveryError("Journal lacks a committed USB write receipt")
+
+
+def replace_product(directory, backend, hardware, previous, replacement, progress=print):
+    """Explicit candidate correction before delivery; never reissue or rewrite identity.
+
+    The old build stays pinned, and intent is durable before the application-only
+    write. An interrupted correction must resume with exactly the same two builds.
+    """
+    with journal_lock(directory):
+        path = directory / "journal.json"
+        state = read_private(path)
+        validate_journal(state, backend, previous)
+        validate_product_change(previous, replacement)
+        if state["phase"] != "verifying":
+            raise DeliveryError("Product replacement requires an unfinished device verification")
+        validate_written_identity(state, state)
+        revision = state.get("product_revision")
+        if revision is not None:
+            if (not isinstance(revision, dict) or revision.get("phase") != "prepared"
+                    or revision.get("previous_artifacts") != previous
+                    or revision.get("replacement_artifacts") != replacement):
+                raise DeliveryError("Product replacement changed; retain the original replacement command")
+            validate_hardware(revision.get("previous_report"), state, state["identity"]["device_id"])
+        result = backend.lookup(state)
+        if result is None:
+            raise DeliveryError("Existing backend operation is missing; retain this journal for recovery")
+        validate_operation(result, state)
+        if result["status"] != "pending" or (revision is None and result.get("device_verified_at_ms") is not None):
+            raise DeliveryError("Product replacement cannot change a verified or completed delivery")
+        hardware.verify_baseline(state["baseline"])
+        report = hardware.report()
+        try:
+            validate_hardware(report, state, state["identity"]["device_id"])
+        except DeliveryError:
+            if revision is None:
+                raise
+            validate_hardware(report, dict(state, artifacts=replacement), state["identity"]["device_id"])
+        if revision is None:
+            # Recheck after the physical boot report before fixing the replacement intent.
+            result = validate_operation(backend.get(state), state)
+            if result["status"] != "pending" or result.get("device_verified_at_ms") is not None:
+                raise DeliveryError("Device verification changed; no replacement was written")
+            revision = dict(phase="prepared", previous_artifacts=previous,
+                            replacement_artifacts=replacement, previous_report=report)
+            state["product_revision"] = revision
+            save_private(path, state)
+        progress("Product replacement: prepared")
+        hardware.flash("product", state["baseline"])
+        report = hardware.report()
+        candidate = dict(state, artifacts=replacement)
+        validate_hardware(report, candidate, state["identity"]["device_id"])
+        revision.update(phase="verified", replacement_report=report)
+        candidate["product_revision"] = revision
+        save_private(path, candidate)
+        progress("Product replacement: verified; device verification and delivery completion are still required")
+        return candidate
+
+
 def deliver(directory, backend, hardware, artifacts, progress=print):
     """Hardware and HTTP adapters allow faults at the real I/O boundaries to be tested."""
     with journal_lock(directory):
         path = directory / "journal.json"
         if path.exists():
             state = read_private(path)
-            if (state.get("version") != 1 or state.get("origin") != backend.origin
-                    or state.get("artifacts") != artifacts
-                    or state.get("phase") not in {"prepared", "identifying", "registering", "writing", "written", "verifying", "delivered"}
-                    or any(not isinstance(state.get(key), str) or not re.fullmatch(r"[0-9a-f]{32}", state[key])
-                           for key in ("operation_id", "write_operation_id"))):
-                raise DeliveryError("Journal, backend or artifacts changed; keep the existing delivery state")
+            validate_journal(state, backend, artifacts)
         else:
             state = dict(version=1, origin=backend.origin, artifacts=artifacts, phase="prepared",
                          operation_id=secrets.token_hex(16), write_operation_id=secrets.token_hex(16))
             save_private(path, state)
+
+        registered = registration_state(state)
 
         def checkpoint(phase, **values):
             state.update(phase=phase, **values)
@@ -271,10 +364,9 @@ def deliver(directory, backend, hardware, artifacts, progress=print):
 
         if state["phase"] in ("writing", "written", "verifying", "delivered"):
             validate_manifest(state.get("identity"))
-            validate_hardware(state.get("hardware"), state, None)
-        if state["phase"] in ("written", "verifying", "delivered") and state.get("write_receipt") != dict(
-                version=1, operation_id=state["write_operation_id"], result="stored"):
-            raise DeliveryError("Journal lacks a committed USB write receipt")
+            validate_hardware(state.get("hardware"), registered, None)
+        if state["phase"] in ("written", "verifying", "delivered"):
+            validate_written_identity(state, registered)
 
         if state["phase"] == "writing":
             # A lost USB reply repeats the same identity and operation; it never rotates credentials.
@@ -320,12 +412,17 @@ def main():
     auth.add_argument("--origin", required=True)
     auth.add_argument("--admin-token-file", type=Path, required=True, help="Existing login JSON containing token, mode 600")
     auth.add_argument("--session", type=Path, required=True)
-    run = commands.add_parser("deliver", help="Start or resume one physical device, retaining the same journal")
-    run.add_argument("--session", type=Path, required=True)
-    run.add_argument("--journal", type=Path, required=True)
-    run.add_argument("--port", required=True)
-    run.add_argument("--product-build", type=Path, required=True)
-    run.add_argument("--maintenance-build", type=Path, required=True)
+    for name, help_text in (
+            ("deliver", "Start or resume one physical device, retaining the same journal"),
+            ("replace-product", "Correct a pinned candidate before delivery, keeping identity and both build records")):
+        run = commands.add_parser(name, help=help_text)
+        run.add_argument("--session", type=Path, required=True)
+        run.add_argument("--journal", type=Path, required=True)
+        run.add_argument("--port", required=True)
+        run.add_argument("--product-build", type=Path, required=True)
+        run.add_argument("--maintenance-build", type=Path, required=True)
+        if name == "replace-product":
+            run.add_argument("--previous-product-build", type=Path, required=True)
     args = parser.parse_args()
     os.umask(0o077)
     try:
@@ -349,8 +446,14 @@ def main():
             artifacts = build_artifacts(args.product_build, args.maintenance_build)
             device = P4Hardware(args.port, args.product_build, args.maintenance_build,
                                 artifacts, args.journal)
-            deliver(args.journal, Backend(session["origin"], session["tool_token"]), device, artifacts)
-            print("Delivered: independent credential written and verified; customer binding remains available on the device")
+            backend = Backend(session["origin"], session["tool_token"])
+            if args.command == "replace-product":
+                previous = build_artifacts(args.previous_product_build, args.maintenance_build)
+                replace_product(args.journal, backend, device, previous, artifacts)
+                print("Product updated: resume deliver with the same journal and the new product build")
+            else:
+                deliver(args.journal, backend, device, artifacts)
+                print("Delivered: independent credential written and verified; customer binding remains available on the device")
         return 0
     except ProvisioningError as failure:
         print(str(failure), file=sys.stderr)

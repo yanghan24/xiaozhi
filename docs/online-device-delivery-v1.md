@@ -5,8 +5,8 @@
 完成交付不建立客户归属，手机仍须扫描正式设备二维码并明确确认绑定。
 
 现有 PR #26 `885918d` 已通过 PR #48 归档公网部署；后续用户报告 PR #52 `d06f459` 的 delivery API、路由和迁移已部署，
-13 项公网检查通过。产品库管理员配置和工具授权验收由服务器继续处理；
-截至本次实现，没有为本台签发新凭据，没有写入 Flash，没有替代真实手机和扬声器验收。
+13 项公网检查通过。随后管理员与用户提供的长期工具凭据已就绪，本机通过 20 项媒体类型/鉴权检查和 24 项公网入口检查。
+本台已按流程完成后台登记、独立身份写入/读回和产品镜像恢复；设备联网确认仍为 pending，尚未完成交付或手机/扬声器验收。
 
 ## 镜像与受支持设备
 
@@ -80,6 +80,27 @@ python scripts/online_delivery.py deliver \
 
 工具 session 过期时，同一管理员重新登录和授权后仍使用原 journal。更换管理员、镜像、P4/C6 或已改变的准入状态会停止续作。
 不要用新 journal 绕过既有登记冲突。已有身份保留、授权补发或损坏修复属于 #42；新工具不会自动调用低层 `--repair`。
+
+### 交付完成前修正候选产品镜像
+
+普通 `deliver` 继续拒绝未经记录的镜像变化。如果设备已经写入身份、停在 `verifying`，且后台尚无设备验证记录，
+可以显式执行一次 `replace-product` 修正产品应用。它不调用登记、身份写入或完成接口。
+维护镜像、板型和分区必须与原记录相同，原产品构建需要保留 `xiaozhi.bin`、`xiaozhi.elf`、
+`config/sdkconfig.h`、`compile_commands.json` 和 `partition_table/partition-table.bin`，供两份产物独立预检。
+
+```bash
+python scripts/online_delivery.py replace-product \
+  --session .private/delivery/tool-session.json \
+  --journal .private/delivery/device-01 --port /dev/ttyACM0 \
+  --previous-product-build .private/delivery/device-01/artifacts/original-product \
+  --product-build build/product --maintenance-build build/maintenance
+```
+
+工具先认证公网授权，复核原备份、实物 P4/C6、独立身份和旧产品运行摘要，再原子记录两份产物及更新意图。
+仅写当前应用槽并独立回读、复核保护区域；新产品运行报告通过后，journal 才接受新产物。
+中断后必须用同一条 `replace-product` 命令继续，既不允许切换第三份候选，也不允许普通 `deliver` 绕过中间状态。
+已交付或尚未记录修正意图就已完成设备验证的操作拒绝更新。修正成功后再用原 `deliver` 命令续作，
+仍须由设备真实请求公网 `device-check` 并由后台确认 delivered，工具不会把候选更新计成交付成功。
 
 journal 目录必须 0700，文件必须 0600；拒绝符号链接、重复 JSON 字段和并发使用同一 journal。
 `backup/` 包含原 NVS，`journal.json` 包含独立设备凭据，`transport.log` 含硬件维护记录，均不得进入 Git 或共享普通日志。

@@ -82,6 +82,8 @@ class Hardware:
         self.corrupt_network_after_write = False
         self.verify_device = True
         self.backups = 0
+        self.product_elf = ARTIFACTS["product_elf_sha256"]
+        self.next_product_elf = None
 
     def fault(self, action):
         if self.fail == action:
@@ -100,6 +102,8 @@ class Hardware:
         self.verify_baseline(baseline)
         self.flashes.append(kind)
         self.image = kind
+        if kind == "product" and self.next_product_elf:
+            self.product_elf = self.next_product_elf
         self.fault(kind + ("-after-write" if self.identity else ""))
 
     def report(self):
@@ -110,7 +114,7 @@ class Hardware:
         return dict(version=1, mode="device_hardware", hardware_id=self.hardware,
                     network_hardware_id="020000000199" if self.identity and self.corrupt_network_after_write else self.network,
                     network_connected=True, device_id=self.identity["device_id"] if self.identity else None,
-                    firmware_elf_sha256=ARTIFACTS["product_elf_sha256"])
+                    firmware_elf_sha256=self.product_elf)
 
     def write(self, manifest, operation):
         assert self.image == "maintenance"
@@ -294,6 +298,108 @@ class DeliveryTests(unittest.TestCase):
                 delivery.origin(value)
         with self.assertRaises(delivery.ProvisioningError):
             json.loads('{"version":1,"version":1}', object_pairs_hook=delivery.unique_object)
+
+    def pending_product_revision(self):
+        previous = dict(ARTIFACTS, product={"sha256": "a" * 64},
+                        maintenance={"sha256": "b" * 64}, partition_table_sha256="c" * 64)
+        replacement = dict(previous, product={"sha256": "d" * 64}, product_elf_sha256="f" * 64)
+        self.hardware.verify_device = False
+        with patch.object(delivery.time, "monotonic", side_effect=[0, 121]):
+            with self.assertRaises(delivery.DeliveryError):
+                delivery.deliver(self.directory, self.backend, self.hardware, previous, self.progress.append)
+        saved = delivery.read_private(self.directory / "journal.json")
+        self.hardware.flashes.clear()
+        self.hardware.writes.clear()
+        self.hardware.next_product_elf = replacement["product_elf_sha256"]
+        return previous, replacement, saved
+
+    def test_product_replacement_preserves_identity_receipt_and_completion_gate(self):
+        previous, replacement, saved = self.pending_product_revision()
+        result = delivery.replace_product(self.directory, self.backend, self.hardware,
+                                          previous, replacement, self.progress.append)
+        for key in ("operation_id", "write_operation_id", "identity", "write_receipt", "baseline", "hardware"):
+            self.assertEqual(saved[key], result[key])
+        self.assertEqual(result["phase"], "verifying")
+        self.assertEqual(result["artifacts"], replacement)
+        self.assertEqual(result["product_revision"]["previous_artifacts"], previous)
+        self.assertEqual(result["product_revision"]["phase"], "verified")
+        self.assertEqual(self.hardware.flashes, ["product"])
+        self.assertEqual(self.hardware.writes, [])
+        self.assertEqual(len(self.backend.create_calls), 1)
+        self.assertEqual(self.backend.complete_calls, [])
+        self.hardware.verify_device = True
+        completed = delivery.deliver(self.directory, self.backend, self.hardware,
+                                     replacement, self.progress.append)
+        self.assertEqual(completed["phase"], "delivered")
+        self.assertEqual(len(self.backend.operations), 1)
+        self.assertEqual(completed["identity"], saved["identity"])
+
+    def test_interrupted_product_replacement_requires_same_candidate_and_resumes(self):
+        previous, replacement, saved = self.pending_product_revision()
+        self.hardware.fail = "product-after-write"
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, replacement, self.progress.append)
+        pending = delivery.read_private(self.directory / "journal.json")
+        self.assertEqual(pending["artifacts"], previous)
+        self.assertEqual(pending["product_revision"]["phase"], "prepared")
+        flashes = len(self.hardware.flashes)
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.deliver(self.directory, self.backend, self.hardware, previous, self.progress.append)
+        different = dict(replacement, product_elf_sha256="1" * 64)
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, different, self.progress.append)
+        self.assertEqual(len(self.hardware.flashes), flashes)
+        # The replacement may already have verified itself before the tool restarts.
+        next(iter(self.backend.operations.values()))["device_verified_at_ms"] = 100
+        result = delivery.replace_product(self.directory, self.backend, self.hardware,
+                                          previous, replacement, self.progress.append)
+        self.assertEqual(result["product_revision"]["phase"], "verified")
+        self.assertEqual(result["identity"], saved["identity"])
+        self.assertEqual(self.backend.complete_calls, [])
+
+    def test_product_replacement_rejects_revoked_grant_before_usb(self):
+        previous, replacement, _ = self.pending_product_revision()
+        self.backend.fail = "authorization"
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, replacement, self.progress.append)
+        self.assertEqual(self.hardware.flashes, [])
+        self.assertEqual(self.hardware.writes, [])
+
+    def test_product_replacement_rejects_other_hardware_or_unrecognized_running_image(self):
+        previous, replacement, _ = self.pending_product_revision()
+        other = Hardware(self.backend, 2)
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, other,
+                                     previous, replacement, self.progress.append)
+        self.assertEqual(other.flashes, [])
+        self.hardware.product_elf = "0" * 64
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, replacement, self.progress.append)
+        self.assertEqual(self.hardware.flashes, [])
+
+    def test_product_replacement_cannot_change_maintenance_layout_or_completed_operation(self):
+        previous, replacement, _ = self.pending_product_revision()
+        for field in ("board_type", "maintenance", "partition_table_sha256"):
+            altered = dict(replacement)
+            altered[field] = "different"
+            with self.subTest(field=field), self.assertRaises(delivery.DeliveryError):
+                delivery.replace_product(self.directory, self.backend, self.hardware,
+                                         previous, altered, self.progress.append)
+        operation = next(iter(self.backend.operations.values()))
+        operation["device_verified_at_ms"] = 100
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, replacement, self.progress.append)
+        operation.update(status="delivered", completed_at_ms=200)
+        with self.assertRaises(delivery.DeliveryError):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, replacement, self.progress.append)
+        self.assertEqual(self.hardware.flashes, [])
+        self.assertEqual(self.backend.complete_calls, [])
 
 
 if __name__ == "__main__":
