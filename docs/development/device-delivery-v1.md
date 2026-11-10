@@ -99,14 +99,25 @@ docker compose -p xiaozhi-baseline-tests -f compose.tests.yaml up --abort-on-con
 
 新增 `DeviceDeliveryHttpTest` 使用真实 Tomcat、Shiro、MySQL、Redis，覆盖授权、过期/撤权、两设备、跨凭据拒绝、
 幂等/并发/孤立行、完成回执、禁止重启用/改归属、状态围栏、JSON 边界及密文 AAD。
+补充媒体类型回归后共 12 个测试方法；缺少/错误 Content-Type 在 MVC 匹配控制器前按协议返回 400，
+避免落入旧通用异常处理器的 HTTP 200 / code 500。前置过滤器仅作用于交付接口。
 套件产出 `target/device-delivery-compatibility/{pending,delivered}.json`，可交给固件解析器测试。
 目前这些新增 Java 测试尚未在 Ubuntu 执行，不能沿用 PR #26 的 321 项通过结果。
 
 ## 当前公网核对
 
 PR #48 的[部署记录](https://github.com/yanghan24/xiaozhi/blob/aa730ccea7403112f4d0ed35daed3fadb35fd776/docs/verification/2026-11-10-pr26-server-deployment.md)
-确认 PR #26 `885918d` 已部署。2026-11-10 本机使用公网域名、正常 TLS 校验再次探测：无凭据设备状态 401，
-无凭据 POST 新 delivery authorize 路径 404。服务可达，新在线交付接口尚未在该入口开放。
+确认 PR #26 `885918d` 已部署。2026-11-10 初次本机公网探测：无凭据设备状态 401，新 delivery authorize 路径 404。
+后续用户报告 PR #52 `d06f459` API、路由和迁移已部署、13 项公网检查通过，备份保留。
+本机复查正常 JSON 请求已返回 v1 鉴权错误；缺少/错误 Content-Type 的部分 POST 仍返回旧 HTTP 200 / code 500，
+修复及新增媒体类型回归须在 Ubuntu 验证后更新。产品库管理员配置由服务器执行者负责，工具授权验收尚未完成。
+以下无凭据脚本可在 Ubuntu 从公网入口复现并验收修复；它不会注册设备或签发凭据：
+
+```bash
+python3 scripts/check-delivery-rejections.py --origin https://bridge.hncig.cn:18443
+```
+
+共 20 个正常/异常媒体类型与鉴权响应检查，要求正确 HTTP 状态、v1 错误码和 `Cache-Control: no-store`。
 未签发本台新凭据，未刷写候选，也未执行手机/扬声器验收；PR #26 继续等待真机验收后再合并。
 
 暂停新交付时先关闭 delivery 功能或撤回对应路由，保留新增记录和密钥。已经 delivered 的在线固件启动时也需要 device-check，

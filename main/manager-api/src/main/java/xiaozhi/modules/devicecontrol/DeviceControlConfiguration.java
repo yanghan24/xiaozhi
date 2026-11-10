@@ -10,6 +10,14 @@ import org.springframework.core.Ordered;
 @Configuration
 public class DeviceControlConfiguration {
     @Bean
+    public FilterRegistrationBean<DeviceDeliveryMediaFilter> deviceDeliveryMediaType() {
+        var registration = new FilterRegistrationBean<>(new DeviceDeliveryMediaFilter());
+        registration.addUrlPatterns("/device-delivery/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 9);
+        return registration;
+    }
+
+    @Bean
     public FilterRegistrationBean<DeviceControlBodyFilter> deviceControlBodyLimit() {
         var registration = new FilterRegistrationBean<>(new DeviceControlBodyFilter());
         registration.addUrlPatterns("/device-control/*");

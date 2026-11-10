@@ -246,6 +246,30 @@ class DeviceDeliveryHttpTest {
     }
 
     @Test
+    void missingOrInvalidContentTypeUsesProtocolRejectionBeforeMvcRouteSelection() throws Exception {
+        for (String path : List.of("authorize", "operations", "device-check", "operations/" + "0".repeat(32) + "/complete")) {
+            for (String media : new String[] {null, "text/plain", "application/octet-stream", "application/*", "application/json; charset=unsupported-charset"}) {
+                var builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/xiaozhi/device-delivery/v1/" + path))
+                        .header("X-Forwarded-Proto", "https")
+                        .timeout(java.time.Duration.ofSeconds(20));
+                if (media != null) builder.header("Content-Type", media);
+                var response = http.send(builder.POST(HttpRequest.BodyPublishers.ofString("{\"version\":1}")).build(), HttpResponse.BodyHandlers.ofString());
+                assertEquals(400, response.statusCode(), path + " / " + media + ": " + response.body());
+                assertEquals("no-store", response.headers().firstValue("Cache-Control").orElse(""));
+                var envelope = JSON.readTree(response.body());
+                assertEquals(1, envelope.path("version").intValue());
+                assertEquals("INVALID_REQUEST", envelope.path("code").asText());
+            }
+        }
+        var valid = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/xiaozhi/device-delivery/v1/operations"))
+                .header("X-Forwarded-Proto", "https")
+                .header("Content-Type", "application/json; charset=UTF-8")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"version\":1}")).build();
+        assertEquals(401, http.send(valid, HttpResponse.BodyHandlers.ofString()).statusCode());
+        assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM dc_delivery_operation WHERE operator_id=?", Integer.class, ADMIN));
+    }
+
+    @Test
     void encryptedCredentialCannotBeMovedBetweenOperations() throws Exception {
         var a = create(1, id());
         var b = create(2, id());
