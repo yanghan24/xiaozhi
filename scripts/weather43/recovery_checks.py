@@ -38,6 +38,7 @@ class Experiment:
         self.fixture = "weather43-recovery-fixture"
         self.cold_engine = "weather43-cold-engine"
         self.notes = []
+        self.cold_voice_process = None
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         self.gateway = dict(line.strip().split("=", 1) for line in
                             (self.root / "private/acceptance.env").read_text().splitlines()
@@ -138,6 +139,21 @@ class Experiment:
         return {"entries": len(values), "data_and_fetch_time_sha256": hashlib.sha256(
                     json.dumps(fields, sort_keys=True).encode()).hexdigest(),
                 "earliest_check_at": min(deadlines), "latest_check_at": max(deadlines)}
+
+    def start_cold_voice(self):
+        command = ["docker", "run", "--rm", "--user", "0:0", "--name", "weather43-voice-probe",
+                   "--network", "host", "--read-only", "--memory", "384m", "--cpus", "1",
+                   "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--tmpfs", "/tmp:size=64m",
+                   "--entrypoint", "python", "-v", str(self.root / "scripts/weather43/voice_coexist.py") + ":/probe.py:ro",
+                   "-v", str(self.root / "private/voice-test-device.json") + ":/private/device.json:ro",
+                   "-v", "/home/jt/issue13-integration/.runtime/live-voice/voice-test.wav:/private/input.wav:ro",
+                   "-v", str(self.root / "evidence/voice") + ":/evidence:rw", self.args.runtime,
+                   "/probe.py", "--device", "/private/device.json", "--audio", "/private/input.wav",
+                   "--connect-host", "192.168.168.114", "--output", "/evidence/during-full-cold-1000",
+                   "--phase", "during-full-cold-1000", "--count", "10", "--interval", "5"]
+        with (self.root / "private/cold-voice-probe.log").open("xb") as output:
+            self.cold_voice_process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT)
+        self.notes.append({"at": utc(), "cold_voice_started": True, "input": "existing synthetic WAV"})
 
     def run(self):
         assert self.get()["data"]["cache_entries"] == 700
@@ -247,8 +263,10 @@ class Experiment:
             self.record("full-cold-ready", {"health": self.get(port=18087)})
             assert self.get(port=18087)["data"]["cache_entries"] == 0
             started = time.monotonic()
+            cold_started_at = utc()
             counts = self.load("full-cold-1000-cities1000", devices=1000, cities=1000, port=18087, data_dir=cold,
                                cities_file="private/cities-1000.json")
+            self.start_cold_voice()
             points = []
             while time.monotonic() - started < 1800:
                 point = snapshot(cold)
@@ -264,6 +282,12 @@ class Experiment:
             self.record("full-cold-warmup", {"first_ack_counts": counts, "complete_after_s": time.monotonic() - started,
                                              "health": self.get(port=18087), "resources": points})
             assert self.get(port=18087)["data"]["cache_entries"] == 2000
+            cold_complete_at = utc()
+            assert self.cold_voice_process.wait(timeout=1200) == 0
+            self.record("voice-during-cold-warmup", {"summary": json.loads(
+                (self.root / "evidence/voice/during-full-cold-1000/summary.json").read_text()),
+                "warmup_started_at": cold_started_at,
+                "warmup_complete_observed_at": cold_complete_at})
             self.record("full-cold-cgroup-memory", {"containers": docker_memory([self.cold_engine, self.fixture])})
             for round_number in range(1, 4):
                 assert self.load("after-full-cold-1000-cities1000-round" + str(round_number), devices=1000,
@@ -296,6 +320,9 @@ class Experiment:
                 names = self.cmd(["docker", "ps", "-a", "--format", "{{.Names}}"]).splitlines()
                 if name in names:
                     self.remove_fixture(name)
+            if self.cold_voice_process and self.cold_voice_process.poll() is None:
+                self.cmd(["docker", "stop", "-t", "10", "weather43-voice-probe"])
+                self.cold_voice_process.wait(timeout=20)
             self.cmd(self.compose + ["start", "openmeteo", "result-cache"])
             self.record("experiment-timeline", {"events": self.notes})
 

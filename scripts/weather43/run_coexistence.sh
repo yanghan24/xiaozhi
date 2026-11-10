@@ -13,8 +13,24 @@ test -f evidence/long-load-suite-complete
 test "$(cat private/fault.json)" = '{}'
 test ! -e evidence/coexistence-complete
 
+service_state() {
+  python3 - "$1" <<'PY'
+import datetime,json,pathlib,subprocess,sys
+state={}
+for name in ['xiaozhi-pr26-api','xiaozhi-pr26-voice']:
+    item=json.loads(subprocess.run(['docker','inspect',name],capture_output=True,text=True,check=True).stdout)[0]
+    state[name]={'image_id':item['Image'],'started_at':item['State']['StartedAt'],
+                 'running':item['State']['Running'],'oom_killed':item['State']['OOMKilled'],
+                 'restart_count':item['RestartCount']}
+path=pathlib.Path('evidence/voice/service-state-'+sys.argv[1]+'.json')
+with path.open('x') as output:
+    json.dump({'at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'services':state},output,indent=2)
+PY
+}
+
 voice_phase() {
   local phase="$1"
+  service_state "$phase-start"
   docker run --rm --user 0:0 --name weather43-voice-probe --network host \
     --read-only --memory 384m --cpus 1 --cap-drop ALL --security-opt no-new-privileges \
     --tmpfs /tmp:rw,nosuid,size=64m --entrypoint python \
@@ -23,6 +39,7 @@ voice_phase() {
     -v "$audio:/private/input.wav:ro" -v "$root/evidence/voice:/evidence:rw" \
     "$runtime" /probe.py --device /private/device.json --audio /private/input.wav \
     --connect-host 192.168.168.114 --output "/evidence/$phase" --phase "$phase" --count 10 --interval 5
+  service_state "$phase-end"
 }
 
 weather() {
