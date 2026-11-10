@@ -86,7 +86,18 @@
     }
   ],
   "matching_basis": "User specified the question; latest exact ASR text match. ASR upload carries session UUID. LLM and TTS linked by adjacent single-turn time window; not a propagated cross-service turn ID.",
-  "physical_playback_confirmation": "not supplied for this specific round",
+  "physical_playback_confirmation": "Onsite user reports 6.30 seconds from stopping speech to complete playback for the question 三加四等于几; this is user feedback, not a firmware playback ACK.",
   "actual_speech_end_to_speaker_start_ms": null,
-  "actual_speech_end_to_playback_end_ms": null
+  "actual_speech_end_to_playback_end_ms": 6300,
+  "onsite_measurement": {
+    "evidence_source": "onsite_user_report",
+    "question": "三加四等于几",
+    "start_event": "user_finished_speaking",
+    "end_event": "device_finished_playing_complete_answer",
+    "elapsed_seconds": 6.30,
+    "timing_method": null,
+    "report_saved_at_utc": "2026-11-10T04:53:07Z",
+    "actual_test_wallclock": null,
+    "note": "The saved time is not the actual speech or playback time. User supplied the duration and clarified its endpoints; no device timestamps or timing tool were supplied."
+  }
 }
