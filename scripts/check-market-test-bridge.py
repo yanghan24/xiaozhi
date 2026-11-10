@@ -39,7 +39,20 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         await self.market.start_server()
         config = {'bridge_token': 'test-bridge-token', 'expires_at': time.time() + 300, 'public_origin': ''}
         self.bridge = module.Bridge(config, self.lease, str(self.market.make_url('/v1/')))
-        self.client = TestClient(TestServer(self.bridge.application()))
+        self.chat_audit_completed = asyncio.Event()
+
+        @web.middleware
+        async def signal_audit_completion(request, handler):
+            try:
+                return await handler(request)
+            finally:
+                if request.path == '/v1/chat/completions':
+                    self.chat_audit_completed.set()
+
+        app = self.bridge.application()
+        # The outer middleware finishes after the real audit middleware logs.
+        app.middlewares.insert(0, signal_audit_completion)
+        self.client = TestClient(TestServer(app))
         await self.client.start_server()
         config['public_origin'] = str(self.client.make_url('')).rstrip('/')
         self.headers = {'Authorization': 'Bearer test-bridge-token'}
@@ -105,6 +118,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
 
     async def chat_with_audit(self):
         captured = io.StringIO()
+        self.chat_audit_completed.clear()
         with contextlib.redirect_stdout(captured):
             response = await self.client.post('/v1/chat/completions', headers=self.headers,
                 json={'model': module.LLM, 'stream': True})
@@ -112,6 +126,8 @@ class Tests(unittest.IsolatedAsyncioTestCase):
                 body = await response.read()
             except aiohttp.ClientPayloadError:
                 body = None
+            # Reading EOF does not imply the server's audit finally has run.
+            await asyncio.wait_for(self.chat_audit_completed.wait(), timeout=5)
         health = await self.client.get('/health', headers=self.headers)
         return response.status, body, json.loads(captured.getvalue()), captured.getvalue(), await health.json()
 
