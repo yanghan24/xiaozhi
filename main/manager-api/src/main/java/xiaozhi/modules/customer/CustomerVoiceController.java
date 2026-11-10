@@ -31,9 +31,15 @@ final class CustomerVoiceController {
         com.fasterxml.jackson.databind.JsonNode body;
         try {body=json.readTree(raw);}catch(Exception invalid){throw new CustomerFailure(400,"INVALID_REQUEST");}
         boolean open="open".equals(action);
-        if(!java.util.Set.of("open","check","close","model-access").contains(action) || !body.isObject() || body.size()!=(open?2:1)) throw new CustomerFailure(400,"INVALID_REQUEST");
+        boolean rejected="key-rejected".equals(action);
+        if(!java.util.Set.of("open","check","close","model-access","key-rejected").contains(action) || !body.isObject() || body.size()!=(open?2:1)) throw new CustomerFailure(400,"INVALID_REQUEST");
         Map<String,Object> result;
         if(open) result=permissions.open(field(body,"device_id"),field(body,"token"));
+        else if(rejected) {
+            var receipt=body.path("rejection_receipt");
+            if(!receipt.isTextual() || receipt.asText().length()>1024)throw new CustomerFailure(400,"INVALID_REQUEST");
+            result=permissions.keyRejected(receipt.asText());
+        }
         else {
             String session=field(body,"session");
             if("close".equals(action)){permissions.close(session);result=Map.of("closed",true);}

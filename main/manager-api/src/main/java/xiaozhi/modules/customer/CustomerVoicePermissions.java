@@ -92,7 +92,24 @@ public final class CustomerVoicePermissions {
     Map<String,Object> modelAccess(String session) {
         return transactions.execute(tx->{barrier();var device=checked(sessionToken(session));
             var grant=db.queryForMap("SELECT * FROM customer_authorization WHERE issuer=? AND subject=?",device.get("owner_issuer"),device.get("owner_subject"));
-            return Map.of("api_key",secrets.decrypt(grant.get("business_key").toString()),"base_url",modelBase,"model","qwen3.8-flash");
+            String receipt=secrets.encrypt(grant.get("subject_key")+"\n"+grant.get("generation")+"\n"+(clock.millis()+300000));
+            return Map.of("api_key",secrets.decrypt(grant.get("business_key").toString()),"rejection_receipt",receipt,"base_url",modelBase,"model","qwen3.8-flash");
+        });
+    }
+    Map<String,Object> keyRejected(String receipt) {
+        String[] proof;
+        try {proof=secrets.decrypt(receipt).split("\n");
+            if(proof.length!=3 || Long.parseLong(proof[2])<=clock.millis())throw new IllegalArgumentException();
+        }catch(Exception invalid){throw new CustomerFailure(400,"INVALID_REQUEST");}
+        return transactions.execute(tx->{barrier();
+            // Authenticated evidence survives socket cleanup, but is bounded and grant-specific.
+            int changed=db.update("UPDATE customer_authorization SET status='REAUTH_REQUIRED',updated_at_ms=? WHERE subject_key=? AND generation=? AND status IN ('ACTIVE','REFRESHING','REFRESH_UNCERTAIN')",
+                    clock.millis(),proof[0],proof[1]);
+            if(changed==1) {
+                var grant=db.queryForMap("SELECT issuer,subject FROM customer_authorization WHERE subject_key=?",proof[0]);
+                reconcileSubject(grant.get("issuer").toString(),grant.get("subject").toString());
+            }
+            return Map.of("recorded",true);
         });
     }
     void close(String session){db.update("DELETE FROM dc_voice_session WHERE id_hash=?",CustomerSecrets.hash(session));}

@@ -27,6 +27,8 @@ class CustomerVoicePermissionHttpTest {
     @org.springframework.boot.test.mock.mockito.MockBean(name="deviceControlClock") java.time.Clock deviceClock;
     @Autowired @org.springframework.beans.factory.annotation.Qualifier("customerTime") java.time.Clock customerClock;
     BindingTestClient client;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
+    @Autowired CustomerOidcConfig oidcConfig;
     @BeforeEach void setup(){client=new BindingTestClient(http,db,market);org.mockito.Mockito.when(deviceClock.millis()).thenAnswer(call->customerClock.millis());}
     @AfterEach void reset(){CustomerTestTime.offset.set(0);CustomerTestTime.frozen.set(0);}
     @Test void explicitOwnerResumeEnablesOnlyTargetAndIssuesBoundedVoiceCredentials() {
@@ -75,6 +77,61 @@ class CustomerVoicePermissionHttpTest {
     private org.springframework.http.ResponseEntity<Map> voice(String action,Map<String,Object> body) {
         var headers=new org.springframework.http.HttpHeaders();headers.set("X-Voice-Service-Key","isolated-voice-test-service-secret-123456");
         return http.postForEntity("/internal/device-voice/v1/"+action,new org.springframework.http.HttpEntity<>(body,headers),Map.class);
+    }
+    @Test void rejectedKeyStopsSharedDevicesAndOldGenerationCannotStopReplacement() {
+        String subject=java.util.UUID.randomUUID().toString();
+        var a=client.device();var b=client.device();
+        var fa=client.scan(a);client.login(fa,null,subject);client.confirm(fa,"bind");
+        var fb=client.scan(b);client.login(fb,null,subject);client.confirm(fb,"bind");
+        String token=((Map<?,?>)client.state(a).get("voice")).get("token").toString();
+        String session=voice("open",Map.of("device_id",a.id(),"token",token)).getBody().get("session").toString();
+        String receipt=voice("model-access",Map.of("session",session)).getBody().get("rejection_receipt").toString();
+        assertEquals(200,voice("close",Map.of("session",session)).getStatusCode().value());
+        assertEquals(200,voice("key-rejected",Map.of("rejection_receipt",receipt)).getStatusCode().value());
+        assertEquals("market_auth_required",client.state(a).get("reason"));
+        assertEquals("market_auth_required",client.state(b).get("reason"));
+        assertEquals(401,voice("check",Map.of("session",session)).getStatusCode().value());
+        var resume=client.scan(client.request(a,"auto"));client.login(resume,null,subject);
+        assertEquals(200,client.confirm(resume,"resume").getStatusCode().value());
+        assertEquals(200,voice("key-rejected",Map.of("rejection_receipt",receipt)).getStatusCode().value());
+        assertEquals("allowed",client.state(a).get("use_permission"));
+        assertEquals("market_auth_required",client.state(b).get("reason"));
+        assertEquals(400,voice("key-rejected",Map.of("rejection_receipt","invalid")).getStatusCode().value());
+        CustomerTestTime.offset.set(301000);
+        assertEquals(400,voice("key-rejected",Map.of("rejection_receipt",receipt)).getStatusCode().value());
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"invalid","lost"})
+    void refreshFailureSharesReplacementBarrierAndStopsDevicesBeforeRelogin(String mode) throws Exception {
+        String subject=java.util.UUID.randomUUID().toString();
+        var a=client.device();var b=client.device();
+        var fa=client.scan(a);client.login(fa,null,subject);client.confirm(fa,"bind");
+        var fb=client.scan(b);client.login(fb,null,subject);client.confirm(fb,"bind");
+        // Select the exact current rotating credential, not an earlier login's token.
+        String refresh=oidcConfig.decrypt(db.queryForObject("SELECT refresh_token FROM customer_authorization WHERE subject=?",String.class,subject));
+        var gates=new java.util.concurrent.CountDownLatch[]{new java.util.concurrent.CountDownLatch(1),new java.util.concurrent.CountDownLatch(1)};
+        market.refreshGates.put(refresh,gates);market.refreshModes.put(subject,mode);
+        try {
+            CustomerTestTime.offset.set(271000);
+            assertTrue(gates[0].await(5,java.util.concurrent.TimeUnit.SECONDS));
+            new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(tx->{
+                db.queryForObject("SELECT id FROM customer_identity_barrier WHERE id=1 FOR UPDATE",Integer.class);
+                assertEquals("REFRESHING",db.queryForObject("SELECT status FROM customer_authorization WHERE subject=?",String.class,subject));
+                gates[1].countDown();
+                try {Thread.sleep(400);}catch(InterruptedException e){throw new RuntimeException(e);}
+                // A locking read observes commits even under repeatable-read snapshots.
+                assertEquals("REFRESHING",db.queryForObject("SELECT status FROM customer_authorization WHERE subject=? FOR UPDATE",String.class,subject));
+            });
+            String expected=mode.equals("lost")?"market_auth_pending":"market_auth_required";
+            long deadline=System.nanoTime()+java.time.Duration.ofSeconds(6).toNanos();
+            while(!expected.equals(client.state(a).get("reason"))&&System.nanoTime()<deadline)Thread.sleep(20);
+            assertEquals(expected,client.state(b).get("reason"));
+            var resume=client.scan(client.request(a,"auto"));client.login(resume,null,subject);
+            assertEquals(expected,client.state(b).get("reason"));
+            assertEquals(200,client.confirm(resume,"resume").getStatusCode().value());
+            assertEquals("allowed",client.state(a).get("use_permission"));
+            assertEquals(expected,client.state(b).get("reason"));
+        } finally {gates[1].countDown();}
     }
     @Test void accessRefreshDoesNotSignOutAnOtherwiseValidModelGrant() throws Exception {
         var device=client.device();var flow=client.scan(device);var auth=client.login(flow,null,null);

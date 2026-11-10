@@ -19,6 +19,10 @@ class TranscriptionUnavailable(Exception):
         super().__init__('Audio transcription unavailable')
 
 
+class KeyRejected(Exception):
+    pass
+
+
 class AudioPublication:
     """Owned by one event loop; URLs expire even when the requester disappears."""
     PATH = '/xiaozhi/asr-audio/'
@@ -144,6 +148,8 @@ class MarketASR(ASRProviderBase):
             async with session.request('GET' if payload is None else 'POST', url,
                     headers=headers, json=payload, allow_redirects=False) as response:
                 if response.status != 200:
+                    if response.status == 401 and key:
+                        raise KeyRejected()
                     raise TranscriptionUnavailable()
                 raw = bytearray()
                 async for chunk in response.content.iter_chunked(16384):
@@ -196,5 +202,7 @@ class MarketASR(ASRProviderBase):
             if not text or len(text) > 16000:
                 raise TranscriptionUnavailable()
             return text, None
+        except KeyRejected:
+            await asyncio.to_thread(self.gate.key_rejected, access)
         finally:
             self.publication.remove(token)

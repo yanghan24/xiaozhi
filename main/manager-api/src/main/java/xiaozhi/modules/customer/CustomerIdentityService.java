@@ -20,6 +20,7 @@ final class CustomerIdentityService {
         this.clock = clock; this.voice=voice;
         this.db = db; this.market = market; this.config = config;
         transactions = new TransactionTemplate(manager);
+        transactions.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
     Map<String, Object> browser(String cookie) {
         if (cookie == null || cookie.length() > 64) throw new CustomerFailure(401, "IDENTITY_REQUIRED");

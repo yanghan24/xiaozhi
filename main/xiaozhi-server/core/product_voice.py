@@ -86,12 +86,20 @@ class VoiceGate:
         self.check()
         try:
             result = self.authority.request('model-access', {'session': self.session})
-            if self.ended.is_set() or result.get('model') != 'qwen3.8-flash' or not result.get('api_key'):
+            if self.ended.is_set() or result.get('model') != 'qwen3.8-flash' or not result.get('api_key') or not result.get('rejection_receipt'):
                 raise VoiceDenied()
             return result
         except VoiceDenied:
             self.ended.set()
             raise
+
+    def key_rejected(self, access):
+        # Report the generation actually used, never whichever grant is current now.
+        try:
+            self.authority.request('key-rejected', {'rejection_receipt': access['rejection_receipt']})
+        finally:
+            self.ended.set()
+        raise VoiceDenied()
 
     async def close(self):
         self.ended.set()
@@ -163,6 +171,8 @@ class MarketModel:
                             yield content
                 raise ModelUnavailable('AI market stream ended without completion')
         except urllib.error.HTTPError as error:
+            if error.code == 401:
+                self.gate.key_rejected(access)
             # Resource/credit failures do not revoke identity or shared authorization.
             raise ModelUnavailable('AI market request failed (HTTP %s)' % error.code) from None
         except VoiceDenied:
