@@ -12,6 +12,7 @@ import hashlib
 import http.client
 import json
 import math
+import re
 from pathlib import Path
 import socket
 import ssl
@@ -118,15 +119,20 @@ async def attempt(args, device, pcm, number):
                     kind = event.get("type")
                     if kind == "stt":
                         row["recognized_synthetic_text"] = event.get("text", "")[:300]
+                        row["recognized_expected_phrase"] = "你好语音测试成功" in re.sub(
+                            r"[^\u3400-\u9fff]", "", row["recognized_synthetic_text"])
                         row["timing_s"].setdefault("stt_after_input", elapsed)
                     elif kind == "llm":
                         row["timing_s"].setdefault("llm_after_input", elapsed)
+                    elif kind == "tts" and event.get("state") == "sentence_start" and event.get("text"):
+                        row.setdefault("spoken_synthetic_response", []).append(event["text"][:500])
                     elif kind == "tts" and event.get("state") == "stop":
                         row["timing_s"]["complete_after_input"] = elapsed
                         row["decoded_pcm_sha256"] = digest.hexdigest()
-                        row["success"] = bool(row.get("recognized_synthetic_text")) and row["audio_frames"] > 0
+                        row["success"] = (row.get("recognized_expected_phrase", False) and row["audio_frames"] > 0 and
+                                          bool(row.get("spoken_synthetic_response")) and "llm_after_input" in row["timing_s"])
                         if not row["success"]:
-                            row["failure"] = "missing_recognition_or_audio"
+                            row["failure"] = "missing_expected_recognition_or_model_audio"
                         break
                     elif kind in ("error", "goodbye"):
                         raise ValueError("service_event_" + kind)
@@ -157,6 +163,7 @@ async def run(args):
         pcm, _ = audioop.ratecv(pcm, 2, 1, rate, 16000, None)
     args.output.mkdir(parents=True)
     context = {"scope": "server_product_protocol_with_real_ASR_LLM_TTS",
+               "load_generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                "physical_microphone_or_speaker": False, "phase": args.phase,
                "source_audio_sha256": hashlib.sha256(args.audio.read_bytes()).hexdigest(),
                "device_id_sha256": hashlib.sha256(device["device_id"].encode()).hexdigest(),

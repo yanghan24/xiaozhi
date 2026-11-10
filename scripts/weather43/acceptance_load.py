@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 from datetime import datetime
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -122,7 +123,7 @@ async def run(args, output):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--cities-file", required=True, type=Path)
-    p.add_argument("--cities", type=int, choices=(1, 10, 35, 350), required=True)
+    p.add_argument("--cities", type=int, choices=(1, 10, 35, 350, 1000), required=True)
     p.add_argument("--devices", type=int, choices=(350, 1000), required=True)
     p.add_argument("--scenario", choices=("burst", "steady"), required=True)
     p.add_argument("--duration", type=int, default=1800)
@@ -132,6 +133,8 @@ def main():
     p.add_argument("--data-dir", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
     args = p.parse_args()
+    if args.cities > args.devices:
+        p.error("The city sample cannot exceed the offered device population")
     require_ubuntu(p)
     if resource.getrlimit(resource.RLIMIT_NOFILE)[0] < args.devices + 128:
         p.error("Increase this test shell's nofile limit to 8192")
@@ -139,6 +142,8 @@ def main():
         p.error("Unbounded or invalid test parameters")
     args.output.mkdir(parents=True, exist_ok=False)
     manifest = {"started_at": utc(), "settings": vars(args), "scope": "unified_environment_feasibility_gateway",
+                "load_generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "cities_file_sha256": hashlib.sha256(args.cities_file.read_bytes()).hexdigest(),
                 "generator_nofile": resource.getrlimit(resource.RLIMIT_NOFILE),
                 "limitations": ["No physical devices or production device authentication",
                                 "Generator shares the host; sampled peaks may be missed",

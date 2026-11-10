@@ -40,6 +40,7 @@ def iso(stamp):
 class Gateway:
     def __init__(self, args):
         self.args = args
+        self.source_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
         cities = json.loads(args.cities.read_text())
         self.cities = {str(c["id"]): c for c in cities["cities"]}
         if "changsha" not in self.cities:
@@ -301,6 +302,7 @@ class Gateway:
 
     async def health(self, request):
         return web.json_response({"status": "ok", "started_at": iso(self.started),
+                                  "runtime_source_sha256": self.source_sha256,
                                   "cache_entries": len(self.entries), "pending": len(self.pending),
                                   "metrics": self.metrics, "scope": "isolated_feasibility_service",
                                   "model_source_errors": self.meta_errors,

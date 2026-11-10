@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile real GeoNames China cities, Chinese aliases and a 350-city sample."""
+"""Compile real GeoNames China cities, Chinese aliases and a fixed-size sample."""
 import argparse
 import csv
 import hashlib
@@ -27,6 +27,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--input", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
+    p.add_argument("--sample-size", type=int, choices=(350, 1000), default=350)
     args = p.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     provinces = {r[10]: {"id": int(r[0]), "name": r[1]} for r in rows(args.input / "CN.zip", "CN.txt")
@@ -62,12 +63,12 @@ def main():
             city["province_chinese"] = max(aliases)[1] if aliases else None
     ordered = sorted(cities.values(), key=lambda c: (-c["population"], c["id"]))
     changsha = cities[1815577]
-    selected = [changsha] + [c for c in ordered if c["id"] != changsha["id"]][:349]
+    selected = [changsha] + [c for c in ordered if c["id"] != changsha["id"]][:args.sample_size - 1]
     provenance = {"source": "https://download.geonames.org/export/dump/", "license": "CC-BY-4.0",
                   "attribution": "GeoNames, https://www.geonames.org/; filtered and compiled for this test",
                   "sha256": {n: hashlib.sha256((args.input / n).read_bytes()).hexdigest()
                              for n in ("cities500.zip", "CN.zip", "CN-alternates.zip")}}
-    for name, values in (("cities-350.json", selected), ("china-city-catalog.json", ordered)):
+    for name, values in (("cities-" + str(args.sample_size) + ".json", selected), ("china-city-catalog.json", ordered)):
         with (args.output / name).open("x", encoding="utf-8") as f:
             json.dump({"provenance": provenance, "cities": values}, f, ensure_ascii=False, indent=2)
     aliases = {}

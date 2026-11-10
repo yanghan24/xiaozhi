@@ -25,3 +25,5 @@
 城市资料署名 [GeoNames](https://www.geonames.org/)，注明筛选大陆候选、合并别名和生成测试样本；IP 结果署名 [IP Geolocation by DB-IP](https://db-ip.com/)。这些链接应随结果展示进入后续产品页面，不能仅藏在开发报告中。
 
 地理库更新采用“下载到新版本目录 → 校验公开摘要及本地 SHA-256 → 离线解析、边界和中文歧义回归 → 原子切换版本 → 保留前版回退”的流程。GeoNames 还须处理删除记录；DB-IP 每月取得新 MMDB，离线校验后重开 reader。当前验证只使用 2026-11 实际版本，不宣称已验证尚未发布的下月数据库。
+
+已在 Ubuntu 以同一真实版本的两个目录执行离线切换演练：错误摘要与损坏格式均被拒绝，活动版本保持可读；正常版本通过中文解析检查后原子切换，已有 reader 继续读取，新 reader 重开后一致，随后可回退。工具为 [location_update_checks.py](../../scripts/weather43/location_update_checks.py)，不把这次机制验证计为跨月数据更新。

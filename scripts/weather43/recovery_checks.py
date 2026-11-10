@@ -42,8 +42,8 @@ class Experiment:
                             (self.root / "private/acceptance.env").read_text().splitlines()
                             if line.strip() and not line.startswith("#"))["WEATHER43_GATEWAY"]
 
-    def cmd(self, args):
-        result = subprocess.run(args, cwd=self.root, capture_output=True, text=True, timeout=90)
+    def cmd(self, args, timeout=90):
+        result = subprocess.run(args, cwd=self.root, capture_output=True, text=True, timeout=timeout)
         if result.returncode:
             raise RuntimeError("isolated_command_failed_" + args[0])
         return result.stdout
@@ -88,14 +88,16 @@ class Experiment:
             time.sleep(1)
         raise TimeoutError("component_status_" + weather + "_" + aq)
 
-    def load(self, name, devices=350, cities=350, port=18086, data_dir="private/model-data"):
-        self.cmd(["python3", "scripts/weather43/acceptance_load.py", "--cities-file", "private/cities.json",
+    def load(self, name, devices=350, cities=350, port=18086, data_dir="private/model-data",
+             cities_file="private/cities.json", steady=False):
+        self.cmd(["python3", "scripts/weather43/acceptance_load.py", "--cities-file", cities_file,
                   "--data-dir", str(data_dir), "--devices", str(devices), "--cities", str(cities),
-                  "--port", str(port), "--scenario", "burst", "--output", str(self.evidence / name)])
+                  "--port", str(port), "--scenario", "steady" if steady else "burst", "--output", str(self.evidence / name)],
+                 timeout=1900 if steady else 90)
         return json.loads((self.evidence / name / "summary.json").read_text())["counts"]
 
     def start_fixture(self, folder, engine="http://openmeteo:8080", short_timeout=False, prewarm=0,
-                      copy_all=False, ttl=300):
+                      copy_all=False, ttl=300, cities_file="private/cities.json"):
         data = self.root / "private" / folder
         data.mkdir(exist_ok=False)
         os.chown(data, 65532, 65532)
@@ -113,7 +115,7 @@ class Experiment:
                   "--ulimit", "nofile=8192:8192", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                   "--tmpfs", "/tmp:size=16m", "-p", "127.0.0.1:18087:8081",
                   "-v", str(self.root / "scripts/weather43/cache_service.py") + ":/task/cache_service.py:ro",
-                  "-v", str(self.root / "private/cities.json") + ":/task/cities.json:ro",
+                  "-v", str(self.root / cities_file) + ":/task/cities.json:ro",
                   "-v", str(data) + ":/data", "--entrypoint", "python", self.args.runtime,
                   "/task/cache_service.py", "--cities", "/task/cities.json", "--data", "/data", "--source",
                   "http://" + self.gateway + ":18085", "--engine", engine, "--prewarm", str(prewarm),
@@ -210,7 +212,7 @@ class Experiment:
             self.record("real-source-recovery", {"observed_after_s": elapsed, "health": self.get(),
                                                  "response": self.environment()})
 
-            # Complete cold result AND model cache for 1,000 clients / 350 cities.
+            # Complete cold result AND model cache for 1,000 clients / 1,000 places.
             # Stop only our original engine so two 8GiB limits do not overlap.
             self.cmd(self.compose + ["stop", "openmeteo"])
             cold = self.root / "private/full-cold-1000-model"
@@ -226,11 +228,13 @@ class Experiment:
                       "--pids-limit", "256", "--ulimit", "nofile=65536:65536", "--tmpfs", "/tmp:size=128m",
                       "-e", "REMOTE_DATA_DIRECTORY=http://" + self.gateway + ":18085/data/", "-e", "CACHE_SIZE=8GB",
                       "-v", str(cold) + ":/app/data", self.args.engine_image])
-            self.start_fixture("full-cold-1000-results", engine="http://" + self.cold_engine + ":8080")
+            self.start_fixture("full-cold-1000-results", engine="http://" + self.cold_engine + ":8080",
+                               cities_file="private/cities-1000.json")
             self.record("full-cold-ready", {"health": self.get(port=18087)})
             assert self.get(port=18087)["data"]["cache_entries"] == 0
             started = time.monotonic()
-            counts = self.load("full-cold-1000-cities350", devices=1000, port=18087, data_dir=cold)
+            counts = self.load("full-cold-1000-cities1000", devices=1000, cities=1000, port=18087, data_dir=cold,
+                               cities_file="private/cities-1000.json")
             points = []
             while time.monotonic() - started < 1800:
                 point = snapshot(cold)
@@ -240,13 +244,17 @@ class Experiment:
                 if point["memory_kib"]["MemAvailable"] < 2 * 1024 * 1024:
                     self.record("resource-stop", {"resource_sample": point})
                     raise RuntimeError("available_memory_below_2GiB")
-                if point["health"]["data"]["cache_entries"] == 700:
+                if point["health"]["data"]["cache_entries"] == 2000:
                     break
                 time.sleep(10)
             self.record("full-cold-warmup", {"first_ack_counts": counts, "complete_after_s": time.monotonic() - started,
                                              "health": self.get(port=18087), "resources": points})
-            assert self.get(port=18087)["data"]["cache_entries"] == 700
-            assert self.load("after-full-cold-1000-cities350", devices=1000, port=18087)["fresh"] == 1000
+            assert self.get(port=18087)["data"]["cache_entries"] == 2000
+            for round_number in range(1, 4):
+                assert self.load("after-full-cold-1000-cities1000-round" + str(round_number), devices=1000,
+                                 cities=1000, port=18087, data_dir=cold, cities_file="private/cities-1000.json")["fresh"] == 1000
+            self.load("steady-exploratory-1000-cities1000", devices=1000, cities=1000, port=18087, data_dir=cold,
+                      cities_file="private/cities-1000.json", steady=True)
             self.remove_fixture(self.fixture)
             self.remove_fixture(self.cold_engine)
             self.cmd(self.compose + ["start", "openmeteo"])
