@@ -9,15 +9,15 @@ Ubuntu 执行结果见[验证记录](../verification/2026-11-09-device-control-v
 - 凭据使用 32 字节安全随机数；服务器只保存 SHA-256 校验材料，以唯一哈希定位设备，再核对 Device-Id。设备标识不作为秘密。准入档案与上游 `ai_device.user_id` 分开，避免把运营账号当作集市归属账号。
 - 状态、请求、幂等结果和最新 ACK 保存在新增 `dc_*` MySQL 表。修改以设备行锁串行化，业务结果与幂等记录同事务提交。请求原期限为 600000 ms，同用途复用；错误重试、换用途和版本变化不能恢复旧码。操作结果目前不自动清理，保留超过契约要求的 24 小时；后续清理必须保留最低期限及请求引用完整性。
 - 长轮询最多请求 20000 ms；每 200 ms 读取权威数据库，过期时推进 revision，跨实例无需依赖可能丢失的 pub/sub。每实例最多 64 个等待者，超出返回 429 和 Retry-After。等待期间不占数据库事务；凭据撤销在后续读中重新验证。该方式是首个切片的有限规模实现，未做 #19 容量验收。
-- 此切片仅支持 `blocked` 状态：未绑定、单台已退出、需重新授权、设备禁用。数据库约束不允许写入 `ready`；没有签发语音令牌或授予 allowed 的路径。已绑定状态的测试数据只用于验证 resume/account 请求规则，不代表 OIDC 绑定已实现。
-- 首次 ACK 必须匹配当前 revision 和 permission_version，且 blocked 时必须 audio_stopped=true。曾成功的相同 ACK 从独立历史表返回原成功结果，即使当前版本已变化，也不覆盖最新 ACK、时间或当前许可；未曾成功的旧 ACK 返回 409 STATE_CHANGED。后续客户操作查询须将最新 ACK 的许可版本与操作及设备当前版本一起比较，不能仅凭历史 ACK 存在认定停播。
+- 此切片仅支持 `blocked` 状态：未绑定、单台已退出、需重新授权、设备禁用。数据库约束不允许写入 `ready`；没有签发语音令牌或授予 allowed 的路径。首次手机确认绑定与原账号设备页已接通，详见[绑定说明](customer-device-binding.md)及[单台退出说明](customer-device-session.md)。
+- 首次 ACK 必须匹配当前 revision 和 permission_version，且 blocked 时必须 audio_stopped=true。曾成功的相同 ACK 从独立历史表返回原成功结果，即使当前版本已变化，也不覆盖最新 ACK、时间或当前许可；未曾成功的旧 ACK 返回 409 STATE_CHANGED。客户操作查询将 ACK 的许可版本与操作及设备当前版本一起比较；只有本次版本的停播证据可报告完成，旧版本历史 ACK 不会确认新操作。
 - 每份状态/请求响应使用同一时刻计算 server_time_ms 和 expires_in_ms，保证剩余时间严格等于 expires_at_ms 减 server_time_ms；到期请求不返回零寿命二维码。协议整数按 JSON number 输出，不沿用管理接口的 Long 字符串序列化。
 
 正式请求现在在同一事务建立 `customer_device_request` 关联，二维码可进入手机页和 OIDC 流程；不再依赖 #29 的测试预置请求。产品请求引用 `dc_request`，记录凭据校验材料快照，不创建上游管理员设备归属。每次打开、创建流程、回调及查询都会核对当前请求、准入、凭据和许可版本；撤销、禁用、替换或版本变化使旧码不可继续。过期按原 600 秒期限处理。
 
 `/customer/v1/binding-flows` 的 JSON 创建与流程查询采用 `version/code/data`，共用 #29 身份服务、浏览器 Cookie 和 CSRF。手机表单使用同一 v1 入口；原无版本入口保留兼容，固定 OIDC 回调和通知地址不变。Nginx 仅增加精确的创建/查询路径。身份确认不修改设备归属或许可。
 
-最终 confirm/open-account/sign-out、身份有效但业务授权不具备的绑定、授权 pending 到设备的传播、allowed 租约/语音令牌、OTA 发现扩展、旧 OTA/语音入口封堵、固件停播，以及正式凭据写入/补发工具尚未交付。本切片不能作为完整产品准入或关闭 #13 的依据。
+首次 bind confirm、open-account、单台 sign-out 与操作状态已交付控制实现；可信身份但业务授权不可用可绑定并保持 blocked。resume、已有设备授权 pending 的传播、allowed 租约/语音令牌、OTA 发现扩展、旧 OTA/语音入口封堵、语音输出闸门/固件停播，以及正式凭据写入/补发工具尚未交付。本切片不能作为完整产品准入或关闭 #13 的依据。
 
 ## 独立验证配置
 
