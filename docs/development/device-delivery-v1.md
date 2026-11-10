@@ -118,6 +118,9 @@ python3 scripts/check-delivery-rejections.py --origin https://bridge.hncig.cn:18
 ```
 
 共 20 个正常/异常媒体类型与鉴权响应检查，要求正确 HTTP 状态、v1 错误码和 `Cache-Control: no-store`。
+其余无需管理员的公网预检使用 `python3 scripts/check-public-device-preflight.py`，24 项已通过；
+包括公开发现响应、旧数字激活关闭、鉴权及入口隔离、WSS 关闭和请求限制，见[结果与固件产物核对](../verification/2026-11-10-online-delivery-preflight.md)。
+该结果不代表待部署的 Content-Type 修复已通过公网复测。
 未签发本台新凭据，未刷写候选，也未执行手机/扬声器验收；PR #26 继续等待真机验收后再合并。
 
 暂停新交付时先关闭 delivery 功能或撤回对应路由，保留新增记录和密钥。已经 delivered 的在线固件启动时也需要 device-check，

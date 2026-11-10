@@ -5,7 +5,8 @@
 用户已报告 delivery API `d06f459`、路由和迁移部署完成，13 项公网检查通过，备份保留。
 新增 Java 套件的完整执行结果尚未传入；不能直接把 PR #26 的 321 项结果归入新版本。
 当前产品库管理员配置由服务器执行者负责，尚未完成工具授权验收。
-本 PR 后续补充缺少/错误 Content-Type 的 v1 400 响应修复和第 12 个集成测试，验证后更新该 API。
+本 PR 已补充缺少/错误 Content-Type 的 v1 400 响应修复（`873fa63`）和第 12 个集成测试，验证后更新该 API。
+其余 24 项本机公网预检及固件产物核对通过，范围与证据见[预检记录](../verification/2026-11-10-online-delivery-preflight.md)。
 
 服务器执行者先核对本 PR 的固定 head SHA 并记录，全部构建、回归和部署使用同一 SHA。
 连接使用现场指定的公网部署通道；`bridge.hncig.cn:18443` 是产品 HTTPS 入口，不是 SSH 地址。
@@ -64,6 +65,7 @@ volumes:
 
 - 通过公网正常验证证书；无凭据 `device-control/v1/state` 应为 401，新 `device-delivery/v1/authorize` 应为 401，管理/内部路径仍为 404。
 - 执行 `python3 scripts/check-delivery-rejections.py` 的 20 项无凭据检查；媒体类型缺失/错误须返回 v1 400 和 no-store，不能返回 HTTP 200 / code 500。
+- 执行 `python3 scripts/check-public-device-preflight.py` 的 24 项公网检查，复核旧激活关闭、鉴权、方法/大小限制、管理路径隔离及 WSS 拒绝。
 - 确认本产品 API 账号库中已有启用的超级管理员，并通过既有受保护管理入口完成正常登录。
   工具只读取含 `token` 的私有 0600 JSON，交换一小时交付授权；不改数据库来伪造登录或绕过验证码。
 - 使用独立测试设备完成两设备签发与隔离、错误凭据拒绝、完成前禁止准入、重复操作/服务重启和撤权检查。
