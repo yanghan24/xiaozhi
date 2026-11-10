@@ -87,9 +87,13 @@ public class ShiroConfig {
         filterMap.put("/customer/v1/binding-flows", "anon");
         filterMap.put("/customer/v1/binding-flows/*", "anon");
         filterMap.put("/customer/v1/binding-flows/*/confirm", "anon");
+        filterMap.put("/customer/v1/binding-flows/*/open-account", "anon");
+        filterMap.put("/customer/v1/device-sessions/*/sign-out", "anon");
+        filterMap.put("/customer/v1/device-operations/*", "anon");
         filterMap.put("/customer/oidc/callback", "anon");
         filterMap.put("/customer/oidc/backchannel-logout", "anon");
         filterMap.put("/customer/results/*", "anon");
+        filterMap.put("/customer/devices/*", "anon");
         filterMap.put("/customer/identity-error/*", "anon");
         filterMap.put("/ota/**", "anon");
         filterMap.put("/otaMag/download/**", "anon");

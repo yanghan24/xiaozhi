@@ -21,8 +21,9 @@ public class CustomerIdentityController {
     private final CustomerIdentityService identities;
     private final CustomerOidcConfig config;
     private final CustomerBindingService bindings;
-    public CustomerIdentityController(JdbcTemplate db, CustomerIdentityService identities, @Qualifier("customerTime") java.time.Clock clock, CustomerOidcConfig config, CustomerBindingService bindings) {
-        this.db = db; this.identities = identities; this.clock = clock; this.config = config; this.bindings=bindings;
+    private final CustomerDeviceSessionService sessions;
+    public CustomerIdentityController(JdbcTemplate db, CustomerIdentityService identities, @Qualifier("customerTime") java.time.Clock clock, CustomerOidcConfig config, CustomerBindingService bindings, CustomerDeviceSessionService sessions) {
+        this.db = db; this.identities = identities; this.clock = clock; this.config = config; this.bindings=bindings; this.sessions=sessions;
     }
 
     @ExceptionHandler(CustomerFailure.class)
@@ -92,8 +93,9 @@ public class CustomerIdentityController {
         boolean bound="IDENTITY_VERIFIED".equals(status) && bindings.isBound(cookie,id);
         String action="<p>此步骤尚未绑定设备或恢复音箱使用许可。</p>";
         if (bound) {
-            message="绑定成功";
-            action="<p>设备已归属当前集市账号。语音使用暂未启用。</p>";
+            message="account".equals(data.get("purpose"))?"账号身份已确认":"绑定成功";
+            action="<p>设备已归属当前集市账号。语音使用暂未启用。</p><p><a href=\"/xiaozhi/customer/devices/"
+                    +HtmlUtils.htmlEscape(sessions.sessionForFlow(cookie,id))+"\">账号与绑定</a></p>";
         } else if ("IDENTITY_VERIFIED".equals(status) && "AVAILABLE".equals(data.get("request_status"))
                 && "bind".equals(data.get("purpose")) && bindings.isProductFlow(cookie,id)) {
             String csrf=identities.browser(cookie).get("csrf").toString();
@@ -101,6 +103,13 @@ public class CustomerIdentityController {
                     + HtmlUtils.htmlEscape(id)+"/confirm\"><input type=\"hidden\" name=\"csrf\" value=\""+HtmlUtils.htmlEscape(csrf)
                     +"\"><input type=\"hidden\" name=\"idempotency_key\" value=\""+HtmlUtils.htmlEscape(id)
                     +"\"><button type=\"submit\">确认绑定设备</button></form>";
+        }
+        if (!bound && "IDENTITY_VERIFIED".equals(status) && "AVAILABLE".equals(data.get("request_status"))
+                && "account".equals(data.get("purpose")) && bindings.isProductFlow(cookie,id)) {
+            action="<p>仅原归属账号可管理本台音箱。</p><form method=\"post\" action=\"/xiaozhi/customer/v1/binding-flows/"
+                    +HtmlUtils.htmlEscape(id)+"/open-account\"><input type=\"hidden\" name=\"csrf\" value=\""
+                    +HtmlUtils.htmlEscape(identities.browser(cookie).get("csrf").toString())+"\"><input type=\"hidden\" name=\"idempotency_key\" value=\""
+                    +HtmlUtils.htmlEscape(id)+"\"><button type=\"submit\">进入本台设备页</button></form>";
         }
         return ResponseEntity.ok().contentType(HTML_UTF8).header("Cache-Control", "no-store")
                 .header("Referrer-Policy", "same-origin")

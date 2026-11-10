@@ -128,6 +128,159 @@ class CustomerBindingHttpTest {
         assertEquals("bound",client.state(device).get("binding_state"));
     }
 
+    @Test void ownerCanSignOutOnlyThisDeviceAndObserveItsStopAcknowledgement() {
+        var a=client.device();var b=client.device();
+        var first=client.scan(a);var second=client.scan(b);
+        String subject=java.util.UUID.randomUUID().toString();
+        client.login(first,null,subject);client.login(second,null,subject);
+        String session=BindingTestClient.data(client.confirm(first,"bind-a")).get("device_session_id").toString();
+        client.confirm(second,"bind-b");
+        var headers=new org.springframework.http.HttpHeaders();headers.putAll(first.headers());headers.set("Idempotency-Key","sign-out-a");
+        String path="/customer/v1/device-sessions/"+session+"/sign-out";
+        var signedOut=http.postForEntity(path,new org.springframework.http.HttpEntity<>(java.util.Map.of(),headers),java.util.Map.class);
+        assertEquals(200,signedOut.getStatusCode().value());
+        var result=BindingTestClient.data(signedOut);
+        assertEquals("stored",result.get("execution"));
+        assertEquals(3,((Number)result.get("permission_version")).intValue());
+        assertEquals("user_signed_out",client.state(a).get("reason"));
+        assertEquals("bound",client.state(a).get("binding_state"));
+        assertEquals("device_disabled",client.state(b).get("reason"));
+        assertEquals("ACTIVE",client.status(second).get("authorization_status"));
+        assertEquals(signedOut.getBody(),http.postForEntity(path,new org.springframework.http.HttpEntity<>(java.util.Map.of(),headers),java.util.Map.class).getBody());
+        String operation="/customer/v1/device-operations/"+result.get("operation_id");
+        assertEquals("stored",BindingTestClient.data(http.exchange(operation,org.springframework.http.HttpMethod.GET,new org.springframework.http.HttpEntity<>(first.headers()),java.util.Map.class)).get("execution"));
+        var state=client.state(a);
+        assertEquals(200,http.postForEntity("/device-control/v1/state-acks",new org.springframework.http.HttpEntity<>(java.util.Map.of("revision",state.get("revision"),"permission_version",3,"audio_stopped",true),BindingTestClient.deviceHeaders(a)),java.util.Map.class).getStatusCode().value());
+        assertEquals("device_acknowledged",BindingTestClient.data(http.exchange(operation,org.springframework.http.HttpMethod.GET,new org.springframework.http.HttpEntity<>(first.headers()),java.util.Map.class)).get("execution"));
+    }
+    @Test void accountEntryRequiresTheOwnerAndConsumesRequestWithoutChangingPermission() {
+        var device=client.device();var bound=client.scan(device);String subject=java.util.UUID.randomUUID().toString();
+        client.login(bound,"no-refresh",subject);client.confirm(bound,"bind");
+        var request=client.request(device,"account");
+        var other=client.scan(request);client.login(other,"no-refresh",null);
+        var rejected=client.post(other,"binding-flows/"+other.id()+"/open-account","open");
+        assertEquals(403,rejected.getStatusCode().value());
+        assertEquals("OWNER_REQUIRED",rejected.getBody().get("code"));
+        var owner=client.scan(request);client.login(owner,"no-refresh",subject);
+        assertEquals(409,client.confirm(owner,"wrong-purpose").getStatusCode().value());
+        var opened=client.post(owner,"binding-flows/"+owner.id()+"/open-account","open");
+        assertEquals(200,opened.getStatusCode().value());
+        assertNotNull(BindingTestClient.data(opened).get("device_session_id"));
+        assertEquals(2,((Number)client.state(device).get("permission_version")).intValue());
+        assertEquals("market_auth_required",client.state(device).get("reason"));
+        assertNull(client.state(device).get("binding_request"));
+        assertEquals(opened.getBody(),client.post(owner,"binding-flows/"+owner.id()+"/open-account","open").getBody());
+        assertEquals(409,client.post(owner,"binding-flows/"+owner.id()+"/open-account","new-key").getStatusCode().value());
+    }
+    @Test void phonePageOffersExplicitSignOutAndReportsStoredUntilDeviceAcknowledges() throws Exception {
+        var device=client.device();var flow=client.scan(device);client.login(flow,null,null);
+        String session=BindingTestClient.data(client.confirm(flow,"bind")).get("device_session_id").toString();
+        assertTrue(client.page(flow).contains("账号与绑定"));
+        String path="/customer/devices/"+session;
+        var page=http.exchange(path,org.springframework.http.HttpMethod.GET,new org.springframework.http.HttpEntity<>(flow.headers()),String.class);
+        assertTrue(page.getBody().contains("退出本台音箱"));
+        var headers=new org.springframework.http.HttpHeaders();headers.putAll(flow.headers());headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+        var body=new org.springframework.util.LinkedMultiValueMap<String,String>();body.add("csrf",flow.headers().getFirst("X-CSRF-Token"));body.add("idempotency_key",session);
+        var request=java.net.http.HttpRequest.newBuilder(java.net.URI.create(http.getRootUri()+"/customer/v1/device-sessions/"+session+"/sign-out"))
+                .header("Cookie",flow.headers().getFirst("Cookie")).header("Origin",flow.headers().getOrigin())
+                .header("Content-Type","application/x-www-form-urlencoded")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("csrf="+flow.headers().getFirst("X-CSRF-Token")+"&idempotency_key="+session)).build();
+        var sent=java.net.http.HttpClient.newHttpClient().send(request,java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertEquals(303,sent.statusCode());
+        assertEquals("/xiaozhi"+path,sent.headers().firstValue("Location").orElseThrow());
+        var result=http.exchange(path,org.springframework.http.HttpMethod.GET,new org.springframework.http.HttpEntity<>(flow.headers()),String.class);
+        assertTrue(result.getBody().contains("退出已保存，等待音箱确认停播"));
+        assertFalse(result.getBody().contains("<button"));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"idle","csrf","origin","browser","logout","revoked","disabled","owner","version"})
+    void deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String fault) {
+        var device=client.device();var flow=client.scan(device);var auth=client.login(flow,null,null);
+        String session=BindingTestClient.data(client.confirm(flow,"bind")).get("device_session_id").toString();
+        int status=409;
+        switch(fault) {
+            case "idle" -> {
+                CustomerTestTime.offset.set(1_799_000);
+                assertEquals(200,http.exchange("/customer/devices/"+session,org.springframework.http.HttpMethod.GET,new org.springframework.http.HttpEntity<>(flow.headers()),String.class).getStatusCode().value());
+                CustomerTestTime.offset.set(1_800_000);status=401;
+            }
+            case "csrf" -> { flow.headers().remove("X-CSRF-Token");status=403; }
+            case "origin" -> { flow.headers().setOrigin("https://other.example");status=403; }
+            case "browser" -> { var other=client.scan(client.device());flow=new BindingTestClient.Flow(other.headers(),flow.id(),flow.url());status=404; }
+            case "logout" -> {
+                var headers=new org.springframework.http.HttpHeaders();headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+                var body=new org.springframework.util.LinkedMultiValueMap<String,String>();body.add("logout_token",market.logout(java.util.Map.of("sid",auth.get("sid"))));
+                assertEquals(204,http.postForEntity("/customer/oidc/backchannel-logout",new org.springframework.http.HttpEntity<>(body,headers),String.class).getStatusCode().value());status=401;
+            }
+            case "revoked" -> db.update("UPDATE dc_device SET credential_hash=NULL WHERE device_id=?",device.id());
+            case "disabled" -> db.update("UPDATE dc_device SET admitted=false WHERE device_id=?",device.id());
+            case "owner" -> { db.update("UPDATE dc_device SET owner_subject='new-owner',ownership_version=ownership_version+1 WHERE device_id=?",device.id());status=403; }
+            case "version" -> db.update("UPDATE dc_device SET permission_version=permission_version+1 WHERE device_id=?",device.id());
+        }
+        assertEquals(status,client.post(flow,"device-sessions/"+session+"/sign-out","invalid").getStatusCode().value());
+        CustomerTestTime.offset.set(0);
+        if(fault.equals("revoked")) db.update("UPDATE dc_device SET credential_hash=? WHERE device_id=?",CustomerSecrets.hash(device.credential()),device.id());
+        if(fault.equals("disabled")) db.update("UPDATE dc_device SET admitted=true WHERE device_id=?",device.id());
+        assertEquals("device_disabled",client.state(device).get("reason"));
+    }
+
+    @Test void signOutReplayAndOldStopAckCannotOverwriteOrConfirmALaterPermission() {
+        var device=client.device();var flow=client.scan(device);client.login(flow,"no-refresh",null);
+        String session=BindingTestClient.data(client.confirm(flow,"bind")).get("device_session_id").toString();
+        String path="device-sessions/"+session+"/sign-out";
+        var signedOut=client.post(flow,path,"stop");assertEquals(200,signedOut.getStatusCode().value());
+        String operation="device-operations/"+BindingTestClient.data(signedOut).get("operation_id");
+        var snapshot=client.state(device);
+        var ack=java.util.Map.of("revision",snapshot.get("revision"),"permission_version",3,"audio_stopped",true);
+        assertEquals(200,http.postForEntity("/device-control/v1/state-acks",new org.springframework.http.HttpEntity<>(ack,BindingTestClient.deviceHeaders(device)),java.util.Map.class).getStatusCode().value());
+        // Future permission-change fixture: stale page must not stop a newer generation.
+        db.update("UPDATE dc_device SET permission_version=permission_version+1,revision=revision+1,reason='market_auth_required' WHERE device_id=?",device.id());
+        assertEquals(signedOut.getBody(),client.post(flow,path,"stop").getBody());
+        assertEquals(409,client.post(flow,path,"new-stop").getStatusCode().value());
+        assertEquals("superseded",BindingTestClient.data(client.get(flow,operation)).get("execution"));
+        http.postForEntity("/device-control/v1/state-acks",new org.springframework.http.HttpEntity<>(ack,BindingTestClient.deviceHeaders(device)),java.util.Map.class);
+        assertEquals("superseded",BindingTestClient.data(client.get(flow,operation)).get("execution"));
+        assertEquals("market_auth_required",client.state(device).get("reason"));
+        var stranger=client.scan(client.device());client.login(stranger,null,null);
+        assertEquals(404,client.get(stranger,operation).getStatusCode().value());
+        CustomerTestTime.offset.set(1_799_000);assertEquals(200,client.get(flow,operation).getStatusCode().value());
+        CustomerTestTime.offset.set(1_801_000);assertEquals(401,client.get(flow,operation).getStatusCode().value());
+    }
+
+    @Test void failedSignOutReceiptRollsBackAndConcurrentRetryHasOneVersion() throws Exception {
+        var device=client.device();var flow=client.scan(device);client.login(flow,null,null);
+        String session=BindingTestClient.data(client.confirm(flow,"bind")).get("device_session_id").toString();
+        assertTrue(session.matches("[A-Za-z0-9_-]{43}"));
+        String path="device-sessions/"+session+"/sign-out";
+        db.execute("CREATE TRIGGER issue13_fail_signout BEFORE INSERT ON customer_device_operation FOR EACH ROW BEGIN IF NEW.device_session_id='"+session+"' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='controlled operation save failure'; END IF; END");
+        try {
+            assertEquals(503,client.post(flow,path,"stop").getStatusCode().value());
+            assertEquals("device_disabled",client.state(device).get("reason"));
+            assertEquals(2,((Number)client.state(device).get("permission_version")).intValue());
+        } finally { db.execute("DROP TRIGGER issue13_fail_signout"); }
+        var gate=new java.util.concurrent.CountDownLatch(1);
+        var one=java.util.concurrent.CompletableFuture.supplyAsync(()->{await(gate);return client.post(flow,path,"stop");});
+        var two=java.util.concurrent.CompletableFuture.supplyAsync(()->{await(gate);return client.post(flow,path,"stop");});
+        gate.countDown();var a=one.get(10,java.util.concurrent.TimeUnit.SECONDS);var b=two.get(10,java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(200,a.getStatusCode().value());assertEquals(a.getBody(),b.getBody());
+        assertEquals(3,((Number)client.state(device).get("permission_version")).intValue());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"expired","replaced","version","credential"})
+    void accountEntryRechecksTheRequestAtFinalSubmission(String fault) {
+        var device=client.device();var flow=client.scan(device);String subject=java.util.UUID.randomUUID().toString();
+        client.login(flow,"no-refresh",subject);client.confirm(flow,"bind");
+        var request=client.request(device,"account");var account=client.scan(request);client.login(account,"no-refresh",subject);
+        int expected=409;
+        switch(fault) {
+            case "expired" -> {CustomerTestTime.offset.set(600_000);expected=410;}
+            case "replaced" -> client.request(device,"auto");
+            case "version" -> db.update("UPDATE dc_device SET permission_version=permission_version+1 WHERE device_id=?",device.id());
+            case "credential" -> db.update("UPDATE dc_device SET credential_hash=NULL WHERE device_id=?",device.id());
+        }
+        assertEquals(expected,client.post(account,"binding-flows/"+account.id()+"/open-account","open").getStatusCode().value());
+    }
     private static void await(java.util.concurrent.CountDownLatch gate) {
         try { gate.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException(e); }
     }

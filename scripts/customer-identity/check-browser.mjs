@@ -61,6 +61,16 @@ try {
   assert.equal(await page.getByRole('button', { name: '确认绑定设备', exact: true }).count(), 0);
   observations.push('explicit phone confirmation commits binding; reload keeps success without a second mutation');
 
+  await page.getByRole('link', { name: '账号与绑定', exact: true }).click();
+  await page.getByRole('heading', { name: '账号与绑定', exact: true }).waitFor();
+  await page.getByRole('button', { name: '退出本台音箱', exact: true }).click();
+  await page.getByText('退出已保存，等待音箱确认停播', { exact: true }).waitFor();
+  await page.screenshot({ path: `${output}/device-signed-out.png`, fullPage: true });
+  await page.reload();
+  await page.getByText('退出已保存，等待音箱确认停播', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: '退出本台音箱', exact: true }).count(), 0);
+  observations.push('owner device page, explicit single-device sign-out, truthful pending-ACK status and read-only reload');
+
   for (const path of ['/xiaozhi/user/login', '/xiaozhi/user/register', '/xiaozhi/config/agent', '/xiaozhi/customer/unknown', '/xiaozhi/customer/v1/unknown']) {
     const response = await context.request.get(apiBase + path, { headers: apiHeaders });
     assert.equal(response.status(), 404);

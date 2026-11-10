@@ -29,6 +29,20 @@ final class BindingTestClient {
         String path=URI.create(request.get("verification_uri").toString()).getPath();
         return new Device(id,credential,path.substring(path.lastIndexOf('/')+1));
     }
+    Device request(Device device,String intent) {
+        var headers=deviceHeaders(device);headers.set("Idempotency-Key",UUID.randomUUID().toString());
+        var response=http.postForEntity("/device-control/v1/requests",new HttpEntity<>(Map.of("intent",intent,"expected_permission_version",state(device).get("permission_version")),headers),Map.class);
+        assertEquals(200,response.getStatusCode().value());
+        String path=URI.create(((Map<?,?>)data(response).get("binding_request")).get("verification_uri").toString()).getPath();
+        return new Device(device.id(),device.credential(),path.substring(path.lastIndexOf('/')+1));
+    }
+    ResponseEntity<Map> post(Flow flow,String path,String key) {
+        var headers=new HttpHeaders();headers.putAll(flow.headers());headers.set("Idempotency-Key",key);
+        return http.postForEntity("/customer/v1/"+path,new HttpEntity<>(Map.of(),headers),Map.class);
+    }
+    ResponseEntity<Map> get(Flow flow,String path) {
+        return http.exchange("/customer/v1/"+path,HttpMethod.GET,new HttpEntity<>(flow.headers()),Map.class);
+    }
     Flow scan(Device device) {
         var page=http.getForEntity("/bind/"+device.handle(),String.class);
         assertEquals(200,page.getStatusCode().value());

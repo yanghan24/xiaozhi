@@ -24,7 +24,7 @@
 | 本次当前授权刷新结果未知 | bound、blocked、market_auth_pending |
 | 本次当前业务授权有效 | bound、blocked、device_disabled |
 
-最后一行是当前切片的阶段性语音禁用策略：尚未交付语音准入和输出保护，不能开放 allowed、lease 或 voice，也不能将 device_disabled 描述为集市授权失败。绑定成功只表示归属已保存。页面显示“设备已归属当前集市账号。语音使用暂未启用。”已有设备的授权失效传播、账号页、单台退出/恢复及产品语音许可仍由后续切片完成；resume/account 调用本接口返回 PURPOSE_MISMATCH。
+最后一行是当前切片的阶段性语音禁用策略：尚未交付语音准入和输出保护，不能开放 allowed、lease 或 voice，也不能将 device_disabled 描述为集市授权失败。绑定成功只表示归属已保存。页面显示“设备已归属当前集市账号。语音使用暂未启用。”账号页与单台退出控制已由[设备页面切片](customer-device-session.md)补齐；已有设备的授权失效传播、恢复及产品语音许可仍待后续切片完成。resume/account 调用 confirm 仍返回 PURPOSE_MISMATCH，account 使用独立 open-account。
 
 ## 数据与回退
 

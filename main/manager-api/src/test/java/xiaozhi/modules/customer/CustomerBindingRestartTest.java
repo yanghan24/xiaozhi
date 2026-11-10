@@ -58,6 +58,29 @@ class CustomerBindingRestartTest {
             assertEquals("bound",c.state(device).get("binding_state"));
         } finally { CustomerTestTime.offset.set(0); }
     }
+    @Test void signOutWakesOtherInstanceAndReceiptSurvivesRestart() throws Exception {
+        CustomerTestTime.offset.set(0);
+        BindingTestClient.Device device;BindingTestClient.Flow flow;String path;String operation;Map<?,?> receipt;
+        try(var first=start();var second=start()) {
+            var a=client(first);var b=client(second);device=a.device();flow=a.scan(device);a.login(flow,null,null);
+            String session=BindingTestClient.data(a.confirm(flow,"bind")).get("device_session_id").toString();
+            path="device-sessions/"+session+"/sign-out";
+            var before=b.state(device);var target=device;
+            var poll=CompletableFuture.supplyAsync(()->b.http.exchange("/device-control/v1/state?wait_ms=20000&after_revision="+before.get("revision"),
+                    org.springframework.http.HttpMethod.GET,new org.springframework.http.HttpEntity<>(BindingTestClient.deviceHeaders(target)),Map.class));
+            var signedOut=a.post(flow,path,"stop");assertEquals(200,signedOut.getStatusCode().value());receipt=signedOut.getBody();
+            operation="device-operations/"+BindingTestClient.data(signedOut).get("operation_id");
+            var changed=BindingTestClient.data(poll.get(5,TimeUnit.SECONDS));
+            assertEquals("user_signed_out",changed.get("reason"));assertEquals(3,((Number)changed.get("permission_version")).intValue());
+        }
+        try(var restarted=start()) {
+            var client=client(restarted);CustomerTestTime.offset.set(601_000);
+            assertEquals(receipt,client.post(flow,path,"stop").getBody());
+            assertEquals("stored",BindingTestClient.data(client.get(flow,operation)).get("execution"));
+            assertEquals("user_signed_out",client.state(device).get("reason"));
+            assertEquals("bound",client.state(device).get("binding_state"));
+        } finally {CustomerTestTime.offset.set(0);}
+    }
     private static void await(CountDownLatch gate) {
         try { gate.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException(e); }
     }

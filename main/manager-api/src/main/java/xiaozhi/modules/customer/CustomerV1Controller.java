@@ -16,15 +16,16 @@ import org.springframework.web.bind.annotation.*;
 public class CustomerV1Controller {
     private final CustomerIdentityService identities;
     private final CustomerBindingService bindings;
+    private final CustomerDeviceSessionService sessions;
     private final ObjectMapper json = new ObjectMapper()
             .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    CustomerV1Controller(CustomerIdentityService identities, CustomerBindingService bindings) {
-        this.identities = identities; this.bindings=bindings;
+    CustomerV1Controller(CustomerIdentityService identities, CustomerBindingService bindings, CustomerDeviceSessionService sessions) {
+        this.identities = identities; this.bindings=bindings; this.sessions=sessions;
     }
 
-    @PostMapping({"/binding-flows", "/binding-flows/{id}/confirm"})
+    @PostMapping({"/binding-flows", "/binding-flows/{id}/confirm", "/device-sessions/{id}/sign-out", "/binding-flows/{id}/open-account"})
     ResponseEntity<Map<String,Object>> unsupportedMedia() {
         // Keep unmatched media types out of the management exception envelope.
         return failure(new CustomerFailure(400,"INVALID_REQUEST"));
@@ -98,6 +99,61 @@ public class CustomerV1Controller {
         return success(200, identities.flowStatus(cookie,id));
     }
 
+    @PostMapping(value="/device-sessions/{id}/sign-out", consumes=MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<com.fasterxml.jackson.databind.JsonNode> signOut(
+            @CookieValue(name="customer_browser",required=false) String cookie,
+            @RequestHeader(name="X-CSRF-Token",required=false) String csrf,
+            @RequestHeader(name="Origin",required=false) String origin,
+            @RequestHeader(name="Idempotency-Key",required=false) String key,
+            @PathVariable String id,@RequestBody String raw) {
+        try { var body=json.readTree(raw);if(!body.isObject() || !body.isEmpty()) throw new IllegalArgumentException(); }
+        catch(Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+        return ResponseEntity.ok().header("Cache-Control","no-store")
+                .body(json.valueToTree(Map.of("version",1,"code","OK","data",sessions.signOut(cookie,csrf,origin,id,key))));
+    }
+    @GetMapping("/device-operations/{id}")
+    ResponseEntity<com.fasterxml.jackson.databind.JsonNode> operation(
+            @CookieValue(name="customer_browser",required=false) String cookie,@PathVariable String id) {
+        return ResponseEntity.ok().header("Cache-Control","no-store")
+                .body(json.valueToTree(Map.of("version",1,"code","OK","data",sessions.operation(cookie,id))));
+    }
+    @PostMapping(value="/binding-flows/{id}/open-account", consumes=MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<com.fasterxml.jackson.databind.JsonNode> openAccount(
+            @CookieValue(name="customer_browser",required=false) String cookie,
+            @RequestHeader(name="X-CSRF-Token",required=false) String csrf,
+            @RequestHeader(name="Origin",required=false) String origin,
+            @RequestHeader(name="Idempotency-Key",required=false) String key,
+            @PathVariable String id,@RequestBody String raw) {
+        try { var body=json.readTree(raw);if(!body.isObject() || !body.isEmpty()) throw new IllegalArgumentException(); }
+        catch(Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+        return ResponseEntity.ok().header("Cache-Control","no-store")
+                .body(json.valueToTree(Map.of("version",1,"code","OK","data",bindings.openAccount(cookie,csrf,origin,id,key))));
+    }
+    @PostMapping(value="/binding-flows/{id}/open-account", consumes=MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    ResponseEntity<?> openAccountForm(@CookieValue(name="customer_browser",required=false) String cookie,
+            @RequestHeader(name="Origin",required=false) String origin,@PathVariable String id,
+            @RequestParam String csrf,@RequestParam String idempotency_key) {
+        try {
+            var result=bindings.openAccount(cookie,csrf,origin,id,idempotency_key);
+            return deviceRedirect(result.get("device_session_id").toString());
+        } catch(CustomerFailure rejected) { return actionError(rejected); }
+    }
+    @PostMapping(value="/device-sessions/{id}/sign-out", consumes=MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    ResponseEntity<?> signOutForm(@CookieValue(name="customer_browser",required=false) String cookie,
+            @RequestHeader(name="Origin",required=false) String origin,@PathVariable String id,
+            @RequestParam String csrf,@RequestParam String idempotency_key) {
+        try { sessions.signOut(cookie,csrf,origin,id,idempotency_key);return deviceRedirect(id); }
+        catch(CustomerFailure rejected) { return actionError(rejected); }
+    }
+    private ResponseEntity<Void> deviceRedirect(String id) {
+        return ResponseEntity.status(303).header("Cache-Control","no-store").header("Location","/xiaozhi/customer/devices/"+id).build();
+    }
+    private ResponseEntity<String> actionError(CustomerFailure rejected) {
+        String message="OWNER_REQUIRED".equals(rejected.getMessage())?"请使用原归属账号操作。":"操作未完成，身份或设备状态已变化，请重新扫码。";
+        return ResponseEntity.status(rejected.status).contentType(new MediaType("text","html",java.nio.charset.StandardCharsets.UTF_8))
+                .header("Cache-Control","no-store").header("Content-Security-Policy","default-src 'none'; frame-ancestors 'none'")
+                .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>操作未完成</title><h1>"+message+"</h1></html>");
+    }
     private ResponseEntity<Map<String,Object>> success(int status, Map<String,Object> data) {
         return ResponseEntity.status(status).header("Cache-Control","no-store")
                 .body(Map.of("version",1,"code","OK","data",data));
@@ -109,7 +165,7 @@ public class CustomerV1Controller {
             case "IDENTITY_REQUIRED" -> "CUSTOMER_AUTH_REQUIRED";
             case "FLOW_ALREADY_USED", "REQUEST_CONSUMED" -> "STATE_CHANGED";
             case "CSRF_REJECTED", "REQUEST_NOT_FOUND", "REQUEST_EXPIRED", "FLOW_NOT_FOUND",
-                    "FLOW_EXPIRED", "STATE_CHANGED", "INVALID_REQUEST", "DEVICE_ALREADY_BOUND", "PURPOSE_MISMATCH" -> failure.getMessage();
+                    "FLOW_EXPIRED", "STATE_CHANGED", "INVALID_REQUEST", "DEVICE_ALREADY_BOUND", "PURPOSE_MISMATCH", "OWNER_REQUIRED" -> failure.getMessage();
             default -> "TEMPORARILY_UNAVAILABLE";
         };
         int status = code.equals("TEMPORARILY_UNAVAILABLE") ? 503 : failure.status;

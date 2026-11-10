@@ -29,6 +29,12 @@ final class CustomerBindingService {
     }
 
     Map<String,Object> confirm(String cookie, String csrf, String origin, String flowId, String key) {
+        return complete(cookie,csrf,origin,flowId,key,"bind");
+    }
+    Map<String,Object> openAccount(String cookie,String csrf,String origin,String flowId,String key) {
+        return complete(cookie,csrf,origin,flowId,key,"account");
+    }
+    private Map<String,Object> complete(String cookie,String csrf,String origin,String flowId,String key,String purpose) {
         if (!enabled) throw new CustomerFailure(503,"TEMPORARILY_UNAVAILABLE");
         if (key==null || !key.matches("[A-Za-z0-9_.:-]{1,128}")) throw new CustomerFailure(400,"INVALID_REQUEST");
         return transactions.execute(tx -> {
@@ -44,7 +50,7 @@ final class CustomerBindingService {
             var flow=flows.getFirst();
             if (!"IDENTITY_VERIFIED".equals(flow.get("status")) || flow.get("subject_key")==null)
                 throw new CustomerFailure(401,"IDENTITY_REQUIRED");
-            if (!"bind".equals(flow.get("purpose"))) throw new CustomerFailure(409,"PURPOSE_MISMATCH");
+            if (!purpose.equals(flow.get("purpose"))) throw new CustomerFailure(409,"PURPOSE_MISMATCH");
 
             var requests=db.queryForList("SELECT r.*,c.device_id AS control_device_id FROM customer_device_request r "
                     + "JOIN dc_request c ON c.request_id=r.control_request_id WHERE r.handle=?",flow.get("request_handle"));
@@ -64,15 +70,17 @@ final class CustomerBindingService {
                 touch(browser);
                 return response(receipt);
             }
-            if (device.get("owner_subject")!=null) {
+            if ("bind".equals(purpose) && device.get("owner_subject")!=null) {
                 boolean own=flow.get("issuer").equals(device.get("owner_issuer")) && flow.get("subject").equals(device.get("owner_subject"));
                 throw new CustomerFailure(409,own ? "STATE_CHANGED" : "DEVICE_ALREADY_BOUND");
             }
+            if ("account".equals(purpose) && (!flow.get("issuer").equals(device.get("owner_issuer")) || !flow.get("subject").equals(device.get("owner_subject"))))
+                throw new CustomerFailure(403,"OWNER_REQUIRED");
             var current=identities.request(flow.get("request_handle").toString());
-            if (!"bind".equals(current.get("purpose")) || number(flow,"permission_version")!=number(device,"permission_version"))
+            if (!purpose.equals(current.get("purpose")) || number(flow,"permission_version")!=number(device,"permission_version"))
                 throw new CustomerFailure(409,"STATE_CHANGED");
-            long revision=next(device,"revision"), permission=next(device,"permission_version"), ownership=next(device,"ownership_version");
-            String reason=bindingReason(flow);
+            long revision=next(device,"revision"), permission="bind".equals(purpose)?next(device,"permission_version"):number(device,"permission_version"), ownership="bind".equals(purpose)?next(device,"ownership_version"):number(device,"ownership_version");
+            String reason="bind".equals(purpose)?bindingReason(flow):device.get("reason").toString();
             String session=CustomerSecrets.random();
             long now=clock.millis();
             if (number(current,"expires_at_ms")<=now) throw new CustomerFailure(410,"REQUEST_EXPIRED");
