@@ -15,6 +15,7 @@ WATCHED=(
   "xiaozhi.modules.customer.CustomerBindingRestartTest"
   "xiaozhi.modules.customer.CustomerVoicePermissionHttpTest"
   "xiaozhi.modules.customer.CustomerVoiceDisabledHttpTest"
+  "xiaozhi.modules.devicecontrol.DeviceDeliveryHttpTest"
 )
 
 if [ ! -d "$REPORT_DIR" ]; then

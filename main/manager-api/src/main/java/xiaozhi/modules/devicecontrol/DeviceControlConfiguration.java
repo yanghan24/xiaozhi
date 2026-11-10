@@ -13,6 +13,7 @@ public class DeviceControlConfiguration {
     public FilterRegistrationBean<DeviceControlBodyFilter> deviceControlBodyLimit() {
         var registration = new FilterRegistrationBean<>(new DeviceControlBodyFilter());
         registration.addUrlPatterns("/device-control/*");
+        registration.addUrlPatterns("/device-delivery/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         return registration;
     }
