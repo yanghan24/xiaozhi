@@ -64,7 +64,7 @@ flowchart LR
 ## 文档阅读顺序
 
 1. 从对应 Issue 获取当前范围、验收和未决事项；父规格 #10 只汇总跨任务规则，绑定细节以 #13 为准。
-2. 实际运行前阅读 [Ubuntu 部署手册](../deployment/ubuntu-isolated-test.md)，换机查[交接说明](../handoff/2026-11-05-ubuntu-server.md)。本机用于编辑、SSH、浏览器，后端与实机测试在 Ubuntu。
+2. 实际运行前阅读 [Ubuntu 部署手册](../deployment/ubuntu-isolated-test.md)，换机查[交接说明](../handoff/2026-11-05-ubuntu-server.md)。开发者可在本机构建、运行自动化测试和协议模拟作为开发预检；正式后端集成、回归、协议及实机验收在 Ubuntu，按 [协作规范](../../CONTRIBUTING.md#测试环境)记录证据范围。
 3. 接口事实查[集市契约核对](../development/ai-market-contract-review-2026-11-06.md)及[规范通/TTS 资料](../development/ai-market-api.md)，两版原文保留；示例不是实际 Client ID、Secret 或已登记回调。
 4. 需要追溯决定时阅读[需求访谈](voice-backend-discovery.md)、[硬件核查稿](../../筑音设备接入资料_核查稿_2026-11-06.md)、[ADR](../adr/)；历史记录不覆盖后来明确的决定。
 5. 已通过行为查[基线 A 层验收](../verification/issue-5-acceptance.md)及[2026-11-09 真实身份验收](../verification/2026-11-09-real-market-identity.md)。报告只证明当时版本、环境和测试范围，不改写为新测试。下一轮通知排查见[管理员检查清单](../handoff/2026-11-10-market-logout-notification.md)。
