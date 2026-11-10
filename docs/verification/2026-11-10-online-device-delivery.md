@@ -1,0 +1,50 @@
+# 在线交付候选构建记录
+
+源码提交：`924fe7217dd36ce64e238299920fa8223de85aca`；本地分支 `feat/41-online-device-delivery`。
+服务端固定候选：`d06f4593af791205b3b2df5f6a5ddbec4b7efcd6`，
+[草稿 PR #52](https://github.com/yanghan24/xiaozhi/pull/52)，叠加未合并的 PR #26 `885918d`。
+固件仓库 origin 为现场本地仓库，固件分支没有推送到第三方上游 GitHub。
+
+## 已执行
+
+| 检查 | 结果 |
+| --- | --- |
+| ESP-IDF 5.5.5 / GCC 14.2 产品构建 | 通过；启用产品控制和在线交付门槛 |
+| UART 维护构建 | 通过；CH343 连接使用默认 UART |
+| CTest | 5/5 测试程序通过，包含实际交付响应解析源码 |
+| Python unittest | 23/23 通过 |
+| 产品构建检查 | 9 项通过；原首页/UI/Logo、控制闸门、原分区、应用槽容量及维护入口隔离 |
+| 工具产物预检 | P4 镜像摘要、芯片 revision 范围、ELF 摘要、产品/维护分区一致性通过 |
+| clang-format 21.1.8 | 新增 C++ 及维护文件已格式化 |
+| git diff --check | 通过 |
+
+Python 使用替身 HTTP / 串口 / esptool 边界，覆盖网络创建响应丢失、USB 写后回执丢失、维护/产品写入中断、
+完成响应丢失后的同操作续作、两设备独立身份、换错 P4/C6 拒绝、缺失实际设备验证、私有文件/锁、
+只写当前应用槽、镜像改变/超限、读回失败、受保护区域改变及 OTA 选择校验。
+这些结果不表示真实串口写入、真实断电或 Ubuntu 服务回归已完成。
+
+## 固定产物
+
+| 文件 | 字节 | SHA-256 |
+| --- | ---: | --- |
+| `build/product/xiaozhi.bin` | 3,979,392 | `ba041a38884a823b02c7b619b47c1dccb9adf84b9358e464dfcc4654f1916f48` |
+| `build/maintenance/xiaozhi_provisioning.bin` | 250,512 | `c8dd65eb71b1afa703eb3d256a4154a615cd76585a9dacc62e26a6c4b2be4a17` |
+
+产品 ELF SHA-256：`a36186dad93f583d1b3d6e35bc5003a9b11cbcd81df62c7f901c22d531248612`。
+维护 ELF SHA-256：`6c167f953e0c50e2cd2656e82f01d3a233a94c4b7f94136c81d6e1c5733c6c98`。
+分区二进制 SHA-256：`4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5`。
+两个槽均为 4,128,768 字节，产品剩余 149,376 字节。适用 P4 revision 3.1+，保留原 16 MB 布局。
+机器可读摘要位于被 Git 忽略的 `build/online-delivery-artifacts.json`；构建日志及镜像均不进入 Git。
+
+## 待执行
+
+2026-11-10 本机经公网域名和正常 TLS 校验探测：原 device-control state 无凭据返回 401，
+新 delivery authorize 无凭据 POST 返回 404。PR #48 已记录 PR #26 的部署，但在线交付尚需新配套 API。
+服务端新增 11 个真实 HTTP 集成测试，Ubuntu 编译、全套回归、服务重启及部署均待服务器执行者完成。
+
+本台此前的实物核对与备份仍有效保存；本次没有签发新凭据，没有 Flash 写入。
+真实 P4/C6 登记、维护写入/读回、设备公网验证、第二台实物隔离、手机正式二维码绑定、语音播放、
+播放中退出及停播 ACK、仅目标设备恢复、断线重连和原 UI 功能仍需实际验收。
+旧基础语音与恢复镜像的通过结果不能计为本候选通过；PR #26 和 #52 均未合并。
+
+执行步骤见 [在线交付](../online-device-delivery-v1.md)，服务器步骤见 PR #52 的交接文件。
