@@ -71,7 +71,31 @@ try {
   assert.equal(await page.getByRole('button', { name: '退出本台音箱', exact: true }).count(), 0);
   observations.push('owner device page, explicit single-device sign-out, truthful pending-ACK status and read-only reload');
 
-  for (const path of ['/xiaozhi/user/login', '/xiaozhi/user/register', '/xiaozhi/config/agent', '/xiaozhi/customer/unknown', '/xiaozhi/customer/v1/unknown']) {
+  const device = fixture.devices[0];
+  const deviceHeaders = { ...apiHeaders, 'Device-Id': device.id, Authorization: `Bearer ${device.credential}` };
+  const state = async () => (await (await context.request.get(`${apiBase}/xiaozhi/device-control/v1/state`, { headers: deviceHeaders })).json()).data;
+  const stopped = await state();
+  assert.equal(stopped.reason, 'user_signed_out');
+  const request = await context.request.post(`${apiBase}/xiaozhi/device-control/v1/requests`, {
+    headers: { ...deviceHeaders, 'Idempotency-Key': 'browser-resume' },
+    data: { intent: 'auto', expected_permission_version: stopped.permission_version }
+  });
+  assert.equal(request.status(), 200);
+  await page.goto((await request.json()).data.binding_request.verification_uri);
+  await page.getByRole('button', { name: '通过 AI 集市确认身份' }).click();
+  await page.getByRole('button', { name: '允许', exact: true }).click();
+  await page.getByRole('button', { name: '恢复本台使用', exact: true }).waitFor();
+  await page.reload();
+  assert.equal((await state()).reason, 'user_signed_out');
+  await page.getByRole('button', { name: '恢复本台使用', exact: true }).click();
+  await page.getByRole('heading', { name: '恢复操作已完成', exact: true }).waitFor();
+  assert.equal((await state()).use_permission, 'allowed');
+  await page.reload();
+  assert.equal(await page.getByRole('button', { name: '恢复本台使用', exact: true }).count(), 0);
+  await page.screenshot({ path: `${output}/device-resumed.png`, fullPage: true });
+  observations.push('owner login and reload do not resume; explicit phone resume restores target permission');
+
+  for (const path of ['/xiaozhi/user/login', '/xiaozhi/user/register', '/xiaozhi/config/agent', '/xiaozhi/customer/unknown', '/xiaozhi/customer/v1/unknown', '/xiaozhi/internal/device-voice/v1/model-access', '/xiaozhi/device-control/v1/unknown']) {
     const response = await context.request.get(apiBase + path, { headers: apiHeaders });
     assert.equal(response.status(), 404);
   }

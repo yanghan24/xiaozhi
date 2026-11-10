@@ -31,12 +31,13 @@ public class DeviceControlService {
     private final Clock clock;
     private final boolean enabled;
     private final String publicOrigin;
+    private final xiaozhi.modules.customer.CustomerVoicePermissions permissions;
 
     public DeviceControlService(JdbcTemplate db, PlatformTransactionManager transactionManager,
             @Qualifier("deviceControlClock") Clock clock,
             @Value("${device-control.enabled:false}") boolean enabled,
-            @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin) {
-        this.db = db;
+            @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin, xiaozhi.modules.customer.CustomerVoicePermissions permissions) {
+        this.db = db; this.permissions=permissions;
         this.transactions = new TransactionTemplate(transactionManager);
         this.clock = clock;
         this.enabled = enabled;
@@ -82,7 +83,9 @@ public class DeviceControlService {
 
     Map<String, Object> state(Identity identity) {
         return transactions.execute(tx -> {
+            permissions.barrier();
             var row = load(identity, true);
+            permissions.reconcile(row);
             long responseNow = clock.millis();
             var current = currentRequest(row, responseNow);
             var state = new LinkedHashMap<String, Object>();
@@ -91,11 +94,12 @@ public class DeviceControlService {
             state.put("permission_version", row.get("permission_version"));
             state.put("server_time_ms", responseNow);
             state.put("binding_state", row.get("owner_subject") == null ? "unbound" : "bound");
-            state.put("use_permission", "blocked");
+            var voice=permissions.voice(row,responseNow);
+            state.put("use_permission", voice==null?"blocked":"allowed");
             state.put("reason", row.get("reason"));
             state.put("binding_request", current == null ? null : requestBody(current, responseNow));
-            state.put("lease", null);
-            state.put("voice", null);
+            state.put("lease", voice==null?null:Map.of("permission_version",row.get("permission_version"),"expires_at_ms",responseNow+60000,"expires_in_ms",60000));
+            state.put("voice", voice);
             return state;
         });
     }
@@ -128,7 +132,9 @@ public class DeviceControlService {
             throw new ControlFailure(400, "INVALID_REQUEST");
         }
         return transactions.execute(tx -> {
+            permissions.barrier();
             var device = load(identity, true);
+            permissions.reconcile(device);
             var operations = db.queryForList("SELECT * FROM dc_request_operation WHERE device_id=? AND key_hash=?",
                     identity.deviceId(), hash(key));
             if (!operations.isEmpty()) {
@@ -146,6 +152,7 @@ public class DeviceControlService {
             }
             boolean bound = device.get("owner_subject") != null;
             if ("account".equals(intent) && !bound) throw new ControlFailure(409, "STATE_CHANGED");
+            if("auto".equals(intent) && "ready".equals(device.get("reason"))) throw new ControlFailure(409,"REQUEST_NOT_NEEDED");
             String purpose = "account".equals(intent) ? "account" : bound ? "resume" : "bind";
             var current = currentRequest(device, clock.millis());
             if (!operations.isEmpty()) {
@@ -210,7 +217,9 @@ public class DeviceControlService {
 
     Map<String, Object> acknowledge(Identity identity, long revision, long permissionVersion, boolean audioStopped) {
         return transactions.execute(tx -> {
+            permissions.barrier();
             var device = load(identity, true);
+            permissions.reconcile(device);
             Map<String, Object> result = Map.of("accepted", true, "revision", revision, "permission_version", permissionVersion);
             var history = db.queryForList("SELECT 1 FROM dc_state_ack_history WHERE device_id=? AND revision=? AND permission_version=? AND audio_stopped=?",
                     identity.deviceId(), revision, permissionVersion, audioStopped);
@@ -221,7 +230,7 @@ public class DeviceControlService {
             if (revision != number(device, "revision") || permissionVersion != number(device, "permission_version")) {
                 throw new ControlFailure(409, "STATE_CHANGED");
             }
-            if (!audioStopped) throw new ControlFailure(400, "INVALID_REQUEST");
+            if (!audioStopped && !"ready".equals(device.get("reason"))) throw new ControlFailure(400, "INVALID_REQUEST");
             long receivedAt = clock.millis();
             db.update("INSERT INTO dc_state_ack_history(device_id,revision,permission_version,audio_stopped,received_at_ms) VALUES (?,?,?,?,?)",
                     identity.deviceId(), revision, permissionVersion, audioStopped, receivedAt);

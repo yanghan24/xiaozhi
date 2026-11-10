@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import json
+import copy
+from core.product_voice import VoiceAuthority, GuardedSocket, MarketModel, VoiceDenied
 
 import websockets
 from config.logger import setup_logging
@@ -46,15 +48,20 @@ class WebSocketServer:
         self.logger = setup_logging(config)
         self.config_lock = asyncio.Lock()
         self.sessions = {}
+        product = config.get('product-voice', {})
+        self.product_required = config.get('product_voice_required', False) or product.get('enabled', False)
+        self.product_authority = None
+        if self.product_required:
+            self.product_authority = VoiceAuthority(product.get('authority_url') or config.get('manager-api', {}).get('url', ''), product.get('service_key', ''))
         modules = initialize_modules(
             self.logger,
             self.config,
             "VAD" in self.config["selected_module"],
             "ASR" in self.config["selected_module"],
-            "LLM" in self.config["selected_module"],
+            "LLM" in self.config["selected_module"] and not self.product_required,
             False,
-            "Memory" in self.config["selected_module"],
-            "Intent" in self.config["selected_module"],
+            "Memory" in self.config["selected_module"] and not self.product_required,
+            "Intent" in self.config["selected_module"] and not self.product_required,
         )
         self._vad = modules["vad"] if "vad" in modules else None
         self._asr = modules["asr"] if "asr" in modules else None
@@ -85,6 +92,8 @@ class WebSocketServer:
             await asyncio.Future()
 
     async def _handle_connection(self, websocket: websockets.ServerConnection):
+        if self.product_required:
+            return await self._handle_product_connection(websocket)
         headers = dict(websocket.request.headers)
         if headers.get("device-id", None) is None:
             # 尝试从 URL 的查询参数中获取 device-id
@@ -151,6 +160,47 @@ class WebSocketServer:
                     f"服务器端强制关闭连接时出错: {close_error}"
                 )
 
+    async def _handle_product_connection(self, websocket):
+        gate = None
+        watcher = None
+        handler = None
+        try:
+            gate = await self.product_authority.open(dict(websocket.request.headers), websocket.request.path)
+            from core.providers.memory.nomem.nomem import MemoryProvider
+            from core.providers.intent.nointent.nointent import IntentProvider
+            config = copy.deepcopy(self.config)
+            # Product identity never falls back to upstream ai_device activation or admin models.
+            config['read_config_from_api'] = False
+            config.setdefault('selected_module', {}).update({'TTS': 'ProductEdge', 'Memory': 'nomem', 'Intent': 'nointent', 'LLM': 'MarketModel'})
+            config['Memory'] = {'nomem': {'type': 'nomem'}}
+            config['Intent'] = {'nointent': {'type': 'nointent'}}
+            config['TTS'] = {'ProductEdge': {'type': 'edge', 'voice': 'zh-CN-XiaoxiaoNeural', 'output_dir': 'tmp/'}}
+            config['LLM'] = {'MarketModel': {'type': 'market', 'model_name': 'qwen3.8-flash'}}
+            config['context_providers'] = []
+            config['voiceprint'] = {}
+            handler = ConnectionHandler(config, self._vad, self._asr, MarketModel(gate), MemoryProvider({}), IntentProvider({}), self)
+            handler.product_voice_gate = gate
+            def revoke():
+                handler.client_abort = True
+                handler.stop_event.set()
+                handler.clear_queues()
+            watcher = asyncio.create_task(gate.watch(websocket, revoke))
+            self.sessions[handler.session_id] = handler
+            await handler.handle_connection(GuardedSocket(websocket, gate))
+        except VoiceDenied:
+            await websocket.close(code=1008, reason='Product voice unavailable')
+        except Exception:
+            self.logger.bind(tag=TAG).error('Product voice connection failed')
+            await websocket.close(code=1011, reason='Product voice unavailable')
+        finally:
+            if handler is not None:
+                self.sessions.pop(handler.session_id, None)
+            if watcher is not None:
+                watcher.cancel()
+                await asyncio.gather(watcher, return_exceptions=True)
+            if gate is not None:
+                await gate.close()
+            await websocket.close()
     async def _http_response(self, websocket, request_headers):
         path = request_headers.path.partition("?")[0]
         if path.startswith("/xiaozhi/v1/ready/"):
@@ -170,8 +220,12 @@ class WebSocketServer:
             return response
 
         try:
-            await self._handle_auth(websocket)
-        except AuthenticationError:
+            if self.product_required:
+                temporary = await self.product_authority.open(dict(websocket.request.headers), '/xiaozhi/v1/')
+                await temporary.close()
+            else:
+                await self._handle_auth(websocket)
+        except (AuthenticationError, VoiceDenied):
             return respond(401, {"status": "unauthorized"})
         handler = self.sessions.get(session_id)
         if handler is None:
@@ -180,6 +234,11 @@ class WebSocketServer:
         if (headers.get("Device-Id") != handler.device_id
                 or headers.get("Client-Id") != handler.headers.get("client-id", handler.device_id)):
             return respond(403, {"status": "forbidden"})
+        if self.product_required:
+            try:
+                await handler.product_voice_gate.check_async()
+            except VoiceDenied:
+                return respond(403, {"status": "forbidden"})
         return respond(200, handler.initialization)
 
     async def update_config(self) -> bool:
@@ -194,6 +253,11 @@ class WebSocketServer:
                 new_config = await get_config_from_api_async(self.config)
                 if new_config is None:
                     self.logger.bind(tag=TAG).error("获取新配置失败")
+                    return False
+                product = new_config.get('product-voice', {})
+                required = new_config.get('product_voice_required', False) or product.get('enabled', False)
+                if required != self.product_required:
+                    self.logger.bind(tag=TAG).error('Changing product voice mode requires a coordinated restart')
                     return False
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 # 检查 VAD 和 ASR 类型是否需要更新
@@ -210,10 +274,10 @@ class WebSocketServer:
                     new_config,
                     update_vad,
                     update_asr,
-                    "LLM" in new_config["selected_module"],
+                    "LLM" in new_config["selected_module"] and not self.product_required,
                     False,
-                    "Memory" in new_config["selected_module"],
-                    "Intent" in new_config["selected_module"],
+                    "Memory" in new_config["selected_module"] and not self.product_required,
+                    "Intent" in new_config["selected_module"] and not self.product_required,
                 )
 
                 # 更新组件实例

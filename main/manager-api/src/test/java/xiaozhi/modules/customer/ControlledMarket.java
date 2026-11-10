@@ -32,6 +32,7 @@ final class ControlledMarket {
     final Map<String,String> approvals = new ConcurrentHashMap<>();
     final Map<String,java.util.concurrent.CountDownLatch[]> refreshGates = new ConcurrentHashMap<>();
     final ObjectMapper json = new ObjectMapper();
+    String browserSubject;
     ControlledMarket() {
         try {
             rsa = new RSAKeyGenerator(2048).keyID("market-test").generate();
@@ -158,7 +159,7 @@ final class ControlledMarket {
     }
     String approve(String authorizationUrl) {
         var auth = params(URI.create(authorizationUrl).getRawQuery());
-        auth.put("sub", UUID.randomUUID().toString()); auth.put("sid", UUID.randomUUID().toString());
+        auth.put("sub", browserSubject==null?UUID.randomUUID().toString():browserSubject); auth.put("sid", UUID.randomUUID().toString());
         String code = UUID.randomUUID().toString(); codes.put(code, auth); return code;
     }
     String logout(Map<String,Object> overrides) {

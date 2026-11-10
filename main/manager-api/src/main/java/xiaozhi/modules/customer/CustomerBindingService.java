@@ -19,11 +19,12 @@ final class CustomerBindingService {
     private final Clock clock;
     private final TransactionTemplate transactions;
     private final boolean enabled;
+    private final CustomerVoicePermissions voice;
 
     CustomerBindingService(JdbcTemplate db, CustomerIdentityService identities,
             PlatformTransactionManager manager, @Qualifier("customerTime") Clock clock,
-            @Value("${device-control.enabled:false}") boolean enabled) {
-        this.db=db; this.identities=identities; this.clock=clock; this.enabled=enabled;
+            @Value("${device-control.enabled:false}") boolean enabled, CustomerVoicePermissions voice) {
+        this.db=db; this.identities=identities; this.clock=clock; this.enabled=enabled; this.voice=voice;
         transactions=new TransactionTemplate(manager);
         transactions.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
@@ -50,7 +51,9 @@ final class CustomerBindingService {
             var flow=flows.getFirst();
             if (!"IDENTITY_VERIFIED".equals(flow.get("status")) || flow.get("subject_key")==null)
                 throw new CustomerFailure(401,"IDENTITY_REQUIRED");
-            if (!purpose.equals(flow.get("purpose"))) throw new CustomerFailure(409,"PURPOSE_MISMATCH");
+            String action=flow.get("purpose").toString();
+            if (!purpose.equals(action) && !("bind".equals(purpose) && "resume".equals(action) && voice.enabled()))
+                throw new CustomerFailure(409,"PURPOSE_MISMATCH");
 
             var requests=db.queryForList("SELECT r.*,c.device_id AS control_device_id FROM customer_device_request r "
                     + "JOIN dc_request c ON c.request_id=r.control_request_id WHERE r.handle=?",flow.get("request_handle"));
@@ -70,25 +73,26 @@ final class CustomerBindingService {
                 touch(browser);
                 return response(receipt);
             }
-            if ("bind".equals(purpose) && device.get("owner_subject")!=null) {
+            if ("bind".equals(action) && device.get("owner_subject")!=null) {
                 boolean own=flow.get("issuer").equals(device.get("owner_issuer")) && flow.get("subject").equals(device.get("owner_subject"));
                 throw new CustomerFailure(409,own ? "STATE_CHANGED" : "DEVICE_ALREADY_BOUND");
             }
-            if ("account".equals(purpose) && (!flow.get("issuer").equals(device.get("owner_issuer")) || !flow.get("subject").equals(device.get("owner_subject"))))
+            if (!"bind".equals(action) && (!flow.get("issuer").equals(device.get("owner_issuer")) || !flow.get("subject").equals(device.get("owner_subject"))))
                 throw new CustomerFailure(403,"OWNER_REQUIRED");
             var current=identities.request(flow.get("request_handle").toString());
-            if (!purpose.equals(current.get("purpose")) || number(flow,"permission_version")!=number(device,"permission_version"))
+            if (!action.equals(current.get("purpose")) || number(flow,"permission_version")!=number(device,"permission_version"))
                 throw new CustomerFailure(409,"STATE_CHANGED");
-            long revision=next(device,"revision"), permission="bind".equals(purpose)?next(device,"permission_version"):number(device,"permission_version"), ownership="bind".equals(purpose)?next(device,"ownership_version"):number(device,"ownership_version");
-            String reason="bind".equals(purpose)?bindingReason(flow):device.get("reason").toString();
+            long revision=next(device,"revision"), permission=!"account".equals(action)?next(device,"permission_version"):number(device,"permission_version"), ownership="bind".equals(action)?next(device,"ownership_version"):number(device,"ownership_version");
+            String reason=!"account".equals(action)?bindingReason(flow):device.get("reason").toString();
+            if("resume".equals(action) && !"ready".equals(reason)) throw new CustomerFailure(409,"STATE_CHANGED");
             String session=CustomerSecrets.random();
             long now=clock.millis();
             if (number(current,"expires_at_ms")<=now) throw new CustomerFailure(410,"REQUEST_EXPIRED");
-            // This release does not enable product voice. Keep its administrative gate closed
-            // even when the market grant is valid; ownership itself is durable and complete.
+            // Ownership and local permission commit together after explicit phone confirmation.
             db.update("UPDATE dc_device SET owner_issuer=?,owner_subject=?,ownership_version=?,reason=?,"
                     + "permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",
                     flow.get("issuer"),flow.get("subject"),ownership,reason,permission,revision,device.get("device_id"));
+            if(!"account".equals(action)) db.update("UPDATE dc_device SET local_enabled=? WHERE device_id=?","ready".equals(reason),device.get("device_id"));
             db.update("UPDATE dc_request SET status='consumed' WHERE request_id=?",current.get("control_request_id"));
             db.update("UPDATE customer_device_request SET consumed=true WHERE handle=?",flow.get("request_handle"));
             db.update("INSERT INTO customer_device_session(id,browser_hash,flow_id,device_id,owner_subject_key,ownership_version,permission_version,revision,created_at_ms) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -126,7 +130,7 @@ final class CustomerBindingService {
         long now=clock.millis();
         return "ACTIVE".equals(grant.get("status")) && number(grant,"access_expires_at_ms")>now
                 && (grant.get("key_expires_at_ms")==null || number(grant,"key_expires_at_ms")>now)
-                ? "device_disabled" : "market_auth_required";
+                ? (voice.enabled()?"ready":"device_disabled") : "market_auth_required";
     }
     private boolean sameOwner(Map<String,Object> receipt, Map<String,Object> device) {
         return device.get("owner_subject")!=null && number(receipt,"ownership_version")==number(device,"ownership_version")

@@ -79,6 +79,8 @@ public class ShiroConfig {
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
         filterMap.put("/device-control/**", "deviceCredential");
+        // Private endpoint checks its separate service credential and current permission.
+        filterMap.put("/internal/device-voice/v1/*", "anon");
         // Customer identity has its own browser/CSRF/OIDC validation. Never
         // authenticate these sessions as management users.
         filterMap.put("/bind/*", "anon");

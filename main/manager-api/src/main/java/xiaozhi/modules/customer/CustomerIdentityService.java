@@ -15,8 +15,9 @@ final class CustomerIdentityService {
     private final CustomerMarket market;
     private final CustomerOidcConfig config;
     private final TransactionTemplate transactions;
-    CustomerIdentityService(JdbcTemplate db, CustomerMarket market, CustomerOidcConfig config, PlatformTransactionManager manager, @Qualifier("customerTime") java.time.Clock clock) {
-        this.clock = clock;
+    private final CustomerVoicePermissions voice;
+    CustomerIdentityService(JdbcTemplate db, CustomerMarket market, CustomerOidcConfig config, PlatformTransactionManager manager, @Qualifier("customerTime") java.time.Clock clock, CustomerVoicePermissions voice) {
+        this.clock = clock; this.voice=voice;
         this.db = db; this.market = market; this.config = config;
         transactions = new TransactionTemplate(manager);
     }
@@ -109,6 +110,7 @@ final class CustomerIdentityService {
                 long now = clock.millis();
                 String generation = identity.businessKey()==null ? null : CustomerSecrets.random();
                 if (generation!=null) {
+                    voice.reconcileSubject(config.issuer,identity.subject());
                     String access = config.encrypt(identity.access()), refresh = config.encrypt(identity.refresh()), key = config.encrypt(identity.businessKey());
                     db.update("INSERT INTO customer_authorization(subject_key,generation,started_at_ms,issuer,subject,access_token,refresh_token,access_expires_at_ms,business_key,key_expires_at_ms,status,updated_at_ms,started_order) VALUES (?,?,?,?,?,?,?,?,?,?,'ACTIVE',?,?) ON DUPLICATE KEY UPDATE subject_key=VALUES(subject_key)",
                             subjectKey, generation, flow.get("created_at_ms"), config.issuer, identity.subject(), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"));

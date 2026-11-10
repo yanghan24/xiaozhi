@@ -25,14 +25,17 @@ import xiaozhi.modules.config.service.ConfigService;
 @RestController
 @RequestMapping("config")
 @Tag(name = "参数管理")
-@AllArgsConstructor
+@lombok.RequiredArgsConstructor
 public class ConfigController {
     private final ConfigService configService;
+    @org.springframework.beans.factory.annotation.Value("${device-control.enabled:false}")
+    private boolean productControl;
 
     @PostMapping("server-base")
     @Operation(summary = "服务端获取配置接口")
     public Result<Object> getConfig() {
-        Object config = configService.getConfig(true);
+        java.util.Map<String,Object> config = new java.util.HashMap<>(configService.getConfig(true));
+        config.put("product_voice_required",productControl);
         return new Result<Object>().ok(config);
     }
 

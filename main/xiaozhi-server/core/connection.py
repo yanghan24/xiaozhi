@@ -216,7 +216,7 @@ class ConnectionHandler:
             else:
                 self.client_ip = ws.remote_address[0]
             self.logger.bind(tag=TAG).info(
-                f"{self.client_ip} conn - Headers: {self.headers}"
+                f"{self.client_ip} conn - device connection accepted"
             )
 
             self.device_id = self.headers.get("device-id", None)
@@ -608,6 +608,13 @@ class ConnectionHandler:
         try:
             if self.tts is None:
                 self.tts = self._initialize_tts()
+            gate = getattr(self, 'product_voice_gate', None)
+            if gate is not None:
+                original_speak = self.tts.text_to_speak
+                async def guarded_speak(*args, **kwargs):
+                    await gate.check_async()
+                    return await original_speak(*args, **kwargs)
+                self.tts.text_to_speak = guarded_speak
             # 打开语音合成通道
             # This runs in the component worker; propagate asynchronous setup failures.
             asyncio.run_coroutine_threadsafe(
@@ -660,7 +667,9 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).error(f"实例化组件失败: {e}")
 
     def _init_prompt_enhancement(self):
-
+        if getattr(self, 'product_voice_gate', None) is not None:
+            # Direct model mode has no weather, location or external context calls.
+            return
         # 更新上下文信息
         self.prompt_manager.update_context_info(self, self.client_ip)
         enhanced_prompt = self.prompt_manager.build_enhanced_prompt(
@@ -1072,6 +1081,9 @@ class ConnectionHandler:
         self.dialogue.update_system_message(self.prompt)
 
     def chat(self, query, depth=0):
+        gate = getattr(self, "product_voice_gate", None)
+        if gate is not None:
+            gate.check()
         # 保存当前任务的sentence_id到局部变量，避免被新任务覆盖
         current_sentence_id = None
 

@@ -1,5 +1,7 @@
 # 设备控制 v1：准入与手机身份接入
 
+> 2026-11-10 后续实现：恢复许可、语音闸门和直连集市模型见[产品语音说明](customer-product-voice.md)。本文保留前一切片的范围和证据。
+
 依据 [设备控制契约](../contracts/device-binding-v1.md) 和 [#13](https://github.com/yanghan24/xiaozhi/issues/13)。本切片交付设备准入、`state`、`requests`、`state-acks` 三个 HTTPS 接口，并将正式发码接到 #29 手机身份模块。控制功能默认关闭，尚不用于产品上线。最新集成结果见[接入验证](../verification/2026-11-09-device-identity-integration.md)。
 
 Ubuntu 执行结果见[验证记录](../verification/2026-11-09-device-control-v1.md)。正文在 XSS/MVC 读取前限制为 4096 字节，包含分块传输；设备写接口只接受 application/json，错误响应沿用本协议的 HTTP 状态和字符串 code。

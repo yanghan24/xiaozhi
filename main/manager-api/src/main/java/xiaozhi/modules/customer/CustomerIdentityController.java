@@ -93,16 +93,17 @@ public class CustomerIdentityController {
         boolean bound="IDENTITY_VERIFIED".equals(status) && bindings.isBound(cookie,id);
         String action="<p>此步骤尚未绑定设备或恢复音箱使用许可。</p>";
         if (bound) {
-            message="account".equals(data.get("purpose"))?"账号身份已确认":"绑定成功";
-            action="<p>设备已归属当前集市账号。语音使用暂未启用。</p><p><a href=\"/xiaozhi/customer/devices/"
+            message=switch(data.get("purpose").toString()) {case "account" -> "账号身份已确认";case "resume" -> "恢复操作已完成";default -> "绑定成功";};
+            action="<p>设备已归属当前集市账号。当前使用状态请以音箱显示为准。</p><p><a href=\"/xiaozhi/customer/devices/"
                     +HtmlUtils.htmlEscape(sessions.sessionForFlow(cookie,id))+"\">账号与绑定</a></p>";
         } else if ("IDENTITY_VERIFIED".equals(status) && "AVAILABLE".equals(data.get("request_status"))
-                && "bind".equals(data.get("purpose")) && bindings.isProductFlow(cookie,id)) {
+                && java.util.Set.of("bind","resume").contains(data.get("purpose")) && bindings.isProductFlow(cookie,id)) {
             String csrf=identities.browser(cookie).get("csrf").toString();
-            action="<p>确认将这台设备绑定到本次登录的集市账号。</p><form method=\"post\" action=\"/xiaozhi/customer/v1/binding-flows/"
+            boolean resume="resume".equals(data.get("purpose"));
+            action=(resume?"<p>仅原归属账号可恢复本台音箱，其他设备不受影响。</p>":"<p>确认将这台设备绑定到本次登录的集市账号。</p>")+"<form method=\"post\" action=\"/xiaozhi/customer/v1/binding-flows/"
                     + HtmlUtils.htmlEscape(id)+"/confirm\"><input type=\"hidden\" name=\"csrf\" value=\""+HtmlUtils.htmlEscape(csrf)
                     +"\"><input type=\"hidden\" name=\"idempotency_key\" value=\""+HtmlUtils.htmlEscape(id)
-                    +"\"><button type=\"submit\">确认绑定设备</button></form>";
+                    +"\"><button type=\"submit\">"+(resume?"恢复本台使用":"确认绑定设备")+"</button></form>";
         }
         if (!bound && "IDENTITY_VERIFIED".equals(status) && "AVAILABLE".equals(data.get("request_status"))
                 && "account".equals(data.get("purpose")) && bindings.isProductFlow(cookie,id)) {
