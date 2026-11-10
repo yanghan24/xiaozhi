@@ -1,5 +1,7 @@
 # 原账号恢复与直连模型验证
 
+> 后续真实模型与 Edge TTS 已通过隔离联调，见[补充证据](2026-11-10-live-model-tts.md)。本文保留此前受控回归及积分不足的历史结果。
+
 日期：2026-11-10。基线 `d70433d`，任务 #13，PR #26。运行环境仅 Ubuntu `jt@192.168.168.114` 的 `/home/jt/issue13-integration`；真实 MySQL、Redis、Java HTTP、Python WebSocket 与 Chromium/Nginx。未更新现有公网业务容器，未连接物理设备。
 
 ## 结果
