@@ -1,0 +1,158 @@
+{
+  "at": "2026-11-10T07:56:12.059421+00:00",
+  "containers": {
+    "xiaozhi-weather43-openmeteo-1": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-10T07:51:34.309521722Z",
+      "FinishedAt": "2026-11-10T07:56:11.696515839Z"
+    },
+    "xiaozhi-pr26-voice": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 3249109,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-10T06:34:45.979709949Z",
+      "FinishedAt": "2026-11-10T06:34:45.216656161Z"
+    },
+    "xiaozhi-pr26-api": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 3249105,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-10T06:34:45.989478839Z",
+      "FinishedAt": "2026-11-10T06:34:45.374819459Z"
+    },
+    "jetlinks-restored-99a1e3b3-jetlinks-1": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 137,
+      "Error": "",
+      "StartedAt": "2026-10-28T08:38:40.865032539Z",
+      "FinishedAt": "2026-11-06T08:07:19.24513267Z"
+    },
+    "jetlinks-restored-99a1e3b3-postgres-1": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-27T03:09:01.648306875Z",
+      "FinishedAt": "2026-11-06T08:07:19.914228024Z",
+      "Health": {
+        "Status": "unhealthy",
+        "FailingStreak": 0,
+        "Log": [
+          {
+            "Start": "2026-11-06T16:06:31.173626221+08:00",
+            "End": "2026-11-06T16:06:31.2473658+08:00",
+            "ExitCode": 0,
+            "Output": "/var/run/postgresql:5432 - accepting connections\n"
+          },
+          {
+            "Start": "2026-11-06T16:06:41.248423117+08:00",
+            "End": "2026-11-06T16:06:41.30738307+08:00",
+            "ExitCode": 0,
+            "Output": "/var/run/postgresql:5432 - accepting connections\n"
+          },
+          {
+            "Start": "2026-11-06T16:06:51.308484513+08:00",
+            "End": "2026-11-06T16:06:51.380504304+08:00",
+            "ExitCode": 0,
+            "Output": "/var/run/postgresql:5432 - accepting connections\n"
+          },
+          {
+            "Start": "2026-11-06T16:07:01.381580382+08:00",
+            "End": "2026-11-06T16:07:01.461046082+08:00",
+            "ExitCode": 0,
+            "Output": "/var/run/postgresql:5432 - accepting connections\n"
+          },
+          {
+            "Start": "2026-11-06T16:07:11.461333408+08:00",
+            "End": "2026-11-06T16:07:11.532112463+08:00",
+            "ExitCode": 0,
+            "Output": "/var/run/postgresql:5432 - accepting connections\n"
+          }
+        ]
+      }
+    },
+    "jetlinks-restored-99a1e3b3-redis-1": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-27T03:09:01.620167706Z",
+      "FinishedAt": "2026-11-06T08:07:19.926178093Z",
+      "Health": {
+        "Status": "unhealthy",
+        "FailingStreak": 0,
+        "Log": [
+          {
+            "Start": "2026-11-06T16:06:31.163749455+08:00",
+            "End": "2026-11-06T16:06:31.230492189+08:00",
+            "ExitCode": 0,
+            "Output": "Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.\nPONG\n"
+          },
+          {
+            "Start": "2026-11-06T16:06:41.231796195+08:00",
+            "End": "2026-11-06T16:06:41.294496109+08:00",
+            "ExitCode": 0,
+            "Output": "Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.\nPONG\n"
+          },
+          {
+            "Start": "2026-11-06T16:06:51.295488432+08:00",
+            "End": "2026-11-06T16:06:51.371560252+08:00",
+            "ExitCode": 0,
+            "Output": "Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.\nPONG\n"
+          },
+          {
+            "Start": "2026-11-06T16:07:01.373025969+08:00",
+            "End": "2026-11-06T16:07:01.458487076+08:00",
+            "ExitCode": 0,
+            "Output": "Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.\nPONG\n"
+          },
+          {
+            "Start": "2026-11-06T16:07:11.460204957+08:00",
+            "End": "2026-11-06T16:07:11.535716456+08:00",
+            "ExitCode": 0,
+            "Output": "Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.\nPONG\n"
+          }
+        ]
+      }
+    }
+  },
+  "trial_relay_stopped": true,
+  "cache_retained": true,
+  "business_services_restarted_by_this_trial": false
+}

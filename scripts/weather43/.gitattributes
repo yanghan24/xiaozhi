@@ -1,0 +1,2 @@
+# Keep the reviewed Ubuntu script bytes identical to the evidence archive.
+*.py text eol=lf
