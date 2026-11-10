@@ -13,6 +13,7 @@ from pathlib import Path
 import struct
 import sys
 import time
+from types import SimpleNamespace
 
 from online_delivery import DeliveryError, private_directory, save_private
 from provision_device import provision, read_frame
@@ -193,10 +194,15 @@ class P4Hardware:
                 raise DeliveryError("Application cannot be safely written to the current slot")
             snapshot = self.journal / (kind + "-verified.bin")
             save_private(snapshot, image)
-            # no_reset_stub keeps the same verified loader for independent post-write reads.
-            esptool.main(["--chip", "esp32p4", "--after", "no_reset_stub", "write_flash",
-                          "--flash_mode", "keep", "--flash_freq", "keep", "--flash_size", "keep",
-                          hex(offset), str(snapshot)], esp=esp)
+            # The CLI uploads another stub even when given an active stub. Use the
+            # write operation directly so this verified connection stays alive for read-back.
+            with snapshot.open("rb") as application:
+                esptool.cmds.write_flash(esp, SimpleNamespace(
+                    addr_filename=[(offset, application)], flash_mode="keep", flash_freq="keep",
+                    flash_size="keep", compress=True, no_compress=False, no_stub=False,
+                    encrypt=False, encrypt_files=None, ignore_flash_encryption_efuse_setting=False,
+                    force=False, erase_all=False,
+                ))
             actual = esp.read_flash(offset, len(image))
             if actual != image or hashlib.md5(image).hexdigest() != esp.flash_md5sum(offset, len(image)):
                 raise DeliveryError("Application write did not pass independent flash read-back")

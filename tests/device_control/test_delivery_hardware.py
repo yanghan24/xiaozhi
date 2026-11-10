@@ -7,7 +7,12 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+try:
+    import esptool as installed_esptool
+except ImportError:
+    installed_esptool = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import delivery_hardware as physical
@@ -34,15 +39,16 @@ class HardwareTests(unittest.TestCase):
                              application_bytes=0x3f0000, protected_prefix_sha256="unchanged")
         self.calls = []
         self.reads = []
-        esp = SimpleNamespace(read_flash=self.read, flash_md5sum=lambda *args: __import__("hashlib").md5(self.image).hexdigest())
+        self.esp = SimpleNamespace(read_flash=self.read, flash_md5sum=lambda *args: __import__("hashlib").md5(self.image).hexdigest())
 
         @contextmanager
         def connection():
-            yield esp, 32 * 1024 * 1024
+            yield self.esp, 32 * 1024 * 1024
         self.hardware.connection = connection
         self.hardware.inspect = lambda *args: (copy.deepcopy(self.baseline), b"")
         self.addCleanup(patch.stopall)
-        patch.dict(sys.modules, esptool=SimpleNamespace(main=lambda args, **kwargs: self.calls.append(args))).start()
+        patch.dict(sys.modules, esptool=SimpleNamespace(
+            cmds=SimpleNamespace(write_flash=lambda esp, args: self.calls.append(args)))).start()
 
     def read(self, offset, size):
         self.reads.append((offset, size))
@@ -52,11 +58,38 @@ class HardwareTests(unittest.TestCase):
         self.hardware.flash("product", self.baseline)
         self.assertEqual(len(self.calls), 1)
         arguments = self.calls[0]
-        self.assertEqual(arguments[-2], "0x410000")
-        self.assertEqual(Path(arguments[-1]).read_bytes(), self.image)
-        self.assertEqual(arguments[:4], ["--chip", "esp32p4", "--after", "no_reset_stub"])
+        self.assertEqual(len(arguments.addr_filename), 1)
+        offset, application = arguments.addr_filename[0]
+        self.assertEqual(offset, 0x410000)
+        self.assertEqual(Path(application.name).read_bytes(), self.image)
+        self.assertTrue(application.closed)
+        self.assertEqual((arguments.flash_mode, arguments.flash_freq, arguments.flash_size), ("keep", "keep", "keep"))
         self.assertEqual(self.reads, [(0x410000, len(self.image))])
-        self.assertNotIn("--erase-all", arguments)
+        self.assertFalse(arguments.erase_all)
+        self.assertFalse(arguments.force)
+
+    @unittest.skipIf(installed_esptool is None, "Run with the ESP-IDF Python environment for real esptool compatibility")
+    def test_installed_esptool_does_not_upload_another_stub_to_the_verified_connection(self):
+        # Exercise the installed CLI entry point up to its physical write boundary.
+        # A second run_stub on this already-running stub reproduces the real USB failure.
+        self.esp.CHIP_NAME = "ESP32-P4"
+        self.esp.IS_STUB = True
+        self.esp.secure_download_mode = False
+        self.esp.get_chip_description = lambda: "ESP32-P4"
+        self.esp.get_chip_features = lambda: []
+        self.esp.get_crystal_freq = lambda: 40
+        self.esp.get_usb_mode = lambda: None
+        self.esp.read_mac = lambda kind="BASE_MAC": None if kind == "EUI64" else bytes.fromhex("020000000001")
+        self.esp.run_stub = Mock(side_effect=RuntimeError("A verified active stub cannot accept another ROM stub upload"))
+        writes = []
+        with patch.dict(sys.modules, esptool=installed_esptool), \
+                patch.object(installed_esptool, "get_port_list", return_value=["fake"]), \
+                patch.object(installed_esptool.cmds, "write_flash", side_effect=lambda esp, args: writes.append((esp, args))):
+            self.hardware.flash("product", self.baseline)
+        self.esp.run_stub.assert_not_called()
+        self.assertEqual(len(writes), 1)
+        self.assertIs(writes[0][0], self.esp)
+        self.assertEqual(self.reads, [(0x410000, len(self.image))])
 
     def test_wrong_physical_identity_prevents_any_flash_write(self):
         other = dict(self.baseline, hardware_id="020000000002")
