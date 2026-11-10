@@ -11,6 +11,7 @@
 - 实际验证记录：[管理端](docs/verification/issue-3-manager-baseline.md)、[语音与设备协议](docs/verification/issue-4-voice-protocol.md)
 - [任务 #3](https://github.com/yanghan24/xiaozhi/issues/3)、[任务 #4](https://github.com/yanghan24/xiaozhi/issues/4)、[父规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)
 - [当前 Ubuntu 部署与复验入口](docs/deployment/ubuntu-isolated-test.md)、[A 层验收结果](docs/verification/issue-5-acceptance.md)
+- [P4 样机语音与固件交接](docs/handoff/2026-11-10-device-firmware.md)、[原有 UI 恢复记录](docs/verification/2026-11-10-p4-ui-recovery.md)
 - [换机/服务器交接](docs/handoff/2026-11-05-ubuntu-server.md)、[文档同步核查](docs/planning/document-sync-audit-2026-11-06.md)
 - [团队协作与回退](CONTRIBUTING.md)
 - [筑音硬件接入资料](筑音设备接入资料_核查稿_2026-11-06.md)
