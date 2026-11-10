@@ -44,4 +44,6 @@ curl --fail http://127.0.0.1:18086/health
 
 [observe_updates.py](../../scripts/weather43/observe_updates.py) 保留首次真实基线，连续记录源与本地结果；必须收齐基线后的两次 AQ 起报批次和至少一次天气更新，再由 [summarize_updates.py](../../scripts/weather43/summarize_updates.py) 核对持久快照、原始响应哈希、相同有效小时的值与过期状态。启动观察程序不能代替已完成观察。
 
+最终容量测试完成后，[network_soak.py](../../scripts/weather43/network_soak.py) 每分钟无重试读取两类真实源元数据及 4KiB 模型 Range，直到第二次 AQ 源／缓存更新被观察到，最多 24 小时。记录每次成功／失败、TLS、DNS、服务启用状态及是否存在临时 SSH 端口；这是低速连续可达性观察，不作为生产 SLA 或持续带宽结论。
+
 结束时删除仅属于本次语音夹具的设备／令牌／会话及测试对话记录，保留真实授权和其他设备。是否保留隔离天气服务由验收结论决定；暂停用本项目 Compose `stop`，恢复用 `up -d` 并复用私有结果／模型目录。不要用 `down -v` 或全机清理命令回退。
