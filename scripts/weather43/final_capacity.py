@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import time
@@ -48,8 +49,11 @@ def listen_counters():
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--root", type=Path, required=True)
+    p.add_argument("--label", default="final-v4", help="Unique evidence directory; failed earlier runs remain intact")
     args = p.parse_args()
     root = args.root.resolve()
+    if not re.fullmatch(r"[a-z0-9-]{1,40}", args.label):
+        p.error("Use a simple unique evidence label")
     if os.name != "posix" or os.geteuid() != 0 or "Ubuntu" not in Path("/etc/os-release").read_text():
         p.error("Run as root on the designated Ubuntu server")
     for marker in ("recovery-complete", "network-restart-complete"):
@@ -58,7 +62,7 @@ def main():
     assert json.loads((root / "private/fault.json").read_text()) == {}
     names = subprocess.check_output(["docker", "ps", "--format", "{{.Names}}"], text=True).splitlines()
     assert not {"weather43-cold-engine", "weather43-recovery-fixture", "weather43-voice-probe"}.intersection(names)
-    output = root / "evidence/final-v4"
+    output = root / "evidence" / args.label
     output.mkdir(exist_ok=False)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -104,6 +108,8 @@ def main():
     assert after["health"]["runtime_source_sha256"] == source_hash
     assert after["listen_counters"] == before["listen_counters"]
     assert json.loads((root / "private/fault.json").read_text()) == {}
+    (root / "evidence/latest-final-capacity.json").write_text(json.dumps(
+        {"evidence_directory": args.label, "cache_runtime_sha256": source_hash}, indent=2) + "\n")
     (root / "evidence/final-capacity-complete").write_text(utc() + "\n")
 
 
