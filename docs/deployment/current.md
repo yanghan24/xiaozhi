@@ -37,7 +37,7 @@ sudo docker compose -f private/compose.json ps
 
 启停或恢复前先读部署记录的[实际部署](../verification/2026-11-10-pr26-server-deployment.md#实际部署)、[备份与运维](../verification/2026-11-10-pr26-server-deployment.md#备份与运维)和[暂停与恢复原则](../verification/2026-11-10-pr26-server-deployment.md#暂停与恢复原则)。该记录还列出外部数据库、Redis、旧管理配置 API、代理可信地址与持久失效通知目录等依赖；仅启动产品 Compose 不能代替这些依赖的检查。JetLinks 保持停机。
 
-已完成服务端回归、公网协议检查和容器服务重启验证。真实手机最终确认、音箱麦克风到扬声器闭环、物理停播 ACK、Ubuntu 主机重启和并发容量仍以各自实际验收为准；本页不将服务端检查等同于真机验收。
+PR #26 本次部署已完成服务端回归、公网协议检查和容器服务重启验证；其真实手机最终确认、产品固件麦克风到扬声器闭环、物理停播 ACK、Ubuntu 主机重启和并发容量尚未由该部署记录验收。另有 [P4 基础固件真实语音与恢复记录](../handoff/2026-11-10-device-firmware.md)，对应测试智能体和当时固件，不能直接视为 PR #26 产品绑定协议的验收。
 
 ## 本地资料缺失或过时
 
