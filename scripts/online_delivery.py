@@ -28,6 +28,13 @@ class DeliveryError(ProvisioningError):
     pass
 
 
+class BackendFailure(DeliveryError):
+    def __init__(self, status, code):
+        super().__init__("Delivery backend rejected the request (HTTP %d); resume the same journal" % status)
+        self.status = status
+        self.code = code
+
+
 def origin(value):
     validate_manifest(dict(version=1, hardware_id="020000000001", device_id="validation",
                            credential="A" * 43, ota_url=value + "/xiaozhi/ota/", control_origin=value))
@@ -123,7 +130,17 @@ class Backend:
                 result = json.loads(raw, object_pairs_hook=unique_object)
         except HTTPError as failure:
             # Do not echo server bodies, request URLs, headers or raw transport exceptions.
-            raise DeliveryError("Delivery backend rejected the request (HTTP %d); resume the same journal" % failure.code) from None
+            code = None
+            try:
+                with failure:
+                    raw = failure.read(16385)
+                value = json.loads(raw, object_pairs_hook=unique_object) if len(raw) <= 16384 else None
+                if (isinstance(value, dict) and type(value.get("version")) is int and value["version"] == 1
+                        and isinstance(value.get("code"), str) and re.fullmatch(r"[A-Z_]{1,64}", value["code"])):
+                    code = value["code"]
+            except (OSError, ValueError, UnicodeError, ProvisioningError):
+                pass
+            raise BackendFailure(failure.code, code) from None
         except (URLError, TimeoutError, OSError):
             raise DeliveryError("Delivery connection failed; resume the same journal") from None
         if (not isinstance(result, dict) or set(result) != {"version", "code", "data"}
@@ -139,6 +156,16 @@ class Backend:
 
     def get(self, state):
         return self.request("GET", "operations/" + state["operation_id"])
+
+    def lookup(self, state):
+        # This protected read authenticates the live tool grant without registering a device.
+        # An ingress HTML 404 is not proof that the backend authorized the request.
+        try:
+            return self.get(state)
+        except BackendFailure as failure:
+            if failure.status == 404 and failure.code == "DELIVERY_NOT_FOUND":
+                return None
+            raise
 
     def complete(self, state):
         return self.request("POST", "operations/" + state["operation_id"] + "/complete",
@@ -214,6 +241,15 @@ def deliver(directory, backend, hardware, artifacts, progress=print):
             state.update(phase=phase, **values)
             save_private(path, state)
             progress("Delivery: " + phase)
+
+        # Reject expired/revoked grants and unavailable APIs before opening the physical chip.
+        operation = backend.lookup(state)
+        if operation is not None:
+            if "hardware" not in state:
+                raise DeliveryError("Backend operation already exists; recover its original delivery journal")
+            validate_operation(operation, state)
+        elif state["phase"] not in ("prepared", "identifying", "registering"):
+            raise DeliveryError("Existing backend operation is missing; retain this journal for recovery")
 
         # Every invocation reconnects to the physical chip; never trust a saved serial port name.
         if "baseline" not in state:

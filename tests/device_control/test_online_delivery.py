@@ -1,4 +1,5 @@
 import copy
+import io
 import json
 from pathlib import Path
 import stat
@@ -6,6 +7,8 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import online_delivery as delivery
@@ -52,6 +55,10 @@ class Backend:
         value.pop("identity")
         return value
 
+    def lookup(self, state):
+        self.fault("authorization")
+        return self.get(state) if state["operation_id"] in self.operations else None
+
     def complete(self, state):
         self.complete_calls.append(state["write_operation_id"])
         value = self.operations[state["operation_id"]]
@@ -74,6 +81,7 @@ class Hardware:
         self.fail = None
         self.corrupt_network_after_write = False
         self.verify_device = True
+        self.backups = 0
 
     def fault(self, action):
         if self.fail == action:
@@ -81,6 +89,7 @@ class Hardware:
             raise delivery.DeliveryError("injected hardware interruption")
 
     def backup(self, directory):
+        self.backups += 1
         return {"hardware_id": self.hardware}
 
     def verify_baseline(self, baseline):
@@ -142,6 +151,49 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE((self.directory / "journal.json").stat().st_mode), 0o600)
         self.assertNotIn(a["identity"]["credential"], "\n".join(self.progress))
         self.assertNotIn(a["identity"]["device_id"], "\n".join(self.progress))
+
+    def test_authorization_failure_stops_before_opening_or_flashing_device(self):
+        self.backend.fail = "authorization"
+        with self.assertRaises(delivery.DeliveryError):
+            self.run_delivery()
+        self.assertEqual(self.hardware.backups, 0)
+        self.assertEqual(self.hardware.flashes, [])
+        self.assertEqual(self.hardware.writes, [])
+        self.assertEqual(self.backend.operations, {})
+        before = delivery.read_private(self.directory / "journal.json")
+        result = self.run_delivery()
+        self.assertEqual(before["operation_id"], result["operation_id"])
+        self.assertEqual(before["write_operation_id"], result["write_operation_id"])
+
+    def test_revoked_authorization_stops_resume_before_another_usb_write(self):
+        self.hardware.fail = "write"
+        with self.assertRaises(delivery.DeliveryError):
+            self.run_delivery()
+        flashes, writes = len(self.hardware.flashes), len(self.hardware.writes)
+        self.backend.fail = "authorization"
+        with self.assertRaises(delivery.DeliveryError):
+            self.run_delivery()
+        self.assertEqual(len(self.hardware.flashes), flashes)
+        self.assertEqual(len(self.hardware.writes), writes)
+
+    def test_only_authenticated_protocol_not_found_can_pass_lookup(self):
+        backend = delivery.Backend(PUBLIC, "A" * 43)
+        state = {"operation_id": "0" * 32}
+        for status, body, allowed in [
+                (404, b'{"version":1,"code":"DELIVERY_NOT_FOUND","data":{}}', True),
+                (404, b'<html>not found</html>', False),
+                (401, b'{"version":1,"code":"TOOL_AUTH_REQUIRED","data":{}}', False),
+                (403, b'{"version":1,"code":"OPERATOR_REQUIRED","data":{}}', False),
+                (503, b'{"version":1,"code":"DELIVERY_NOT_CONFIGURED","data":{}}', False)]:
+            def rejected(*args, **kwargs):
+                raise HTTPError(PUBLIC, status, "test", {}, io.BytesIO(body))
+            backend.http = SimpleNamespace(open=rejected)
+            with self.subTest(status=status, allowed=allowed):
+                if allowed:
+                    self.assertIsNone(backend.lookup(state))
+                else:
+                    with self.assertRaises(delivery.DeliveryError):
+                        backend.lookup(state)
 
     def test_interrupted_mutations_resume_same_operation_identity_and_usb_receipt(self):
         for boundary in ("create", "maintenance", "write", "product-after-write", "complete"):
