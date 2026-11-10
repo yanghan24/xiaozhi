@@ -58,6 +58,9 @@ async def run(args, output):
     start = time.monotonic()
     stopped = asyncio.Event()
     samples = []
+    admission = asyncio.Semaphore(args.devices)
+    active_requests = 0
+    peak_active_requests = 0
 
     async def sample():
         while not stopped.is_set():
@@ -70,9 +73,13 @@ async def run(args, output):
                 pass
 
     async def call(index, delay):
+        nonlocal active_requests, peak_active_requests
         scheduled = start + delay
         await asyncio.sleep(max(0, scheduled - time.monotonic()))
+        await admission.acquire()
         dispatched = time.monotonic()
+        active_requests += 1
+        peak_active_requests = max(peak_active_requests, active_requests)
         city = cities[index % args.devices % len(cities)]
         path = "/v1/environment?" + urllib.parse.urlencode({"city_id": city["id"]})
         row = {"index": index, "city_id": city["id"], "scheduled_after_s": delay,
@@ -90,6 +97,9 @@ async def run(args, output):
             row["outcome"] = "timeout"
         except Exception as exc:
             row.update(outcome="failure", error=type(exc).__name__, detail=str(exc)[:120])
+        finally:
+            active_requests -= 1
+            admission.release()
         row["end_to_end_s"] = time.monotonic() - scheduled
         row["socket_s"] = time.monotonic() - dispatched
         output.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -101,18 +111,19 @@ async def run(args, output):
         if args.scenario == "burst":
             plan = [(i, 0) for i in range(args.devices)]
         else:
-            plan = [(i + turn * args.devices, turn * args.period + i * args.period / args.devices)
+            plan = [(i + turn * args.devices, turn * args.period +
+                     (0 if args.scenario == "waves" else i * args.period / args.devices))
                     for turn in range(math.ceil(args.duration / args.period)) for i in range(args.devices)
                     if turn * args.period + i * args.period / args.devices < args.duration]
         results = await asyncio.gather(*(call(i, delay) for i, delay in plan))
-        if args.scenario == "steady":
+        if args.scenario in ("steady", "waves"):
             await asyncio.sleep(max(0, start + args.duration - time.monotonic()))
     finally:
         stopped.set()
         await monitor
     latency = [r["end_to_end_s"] for r in results]
     return {"finished_at": utc(), "elapsed_s": time.monotonic() - start, "gateway_readiness_wait_s": readiness_s,
-            "offered": len(results),
+            "offered": len(results), "peak_active_requests": peak_active_requests,
             "counts": {name: sum(r["outcome"] == name for r in results)
                        for name in ("fresh", "stale", "loading_or_unavailable", "failure", "timeout")},
             "latency_s": {"p50": percentile(latency, .5), "p95": percentile(latency, .95),
@@ -123,9 +134,10 @@ async def run(args, output):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--cities-file", required=True, type=Path)
-    p.add_argument("--cities", type=int, choices=(1, 10, 35, 350, 1000), required=True)
-    p.add_argument("--devices", type=int, choices=(350, 1000), required=True)
-    p.add_argument("--scenario", choices=("burst", "steady"), required=True)
+    p.add_argument("--cities", type=int, choices=(1, 10, 35, 50, 350, 1000), required=True)
+    p.add_argument("--devices", type=int, choices=(50, 350, 1000), required=True)
+    p.add_argument("--scenario", choices=("burst", "steady", "waves"), required=True,
+                   help="waves synchronizes all clients each period; in-flight requests never exceed devices")
     p.add_argument("--duration", type=int, default=1800)
     p.add_argument("--period", type=int, default=300)
     p.add_argument("--timeout", type=float, default=2)

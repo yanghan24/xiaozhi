@@ -86,18 +86,23 @@ def main():
     p.add_argument("--root", type=Path, required=True)
     p.add_argument("--interval", type=int, default=60)
     p.add_argument("--max-duration", type=int, default=86400)
+    p.add_argument("--deadline", help="Optional absolute UTC cutoff; reaching it is not a successful availability result")
     args = p.parse_args()
     root = args.root.resolve()
     if os.name != "posix" or "Ubuntu" not in Path("/etc/os-release").read_text():
         p.error("Run on the designated Ubuntu server")
     if args.interval < 60 or not 60 <= args.max_duration <= 86400:
         p.error("Use a bounded, low-rate observation")
+    deadline = datetime.fromisoformat(args.deadline).timestamp() if args.deadline else None
+    if deadline is not None and not time.time() < deadline <= time.time() + 86400:
+        p.error("Deadline must be in the next 24 hours")
     assert (root / "evidence/final-capacity-complete").exists()
     assert json.loads((root / "private/fault.json").read_text()) == {}
     objects = recent_objects(root)
     output = root / "evidence/network-soak"
     output.mkdir(exist_ok=False)
     context = {"started_at": utc(), "interval_s": args.interval, "max_duration_s": args.max_duration,
+               "absolute_deadline": args.deadline,
                "objects_from_successful_actual_engine_reads": objects,
                "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                "retries": 0, "scope": "independent Ubuntu source availability; not a production SLA"}
@@ -142,7 +147,7 @@ def main():
             log.flush()
             cycles += 1
             complete = (root / "evidence/update-observation/completed.json").exists()
-            if complete or time.monotonic() - started >= args.max_duration:
+            if complete or time.monotonic() - started >= args.max_duration or (deadline is not None and time.time() >= deadline):
                 break
             time.sleep(max(0, started + cycles * args.interval - time.monotonic()))
     for endpoint in endpoints.values():

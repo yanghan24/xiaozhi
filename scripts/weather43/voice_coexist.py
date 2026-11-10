@@ -181,9 +181,12 @@ async def run(args):
             output.flush()
             print(json.dumps({"phase": args.phase, "number": number, "success": row["success"],
                               "elapsed_s": row["elapsed_s"], "failure_stage": row.get("failure_stage")}), flush=True)
+            if args.stop_on_failure and not row["success"]:
+                break
             await asyncio.sleep(args.interval)
     summary = {"count": len(rows), "success": sum(r["success"] for r in rows),
                "failure": sum(not r["success"] for r in rows), "finished_at": utc(),
+               "planned_count": args.count, "stopped_on_failure": args.stop_on_failure and any(not r["success"] for r in rows),
                "percentile_method": "nearest_rank_on_successful_attempts", "timing_s": {}}
     for name in ("stt_after_input", "llm_after_input", "first_audio_after_input", "complete_after_input"):
         values = sorted(r["timing_s"][name] for r in rows if r["success"] and name in r["timing_s"])
@@ -203,6 +206,7 @@ def main():
     parser.add_argument("--interval", type=float, default=5)
     parser.add_argument("--response-timeout", type=float, default=90)
     parser.add_argument("--connect-host")
+    parser.add_argument("--stop-on-failure", action="store_true", help="Stop this phase at the first real voice failure")
     parser.add_argument("--connect-port", type=int, default=443)
     asyncio.run(run(parser.parse_args()))
 

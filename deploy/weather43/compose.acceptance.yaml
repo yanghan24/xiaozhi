@@ -67,6 +67,8 @@ services:
       - http://${WEATHER43_GATEWAY}:18085
       - --prewarm
       - ${WEATHER43_PREWARM:-0}
+      - --engine-timeout
+      - "30"
     ports: ["127.0.0.1:18086:8081"]
     volumes:
       - ./scripts/weather43/cache_service.py:/task/cache_service.py:ro
