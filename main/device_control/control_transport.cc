@@ -1,5 +1,6 @@
 #include "control_transport.h"
 #include <esp_crt_bundle.h>
+#include <esp_log.h>
 #include <esp_timer.h>
 #include <esp_tls.h>
 #include <freertos/FreeRTOS.h>
@@ -12,6 +13,7 @@
 #include <mutex>
 #include "control_http.h"
 #include "control_model.h"
+#include "control_tls.h"
 
 namespace device_control {
 namespace {
@@ -59,6 +61,7 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
                           const std::function<bool()>& cancelled) {
     const int64_t start = Now(), deadline = start + 25000;
     HttpResult result;
+    const char* stage = "validation";
     auto stop = [&]() {
         if (cancelled()) {
             result.failure = HttpFailure::Cancelled;
@@ -72,6 +75,11 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
     };
     auto finish = [&]() {
         result.elapsed_ms = Now() - start;
+        if (result.failure != HttpFailure::None)
+            ESP_LOGW("ControlTransport",
+                     "Request failed: stage=%s failure=%d status=%d elapsed_ms=%lld", stage,
+                     static_cast<int>(result.failure), result.status,
+                     static_cast<long long>(result.elapsed_ms));
         return result;
     };
     Url url;
@@ -82,6 +90,7 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
         return finish();
     }
     std::string numeric;
+    stage = "dns";
     ip_addr_t direct;
     if (ipaddr_aton(url.host.c_str(), &direct)) {
         numeric = url.host;
@@ -119,6 +128,7 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
     // Passing the already-resolved numeric address avoids the synchronous
     // getaddrinfo hidden inside esp_tls_conn_new_async. common_name preserves
     // the authorized domain for BOTH SNI and certificate hostname validation.
+    stage = "connect";
     std::unique_ptr<esp_tls_t, decltype(&esp_tls_conn_destroy)> tls(esp_tls_init(),
                                                                     esp_tls_conn_destroy);
     if (!tls)
@@ -131,7 +141,7 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
     bool connected = false;
     while (!stop()) {
         const int r =
-            esp_tls_conn_new_async(numeric.c_str(), numeric.size(), url.port, &config, tls.get());
+            PollTlsConnection(numeric.c_str(), numeric.size(), url.port, config, tls.get());
         if (stop())
             return finish();
         if (r == 1) {
@@ -152,6 +162,7 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
     }
     if (!connected)
         return finish();
+    stage = "write";
     std::string request = method + " " + url.target + " HTTP/1.1\r\nHost: " + url.authority +
                           "\r\nAuthorization: Bearer " + credential +
                           "\r\nDevice-Id: " + device_id +
@@ -178,6 +189,7 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
     if (stop())
         return finish();
     HttpResponseParser parser;
+    stage = "read";
     char buffer[1024];
     while (!stop()) {
         const int n = esp_tls_conn_read(tls.get(), buffer, sizeof(buffer));

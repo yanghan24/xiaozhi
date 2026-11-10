@@ -46,3 +46,26 @@ target_include_directories(device_delivery_tests PRIVATE "${CONTROL_DIR}"
   "${IDF_PATH}/components/json/cJSON")
 target_compile_options(device_delivery_tests PRIVATE -Wall -Wextra -Werror)
 add_test(NAME device_delivery_tests COMMAND device_delivery_tests)
+
+# Exercise the installed ESP-TLS state machine with deterministic socket timing.
+# Keep SDK code in the build directory and regenerate it when that SDK changes.
+set(SDK_TLS_SOURCE "${IDF_PATH}/components/esp-tls/esp_tls.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SDK_TLS_SOURCE}")
+file(READ "${SDK_TLS_SOURCE}" SDK_TLS_TEXT)
+string(FIND "${SDK_TLS_TEXT}" "static int esp_tls_low_level_conn(" SDK_TLS_BEGIN)
+if(SDK_TLS_BEGIN LESS 0)
+  message(FATAL_ERROR "Installed ESP-IDF does not expose the expected TLS connection source")
+endif()
+string(SUBSTRING "${SDK_TLS_TEXT}" ${SDK_TLS_BEGIN} -1 SDK_TLS_TAIL)
+string(FIND "${SDK_TLS_TAIL}" "\n/**" SDK_TLS_END)
+if(SDK_TLS_END LESS 0)
+  message(FATAL_ERROR "Cannot locate the end of the installed ESP-TLS connection function")
+endif()
+string(SUBSTRING "${SDK_TLS_TAIL}" 0 ${SDK_TLS_END} SDK_TLS_FUNCTION)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sdk_tls_connection.inc" "${SDK_TLS_FUNCTION}\n")
+add_executable(control_tls_tests control_tls_test.cc "${CONTROL_DIR}/control_tls.cc")
+target_include_directories(control_tls_tests PRIVATE stubs "${CONTROL_DIR}"
+  "${CMAKE_CURRENT_BINARY_DIR}")
+target_link_options(control_tls_tests PRIVATE -Wl,--wrap=select -Wl,--wrap=getsockopt)
+target_compile_options(control_tls_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME control_tls_tests COMMAND control_tls_tests)
