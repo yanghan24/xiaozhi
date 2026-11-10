@@ -68,7 +68,7 @@ node scripts/customer-identity/check-browser.mjs
 
 ## #11 真实集市验证
 
-统一轮次的只读检查工具与证据边界见 [身份验收检查说明](customer-identity-check.md)（#36；实际服务器对照验收须另行完成）。
+统一轮次的只读检查工具与证据边界见 [身份验收检查说明](customer-identity-check.md)（#36），Ubuntu 现场验证见 [2026-11-10 记录](../verification/2026-11-10-identity-check-tool.md)。
 
 2026-11-09 已完成真实登录、刷新、共享撤销、拒绝与恢复，见[真实验收记录](../verification/2026-11-09-real-market-identity.md)。有效后通道通知尚未送达，下一步见[管理员检查清单](../handoff/2026-11-10-market-logout-notification.md)。下述步骤用于后续复验，不再表示全部尚未执行。
 
