@@ -46,4 +46,6 @@ curl --fail http://127.0.0.1:18086/health
 
 最终容量测试完成后，[network_soak.py](../../scripts/weather43/network_soak.py) 每分钟无重试读取两类真实源元数据及 4KiB 模型 Range，直到第二次 AQ 源／缓存更新被观察到，最多 24 小时。记录每次成功／失败、TLS、DNS、服务启用状态及是否存在临时 SSH 端口；这是低速连续可达性观察，不作为生产 SLA 或持续带宽结论。
 
+[metrics_report.py](../../scripts/weather43/metrics_report.py) 从原始逐请求记录重算计数和延迟分位数，并汇总 CPU、内存、盘缓存分配和网卡流量。`--interface` 取实际默认路由的出口；`--disk-device` 取根文件系统所属整盘，避免重复累加分区。磁盘 I/O 取 Linux 原始累计计数的差值，包含其他宿主业务，不是单独的 IOPS 性能基准。
+
 结束时删除仅属于本次语音夹具的设备／令牌／会话及测试对话记录，保留真实授权和其他设备。是否保留隔离天气服务由验收结论决定；暂停用本项目 Compose `stop`，恢复用 `up -d` 并复用私有结果／模型目录。不要用 `down -v` 或全机清理命令回退。

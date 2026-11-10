@@ -5,9 +5,11 @@ Starts only after undisturbed capacity profiles. No retries or hosted APIs;
 metadata and 4KiB ranges use the Ubuntu-owned egress with TLS verification.
 """
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -102,6 +104,7 @@ def main():
     (output / "context.json").write_text(json.dumps(context, indent=2) + "\n")
     client = urllib.request.build_opener(urllib.request.ProxyHandler({"https": "http://127.0.0.1:7890"}))
     started, cycles, attempts, successes = time.monotonic(), 0, 0, 0
+    endpoints = {}
     service_valid = True
     with (output / "requests.jsonl").open("x") as log:
         while True:
@@ -123,6 +126,18 @@ def main():
                     cycle["reads"].append(row)
                     attempts += 1
                     successes += int(row["ok"])
+                    key = model + ("/range" if byte_range else "/metadata")
+                    endpoint = endpoints.setdefault(key, {"attempts": 0, "success": 0, "errors": Counter(),
+                                                           "latencies": [], "failed_streak": 0,
+                                                           "longest_consecutive_failed_samples": 0})
+                    endpoint["attempts"] += 1
+                    endpoint["success"] += int(row["ok"])
+                    endpoint["latencies"].append(row["elapsed_s"])
+                    endpoint["failed_streak"] = 0 if row["ok"] else endpoint["failed_streak"] + 1
+                    endpoint["longest_consecutive_failed_samples"] = max(
+                        endpoint["longest_consecutive_failed_samples"], endpoint["failed_streak"])
+                    if not row["ok"]:
+                        endpoint["errors"][row["error"]] += 1
             log.write(json.dumps(cycle) + "\n")
             log.flush()
             cycles += 1
@@ -130,10 +145,17 @@ def main():
             if complete or time.monotonic() - started >= args.max_duration:
                 break
             time.sleep(max(0, started + cycles * args.interval - time.monotonic()))
+    for endpoint in endpoints.values():
+        latency = sorted(endpoint.pop("latencies"))
+        endpoint.pop("failed_streak")
+        endpoint["latency_s"] = {"p95_all_attempts": latency[math.ceil(len(latency) * .95) - 1],
+                                 "max": max(latency)}
+        endpoint["failure"] = endpoint["attempts"] - endpoint["success"]
     summary = {"started_at": context["started_at"], "finished_at": utc(),
                "elapsed_s": time.monotonic() - started, "cycles": cycles,
                "attempts": attempts, "success": successes, "failure": attempts - successes,
                "service_enabled_active_and_no_reverse_ssh_in_all_samples": service_valid,
+               "endpoints": endpoints,
                "stop_reason": "observed_second_AQ_cache_update" if complete else "bounded_deadline",
                "limitations": ["Minute samples can miss shorter outages", "Small reads do not measure sustained bandwidth",
                                "Range object paths were real engine reads at the start; not a full model-run audit"]}
