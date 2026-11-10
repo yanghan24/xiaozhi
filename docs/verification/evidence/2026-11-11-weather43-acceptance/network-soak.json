@@ -1,0 +1,70 @@
+{
+  "started_at": "2026-11-10T16:24:22.718444+00:00",
+  "finished_at": "2026-11-10T21:59:25.282441+00:00",
+  "elapsed_s": 20102.563362319022,
+  "cycles": 336,
+  "attempts": 1344,
+  "success": 1340,
+  "failure": 4,
+  "service_enabled_active_and_no_reverse_ssh_in_all_samples": true,
+  "endpoints": {
+    "ncep_gfs013/metadata": {
+      "attempts": 336,
+      "success": 335,
+      "errors": {
+        "timeout": 1
+      },
+      "longest_consecutive_failed_samples": 1,
+      "latency_s": {
+        "p95_all_attempts": 1.0779972048476338,
+        "max": 15.385792644694448
+      },
+      "failure": 1
+    },
+    "ncep_gfs013/range": {
+      "attempts": 336,
+      "success": 335,
+      "errors": {
+        "URLError": 1
+      },
+      "longest_consecutive_failed_samples": 1,
+      "latency_s": {
+        "p95_all_attempts": 1.099110868293792,
+        "max": 15.009637878742069
+      },
+      "failure": 1
+    },
+    "cams_global/metadata": {
+      "attempts": 336,
+      "success": 335,
+      "errors": {
+        "URLError": 1
+      },
+      "longest_consecutive_failed_samples": 1,
+      "latency_s": {
+        "p95_all_attempts": 1.078444188926369,
+        "max": 15.012042323127389
+      },
+      "failure": 1
+    },
+    "cams_global/range": {
+      "attempts": 336,
+      "success": 335,
+      "errors": {
+        "URLError": 1
+      },
+      "longest_consecutive_failed_samples": 1,
+      "latency_s": {
+        "p95_all_attempts": 1.079579383134842,
+        "max": 14.961442930623889
+      },
+      "failure": 1
+    }
+  },
+  "stop_reason": "observed_second_AQ_cache_update",
+  "limitations": [
+    "Minute samples can miss shorter outages",
+    "Small reads do not measure sustained bandwidth",
+    "Range object paths were real engine reads at the start; not a full model-run audit"
+  ]
+}
