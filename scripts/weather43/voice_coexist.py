@@ -163,6 +163,7 @@ async def run(args):
         pcm, _ = audioop.ratecv(pcm, 2, 1, rate, 16000, None)
     args.output.mkdir(parents=True)
     context = {"scope": "server_product_protocol_with_real_ASR_LLM_TTS",
+               "primary_latency_measurement": "first decodable audio after input stop; completion also recorded",
                "load_generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                "physical_microphone_or_speaker": False, "phase": args.phase,
                "source_audio_sha256": hashlib.sha256(args.audio.read_bytes()).hexdigest(),

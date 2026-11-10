@@ -28,7 +28,7 @@ def main():
                 continue
             run = metadata["last_run_initialisation_time"]
             baseline.setdefault(model, run)
-            sources.setdefault((model, run), {"first_observed_at": row["at"], "metadata": metadata,
+            sources.setdefault((model, run, data.get("sha256")), {"first_observed_at": row["at"], "metadata": metadata,
                                               "etag": data.get("etag"), "sha256": data.get("sha256")})
     snapshots = {"weather": [], "air_quality": []}
     for path in args.snapshots.glob("1815577-*.json"):
@@ -48,7 +48,7 @@ def main():
             if not status:
                 continue
             observed_states[status] = observed_states.get(status, 0) + 1
-            if component.get("source_has_newer_run") and status != "stale":
+            if (component.get("source_has_newer_run") or component.get("source_has_newer_version")) and status != "stale":
                 invalid_states.append({"at": row["at"], "error": "superseded_result_reported_fresh"})
             if component.get("values") is not None:
                 served = datetime.fromisoformat(data["served_at"]).timestamp()
@@ -65,7 +65,7 @@ def main():
                 differences = [{"valid_at": iso(t), "old": ai[t], "new": bi[t]} for t in common if ai[t] != bi[t]]
                 checks[field] = {"overlap_samples": len(common), "changed_values": len(differences),
                                  "first_changed_examples": differences[:3]}
-            source = sources.get((model, after_run))
+            source = sources.get((model, after_run, b["metadata"]["sha256"]))
             raw = b.get("raw_engine_body")
             raw_matches = bool(raw and hashlib.sha256(raw.encode()).hexdigest() == b["payload_sha256"])
             promoted_after_publication = b["fetched_at"] >= b["metadata"]["published_at"] + 600

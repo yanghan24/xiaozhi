@@ -139,6 +139,8 @@ class Gateway:
         new = {"checked_at": time.time(), "run_at": value["last_run_initialisation_time"],
                "published_at": value["last_run_availability_time"], "raw": value,
                "sha256": hashlib.sha256(body).hexdigest()}
+        if cached and new["run_at"] < cached["run_at"]:
+            raise ValueError("source_run_regression")
         if cached and new["run_at"] != cached["run_at"]:
             self.metrics["source_changes"] += 1
             self.event("source_changed", kind=kind, old_run=cached["run_at"], new_run=new["run_at"])
@@ -163,14 +165,18 @@ class Gateway:
         old = self.entries.get(key)
         metadata = await self.get_metadata(kind)
         now = time.time()
+        if old and metadata["run_at"] < old["metadata"]["run_at"]:
+            raise ValueError("source_run_regression")
+        same_version = bool(old and old["metadata"]["run_at"] == metadata["run_at"] and
+                            old["metadata"]["sha256"] == metadata["sha256"])
         # Metadata validation can renew a check deadline, never model or validity time.
-        if old and old["metadata"]["run_at"] == metadata["run_at"] and old["hourly"]["time"][-1] > now + 7200:
+        if same_version and old["hourly"]["time"][-1] > now + 7200:
             renewed = dict(old, metadata=metadata, next_check_at=now + self.args.ttl, restored_unchecked=False)
             await self.save(key, renewed)
             self.metrics["metadata_revalidations"] += 1
             return
         # Allow the model engine's remote catalog and block cache to catch up.
-        if old is None or metadata["run_at"] != old["metadata"]["run_at"]:
+        if not same_version:
             not_before = metadata["published_at"] + self.args.update_grace
             if now < not_before:
                 raise ValueError("source_update_settling")
@@ -202,7 +208,7 @@ class Gateway:
                 if field.startswith("pm") and any(v < 0 for v in values):
                     raise ValueError("invalid_pm")
             after = await self.get_metadata(kind, force=True)
-            if after["run_at"] != metadata["run_at"]:
+            if after["run_at"] != metadata["run_at"] or after["sha256"] != metadata["sha256"]:
                 raise ValueError("source_changed_during_read")
             entry = {"hourly": hourly, "units": units, "metadata": metadata,
                      "model_grid": {"latitude": result.get("latitude"), "longitude": result.get("longitude")},
@@ -265,7 +271,9 @@ class Gateway:
             self.args.weather_max_age if key[1] == "weather" else self.args.aq_max_age)
         latest = self.metadata.get(key[1])
         superseded = bool(latest and latest["run_at"] > entry["metadata"]["run_at"])
-        stale = bool(error) or key[1] in self.meta_errors or too_old or superseded or entry.get("restored_unchecked", False)
+        revised = bool(latest and latest["run_at"] == entry["metadata"]["run_at"] and
+                       latest["sha256"] != entry["metadata"]["sha256"])
+        stale = bool(error) or key[1] in self.meta_errors or too_old or superseded or revised or entry.get("restored_unchecked", False)
         return {"status": "stale" if stale else "fresh", "values": values,
                 "units": KINDS[key[1]]["units"], "valid_at": iso(current),
                 "model": entry["model"], "model_run_at": iso(entry["metadata"]["run_at"]),
@@ -274,7 +282,8 @@ class Gateway:
                 "fetched_at": iso(entry["fetched_at"]), "payload_sha256": entry["payload_sha256"],
                 "source_error": error["code"] if error else None, "model_estimate": True,
                 "refresh_due": time.time() >= entry["next_check_at"],
-                "refreshing": key in self.pending, "source_has_newer_run": superseded}
+                "refreshing": key in self.pending, "source_has_newer_run": superseded,
+                "source_has_newer_version": superseded or revised}
 
     async def environment(self, request):
         self.metrics["requests"] += 1

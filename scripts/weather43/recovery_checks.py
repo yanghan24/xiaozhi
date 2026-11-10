@@ -191,6 +191,19 @@ class Experiment:
                                            "readiness_poll_s": ready, "response": self.environment(), "health": self.get()})
             assert self.load("outage-restart-1000-cities350", devices=1000)["stale"] == 1000
 
+            durable_before = self.stored_fingerprints("result-data")
+            self.cmd(["docker", "kill", "--signal", "KILL", "xiaozhi-weather43-acceptance-result-cache-1"])
+            self.cmd(["docker", "start", "xiaozhi-weather43-acceptance-result-cache-1"])
+            crash_ready = self.ready()
+            durable_after = self.stored_fingerprints("result-data")
+            with sqlite3.connect(str(self.root / "private/result-data/results.sqlite3")) as database:
+                integrity = database.execute("PRAGMA integrity_check").fetchone()[0]
+            self.record("unclean-outage-restart", {"readiness_s": crash_ready, "before": durable_before,
+                                                  "after": durable_after, "sqlite_integrity": integrity,
+                                                  "response": self.environment()})
+            assert integrity == "ok" and durable_before["data_and_fetch_time_sha256"] == durable_after["data_and_fetch_time_sha256"]
+            assert self.load("unclean-outage-restart-350-cities350")["stale"] == 350
+
             self.start_fixture("empty-outage-results")
             counts = self.load("empty-outage-1000-cities350", devices=1000, port=18087)
             self.record("empty-source-outage", {"counts": counts, "health": self.get(port=18087),
