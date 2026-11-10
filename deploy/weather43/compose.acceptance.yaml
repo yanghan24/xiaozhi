@@ -1,0 +1,87 @@
+# Independent egress is a separate loopback-only host service; its private proxy
+# config is never passed to these containers or stored in Git.
+services:
+  data-relay:
+    image: ${WEATHER43_PYTHON_IMAGE:?Set the verified local Python runtime image ID}
+    pull_policy: never
+    entrypoint: ["python"]
+    command:
+      - /task/data_relay.py
+      - --bind
+      - ${WEATHER43_GATEWAY:?Set the isolated bridge gateway}
+      - --allowed-subnet
+      - ${WEATHER43_SUBNET:?Set the isolated bridge subnet}
+      - --fault
+      - /task/fault.json
+      - --log
+      - /evidence/source-relay.jsonl
+    network_mode: host
+    volumes:
+      - ./scripts/weather43/data_relay.py:/task/data_relay.py:ro
+      - ./private/fault.json:/task/fault.json:ro
+      - ./evidence/relay:/evidence
+    user: "65532:65532"
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    cpus: 0.5
+    mem_limit: 192m
+    pids_limit: 64
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    logging:
+      options: {max-size: "5m", max-file: "2"}
+
+  openmeteo:
+    image: ${OPEN_METEO_IMAGE:?Set the verified image ID}
+    pull_policy: never
+    environment:
+      REMOTE_DATA_DIRECTORY: http://${WEATHER43_GATEWAY}:18085/data/
+      CACHE_SIZE: 8GB
+    ports: ["127.0.0.1:18084:8080"]
+    volumes:
+      - ./private/model-data:/app/data
+    read_only: true
+    tmpfs: ["/tmp:size=128m"]
+    cpus: 2.0
+    mem_limit: 8g
+    memswap_limit: 8g
+    pids_limit: 256
+    ulimits:
+      nofile: {soft: 65536, hard: 65536}
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  result-cache:
+    image: ${WEATHER43_PYTHON_IMAGE}
+    pull_policy: never
+    entrypoint: ["python"]
+    command:
+      - /task/cache_service.py
+      - --cities
+      - /task/cities.json
+      - --data
+      - /data
+      - --source
+      - http://${WEATHER43_GATEWAY}:18085
+      - --prewarm
+      - ${WEATHER43_PREWARM:-0}
+    ports: ["127.0.0.1:18086:8081"]
+    volumes:
+      - ./scripts/weather43/cache_service.py:/task/cache_service.py:ro
+      - ./private/cities.json:/task/cities.json:ro
+      - ./private/result-data:/data
+    user: "65532:65532"
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    cpus: 0.75
+    mem_limit: 256m
+    pids_limit: 64
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    ulimits:
+      nofile: {soft: 8192, hard: 8192}
+    restart: unless-stopped
+    logging:
+      options: {max-size: "5m", max-file: "2"}
