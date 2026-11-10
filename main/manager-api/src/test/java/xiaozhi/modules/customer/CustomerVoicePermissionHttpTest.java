@@ -87,6 +87,7 @@ class CustomerVoicePermissionHttpTest {
         String session=voice("open",Map.of("device_id",a.id(),"token",token)).getBody().get("session").toString();
         String receipt=voice("model-access",Map.of("session",session)).getBody().get("rejection_receipt").toString();
         assertEquals(200,voice("close",Map.of("session",session)).getStatusCode().value());
+        CustomerTestTime.offset.set(301000); // Delivery can resume after a long authority outage.
         assertEquals(200,voice("key-rejected",Map.of("rejection_receipt",receipt)).getStatusCode().value());
         assertEquals("market_auth_required",client.state(a).get("reason"));
         assertEquals("market_auth_required",client.state(b).get("reason"));
@@ -98,7 +99,7 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("market_auth_required",client.state(b).get("reason"));
         assertEquals(400,voice("key-rejected",Map.of("rejection_receipt","invalid")).getStatusCode().value());
         CustomerTestTime.offset.set(301000);
-        assertEquals(400,voice("key-rejected",Map.of("rejection_receipt",receipt)).getStatusCode().value());
+        assertEquals(200,voice("key-rejected",Map.of("rejection_receipt",receipt)).getStatusCode().value());
     }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"invalid","lost"})
@@ -132,6 +133,26 @@ class CustomerVoicePermissionHttpTest {
             assertEquals("allowed",client.state(a).get("use_permission"));
             assertEquals(expected,client.state(b).get("reason"));
         } finally {gates[1].countDown();}
+    }
+    @Test void delayedRejectionAfterReloginStopsOldPermissionsButNotNewExplicitResume() {
+        String subject=java.util.UUID.randomUUID().toString();
+        var a=client.device();var b=client.device();
+        var fa=client.scan(a);client.login(fa,null,subject);client.confirm(fa,"bind");
+        var fb=client.scan(b);client.login(fb,null,subject);client.confirm(fb,"bind");
+        String token=((Map<?,?>)client.state(a).get("voice")).get("token").toString();
+        String session=voice("open",Map.of("device_id",a.id(),"token",token)).getBody().get("session").toString();
+        var old=voice("model-access",Map.of("session",session)).getBody();
+        var login=client.scan(client.request(a,"account"));client.login(login,null,subject);
+        assertEquals("allowed",client.state(b).get("use_permission"));
+        assertNotEquals(old.get("authorization_scope"),voice("model-access",Map.of("session",session)).getBody().get("authorization_scope"));
+        assertEquals(200,voice("key-rejected",Map.of("rejection_receipt",old.get("rejection_receipt"))).getStatusCode().value());
+        assertEquals("market_auth_required",client.state(a).get("reason"));
+        assertEquals("market_auth_required",client.state(b).get("reason"));
+        var resume=client.scan(client.request(a,"auto"));client.login(resume,null,subject);
+        assertEquals(200,client.confirm(resume,"resume").getStatusCode().value());
+        assertEquals(200,voice("key-rejected",Map.of("rejection_receipt",old.get("rejection_receipt"))).getStatusCode().value());
+        assertEquals("allowed",client.state(a).get("use_permission"));
+        assertEquals("market_auth_required",client.state(b).get("reason"));
     }
     @Test void accessRefreshDoesNotSignOutAnOtherwiseValidModelGrant() throws Exception {
         var device=client.device();var flow=client.scan(device);var auth=client.login(flow,null,null);

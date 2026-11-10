@@ -54,7 +54,7 @@ class WebSocketServer:
         self.product_authority = None
         self.product_audio = None
         if self.product_required:
-            self.product_authority = VoiceAuthority(product.get('authority_url') or config.get('manager-api', {}).get('url', ''), product.get('service_key', ''))
+            self.product_authority = VoiceAuthority(product.get('authority_url') or config.get('manager-api', {}).get('url', ''), product.get('service_key', ''), product.get('state_directory'))
             self.product_audio = AudioPublication(product.get('asr_audio_base_url', ''))
         modules = initialize_modules(
             self.logger,
@@ -288,6 +288,9 @@ class WebSocketServer:
                     return False
                 if required and product.get('asr_audio_base_url', '').rstrip('/') != self.product_audio.origin:
                     self.logger.bind(tag=TAG).error('Changing product audio origin requires a restart')
+                    return False
+                if required and product.get('state_directory') != self.config.get('product-voice', {}).get('state_directory'):
+                    self.logger.bind(tag=TAG).error('Changing product rejection storage requires a restart and state migration')
                     return False
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 # 检查 VAD 和 ASR 类型是否需要更新

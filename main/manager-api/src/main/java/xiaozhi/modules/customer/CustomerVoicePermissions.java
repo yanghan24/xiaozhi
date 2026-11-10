@@ -40,6 +40,9 @@ public final class CustomerVoicePermissions {
             reason=grants.isEmpty()?"market_auth_required":blockedReason(grants.getFirst());
         }
         if(reason==null) return;
+        disable(device,reason);
+    }
+    private void disable(Map<String,Object> device,String reason) {
         long permission=next(device,"permission_version"),revision=next(device,"revision");
         db.update("UPDATE dc_device SET local_enabled=false,reason=?,permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",reason,permission,revision,device.get("device_id"));
         db.update("UPDATE dc_request SET status='replaced' WHERE device_id=? AND status='active'",device.get("device_id"));
@@ -83,31 +86,43 @@ public final class CustomerVoicePermissions {
             if(rows.isEmpty() || number(rows.getFirst(),"expires_at_ms")<=clock.millis()) throw new CustomerFailure(401,"VOICE_DENIED");
             var device=checked(rows.getFirst());String session=CustomerSecrets.random();
             db.update("INSERT INTO dc_voice_session(id_hash,token_hash,created_at_ms) VALUES (?,?,?)",CustomerSecrets.hash(session),rows.getFirst().get("token_hash"),clock.millis());
-            return Map.of("session",session,"permission_version",device.get("permission_version"));
+            var result=new java.util.HashMap<String,Object>(scope(device));
+            result.put("session",session);result.put("permission_version",device.get("permission_version"));return result;
         });
     }
     Map<String,Object> check(String session) {
-        return transactions.execute(tx->{barrier();var device=checked(sessionToken(session));return Map.of("allowed",true,"permission_version",device.get("permission_version"));});
+        return transactions.execute(tx->{barrier();var device=checked(sessionToken(session));
+            var result=new java.util.HashMap<String,Object>(scope(device));
+            result.put("allowed",true);result.put("permission_version",device.get("permission_version"));return result;});
+    }
+    private Map<String,Object> scope(Map<String,Object> device) {
+        var grant=db.queryForMap("SELECT generation,subject_key FROM customer_authorization WHERE issuer=? AND subject=?",device.get("owner_issuer"),device.get("owner_subject"));
+        return Map.of("authorization_scope",grant.get("generation"),"authorization_subject",grant.get("subject_key"),"permission_authorization_order",device.get("permission_authorization_order"));
     }
     Map<String,Object> modelAccess(String session) {
         return transactions.execute(tx->{barrier();var device=checked(sessionToken(session));
             var grant=db.queryForMap("SELECT * FROM customer_authorization WHERE issuer=? AND subject=?",device.get("owner_issuer"),device.get("owner_subject"));
-            String receipt=secrets.encrypt(grant.get("subject_key")+"\n"+grant.get("generation")+"\n"+(clock.millis()+300000));
-            return Map.of("api_key",secrets.decrypt(grant.get("business_key").toString()),"rejection_receipt",receipt,"base_url",modelBase,"model","qwen3.8-flash");
+            String receipt=secrets.encrypt("key-rejection-v1\n"+grant.get("subject_key")+"\n"+grant.get("generation")+"\n"+grant.get("started_order"));
+            return Map.of("api_key",secrets.decrypt(grant.get("business_key").toString()),"rejection_receipt",receipt,"authorization_scope",grant.get("generation"),
+                    "authorization_subject",grant.get("subject_key"),"authorization_order",grant.get("started_order"),"base_url",modelBase,"model","qwen3.8-flash");
         });
     }
     Map<String,Object> keyRejected(String receipt) {
         String[] proof;
         try {proof=secrets.decrypt(receipt).split("\n");
-            if(proof.length!=3 || Long.parseLong(proof[2])<=clock.millis())throw new IllegalArgumentException();
+            if(proof.length!=4 || !proof[0].equals("key-rejection-v1") || Long.parseLong(proof[3])<=0)throw new IllegalArgumentException();
         }catch(Exception invalid){throw new CustomerFailure(400,"INVALID_REQUEST");}
         return transactions.execute(tx->{barrier();
             // Authenticated evidence survives socket cleanup, but is bounded and grant-specific.
             int changed=db.update("UPDATE customer_authorization SET status='REAUTH_REQUIRED',updated_at_ms=? WHERE subject_key=? AND generation=? AND status IN ('ACTIVE','REFRESHING','REFRESH_UNCERTAIN')",
-                    clock.millis(),proof[0],proof[1]);
-            if(changed==1) {
-                var grant=db.queryForMap("SELECT issuer,subject FROM customer_authorization WHERE subject_key=?",proof[0]);
-                reconcileSubject(grant.get("issuer").toString(),grant.get("subject").toString());
+                    clock.millis(),proof[1],proof[2]);
+            var grants=db.queryForList("SELECT issuer,subject FROM customer_authorization WHERE subject_key=?",proof[1]);
+            if(!grants.isEmpty()) {
+                var grant=grants.getFirst();
+                // A replacement grant cannot erase failures of still-existing old device permissions.
+                // Explicit bind/resume under a later flow has a higher order and is protected.
+                for(var device:db.queryForList("SELECT * FROM dc_device WHERE owner_issuer=? AND owner_subject=? AND local_enabled=true AND permission_authorization_order<=? ORDER BY device_id FOR UPDATE",
+                        grant.get("issuer"),grant.get("subject"),Long.parseLong(proof[3]))) disable(device,"market_auth_required");
             }
             return Map.of("recorded",true);
         });

@@ -92,7 +92,8 @@ final class CustomerBindingService {
             db.update("UPDATE dc_device SET owner_issuer=?,owner_subject=?,ownership_version=?,reason=?,"
                     + "permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",
                     flow.get("issuer"),flow.get("subject"),ownership,reason,permission,revision,device.get("device_id"));
-            if(!"account".equals(action)) db.update("UPDATE dc_device SET local_enabled=? WHERE device_id=?","ready".equals(reason),device.get("device_id"));
+            if(!"account".equals(action)) db.update("UPDATE dc_device SET local_enabled=?,permission_authorization_order=? WHERE device_id=?",
+                    "ready".equals(reason),"ready".equals(reason) ? number(flow,"creation_order") : 0,device.get("device_id"));
             db.update("UPDATE dc_request SET status='consumed' WHERE request_id=?",current.get("control_request_id"));
             db.update("UPDATE customer_device_request SET consumed=true WHERE handle=?",flow.get("request_handle"));
             db.update("INSERT INTO customer_device_session(id,browser_hash,flow_id,device_id,owner_subject_key,ownership_version,permission_version,revision,created_at_ms) VALUES (?,?,?,?,?,?,?,?,?)",

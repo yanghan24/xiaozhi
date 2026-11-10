@@ -51,6 +51,7 @@ final class ControlledMarket {
                 if (url==null) {reply(x,400,Map.of("error","invalid_ticket"));return;}
                 var auth=params(URI.create(url).getRawQuery());
                 String query="allow".equals(form.get("decision")) ? "code="+approve(url) : "error=access_denied";
+                if(query.startsWith("code=") && form.containsKey("test_subject")) codes.get(query.substring(5)).put("sub",form.get("test_subject"));
                 x.getResponseHeaders().set("Location",auth.get("redirect_uri")+"?"+query+"&state="+auth.get("state"));
                 x.sendResponseHeaders(303,-1);x.close();
             });
