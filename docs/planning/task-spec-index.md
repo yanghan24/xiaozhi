@@ -11,13 +11,8 @@
 | 层次 | 任务 | 证明什么 | 不能替代什么 |
 | --- | --- | --- | --- |
 | 基础服务与设备 | [#2](https://github.com/yanghan24/xiaozhi/issues/2)、[#3](https://github.com/yanghan24/xiaozhi/issues/3)–[#6](https://github.com/yanghan24/xiaozhi/issues/6) | 管理读写、协议、服务重启和上游激活码下的基础真机语音 | 集市客户登录、正式产品鉴权与容量 |
-<<<<<<< HEAD
-| 正式产品 | [#10](https://github.com/yanghan24/xiaozhi/issues/10)、[#11](https://github.com/yanghan24/xiaozhi/issues/11)–[#18](https://github.com/yanghan24/xiaozhi/issues/18) | 手机绑定、按归属授权的知识库问答/默认 Edge TTS、转交、运营、记录及 OTA | 100 路容量与最终上线准备 |
-| 最终验收 | [#19](https://github.com/yanghan24/xiaozhi/issues/19) | 完整产品跨重启恢复、100 路同时语音及发布恢复条件 | 未授权的生产发布 |
-=======
-| 正式产品 | [#10](https://github.com/yanghan24/xiaozhi/issues/10)、[#11](https://github.com/yanghan24/xiaozhi/issues/11)–[#18](https://github.com/yanghan24/xiaozhi/issues/18)、[#39](https://github.com/yanghan24/xiaozhi/issues/39)–[#46](https://github.com/yanghan24/xiaozhi/issues/46) | 手机绑定、按归属授权的所选智能体/默认 Edge TTS、转交、运营、记录、OTA、烧录凭据、日程和室外环境 | 语音/环境容量与最终上线准备 |
+| 正式产品 | [#10](https://github.com/yanghan24/xiaozhi/issues/10)、[#11](https://github.com/yanghan24/xiaozhi/issues/11)–[#18](https://github.com/yanghan24/xiaozhi/issues/18)、[#39](https://github.com/yanghan24/xiaozhi/issues/39)–[#46](https://github.com/yanghan24/xiaozhi/issues/46) | 手机绑定、按归属授权的知识库问答/默认 Edge TTS、转交、运营、记录、OTA、烧录凭据、日程和室外环境 | 语音/环境容量与最终上线准备 |
 | 最终验收 | [#19](https://github.com/yanghan24/xiaozhi/issues/19) | 完整产品跨重启恢复、100 路语音、日程、350 台环境与 1,000 台扩容探索及发布恢复条件 | 未授权的生产发布 |
->>>>>>> 62665fdea677d364af641438aead68abb7190222
 
 #3/#4/#5 已验收，#2 的 B 层仍等 #6。服务器合成音频不等于音箱播放；Edge TTS 已是默认提供者，但服务器合成测试不等于设备播放和完整容量验收；100 个空闲连接不等于 100 路语音对话。
 
@@ -31,15 +26,9 @@
 | #28 | 身份环境、客户端登记与测试条件 | 身份 443 已通，4090 TCP 可达；通知实际登记/发送及第二账号条件仍待核实 |
 | #29 | 手机 OIDC 身份、刷新、通知最小闭环 | 已由 PR #31 合并，可控集市回归通过；不等于全部真实身份验收 |
 | #11 | 真实集市身份、刷新及通知验收 | 登录、拒绝、刷新、撤销和恢复已通过；有效通知及第二账号等验收未完成，不等待完整设备绑定 |
-<<<<<<< HEAD
 | #12 | 确认 MCP 知识库调用与授权契约 | 目标为 service-669a396c73 / ask_knowledge；补齐账号授权及异常语义，默认 Edge TTS |
-| #13 | 预登记、独立凭据、二维码和归属/授权状态 | 复用 #29 身份模块；#11/#4 依赖保留，完整绑定、许可传播及凭据交付/真机仍须验收 |
-| #14 | MCP 知识库与默认 Edge TTS 的设备语音闭环 | #6/#12/#13；后端模型/工具样例已成功，设备日常对话待接入，合成证据不代替真机播放 |
-=======
-| #12 | 待智能体选型后确认调用契约 | 规范通暂停；当前不索取其 SSE，不等待集市 TTS，默认 Edge TTS |
 | #13 | 预登记、独立凭据、二维码和归属/授权状态 | 复用 #29；#11/#4 依赖保留，新增 #42 前置；集成 #41/#42 烧录交付，不以其代替完整绑定/许可/真机验收 |
-| #14 | 所选智能体与默认 Edge TTS 的设备语音闭环 | #6/#12/#13；智能体未选定前保留待实施，合成证据不代替真机播放 |
->>>>>>> 62665fdea677d364af641438aead68abb7190222
+| #14 | MCP 知识库与默认 Edge TTS 的设备语音闭环 | #6/#12/#13；后端模型/工具样例已成功，设备日常对话待接入，合成证据不代替真机播放 |
 | #15 | 原账号重新认证解绑、转交和旧内容隔离 | #13；补发设备凭据不成为换绑方式，单台解绑不撤销共享授权 |
 | #16 | 运营状态与内容访问权限 | 首版所有运营角色含超级管理员均禁止完整正文查看/导出 |
 | #17 | 账号/设备文字记录与 30 天清理 | 30×24 小时到期不可查询、24 小时内清理；不备份正文，不保存录音或跨次续接 |
