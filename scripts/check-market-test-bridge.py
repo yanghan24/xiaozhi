@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """HTTP integration checks, run inside the Ubuntu voice image without paid calls."""
+import asyncio
+import contextlib
 import importlib.util
 import io
 import json
@@ -7,7 +9,6 @@ import tempfile
 import time
 import unittest
 import wave
-import contextlib
 from pathlib import Path
 
 import aiohttp
@@ -27,6 +28,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         self.audio_url = None
         self.submissions = 0
         self.mode = 'success'
+        self.chat_chunks = None
         self.result_authorization = None
         app = web.Application()
         app.router.add_post('/v1/services/audio/asr/transcription', self.submit)
@@ -82,8 +84,36 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         body = await request.json()
         self.assertFalse(body['enable_thinking'])
         self.assertEqual(body['max_tokens'], 256)
+        if self.mode in ('llm_http_error', 'llm_large_http_error'):
+            message = 'secret-message-private-account-key'
+            if self.mode == 'llm_large_http_error':
+                message *= 1024
+            return web.json_response({'error': {'code': 'InvalidParameter', 'message': message}}, status=400)
+        if self.chat_chunks is not None:
+            response = web.StreamResponse(headers={'Content-Type': 'text/event-stream'})
+            await response.prepare(request)
+            try:
+                for chunk in self.chat_chunks:
+                    await response.write(chunk)
+                    await asyncio.sleep(0)
+                await response.write_eof()
+            except ConnectionResetError:
+                pass  # The bridge aborts an invalid upstream stream.
+            return response
         return web.Response(text='data: {"choices":[{"delta":{"content":"hello"}}]}\n\ndata: [DONE]\n\n',
                             content_type='text/event-stream')
+
+    async def chat_with_audit(self):
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            response = await self.client.post('/v1/chat/completions', headers=self.headers,
+                json={'model': module.LLM, 'stream': True})
+            try:
+                body = await response.read()
+            except aiohttp.ClientPayloadError:
+                body = None
+        health = await self.client.get('/health', headers=self.headers)
+        return response.status, body, json.loads(captured.getvalue()), captured.getvalue(), await health.json()
 
     def form(self, audio=None):
         if audio is None:
@@ -142,6 +172,87 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertIn('[DONE]', await response.text())
         self.assertEqual(self.bridge.stats['llm_succeeded'], 1)
+
+    async def test_stream_errors_are_failures(self):
+        error = b'data: {"error":{"code":"ModelError","message":"secret-message-private-account-key"}}\n\n'
+        valid = b'data: {"choices":[{"delta":{"content":"hello"}}]}\n\n'
+        cases = [
+            ([error, b'data: [DONE]\n\n'], 'ModelError'),
+            ([b'event: error\ndata: {"code":"QuotaExceeded","message":"secret-message"}\n\n'], 'QuotaExceeded'),
+            ([b'event: error\ndata: secret-message\n\n'], None),
+            ([b'data: {"code":"InvalidParameter","message":"secret-message"}\n\n'], 'InvalidParameter'),
+            ([valid, error], 'ModelError'),
+            ([b'\xef\xbb\xbf' + error], 'ModelError'),
+            ([b'data: not-json\n\n'], None),
+        ]
+        for index, (chunks, code) in enumerate(cases, 1):
+            with self.subTest(case=index):
+                self.chat_chunks = chunks
+                status, _, record, raw, health = await self.chat_with_audit()
+                self.assertEqual(status, 200)  # Streaming headers were already sent.
+                self.assertEqual(health['llm_succeeded'], 0)
+                self.assertEqual(health['failures'], index)
+                self.assertEqual(health['active'], 0)
+                self.assertEqual(record['stage'], 'llm_stream')
+                self.assertEqual(record['upstream_http_status'], 200)
+                self.assertEqual(record['upstream_error_code'], code)
+                self.assertEqual(record['error_type'], 'ModelStreamError')
+                self.assertNotIn('secret-message', raw)
+                self.assertNotIn('private-account-key', raw)
+
+    async def test_stream_ending_without_done_is_failure(self):
+        cases = [
+            b'data: {"choices":[{"delta":{"content":"hello"}}]}\n\n',
+            b'data: {"choices":[{"finish_reason":"stop","delta":{}}]}\n\n',
+            b'data: {"choices":',
+            b'data: [DONE]',
+            b': keepalive\n\n',
+            b'',
+        ]
+        for index, payload in enumerate(cases, 1):
+            with self.subTest(case=index):
+                self.chat_chunks = [payload] if payload else []
+                _, _, record, _, health = await self.chat_with_audit()
+                self.assertEqual(health['llm_succeeded'], 0)
+                self.assertEqual(health['failures'], index)
+                self.assertEqual(health['active'], 0)
+                self.assertEqual(record['stage'], 'llm_stream')
+                self.assertEqual(record['error_type'], 'IncompleteModelStream')
+
+    async def test_fragmented_stream_is_forwarded_intact(self):
+        for index, newline in enumerate((b'\n', b'\r\n', b'\r'), 1):
+            with self.subTest(newline=newline):
+                payload = newline.join([
+                    b': keepalive', b'',
+                    b'event: message', b'id: 1',
+                    b'data: {"choices":[',
+                    'data: {"delta":{"content":"你好"}}]}'.encode(), b'',
+                    b'data: [DONE]', b'', b'',
+                ])
+                self.chat_chunks = [bytes([byte]) for byte in payload]
+                status, body, record, raw, health = await self.chat_with_audit()
+                self.assertEqual(status, 200)
+                self.assertEqual(body, payload)
+                self.assertEqual(health['llm_succeeded'], index)
+                self.assertEqual(health['failures'], 0)
+                self.assertEqual(record['stage'], 'llm_complete')
+                self.assertIsNone(record['error_type'])
+                self.assertEqual(record['upstream_http_status'], 200)
+                self.assertNotIn('你好', raw)
+
+    async def test_http_model_errors_are_audited(self):
+        for index, mode in enumerate(('llm_http_error', 'llm_large_http_error'), 1):
+            with self.subTest(mode=mode):
+                self.mode = mode
+                status, _, record, raw, health = await self.chat_with_audit()
+                self.assertEqual(status, 502)
+                self.assertEqual(health['llm_succeeded'], 0)
+                self.assertEqual(health['failures'], index)
+                self.assertEqual(record['upstream_http_status'], 400)
+                self.assertEqual(record['upstream_error_code'], 'InvalidParameter' if index == 1 else None)
+                self.assertNotIn('secret-message', raw)
+                self.assertNotIn('private-account-key', raw)
+                self.assertLess(len(raw), 2048)
 
     async def test_failure_audit_is_correlated_bounded_and_redacted(self):
         records = []

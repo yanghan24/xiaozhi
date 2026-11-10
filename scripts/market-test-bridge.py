@@ -52,6 +52,108 @@ def upstream_code(body):
     return None
 
 
+async def record_upstream_error(response):
+    raw = bytearray()
+    while len(raw) < 8192:
+        chunk = await response.content.read(min(1024, 8192 - len(raw)))
+        if not chunk:
+            break
+        raw.extend(chunk)
+    try:
+        code = upstream_code(json.loads(raw))
+    except (ValueError, UnicodeError):
+        code = None
+    trace = TRACE.get()
+    if trace is not None:
+        trace['upstream_error_code'] = code
+
+
+class ModelStreamError(ValueError):
+    def __init__(self, payload=None):
+        super().__init__('Model stream failed')
+        self.upstream_error_code = upstream_code(payload)
+
+
+class IncompleteModelStream(ModelStreamError):
+    pass
+
+
+class ModelStream:
+    """Validate OpenAI SSE events and require a terminal [DONE] event."""
+
+    def __init__(self):
+        self.pending = bytearray()
+        self.event = bytearray()
+        self.data = []
+        self.event_type = b''
+        self.first_line = True
+        self.done = False
+
+    def validate_event(self):
+        data = b'\n'.join(self.data)
+        if self.event_type == b'error':
+            try:
+                payload = json.loads(data)
+            except (ValueError, UnicodeError):
+                payload = None
+            raise ModelStreamError(payload)
+        if not self.data:
+            return
+        if data.strip() == b'[DONE]':
+            self.done = True
+            return
+        try:
+            payload = json.loads(data)
+        except (ValueError, UnicodeError):
+            raise ModelStreamError() from None
+        if (not isinstance(payload, dict) or payload.get('error') is not None
+                or ('choices' not in payload and upstream_code(payload) is not None)):
+            raise ModelStreamError(payload)
+
+    def feed(self, chunk, final=False):
+        if self.done:
+            return []
+        self.pending.extend(chunk)
+        frames = []
+        while True:
+            match = re.search(rb'[\r\n]', self.pending)
+            if match is None:
+                return frames
+            index = match.start()
+            if self.pending[index] == 13 and index + 1 == len(self.pending) and not final:
+                return frames
+            end = index + (2 if self.pending[index:index + 2] == b'\r\n' else 1)
+            line = bytes(self.pending[:index])
+            self.event.extend(self.pending[:end])
+            del self.pending[:end]
+            if self.first_line:
+                if line.startswith(b'\xef\xbb\xbf'):
+                    line = line[3:]
+                self.first_line = False
+            if line:
+                field, _, value = line.partition(b':')
+                if value.startswith(b' '):
+                    value = value[1:]
+                if field == b'data':
+                    self.data.append(value)
+                elif field == b'event':
+                    self.event_type = value
+                continue
+            self.validate_event()
+            frames.append(bytes(self.event))
+            self.event.clear()
+            self.data.clear()
+            self.event_type = b''
+            if self.done:
+                return frames
+
+    def finish(self):
+        frames = self.feed(b'', final=True)
+        if not self.done:
+            raise IncompleteModelStream()
+        return frames
+
+
 class Bridge:
     def __init__(self, config, lease_path, market='https://aimarket.hncig.cn/v1/'):
         self.config = config
@@ -120,12 +222,7 @@ class Bridge:
             if trace is not None:
                 trace['upstream_http_status'] = response.status
             if response.status != 200:
-                raw = await response.content.read(8192)
-                try:
-                    if trace is not None:
-                        trace['upstream_error_code'] = upstream_code(json.loads(raw))
-                except (ValueError, UnicodeError):
-                    pass
+                await record_upstream_error(response)
                 raise ValueError('Upstream status')
             raw = bytearray()
             async for chunk in response.content.iter_chunked(16384):
@@ -264,19 +361,17 @@ class Bridge:
                 self.stats['llm_submitted'] += 1
                 async with session.post(self.market + 'chat/completions', json=body,
                         headers={'Authorization': 'Bearer ' + self.key()}, allow_redirects=False) as upstream:
+                    if upstream.status == 200:
+                        stage('llm_stream')
                     if TRACE.get() is not None:
                         TRACE.get()['upstream_http_status'] = upstream.status
                     if upstream.status != 200:
-                        raw = await upstream.content.read(8192)
-                        try:
-                            if TRACE.get() is not None:
-                                TRACE.get()['upstream_error_code'] = upstream_code(json.loads(raw))
-                        except (ValueError, UnicodeError):
-                            pass
+                        await record_upstream_error(upstream)
                         raise ValueError('Model request failed')
                     output = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store'})
                     await output.prepare(request)
                     size = 0
+                    stream = ModelStream()
                     async for chunk in upstream.content.iter_chunked(16384):
                         if size == 0 and TRACE.get() is not None:
                             TRACE.get()['first_stream_chunk_ms'] = round((time.monotonic() - TRACE.get()['_start']) * 1000, 2)
@@ -284,7 +379,12 @@ class Bridge:
                         size += len(chunk)
                         if size > 1024 * 1024:
                             raise ValueError('Model response size')
-                        await output.write(chunk)
+                        for frame in stream.feed(chunk):
+                            await output.write(frame)
+                        if stream.done:
+                            break
+                    for frame in stream.finish():
+                        await output.write(frame)
                     await output.write_eof()
                     self.stats['llm_succeeded'] += 1
                     stage('llm_complete')
@@ -294,6 +394,8 @@ class Bridge:
         except Exception as error:
             if TRACE.get() is not None:
                 TRACE.get()['error_type'] = type(error).__name__
+                if isinstance(error, ModelStreamError):
+                    TRACE.get()['upstream_error_code'] = error.upstream_error_code
             self.stats['failures'] += 1
             if output is not None:
                 if request.transport:
