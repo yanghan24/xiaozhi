@@ -18,6 +18,7 @@ import time
 import urllib.request
 
 from load_local import docker_stats, snapshot
+from metrics_report import docker_memory
 
 
 def utc():
@@ -250,11 +251,13 @@ class Experiment:
             self.record("full-cold-warmup", {"first_ack_counts": counts, "complete_after_s": time.monotonic() - started,
                                              "health": self.get(port=18087), "resources": points})
             assert self.get(port=18087)["data"]["cache_entries"] == 2000
+            self.record("full-cold-cgroup-memory", {"containers": docker_memory([self.cold_engine, self.fixture])})
             for round_number in range(1, 4):
                 assert self.load("after-full-cold-1000-cities1000-round" + str(round_number), devices=1000,
                                  cities=1000, port=18087, data_dir=cold, cities_file="private/cities-1000.json")["fresh"] == 1000
             self.load("steady-exploratory-1000-cities1000", devices=1000, cities=1000, port=18087, data_dir=cold,
                       cities_file="private/cities-1000.json", steady=True)
+            self.record("after-exploratory-cgroup-memory", {"containers": docker_memory([self.cold_engine, self.fixture])})
             self.remove_fixture(self.fixture)
             self.remove_fixture(self.cold_engine)
             self.cmd(self.compose + ["start", "openmeteo"])

@@ -2,11 +2,41 @@
 """Recount raw HTTP outcomes and summarize sampled Ubuntu resource evidence."""
 import argparse
 import hashlib
+import http.client
 import json
 from pathlib import Path
 import re
 import shutil
+import socket
 import statistics
+
+
+class DockerSocket(http.client.HTTPConnection):
+    def connect(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.settimeout(5)
+        self.sock.connect("/var/run/docker.sock")
+
+
+def docker_memory(names):
+    """Unadjusted cgroup memory, since CLI memory subtracts inactive file cache."""
+    rows = {}
+    for name in names:
+        connection = DockerSocket("localhost", timeout=5)
+        try:
+            connection.request("GET", "/containers/" + name + "/stats?stream=false&one-shot=true")
+            response = connection.getresponse()
+            if response.status != 200:
+                raise ValueError("docker_stats_status")
+            data = json.loads(response.read(1048576))["memory_stats"]
+            rows[name] = {key: data.get(key) for key in ("usage", "max_usage", "limit", "failcnt")}
+            rows[name]["stats"] = {key: data.get("stats", {}).get(key) for key in
+                                   ("cache", "total_cache", "total_inactive_file", "inactive_file")}
+        except Exception as error:
+            rows[name] = {"error": type(error).__name__}
+        finally:
+            connection.close()
+    return rows
 
 
 def size(value):
