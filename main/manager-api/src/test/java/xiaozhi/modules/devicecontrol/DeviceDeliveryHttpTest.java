@@ -86,6 +86,7 @@ class DeviceDeliveryHttpTest {
         db.update("DELETE FROM dc_delivery_operation WHERE operator_id IN (?,?)", ADMIN, USER);
         for (var device : devices) db.update("DELETE FROM dc_device WHERE device_id=?", device.get("device_id"));
         db.update("DELETE FROM dc_delivery_tool WHERE operator_id IN (?,?)", ADMIN, USER);
+        db.update("DELETE FROM dc_delivery_credential WHERE operator_id IN (?,?)", ADMIN, USER);
         db.update("DELETE FROM sys_user_token WHERE user_id IN (?,?)", ADMIN, USER);
         db.update("DELETE FROM sys_user WHERE id IN (?,?)", ADMIN, USER);
     }
@@ -276,6 +277,98 @@ class DeviceDeliveryHttpTest {
         String cipher = db.queryForObject("SELECT credential_cipher FROM dc_delivery_operation WHERE operation_id=?", String.class, a.path("operation_id").asText());
         db.update("UPDATE dc_delivery_operation SET credential_cipher=? WHERE operation_id=?", cipher, b.path("operation_id").asText());
         assertEquals(503, post("operations", tool, b.path("operation_id").asText(), hardware(2)).statusCode());
+    }
+
+    @Test
+    void persistentCredentialWorksYearsLaterAndIsHashedWithNoSecretInListing() throws Exception {
+        var issued = issueCredential(ADMIN_TOKEN);
+        String credential = issued.path("tool_token").asText();
+        assertTrue(issued.path("expires_at_ms").isNull());
+        assertEquals("device_delivery", issued.path("scope").asText());
+        assertEquals(DeviceDeliverySecrets.hash(credential), db.queryForObject(
+                "SELECT token_hash FROM dc_delivery_credential WHERE credential_id=?", String.class,
+                issued.path("credential_id").asText()));
+        when(clock.millis()).thenReturn(NOW + 10L * 365 * 24 * 3600000);
+        assertEquals(401, post("operations", tool, id(), hardware(1)).statusCode());
+        tool = credential;
+        var device = create(1, id());
+        assertEquals(200, check(device, credential(device), hardware(1)).statusCode());
+        assertEquals(200, complete(device, WRITE).statusCode());
+        var listing = send("GET", "/device-delivery/v1/credentials", ADMIN_TOKEN, null, null, null, true);
+        assertEquals(200, listing.statusCode());
+        assertFalse(listing.body().contains(credential));
+        assertFalse(listing.body().contains("token_hash"));
+        assertFalse(listing.body().contains("tool_token"));
+        assertEquals(1, data(listing).path("credentials").size());
+        assertTrue(data(listing).path("credentials").get(0).path("last_used_at_ms").isIntegralNumber());
+    }
+
+    @Test
+    void revokingOneCredentialIsPermanentAndLeavesOtherCredentialsAndDevicesIntact() throws Exception {
+        var first = issueCredential(ADMIN_TOKEN);
+        var second = issueCredential(ADMIN_TOKEN);
+        tool = first.path("tool_token").asText();
+        var device = create(1, id());
+        String suffix = "credentials/" + first.path("credential_id").asText() + "/revoke";
+        var revoked = post(suffix, ADMIN_TOKEN, null, Map.of("version", 1));
+        assertEquals(200, revoked.statusCode());
+        when(clock.millis()).thenReturn(NOW + 3600000);
+        assertEquals(data(revoked), data(post(suffix, ADMIN_TOKEN, null, Map.of("version", 1))));
+        assertEquals(401, post("operations", tool, id(), hardware(2)).statusCode());
+        assertEquals(401, complete(device, WRITE).statusCode());
+        tool = second.path("tool_token").asText();
+        assertEquals(device.path("device_id"), get(device).path("device_id"));
+        assertEquals(200, check(device, credential(device), hardware(1)).statusCode());
+        assertEquals(200, complete(device, WRITE).statusCode());
+        assertNotEquals(device.path("device_id"), create(2, id()).path("device_id"));
+    }
+
+    @Test
+    void toolCredentialCannotAdministerCredentialsOrBecomeAnAdministratorOrDevice() throws Exception {
+        var issued = issueCredential(ADMIN_TOKEN);
+        String secret = issued.path("tool_token").asText();
+        for (String token : new String[] {secret, tool}) {
+            assertEquals(401, post("credentials", token, null, Map.of("version", 1, "name", "blocked")).statusCode());
+            assertEquals(401, post("authorize", token, null, Map.of("version", 1)).statusCode());
+            assertEquals(401, send("GET", "/device-delivery/v1/credentials", token, null, null, null, true).statusCode());
+            assertEquals(401, post("credentials/" + issued.path("credential_id").asText() + "/revoke",
+                    token, null, Map.of("version", 1)).statusCode());
+            var info = send("GET", "/user/info", token, null, null, null, true);
+            assertFalse(JSON.readTree(info.body()).path("code").asInt() == 0);
+        }
+        assertEquals(403, post("credentials", USER_TOKEN, null, Map.of("version", 1, "name", "blocked")).statusCode());
+        tool = secret;
+        var device = create(1, id());
+        assertEquals(401, check(device, secret, hardware(1)).statusCode());
+        db.update("UPDATE sys_user SET status=0 WHERE id=?", ADMIN);
+        assertEquals(403, post("operations", secret, id(), hardware(2)).statusCode());
+        db.update("UPDATE sys_user SET status=1,super_admin=0 WHERE id=?", ADMIN);
+        assertEquals(403, post("operations", secret, id(), hardware(2)).statusCode());
+    }
+
+    @Test
+    void credentialAdministrationIsIsolatedByOperatorAndValidatesInput() throws Exception {
+        var issued = issueCredential(ADMIN_TOKEN);
+        db.update("UPDATE sys_user SET super_admin=1 WHERE id=?", USER);
+        var other = issueCredential(USER_TOKEN);
+        var listing = send("GET", "/device-delivery/v1/credentials", USER_TOKEN, null, null, null, true);
+        assertEquals(1, data(listing).path("credentials").size());
+        assertEquals(other.path("credential_id"), data(listing).path("credentials").get(0).path("credential_id"));
+        assertEquals(404, post("credentials/" + issued.path("credential_id").asText() + "/revoke", USER_TOKEN, null, Map.of("version", 1)).statusCode());
+        for (String name : List.of("", " ", " leading", "trailing ", "a".repeat(65), "bad\nname")) {
+            assertEquals(400, post("credentials", ADMIN_TOKEN, null, Map.of("version", 1, "name", name)).statusCode());
+        }
+        assertEquals(400, post("credentials", ADMIN_TOKEN, null, Map.of("version", 1, "name", "valid", "scope", "admin")).statusCode());
+        assertEquals(400, post("credentials?extra=1", ADMIN_TOKEN, null, Map.of("version", 1, "name", "valid")).statusCode());
+        assertEquals(403, send("POST", "/device-delivery/v1/credentials", ADMIN_TOKEN, null, null,
+                "{\"version\":1,\"name\":\"valid\"}", false).statusCode());
+    }
+
+    private JsonNode issueCredential(String adminToken) throws Exception {
+        var response = post("credentials", adminToken, null, Map.of("version", 1, "name", "test-workstation"));
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals("no-store", response.headers().firstValue("Cache-Control").orElse(""));
+        return data(response);
     }
 
     private static String id() { return UUID.randomUUID().toString().replace("-", ""); }

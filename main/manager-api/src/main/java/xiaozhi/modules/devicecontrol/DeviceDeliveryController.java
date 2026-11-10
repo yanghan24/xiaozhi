@@ -22,11 +22,39 @@ import xiaozhi.modules.security.user.SecurityUser;
 @RequestMapping("/device-delivery/v1")
 public class DeviceDeliveryController {
     private final DeviceDeliveryService service;
+    private final DeviceDeliveryCredentials credentials;
     private final ObjectMapper json = new ObjectMapper()
             .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    public DeviceDeliveryController(DeviceDeliveryService service) { this.service = service; }
+    public DeviceDeliveryController(DeviceDeliveryService service, DeviceDeliveryCredentials credentials) {
+        this.service = service;
+        this.credentials = credentials;
+    }
+
+    @PostMapping(value = "/credentials", consumes = "application/json")
+    @RequiresPermissions("sys:role:superAdmin")
+    public JsonNode issueCredential(HttpServletRequest request, HttpServletResponse response, @RequestBody String raw) {
+        prepare(request, response);
+        var body = body(raw, Set.of("version", "name"));
+        return success(credentials.issue(SecurityUser.getUser(), text(body, "name")));
+    }
+
+    @GetMapping("/credentials")
+    @RequiresPermissions("sys:role:superAdmin")
+    public JsonNode listCredentials(HttpServletRequest request, HttpServletResponse response) {
+        prepare(request, response);
+        return success(credentials.list(SecurityUser.getUser()));
+    }
+
+    @PostMapping(value = "/credentials/{id}/revoke", consumes = "application/json")
+    @RequiresPermissions("sys:role:superAdmin")
+    public JsonNode revokeCredential(HttpServletRequest request, HttpServletResponse response,
+            @PathVariable String id, @RequestBody String raw) {
+        prepare(request, response);
+        body(raw, Set.of("version"));
+        return success(credentials.revoke(SecurityUser.getUser(), id));
+    }
 
     @PostMapping(value = "/authorize", consumes = "application/json")
     @RequiresPermissions("sys:role:superAdmin")
