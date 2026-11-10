@@ -24,7 +24,24 @@
 - 无 Key、领取失败、无刷新能力、当前刷新结果未知时，绑定保持相应 blocked 状态，无 voice/lease；同账号其他授权不被删除。
 - 真实 MySQL 操作结果保存故障使整个事务回滚，修复后同请求/同键可成功重试。
 
-本轮完整套件、浏览器与双轴复核的执行结果将在完成后补齐。
+## 执行结果
+
+- 实现提交：`813f2c3`；复核基线：`a17d224`。
+- Ubuntu 完整 Java 回归：**289 tests / 0 failures / 0 errors / 0 skipped**，2026-11-10 00:46:33 UTC 完成。执行 `mvn -o -B -ntp test -DskipTests=false` 和 `bash scripts/check-integration-tests.sh`，集成守卫通过；新增绑定 HTTP 21 项及重启 1 项。
+- Ubuntu Chromium 经隔离 Nginx 验证：正式设备 HTTP 发码、允许/拒绝授权、多标签隔离、实际点击确认、成功后刷新、安全 Cookie 与敏感数据检查均通过。浏览器为手机尺寸模拟，不是真实手机验收。
+- [浏览器结果 JSON](evidence/2026-11-10-phone-binding/browser-result.json)。服务端完整日志保存在 `/home/jt/issue13-integration/.runtime/full-tests.log`。
+
+![手机确认后的成功页](evidence/2026-11-10-phone-binding/binding-confirmed.png)
+
+### Standards
+
+无硬性规范违反或已确认安全问题。1 项非阻断可维护性建议：成功页和幂等重试都比较归属代际与账号散列，可在后续转交功能中合并为同一判断。当前两处行为一致，保留已通过验证的实现。
+
+### Spec
+
+本次首次绑定范围内无可行动缺陷或范围扩张。唯一归属、原子消费、幂等结果、注销屏障和业务授权失败时保留可信身份符合契约。有效授权仍保持 device_disabled 是已说明的阶段性限制，不代表语音功能完成。
+
+双轴结论：Standards 0 硬性问题、1 非阻断建议；Spec 0 缺陷。两个复核均为只读审查，测试结果由本轮主执行提供。
 
 ## 边界
 
