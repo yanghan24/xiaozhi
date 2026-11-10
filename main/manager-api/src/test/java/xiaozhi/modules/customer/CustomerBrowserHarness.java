@@ -10,16 +10,29 @@ import xiaozhi.AdminApplication;
 public final class CustomerBrowserHarness {
     public static void main(String[] args) throws Exception {
         var market=new ControlledMarket();
+        market.browserSubject="browser-owner-"+UUID.randomUUID();
         var app=new SpringApplicationBuilder(AdminApplication.class).run("--server.port=8002", "--server.servlet.context-path=/xiaozhi",
-                "--customer.oidc.config-file="+market.config, "--renren.xss.enabled=true");
+                "--customer.oidc.config-file="+market.config, "--renren.xss.enabled=true",
+                "--device-control.enabled=true", "--device-control.voice-enabled=true", "--device-control.public-origin=https://bridge.hncig.cn:18443",
+                "--server.forward-headers-strategy=native");
         var db=app.getBean(JdbcTemplate.class);
         List<String> handles=new ArrayList<>();
+        List<Map<String,String>> devices=new ArrayList<>();
         for (int i=0;i<3;i++) {
-            String device=UUID.randomUUID().toString().replace("-",""), handle=UUID.randomUUID().toString();
-            db.update("INSERT INTO ai_device(id,alias) VALUES (?,?)",device,"浏览器测试音箱 "+(i+1));
-            db.update("INSERT INTO customer_device_request(handle,device_id,purpose,permission_version,expires_at_ms) VALUES (?,?,'bind',1,?)",handle,device,System.currentTimeMillis()+1_800_000);
-            handles.add(handle);
+            String device="browser-"+UUID.randomUUID(), credential=CustomerSecrets.random();
+            devices.add(Map.of("id",device,"credential",credential));
+            db.update("INSERT INTO dc_device(device_id,credential_hash) VALUES (?,?)",device,CustomerSecrets.hash(credential));
+            var request=java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:8002/xiaozhi/device-control/v1/requests"))
+                    .header("Authorization","Bearer "+credential).header("Device-Id",device)
+                    .header("X-Forwarded-Proto","https").header("Idempotency-Key",UUID.randomUUID().toString())
+                    .header("Content-Type","application/json")
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"intent\":\"auto\",\"expected_permission_version\":1}")).build();
+            var issued=java.net.http.HttpClient.newHttpClient().send(request,java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (issued.statusCode()!=200) throw new IllegalStateException("Device request issuance failed");
+            String uri=new com.fasterxml.jackson.databind.ObjectMapper().readTree(issued.body()).path("data").path("binding_request").path("verification_uri").asText();
+            handles.add(uri.substring(uri.lastIndexOf('/')+1));
         }
-        Files.writeString(Path.of("target/browser-fixture.json"),new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(Map.of("handles",handles)));
+        Files.writeString(Path.of("target/browser-fixture.json"),new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(Map.of("handles",handles,"devices",devices)));
+        Files.setPosixFilePermissions(Path.of("target/browser-fixture.json"),java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
     }
 }

@@ -1,5 +1,7 @@
 package xiaozhi.modules.customer;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -13,10 +15,12 @@ final class CustomerIdentityService {
     private final CustomerMarket market;
     private final CustomerOidcConfig config;
     private final TransactionTemplate transactions;
-    CustomerIdentityService(JdbcTemplate db, CustomerMarket market, CustomerOidcConfig config, PlatformTransactionManager manager, java.time.Clock clock) {
-        this.clock = clock;
+    private final CustomerVoicePermissions voice;
+    CustomerIdentityService(JdbcTemplate db, CustomerMarket market, CustomerOidcConfig config, PlatformTransactionManager manager, @Qualifier("customerTime") java.time.Clock clock, CustomerVoicePermissions voice) {
+        this.clock = clock; this.voice=voice;
         this.db = db; this.market = market; this.config = config;
         transactions = new TransactionTemplate(manager);
+        transactions.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
     Map<String, Object> browser(String cookie) {
         if (cookie == null || cookie.length() > 64) throw new CustomerFailure(401, "IDENTITY_REQUIRED");
@@ -26,11 +30,23 @@ final class CustomerIdentityService {
         return rows.getFirst();
     }
     Map<String, Object> request(String handle) {
-        var rows = db.queryForList("SELECT r.*,d.alias FROM customer_device_request r JOIN ai_device d ON d.id=r.device_id WHERE r.handle=?", handle);
+        var rows = db.queryForList("SELECT r.*,COALESCE(d.alias,'小智设备') AS alias,cr.status AS control_status,"
+                + "cr.device_id AS control_device_id,cd.current_request_id,cd.permission_version AS current_permission_version,"
+                + "cd.credential_hash AS current_credential_hash,cd.admitted,cd.reason "
+                + "FROM customer_device_request r LEFT JOIN ai_device d ON d.id=r.device_id "
+                + "LEFT JOIN dc_request cr ON cr.request_id=r.control_request_id "
+                + "LEFT JOIN dc_device cd ON cd.device_id=cr.device_id WHERE r.handle=?", handle);
         if (rows.isEmpty()) throw new CustomerFailure(404, "REQUEST_NOT_FOUND");
         var row = rows.getFirst();
         if (number(row, "expires_at_ms") <= clock.millis()) throw new CustomerFailure(410, "REQUEST_EXPIRED");
         if (Boolean.TRUE.equals(row.get("consumed"))) throw new CustomerFailure(409, "REQUEST_CONSUMED");
+        if (row.get("control_request_id") != null && (!"active".equals(row.get("control_status"))
+                || !row.get("control_request_id").equals(row.get("current_request_id"))
+                || !Boolean.TRUE.equals(row.get("admitted")) || "device_disabled".equals(row.get("reason"))
+                || row.get("control_credential_hash") == null
+                || !row.get("control_credential_hash").equals(row.get("current_credential_hash"))
+                || number(row,"permission_version") != number(row,"current_permission_version")))
+            throw new CustomerFailure(409,"STATE_CHANGED");
         return row;
     }
     Map<String, Object> createFlow(String cookie, String csrf, String origin, String handle) {
@@ -50,17 +66,19 @@ final class CustomerIdentityService {
     }
     Map<String, Object> flowStatus(String cookie, String id) {
         var browser = browser(cookie);
-        var rows = db.queryForList("SELECT f.*,d.alias,r.expires_at_ms AS request_expires_at_ms,r.consumed FROM customer_identity_flow f JOIN customer_device_request r ON r.handle=f.request_handle JOIN ai_device d ON d.id=r.device_id WHERE f.id=? AND f.browser_hash=?", id, browser.get("id_hash"));
+        var rows = db.queryForList("SELECT f.*,COALESCE(d.alias,'小智设备') AS alias,r.expires_at_ms AS request_expires_at_ms,r.consumed FROM customer_identity_flow f JOIN customer_device_request r ON r.handle=f.request_handle LEFT JOIN ai_device d ON d.id=r.device_id WHERE f.id=? AND f.browser_hash=?", id, browser.get("id_hash"));
         if (rows.isEmpty()) throw new CustomerFailure(404, "FLOW_NOT_FOUND");
         var flow = rows.getFirst();
         String authorization = "NONE";
-        if (flow.get("subject_key") != null) {
+        if (flow.get("subject_key") != null && flow.get("authorization_generation") != null) {
             var grants = db.queryForList("SELECT status FROM customer_authorization WHERE subject_key=?", flow.get("subject_key"));
             if (!grants.isEmpty()) authorization = grants.getFirst().get("status").toString();
         }
         String status=flow.get("status").toString();
         if ((status.equals("AWAITING_IDENTITY") || status.equals("EXCHANGING")) && number(flow,"expires_at_ms")<=clock.millis()) status="FLOW_EXPIRED";
-        String requestStatus=number(flow,"request_expires_at_ms")<=clock.millis() ? "EXPIRED" : Boolean.TRUE.equals(flow.get("consumed")) ? "CONSUMED" : "AVAILABLE";
+        String requestStatus;
+        try { request(flow.get("request_handle").toString()); requestStatus="AVAILABLE"; }
+        catch (CustomerFailure unavailable) { requestStatus=unavailable.status==410 ? "EXPIRED" : "CONSUMED"; }
         return Map.of("flow_id", id, "status", status, "authorization_status", authorization,
                 "device_label", flow.get("alias")==null ? "小智设备" : flow.get("alias"), "purpose",flow.get("purpose"),"request_status",requestStatus);
     }
@@ -91,18 +109,21 @@ final class CustomerIdentityService {
                 if (number(currentRequest, "permission_version") != number(flow, "permission_version")) throw new CustomerFailure(409, "STATE_CHANGED");
                 String subjectKey = CustomerSecrets.hash(config.issuer + "\n" + identity.subject());
                 long now = clock.millis();
-                String generation = CustomerSecrets.random();
-                String access = config.encrypt(identity.access()), refresh = config.encrypt(identity.refresh()), key = config.encrypt(identity.businessKey());
-                db.update("INSERT INTO customer_authorization(subject_key,generation,started_at_ms,issuer,subject,access_token,refresh_token,access_expires_at_ms,business_key,key_expires_at_ms,status,updated_at_ms,started_order) VALUES (?,?,?,?,?,?,?,?,?,?,'ACTIVE',?,?) ON DUPLICATE KEY UPDATE subject_key=VALUES(subject_key)",
-                        subjectKey, generation, flow.get("created_at_ms"), config.issuer, identity.subject(), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"));
-                db.update("UPDATE customer_authorization SET generation=?,started_at_ms=?,access_token=?,refresh_token=?,access_expires_at_ms=?,business_key=?,key_expires_at_ms=?,status='ACTIVE',updated_at_ms=?,started_order=? WHERE subject_key=? AND started_order<=?",
-                        generation, flow.get("created_at_ms"), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"), subjectKey, flow.get("creation_order"));
+                String generation = identity.businessKey()==null ? null : CustomerSecrets.random();
+                if (generation!=null) {
+                    voice.reconcileSubject(config.issuer,identity.subject());
+                    String access = config.encrypt(identity.access()), refresh = config.encrypt(identity.refresh()), key = config.encrypt(identity.businessKey());
+                    db.update("INSERT INTO customer_authorization(subject_key,generation,started_at_ms,issuer,subject,access_token,refresh_token,access_expires_at_ms,business_key,key_expires_at_ms,status,updated_at_ms,started_order) VALUES (?,?,?,?,?,?,?,?,?,?,'ACTIVE',?,?) ON DUPLICATE KEY UPDATE subject_key=VALUES(subject_key)",
+                            subjectKey, generation, flow.get("created_at_ms"), config.issuer, identity.subject(), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"));
+                    db.update("UPDATE customer_authorization SET generation=?,started_at_ms=?,access_token=?,refresh_token=?,access_expires_at_ms=?,business_key=?,key_expires_at_ms=?,status='ACTIVE',updated_at_ms=?,started_order=? WHERE subject_key=? AND started_order<=?",
+                            generation, flow.get("created_at_ms"), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"), subjectKey, flow.get("creation_order"));
+                }
                 // A token can be minted after logout while an older code exchange is in flight.
                 // The originating flow, not token mint time, determines whether that login was ended.
                 boolean ended = !db.queryForList("SELECT jti_hash FROM customer_logout_receipt WHERE issuer=? AND issued_at_ms>=? AND received_at_ms>=? AND (sid=? OR (sid IS NULL AND subject=?)) LIMIT 1",
                         config.issuer, number(flow,"created_at_ms")/1000*1000, flow.get("created_at_ms"), identity.sid(), identity.subject()).isEmpty();
-                db.update("UPDATE customer_identity_flow SET status=?,verifier='',subject_key=?,issuer=?,subject=?,sid=?,identity_issued_at_ms=? WHERE id=? AND status='EXCHANGING'",
-                        ended ? "SESSION_ENDED" : "IDENTITY_VERIFIED", subjectKey, config.issuer, identity.subject(), identity.sid(), identity.issuedAt(), id);
+                db.update("UPDATE customer_identity_flow SET status=?,verifier='',subject_key=?,issuer=?,subject=?,sid=?,identity_issued_at_ms=?,authorization_generation=? WHERE id=? AND status='EXCHANGING'",
+                        ended ? "SESSION_ENDED" : "IDENTITY_VERIFIED", subjectKey, config.issuer, identity.subject(), identity.sid(), identity.issuedAt(), generation, id);
                 db.update("UPDATE customer_browser SET last_activity_ms=? WHERE id_hash=?", now, browser.get("id_hash"));
             });
         } catch (Exception e) {

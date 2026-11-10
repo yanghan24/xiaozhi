@@ -25,7 +25,8 @@ class ShiroConfigTest {
     void beanPostProcessorFactoriesDoNotInstantiateShiroConfigOrBusinessDependenciesEarly() throws Exception {
         Method lifecycleFactory = ShiroConfig.class.getDeclaredMethod("lifecycleBeanPostProcessor");
         Method filterFactory = ShiroConfig.class.getDeclaredMethod(
-                "shirFilter", WebSecurityManager.class, SysParamsService.class);
+                "shirFilter", WebSecurityManager.class, SysParamsService.class,
+                xiaozhi.modules.devicecontrol.DeviceControlService.class);
 
         assertTrue(Modifier.isStatic(lifecycleFactory.getModifiers()));
         assertTrue(BeanPostProcessor.class.isAssignableFrom(ShiroFilterFactoryBean.class));

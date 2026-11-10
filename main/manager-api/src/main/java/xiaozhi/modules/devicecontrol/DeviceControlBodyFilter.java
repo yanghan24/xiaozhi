@@ -1,0 +1,62 @@
+package xiaozhi.modules.devicecontrol;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.filter.OncePerRequestFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/** Bounds bytes before either XSS sanitization or MVC can buffer a chunked upload. */
+final class DeviceControlBodyFilter extends OncePerRequestFilter {
+    private static final int MAX_BYTES = 4096;
+    private final ObjectMapper json = new ObjectMapper();
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        if (request.getContentLengthLong() > MAX_BYTES) {
+            reject(response);
+            return;
+        }
+        byte[] body = request.getInputStream().readNBytes(MAX_BYTES + 1);
+        if (body.length > MAX_BYTES) {
+            reject(response);
+            return;
+        }
+        var input = new ByteArrayInputStream(body);
+        var stream = new ServletInputStream() {
+            @Override public int read() { return input.read(); }
+            @Override public int read(byte[] bytes, int offset, int length) { return input.read(bytes, offset, length); }
+            @Override public boolean isFinished() { return input.available() == 0; }
+            @Override public boolean isReady() { return true; }
+            @Override public void setReadListener(ReadListener listener) {
+                throw new IllegalStateException("Asynchronous request body reads are not supported");
+            }
+        };
+        chain.doFilter(new HttpServletRequestWrapper(request) {
+            @Override public ServletInputStream getInputStream() { return stream; }
+            @Override public BufferedReader getReader() {
+                return new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+            }
+        }, response);
+    }
+
+    private void reject(HttpServletResponse response) throws IOException {
+        response.setStatus(400);
+        response.setHeader("Cache-Control", "no-store");
+        response.setHeader("Connection", "close");
+        response.setContentType("application/json;charset=UTF-8");
+        json.writeValue(response.getWriter(), new ControlFailure(400, "INVALID_REQUEST").body());
+        response.flushBuffer();
+    }
+}

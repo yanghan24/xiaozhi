@@ -6,5 +6,5 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 class CustomerTimeConfig {
-    @Bean Clock customerClock() { return Clock.systemUTC(); }
+    @Bean @org.springframework.beans.factory.annotation.Qualifier("customerTime") Clock customerClock() { return Clock.systemUTC(); }
 }

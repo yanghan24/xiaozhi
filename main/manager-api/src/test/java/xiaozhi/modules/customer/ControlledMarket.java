@@ -32,6 +32,7 @@ final class ControlledMarket {
     final Map<String,String> approvals = new ConcurrentHashMap<>();
     final Map<String,java.util.concurrent.CountDownLatch[]> refreshGates = new ConcurrentHashMap<>();
     final ObjectMapper json = new ObjectMapper();
+    String browserSubject;
     ControlledMarket() {
         try {
             rsa = new RSAKeyGenerator(2048).keyID("market-test").generate();
@@ -50,6 +51,7 @@ final class ControlledMarket {
                 if (url==null) {reply(x,400,Map.of("error","invalid_ticket"));return;}
                 var auth=params(URI.create(url).getRawQuery());
                 String query="allow".equals(form.get("decision")) ? "code="+approve(url) : "error=access_denied";
+                if(query.startsWith("code=") && form.containsKey("test_subject")) codes.get(query.substring(5)).put("sub",form.get("test_subject"));
                 x.getResponseHeaders().set("Location",auth.get("redirect_uri")+"?"+query+"&state="+auth.get("state"));
                 x.sendResponseHeaders(303,-1);x.close();
             });
@@ -104,8 +106,10 @@ final class ControlledMarket {
                             .claim("nonce", fault.equals("nonce") ? "wrong-nonce" : auth.get("nonce")).claim("sid", auth.get("sid")).build();
                     var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(rsa.getKeyID()).build(), claims);
                     jwt.sign(new RSASSASigner(fault.equals("signature") ? new RSAKeyGenerator(2048).generate() : rsa));
-                    reply(x, 200, Map.of("access_token", access, "refresh_token", "refresh-" + access, "token_type", "Bearer",
+                    var response=new HashMap<String,Object>(Map.of("access_token", access, "refresh_token", "refresh-" + access, "token_type", "Bearer",
                             "expires_in", 300, "scope", "openid profile credentials:manage offline_access", "id_token", jwt.serialize()));
+                    if (fault.equals("no-refresh")) response.remove("refresh_token");
+                    reply(x,200,response);
                 } catch (Exception e) { reply(x, 500, Map.of("error", "test_provider_error")); }
             });
             server.createContext("/me", x -> {
@@ -114,6 +118,9 @@ final class ControlledMarket {
             });
             server.createContext("/api/application-credentials", x -> {
                 var auth = authorization(x);
+                if (auth!=null && auth.getOrDefault("fault","").startsWith("key-")) {
+                    reply(x,auth.get("fault").equals("key-denied") ? 403 : 503,Map.of("error","controlled-key-unavailable")); return;
+                }
                 var data = new HashMap<String,Object>();
                 if (auth != null) {
                     data.put("subject", auth.get("sub")); data.put("client_id", "test-customer");
@@ -153,7 +160,7 @@ final class ControlledMarket {
     }
     String approve(String authorizationUrl) {
         var auth = params(URI.create(authorizationUrl).getRawQuery());
-        auth.put("sub", UUID.randomUUID().toString()); auth.put("sid", UUID.randomUUID().toString());
+        auth.put("sub", browserSubject==null?UUID.randomUUID().toString():browserSubject); auth.put("sid", UUID.randomUUID().toString());
         String code = UUID.randomUUID().toString(); codes.put(code, auth); return code;
     }
     String logout(Map<String,Object> overrides) {
