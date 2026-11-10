@@ -1,0 +1,980 @@
+{
+  "window_started_at_utc": "2026-11-10T02:30:00Z",
+  "captured_at_utc": "2026-11-10T03:27:30.764219+00:00",
+  "source": "docker logs --timestamps voice container",
+  "source_sha256": "1647bf00b063963df8abaa84278bbd1b4562f378ccf5c4a0220f70a00f53db52",
+  "source_lines": 350,
+  "correlation_limit": "Logger does not attach a device/session ID to every text/timing event. Session IDs from filenames are direct evidence; chronological adjacency alone is not a proven device mapping. Includes temporary protocol client and physical device traffic.",
+  "events": [
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:10.341239108Z",
+      "source_line": 17,
+      "kind": "tts_text",
+      "text_sha256": "dcef30746199eb2ec13b9654f8845e8484c18390c05c0faed243200db249d9b6",
+      "characters": 26
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:10.342851523Z",
+      "source_line": 20,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:15.995990558Z",
+      "source_line": 24,
+      "kind": "asr_input_file",
+      "session_id": "8646bbaf-45d8-4bf8-9064-b65f72e00adb"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:18.358088660Z",
+      "source_line": 25,
+      "kind": "asr_text",
+      "text_sha256": "913ba10c533a5bfbc0012ee75161b4adb3527f9891fcba21d00bc0adbd81fb4d",
+      "characters": 11
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:18.359880545Z",
+      "source_line": 26,
+      "kind": "llm_input",
+      "text_sha256": "913ba10c533a5bfbc0012ee75161b4adb3527f9891fcba21d00bc0adbd81fb4d",
+      "characters": 11
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:20.660376981Z",
+      "source_line": 28,
+      "kind": "tts_text",
+      "text_sha256": "e599bd8072029554e3529450e118c495bce3f41751da8bfd85487ceeeb547334",
+      "characters": 33
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:22.354754790Z",
+      "source_line": 30,
+      "kind": "tts_text",
+      "text_sha256": "c79eb6fd73844a3af2dddd18b7ef945d1c4260329ee9b49d229d0ac777133fe0",
+      "characters": 38
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:22.629347060Z",
+      "source_line": 32,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:44.714788823Z",
+      "source_line": 48,
+      "kind": "asr_input_file",
+      "session_id": "ca908d7e-12be-4447-91a2-ffbc926ad89a"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:46.684051107Z",
+      "source_line": 49,
+      "kind": "asr_text",
+      "text_sha256": "841aab694702781b310fdd88adec46972e2a183971644775c62be131b2c4b6c4",
+      "characters": 10
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:46.685743214Z",
+      "source_line": 50,
+      "kind": "llm_input",
+      "text_sha256": "841aab694702781b310fdd88adec46972e2a183971644775c62be131b2c4b6c4",
+      "characters": 10
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:48.810173789Z",
+      "source_line": 52,
+      "kind": "tts_text",
+      "text_sha256": "3a338755f2439b19b202b2d63095d01f1229ecf1beb602a46d594205b9a57b0a",
+      "characters": 22
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:50.363165303Z",
+      "source_line": 54,
+      "kind": "tts_text",
+      "text_sha256": "1047cd64397408cf483f63a9299a03714232b6aa2dffbaac4559890820ab9446",
+      "characters": 30
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:10:50.620374240Z",
+      "source_line": 56,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:19.776384869Z",
+      "source_line": 59,
+      "kind": "asr_input_file",
+      "session_id": "8646bbaf-45d8-4bf8-9064-b65f72e00adb"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:22.148360445Z",
+      "source_line": 60,
+      "kind": "asr_text",
+      "text_sha256": "3171597392e72fc73a67db7b9b40b87f20f409fc06a5bf5fbb6b5c7505ce64e4",
+      "characters": 16
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:22.150431214Z",
+      "source_line": 61,
+      "kind": "llm_input",
+      "text_sha256": "3171597392e72fc73a67db7b9b40b87f20f409fc06a5bf5fbb6b5c7505ce64e4",
+      "characters": 16
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:24.590919497Z",
+      "source_line": 63,
+      "kind": "tts_text",
+      "text_sha256": "ca6c086e3a89edd067bb42a767e231104f59f8b2fdd7def7b912a1a634ef0b81",
+      "characters": 29
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:26.249686406Z",
+      "source_line": 65,
+      "kind": "tts_text",
+      "text_sha256": "4896bf8d04bf12dfc103140050fb0ff6b3e82227a64adca343de659b709def1f",
+      "characters": 34
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:26.517411020Z",
+      "source_line": 67,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:29.110391917Z",
+      "source_line": 68,
+      "kind": "asr_input_file",
+      "session_id": "8646bbaf-45d8-4bf8-9064-b65f72e00adb"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:40.236486894Z",
+      "source_line": 70,
+      "kind": "asr_input_file",
+      "session_id": "8646bbaf-45d8-4bf8-9064-b65f72e00adb"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:46.192293648Z",
+      "source_line": 71,
+      "kind": "asr_text",
+      "text_sha256": "9cebccb3a531498ee51831f663c0ea3c5446a44da3faa5fbbbbac19f6fb1d087",
+      "characters": 40
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:46.194072020Z",
+      "source_line": 72,
+      "kind": "llm_input",
+      "text_sha256": "9cebccb3a531498ee51831f663c0ea3c5446a44da3faa5fbbbbac19f6fb1d087",
+      "characters": 40
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:49.513273950Z",
+      "source_line": 73,
+      "kind": "asr_input_file",
+      "session_id": "8646bbaf-45d8-4bf8-9064-b65f72e00adb"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:51.077338349Z",
+      "source_line": 75,
+      "kind": "asr_text",
+      "text_sha256": "a0eb0066f3e27ddffde66062bdc2aa58bc66cc1ae2ac021c28f44aaaf1357dad",
+      "characters": 25
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:51.081764153Z",
+      "source_line": 78,
+      "kind": "llm_input",
+      "text_sha256": "a0eb0066f3e27ddffde66062bdc2aa58bc66cc1ae2ac021c28f44aaaf1357dad",
+      "characters": 25
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:54.169179570Z",
+      "source_line": 81,
+      "kind": "tts_text",
+      "text_sha256": "ebf872f7c8b06d297b7e8403aa70f31b7de23b64006dda8c00fb4c9634d16c2f",
+      "characters": 29
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:54.877977064Z",
+      "source_line": 83,
+      "kind": "asr_input_file",
+      "session_id": "8646bbaf-45d8-4bf8-9064-b65f72e00adb"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:56.405315764Z",
+      "source_line": 86,
+      "kind": "tts_text",
+      "text_sha256": "aa2b575a0a42065d3aa1a63003a8fec714e4b8b7e18c21ab0d70f636b91c6478",
+      "characters": 46
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:11:56.446420517Z",
+      "source_line": 87,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:27.444164754Z",
+      "source_line": 122,
+      "kind": "tts_text",
+      "text_sha256": "bea27d2064b0749875391cd0667112b75b2dbdd90ac2d89e72d7335bd24b427c",
+      "characters": 32
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:27.448995276Z",
+      "source_line": 126,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:32.664908692Z",
+      "source_line": 129,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:34.640435602Z",
+      "source_line": 130,
+      "kind": "asr_text",
+      "text_sha256": "7a505f89c778caf38213fee0f5f4b041fc40e84c27239a193c5b41681c8e6621",
+      "characters": 10
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:34.642205597Z",
+      "source_line": 131,
+      "kind": "llm_input",
+      "text_sha256": "7a505f89c778caf38213fee0f5f4b041fc40e84c27239a193c5b41681c8e6621",
+      "characters": 10
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:36.476553719Z",
+      "source_line": 133,
+      "kind": "tts_text",
+      "text_sha256": "4661e621a80d3b8d3f5e34c62e8d806599954bea8e836830ad90913451abd332",
+      "characters": 28
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:39.075185801Z",
+      "source_line": 135,
+      "kind": "tts_text",
+      "text_sha256": "fc2d2533bc4c90f1d63da2fe71025bc7207cec04a583227f41fc316f705b3acc",
+      "characters": 40
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:39.345713273Z",
+      "source_line": 137,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:51.389280040Z",
+      "source_line": 138,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:53.416126992Z",
+      "source_line": 139,
+      "kind": "asr_text",
+      "text_sha256": "a0b09ee67269f03f27ca3094159e450ade66cb31b89ce6a24f94bd397df51746",
+      "characters": 11
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:53.417917634Z",
+      "source_line": 140,
+      "kind": "llm_input",
+      "text_sha256": "a0b09ee67269f03f27ca3094159e450ade66cb31b89ce6a24f94bd397df51746",
+      "characters": 11
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:55.076599816Z",
+      "source_line": 142,
+      "kind": "tts_text",
+      "text_sha256": "695f9c31e44e6a4a6bb1d564793c7bd928c1d442845ebf38f447ae5d3450743d",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:16:55.267751717Z",
+      "source_line": 144,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:32.617099435Z",
+      "source_line": 145,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:35.184183893Z",
+      "source_line": 146,
+      "kind": "asr_text",
+      "text_sha256": "eaf7ebeb67c40c0b50de4b508791e82a27c4e3395dc6a5fde6e278577f77e3d8",
+      "characters": 4
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:35.185789486Z",
+      "source_line": 147,
+      "kind": "llm_input",
+      "text_sha256": "eaf7ebeb67c40c0b50de4b508791e82a27c4e3395dc6a5fde6e278577f77e3d8",
+      "characters": 4
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:35.987793498Z",
+      "source_line": 148,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:37.656892944Z",
+      "source_line": 150,
+      "kind": "asr_text",
+      "text_sha256": "7032c9b2eb4c97989b83ffcb3a36f118914680b55c01cbb6bbee380d35e61a33",
+      "characters": 12
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:37.661725997Z",
+      "source_line": 153,
+      "kind": "llm_input",
+      "text_sha256": "7032c9b2eb4c97989b83ffcb3a36f118914680b55c01cbb6bbee380d35e61a33",
+      "characters": 12
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:38.418704794Z",
+      "source_line": 155,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:39.992978864Z",
+      "source_line": 156,
+      "kind": "asr_text",
+      "text_sha256": "a9bf9fda6238bfb9909e8172c4b6b41f1244896feb77f802e12d4dd74e68d0e3",
+      "characters": 8
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:39.997366462Z",
+      "source_line": 159,
+      "kind": "llm_input",
+      "text_sha256": "a9bf9fda6238bfb9909e8172c4b6b41f1244896feb77f802e12d4dd74e68d0e3",
+      "characters": 8
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:41.671945958Z",
+      "source_line": 161,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:43.289066867Z",
+      "source_line": 162,
+      "kind": "asr_text",
+      "text_sha256": "bbac146e02e7a2f14c7f380df0c699b11d4eb18032e13ebe4aa5cb4754d97233",
+      "characters": 18
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:43.295321128Z",
+      "source_line": 165,
+      "kind": "llm_input",
+      "text_sha256": "bbac146e02e7a2f14c7f380df0c699b11d4eb18032e13ebe4aa5cb4754d97233",
+      "characters": 18
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:45.389227844Z",
+      "source_line": 168,
+      "kind": "tts_text",
+      "text_sha256": "bff2df3974d88684f27df82cd28cbf09621d5609518218b88ec21a0a636c0a33",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:47.765301727Z",
+      "source_line": 170,
+      "kind": "tts_text",
+      "text_sha256": "6acc9f4f35c36ae6876cbd5f298f01ef50b80e8fbf1ece9b2ff6d597cfdc9f69",
+      "characters": 37
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:48.025185987Z",
+      "source_line": 172,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:49.313355533Z",
+      "source_line": 173,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:52.349096329Z",
+      "source_line": 175,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:57.713479488Z",
+      "source_line": 177,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:59.440732861Z",
+      "source_line": 178,
+      "kind": "asr_text",
+      "text_sha256": "cb9dd5ad39b9d8e4885604f7b970792924d2f8260e5f50c5745778a5b49f525b",
+      "characters": 10
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:18:59.442256087Z",
+      "source_line": 179,
+      "kind": "llm_input",
+      "text_sha256": "cb9dd5ad39b9d8e4885604f7b970792924d2f8260e5f50c5745778a5b49f525b",
+      "characters": 10
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:01.738166374Z",
+      "source_line": 181,
+      "kind": "tts_text",
+      "text_sha256": "577f60e85f45ca9787dcdd8e90720580f0b22956731e2ab7c1763d3cbd219762",
+      "characters": 22
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:02.206404710Z",
+      "source_line": 183,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:03.822348541Z",
+      "source_line": 185,
+      "kind": "asr_text",
+      "text_sha256": "cb71a1d52038cf0ebd8e0a27fd21ad18febab4bb432264239b3b1871a2162c35",
+      "characters": 6
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:03.825724540Z",
+      "source_line": 188,
+      "kind": "llm_input",
+      "text_sha256": "cb71a1d52038cf0ebd8e0a27fd21ad18febab4bb432264239b3b1871a2162c35",
+      "characters": 6
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:06.345909638Z",
+      "source_line": 190,
+      "kind": "tts_text",
+      "text_sha256": "3d4f6c6444e0b8014271c8980c0bdc23b6416d1acb049565a421ce6e552bc2da",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:08.236364166Z",
+      "source_line": 192,
+      "kind": "tts_text",
+      "text_sha256": "e314bf5178d24e23bbbfe72525843cdff8565c7a2632aee5b16043d65e621f92",
+      "characters": 37
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:08.487474003Z",
+      "source_line": 194,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:24.641971681Z",
+      "source_line": 195,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:26.533604376Z",
+      "source_line": 196,
+      "kind": "asr_text",
+      "text_sha256": "c6a0faef64361600a5a6b5fd09019e803a90e006d00120cde2be7e47d3135b7d",
+      "characters": 64
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:26.535350086Z",
+      "source_line": 197,
+      "kind": "llm_input",
+      "text_sha256": "c6a0faef64361600a5a6b5fd09019e803a90e006d00120cde2be7e47d3135b7d",
+      "characters": 64
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:29.695188818Z",
+      "source_line": 199,
+      "kind": "tts_text",
+      "text_sha256": "134b46568b9446854cebc6e3e256d840182c4dedd93d8e64f52162baea36c555",
+      "characters": 25
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:31.578467482Z",
+      "source_line": 201,
+      "kind": "tts_text",
+      "text_sha256": "96b5a1213728afb3106b019f145d04a0e4bc6ed5346207c9c9f744e25b42d2c6",
+      "characters": 34
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:31.814364051Z",
+      "source_line": 203,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:31.839652533Z",
+      "source_line": 204,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:33.723961859Z",
+      "source_line": 205,
+      "kind": "asr_text",
+      "text_sha256": "61810fb07d7157b375ba1c86963dd579446e0640e3d849103f835b9a60dfefa4",
+      "characters": 46
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:33.727351626Z",
+      "source_line": 208,
+      "kind": "llm_input",
+      "text_sha256": "61810fb07d7157b375ba1c86963dd579446e0640e3d849103f835b9a60dfefa4",
+      "characters": 46
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:35.791114228Z",
+      "source_line": 209,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:37.647029286Z",
+      "source_line": 211,
+      "kind": "asr_text",
+      "text_sha256": "78f62e0d3f01661bff820aa5222f76a9799415c1b093cd6838f4d5167f07bfad",
+      "characters": 8
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:37.650460425Z",
+      "source_line": 214,
+      "kind": "llm_input",
+      "text_sha256": "78f62e0d3f01661bff820aa5222f76a9799415c1b093cd6838f4d5167f07bfad",
+      "characters": 8
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:39.038773180Z",
+      "source_line": 216,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:40.612439109Z",
+      "source_line": 218,
+      "kind": "asr_text",
+      "text_sha256": "b02328489d83c6e41ffe2aca21e8b1bfbf3b447ad5c380817f30b0e25611b7ce",
+      "characters": 16
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:40.616110295Z",
+      "source_line": 221,
+      "kind": "llm_input",
+      "text_sha256": "b02328489d83c6e41ffe2aca21e8b1bfbf3b447ad5c380817f30b0e25611b7ce",
+      "characters": 16
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:42.442184651Z",
+      "source_line": 223,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:44.012551877Z",
+      "source_line": 224,
+      "kind": "asr_text",
+      "text_sha256": "dcaee11a6c755d67698690b2e61cdec77a2d601679496491ff2ea0704ab7167a",
+      "characters": 14
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:44.015951396Z",
+      "source_line": 227,
+      "kind": "llm_input",
+      "text_sha256": "dcaee11a6c755d67698690b2e61cdec77a2d601679496491ff2ea0704ab7167a",
+      "characters": 14
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:45.178442338Z",
+      "source_line": 229,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:46.295182176Z",
+      "source_line": 232,
+      "kind": "tts_text",
+      "text_sha256": "5a55c32aedf100ba1c0284c98ece0f84a10aec3228ae2b577d9de9dc2ba14eef",
+      "characters": 22
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:47.930885021Z",
+      "source_line": 234,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:48.511957143Z",
+      "source_line": 236,
+      "kind": "tts_text",
+      "text_sha256": "52cea7fff125404dd24e08d6e1bc7124ca0c0ea7920d99bad171f7368a00c3d5",
+      "characters": 29
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:48.734831674Z",
+      "source_line": 238,
+      "kind": "tts_text",
+      "text_sha256": "84310e89c23c3dd7f5c43414a285e1de684ee09de471c018e5d4480c56e92ff6",
+      "characters": 23
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:19:51.378792333Z",
+      "source_line": 239,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:04.005298443Z",
+      "source_line": 241,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:09.222713134Z",
+      "source_line": 243,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:10.344379781Z",
+      "source_line": 245,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:15.396907516Z",
+      "source_line": 247,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:24.993487540Z",
+      "source_line": 249,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:28.838582881Z",
+      "source_line": 251,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:31.304096345Z",
+      "source_line": 253,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:36.748852829Z",
+      "source_line": 255,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:38.507335764Z",
+      "source_line": 257,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:46.112547743Z",
+      "source_line": 259,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:48.162070635Z",
+      "source_line": 261,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:49.472205960Z",
+      "source_line": 263,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:51.945838774Z",
+      "source_line": 265,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:20:54.216627650Z",
+      "source_line": 267,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:22:22.070433639Z",
+      "source_line": 269,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:22:30.100645104Z",
+      "source_line": 271,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:22:52.315625390Z",
+      "source_line": 273,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:22:54.026897780Z",
+      "source_line": 275,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:22:57.754856729Z",
+      "source_line": 277,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:01.852595270Z",
+      "source_line": 279,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:05.257094615Z",
+      "source_line": 281,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:10.059544061Z",
+      "source_line": 283,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:44.369888146Z",
+      "source_line": 285,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:48.044994992Z",
+      "source_line": 287,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:51.823497767Z",
+      "source_line": 289,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:23:56.197314810Z",
+      "source_line": 291,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:24:00.878379692Z",
+      "source_line": 293,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:24:06.159453562Z",
+      "source_line": 295,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:24:11.017983621Z",
+      "source_line": 297,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:24:14.508797400Z",
+      "source_line": 299,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:24:20.268415372Z",
+      "source_line": 301,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:24:42.029787009Z",
+      "source_line": 303,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:06.030872249Z",
+      "source_line": 305,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:16.495063000Z",
+      "source_line": 307,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:19.363375231Z",
+      "source_line": 309,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:26.106255747Z",
+      "source_line": 311,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:33.790165783Z",
+      "source_line": 313,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:36.273056347Z",
+      "source_line": 315,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:38.926805764Z",
+      "source_line": 317,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:45.585856309Z",
+      "source_line": 319,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:47.931952373Z",
+      "source_line": 321,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:52.172984322Z",
+      "source_line": 323,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:25:55.249336235Z",
+      "source_line": 325,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:01.422776751Z",
+      "source_line": 327,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:05.207803686Z",
+      "source_line": 329,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:09.038732527Z",
+      "source_line": 331,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:13.132344812Z",
+      "source_line": 333,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:17.213058252Z",
+      "source_line": 335,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:26.279155803Z",
+      "source_line": 337,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:29.973610747Z",
+      "source_line": 339,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:34.212011331Z",
+      "source_line": 341,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:26:37.963007519Z",
+      "source_line": 343,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:27:17.813559745Z",
+      "source_line": 345,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:27:23.257201852Z",
+      "source_line": 347,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    },
+    {
+      "docker_timestamp_utc": "2026-11-10T03:27:26.093736401Z",
+      "source_line": 349,
+      "kind": "asr_input_file",
+      "session_id": "72838821-95d8-4440-9c5a-1590d7a87a45"
+    }
+  ]
+}

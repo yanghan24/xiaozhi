@@ -45,6 +45,8 @@
 
 ## 证据与恢复
 
+服务器版本、对话关联、耗时和资源已另行[归档](2026-11-10-device-market-archive.md)。11:27 的后续快照观察到累计 ASR 73 次提交、13 次成功及适配服务 60 次失败，原因尚未诊断；此前两轮成功验收不代表此后持续运行无异常。资源为事后单点采样，端到端延迟未采集。
+
 服务器私有目录 `.runtime/market-test-bridge/` 保存 `agent-before.json`、`agent-after.json`、`model-ids.json`、Nginx 原配置以及 `evidence/real-chain.json`、`evidence/protocol-chain.json`、`evidence/restart-before.json`、`evidence/restart-after.json`。完整录音、管理员令牌、能力 URL、集市 Key 和适配凭据不提交到版本库。
 
 恢复时通过正常管理 API，把本轮修改且仍与 `agent-after.json` 一致的字段逐项恢复为 `agent-before.json` 的值，保留设备绑定；有后续人工改动则先比对，不整份覆盖。随后仅移除 Nginx 中 `BEGIN/END ISSUE6 MARKET ASR` 标记块，执行 `nginx -t` 后 reload，停止上述适配容器和租约服务。保留原语音容器、数据库卷及其他 OIDC 路由。不以旧的整份 Nginx 备份覆盖之后的其他改动。
