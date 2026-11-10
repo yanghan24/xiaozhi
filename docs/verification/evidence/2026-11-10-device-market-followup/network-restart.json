@@ -1,0 +1,41 @@
+{
+  "captured_at_utc": "2026-11-10T04:35:21.016901+00:00",
+  "commands": {
+    "listeners": {
+      "exit_code": 0,
+      "stdout": "State   Recv-Q  Send-Q      Local Address:Port      Peer Address:Port  Process  \nLISTEN  0       4096            127.0.0.1:18000          0.0.0.0:*              \nLISTEN  0       4096            127.0.0.1:18002          0.0.0.0:*              \nLISTEN  0       4096            127.0.0.1:18003          0.0.0.0:*              \nLISTEN  0       4096            127.0.0.1:42707          0.0.0.0:*              \nLISTEN  0       4096        127.0.0.53%lo:53             0.0.0.0:*              \nLISTEN  0       128               0.0.0.0:22             0.0.0.0:*              \nLISTEN  0       5               127.0.0.1:631            0.0.0.0:*              \nLISTEN  0       4096      192.168.168.114:443            0.0.0.0:*              \nLISTEN  0       2                   [::1]:3350              [::]:*              \nLISTEN  0       128                  [::]:22                [::]:*              \nLISTEN  0       5                   [::1]:631               [::]:*              \nLISTEN  0       2                       *:3389                 *:*              \n",
+      "stderr": ""
+    },
+    "ufw": {
+      "exit_code": 0,
+      "stdout": "状态：不活动\n",
+      "stderr": ""
+    },
+    "iptables_policy": {
+      "exit_code": 0,
+      "stdout": "-P INPUT ACCEPT\n-P FORWARD DROP\n-P OUTPUT ACCEPT\n-N DOCKER\n-N DOCKER-ISOLATION-STAGE-1\n-N DOCKER-ISOLATION-STAGE-2\n-N DOCKER-USER\n-A FORWARD -j DOCKER-USER\n-A FORWARD -j DOCKER-ISOLATION-STAGE-1\n-A FORWARD -o br-9700493ec598 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n-A FORWARD -o br-9700493ec598 -j DOCKER\n-A FORWARD -i br-9700493ec598 ! -o br-9700493ec598 -j ACCEPT\n-A FORWARD -i br-9700493ec598 -o br-9700493ec598 -j ACCEPT\n-A FORWARD -o br-f905f0603296 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n-A FORWARD -o br-f905f0603296 -j DOCKER\n-A FORWARD -i br-f905f0603296 ! -o br-f905f0603296 -j ACCEPT\n-A FORWARD -i br-f905f0603296 -o br-f905f0603296 -j ACCEPT\n-A FORWARD -o br-55dba07757f7 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n-A FORWARD -o br-55dba07757f7 -j DOCKER\n-A FORWARD -i br-55dba07757f7 ! -o br-55dba07757f7 -j ACCEPT\n-A FORWARD -i br-55dba07757f7 -o br-55dba07757f7 -j ACCEPT\n-A FORWARD -o br-1f05b8500a01 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n-A FORWARD -o br-1f05b8500a01 -j DOCKER\n-A FORWARD -i br-1f05b8500a01 ! -o br-1f05b8500a01 -j ACCEPT\n-A FORWARD -i br-1f05b8500a01 -o br-1f05b8500a01 -j ACCEPT\n-A FORWARD -o br-8cbb9558c041 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n-A FORWARD -o br-8cbb9558c041 -j DOCKER\n-A FORWARD -i br-8cbb9558c041 ! -o br-8cbb9558c041 -j ACCEPT\n-A FORWARD -i br-8cbb9558c041 -o br-8cbb9558c041 -j ACCEPT\n-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n-A FORWARD -o docker0 -j DOCKER\n-A FORWARD -i docker0 ! -o docker0 -j ACCEPT\n-A FORWARD -i docker0 -o docker0 -j ACCEPT\n-A DOCKER -d 172.21.0.5/32 ! -i br-55dba07757f7 -o br-55dba07757f7 -p tcp -m tcp --dport 80 -j ACCEPT\n-A DOCKER -d 172.26.0.5/32 ! -i br-f905f0603296 -o br-f905f0603296 -p tcp -m tcp --dport 443 -j ACCEPT\n-A DOCKER -d 172.21.0.6/32 ! -i br-55dba07757f7 -o br-55dba07757f7 -p tcp -m tcp --dport 8003 -j ACCEPT\n-A DOCKER -d 172.21.0.6/32 ! -i br-55dba07757f7 -o br-55dba07757f7 -p tcp -m tcp --dport 8000 -j ACCEPT\n-A DOCKER-ISOLATION-STAGE-1 -i br-9700493ec598 ! -o br-9700493ec598 -j DOCKER-ISOLATION-STAGE-2\n-A DOCKER-ISOLATION-STAGE-1 -i br-f905f0603296 ! -o br-f905f0603296 -j DOCKER-ISOLATION-STAGE-2\n-A DOCKER-ISOLATION-STAGE-1 -i br-55dba07757f7 ! -o br-55dba07757f7 -j DOCKER-ISOLATION-STAGE-2\n-A DOCKER-ISOLATION-STAGE-1 -i br-1f05b8500a01 ! -o br-1f05b8500a01 -j DOCKER-ISOLATION-STAGE-2\n-A DOCKER-ISOLATION-STAGE-1 -i br-8cbb9558c041 ! -o br-8cbb9558c041 -j DOCKER-ISOLATION-STAGE-2\n-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2\n-A DOCKER-ISOLATION-STAGE-1 -j RETURN\n-A DOCKER-ISOLATION-STAGE-2 -o br-9700493ec598 -j DROP\n-A DOCKER-ISOLATION-STAGE-2 -o br-f905f0603296 -j DROP\n-A DOCKER-ISOLATION-STAGE-2 -o br-55dba07757f7 -j DROP\n-A DOCKER-ISOLATION-STAGE-2 -o br-1f05b8500a01 -j DROP\n-A DOCKER-ISOLATION-STAGE-2 -o br-8cbb9558c041 -j DROP\n-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP\n-A DOCKER-ISOLATION-STAGE-2 -j RETURN\n-A DOCKER-USER -j RETURN\n",
+      "stderr": ""
+    },
+    "docker_forward_rules": {
+      "exit_code": 0,
+      "stdout": "-N DOCKER\n-A DOCKER -d 172.21.0.5/32 ! -i br-55dba07757f7 -o br-55dba07757f7 -p tcp -m tcp --dport 80 -j ACCEPT\n-A DOCKER -d 172.26.0.5/32 ! -i br-f905f0603296 -o br-f905f0603296 -p tcp -m tcp --dport 443 -j ACCEPT\n-A DOCKER -d 172.21.0.6/32 ! -i br-55dba07757f7 -o br-55dba07757f7 -p tcp -m tcp --dport 8003 -j ACCEPT\n-A DOCKER -d 172.21.0.6/32 ! -i br-55dba07757f7 -o br-55dba07757f7 -p tcp -m tcp --dport 8000 -j ACCEPT\n",
+      "stderr": ""
+    },
+    "docker_user_rules": {
+      "exit_code": 0,
+      "stdout": "-N DOCKER-USER\n-A DOCKER-USER -j RETURN\n",
+      "stderr": ""
+    }
+  },
+  "xiaozhi-ubuntu-test-voice-1": {
+    "started_at": "2026-11-10T03:12:07.657494817Z",
+    "finished_at": "2026-11-10T03:12:07.20125924Z",
+    "created": "2026-11-06T09:10:54.063048137Z"
+  },
+  "xiaozhi-issue6-market-bridge": {
+    "started_at": "2026-11-10T03:11:56.80222292Z",
+    "finished_at": "2026-11-10T03:11:56.456026932Z",
+    "created": "2026-11-10T03:07:24.062540525Z"
+  },
+  "restart_events": []
+}

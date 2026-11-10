@@ -1,0 +1,11 @@
+{
+  "physical_device_test": false,
+  "hello": true,
+  "ready": true,
+  "stt_nonempty": true,
+  "tts_stop": true,
+  "opus_frames": 68,
+  "audio_seconds": 4.08,
+  "passed": true,
+  "temporary_agent_cleaned": true
+}

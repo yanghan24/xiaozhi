@@ -1,0 +1,129 @@
+{
+  "scope": "post_test_snapshot_not_conversation_peak",
+  "sample_started_at_utc": "2026-11-10T03:27:31.181180+00:00",
+  "sample_finished_at_utc": "2026-11-10T03:27:33.766277+00:00",
+  "docker_stats": [
+    {
+      "BlockIO": "14.6MB / 45.1kB",
+      "CPUPerc": "1.98%",
+      "Container": "xiaozhi-ubuntu-test-api-1",
+      "ID": "b5a58d1e5b70",
+      "MemPerc": "52.51%",
+      "MemUsage": "470.5MiB / 896MiB",
+      "Name": "xiaozhi-ubuntu-test-api-1",
+      "NetIO": "35.2MB / 26.4MB",
+      "PIDs": "36"
+    },
+    {
+      "BlockIO": "4.1kB / 4.1kB",
+      "CPUPerc": "2.69%",
+      "Container": "xiaozhi-ubuntu-test-voice-1",
+      "ID": "703115ade66d",
+      "MemPerc": "19.99%",
+      "MemUsage": "128MiB / 640MiB",
+      "Name": "xiaozhi-ubuntu-test-voice-1",
+      "NetIO": "3.43MB / 11.8MB",
+      "PIDs": "15"
+    },
+    {
+      "BlockIO": "16.4kB / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "xiaozhi-ubuntu-test-web-1",
+      "ID": "24abbe393906",
+      "MemPerc": "7.61%",
+      "MemUsage": "7.305MiB / 96MiB",
+      "Name": "xiaozhi-ubuntu-test-web-1",
+      "NetIO": "99.4MB / 18.2MB",
+      "PIDs": "9"
+    },
+    {
+      "BlockIO": "479kB / 45.3MB",
+      "CPUPerc": "0.54%",
+      "Container": "xiaozhi-ubuntu-test-mysql-1",
+      "ID": "959e975da4ac",
+      "MemPerc": "20.92%",
+      "MemUsage": "133.9MiB / 640MiB",
+      "Name": "xiaozhi-ubuntu-test-mysql-1",
+      "NetIO": "19.6MB / 42.5MB",
+      "PIDs": "40"
+    },
+    {
+      "BlockIO": "913kB / 541kB",
+      "CPUPerc": "0.97%",
+      "Container": "xiaozhi-ubuntu-test-redis-1",
+      "ID": "4beda8efb2d0",
+      "MemPerc": "2.45%",
+      "MemUsage": "4.695MiB / 192MiB",
+      "Name": "xiaozhi-ubuntu-test-redis-1",
+      "NetIO": "47.6MB / 161MB",
+      "PIDs": "6"
+    },
+    {
+      "BlockIO": "283kB / 0B",
+      "CPUPerc": "0.10%",
+      "Container": "xiaozhi-ubuntu-test-public-entry-public-entry-1",
+      "ID": "808acf20d1d0",
+      "MemPerc": "10.46%",
+      "MemUsage": "10.04MiB / 96MiB",
+      "Name": "xiaozhi-ubuntu-test-public-entry-public-entry-1",
+      "NetIO": "8.18MB / 9.82MB",
+      "PIDs": "9"
+    },
+    {
+      "BlockIO": "12.3kB / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "xiaozhi-issue6-market-bridge",
+      "ID": "8ed86e8c26e0",
+      "MemPerc": "16.73%",
+      "MemUsage": "32.12MiB / 192MiB",
+      "Name": "xiaozhi-issue6-market-bridge",
+      "NetIO": "11.8MB / 2.33MB",
+      "PIDs": "2"
+    },
+    {
+      "BlockIO": "8.19kB / 0B",
+      "CPUPerc": "0.19%",
+      "Container": "issue11-identity",
+      "ID": "54ea1734e14f",
+      "MemPerc": "3.14%",
+      "MemUsage": "502.1MiB / 15.64GiB",
+      "Name": "issue11-identity",
+      "NetIO": "15.4MB / 6.19MB",
+      "PIDs": "72"
+    },
+    {
+      "BlockIO": "647kB / 331MB",
+      "CPUPerc": "0.58%",
+      "Container": "issue29-db",
+      "ID": "489e52d23068",
+      "MemPerc": "2.35%",
+      "MemUsage": "376.5MiB / 15.64GiB",
+      "Name": "issue29-db",
+      "NetIO": "5.58MB / 14.3MB",
+      "PIDs": "47"
+    },
+    {
+      "BlockIO": "0B / 8.19kB",
+      "CPUPerc": "1.07%",
+      "Container": "issue29-redis",
+      "ID": "bdd151b2eaef",
+      "MemPerc": "0.03%",
+      "MemUsage": "4.168MiB / 15.64GiB",
+      "Name": "issue29-redis",
+      "NetIO": "44.6kB / 27kB",
+      "PIDs": "6"
+    }
+  ],
+  "host_memory": {
+    "MemTotal": "16394560 kB",
+    "MemFree": "1762864 kB",
+    "MemAvailable": "13113924 kB",
+    "Buffers": "1257756 kB",
+    "Cached": "9808868 kB",
+    "SwapTotal": "2097148 kB",
+    "SwapFree": "2094588 kB"
+  },
+  "loadavg": "0.35 0.34 0.53 1/1102 3090489",
+  "cpu_count": 8,
+  "disk": "文件系统              1B-块        已用         可用 已用% 挂载点\n/dev/sda5      526839480320 26722779136 473283379200    6% /"
+}
