@@ -12,9 +12,9 @@
 | --- | --- | --- | --- |
 | 基础服务与设备 | [#2](https://github.com/yanghan24/xiaozhi/issues/2)、[#3](https://github.com/yanghan24/xiaozhi/issues/3)–[#6](https://github.com/yanghan24/xiaozhi/issues/6) | 管理读写、协议、服务重启和上游激活码下的基础真机语音 | 集市客户登录、正式产品鉴权与容量 |
 | 正式产品 | [#10](https://github.com/yanghan24/xiaozhi/issues/10)、[#11](https://github.com/yanghan24/xiaozhi/issues/11)–[#18](https://github.com/yanghan24/xiaozhi/issues/18)、[#39](https://github.com/yanghan24/xiaozhi/issues/39)–[#46](https://github.com/yanghan24/xiaozhi/issues/46) | 手机绑定、按归属授权的知识库问答/默认 Edge TTS、转交、运营、记录、OTA、烧录凭据、日程和室外环境 | 语音/环境容量与最终上线准备 |
-| 最终验收 | [#19](https://github.com/yanghan24/xiaozhi/issues/19) | 完整产品跨重启恢复、100 路语音、日程、350 台环境与 1,000 台扩容探索及发布恢复条件 | 未授权的生产发布 |
+| 最终验收 | [#19](https://github.com/yanghan24/xiaozhi/issues/19) | 完整产品跨重启恢复、50 路语音、日程、350 台环境与 1,000 台扩容探索及发布恢复条件 | 未授权的生产发布 |
 
-#3/#4/#5 已验收，#2 的 B 层仍等 #6。服务器合成音频不等于音箱播放；Edge TTS 已是默认提供者，但服务器合成测试不等于设备播放和完整容量验收；100 个空闲连接不等于 100 路语音对话。
+#3/#4/#5 已验收，#2 的 B 层仍等 #6。服务器合成音频不等于音箱播放；Edge TTS 已是默认提供者，但服务器合成测试不等于设备播放和完整容量验收；50 个空闲连接不等于 50 路语音对话。
 
 ## 当前任务分工
 
@@ -59,7 +59,7 @@ flowchart LR
   R2 --> F
 ```
 
-图只画新增路径，未画出的原有前置继续适用。天气验证必须支持无第三方 key、真实模型数据、国内更新与 350 台目标，1,000 台用于探测扩容；该环境容量不能替代或提高既有 100 路语音门槛。日程独立备份按 [ADR-0007](../adr/0007-back-up-schedules-as-business-data.md)，对话正文仍按 ADR-0006 排除备份。
+图只画新增路径，未画出的原有前置继续适用。天气验证必须支持无第三方 key、真实模型数据、国内更新与 350 台目标，1,000 台用于探测扩容；该环境容量不能替代或提高当前 50 路语音门槛。日程独立备份按 [ADR-0007](../adr/0007-back-up-schedules-as-business-data.md)，对话正文仍按 ADR-0006 排除备份。
 
 ## 文档阅读顺序
 
