@@ -6,6 +6,7 @@
 - [本机管理端运行与验证](docs/development/manager-baseline.md)
 - [本期 MCP 知识库接入范围](docs/planning/mcp-knowledge-scope-2026-11-10.md)
 - [首版产品规则收口](docs/planning/product-rules-2026-11-09.md)
+- [日程、室外环境与烧录登记新增需求](docs/planning/reminders-weather-discovery-2026-11-10.md)（已纳入 2026-12-07 目标）、[天气替代调研](docs/development/weather-location-replacement-research.md)
 - [实施规格、任务边界与验收导航](docs/planning/task-spec-index.md)
 - [真实集市身份联调结果](docs/verification/2026-11-09-real-market-identity.md)、[注销通知管理员检查清单](docs/handoff/2026-11-10-market-logout-notification.md)
 - [本机语音服务与设备协议验证](docs/development/voice-baseline.md)
