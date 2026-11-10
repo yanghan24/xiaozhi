@@ -12,6 +12,11 @@ from .errors import CheckError
 
 MAX_BYTES = 1048576
 _HANDLE = re.compile(r"[A-Za-z0-9_-]{16,64}")
+# Existing server round records: the request handle plus fields written by the
+# historical scripts.  Only the handle is used; the old baseline_* values are
+# never treated as a tool baseline.
+_LEGACY_ROUND_KEYS = frozenset(("url", "handle", "created_at", "expires_at",
+                                "baseline_receipts", "baseline_log_lines"))
 
 
 @dataclass(frozen=True)
@@ -94,9 +99,12 @@ def load_round(path, label, root):
     if label not in ("A", "B"):
         raise CheckError("INPUT_LABEL_INVALID")
     data, fingerprint = private_json(path, root)
-    if set(data) != {"schema", "request_handle"} or data.get("schema") != "xiaozhi-identity-round-v1":
+    if set(data) == {"schema", "request_handle"} and data.get("schema") == "xiaozhi-identity-round-v1":
+        handle = data.get("request_handle")
+    elif "handle" in data and set(data) <= _LEGACY_ROUND_KEYS:
+        handle = data.get("handle")
+    else:
         raise CheckError("RECORD_FORMAT_UNSUPPORTED")
-    handle = data.get("request_handle")
     if not isinstance(handle, str) or not _HANDLE.fullmatch(handle):
         raise CheckError("RECORD_HANDLE_INVALID")
     return RoundInput(label, handle, fingerprint, Path(path))

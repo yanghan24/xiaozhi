@@ -44,7 +44,7 @@
 
 上面只是合成示例。实际句柄只保存在服务器私有文件中，不通过终端参数或环境变量传递。文件必须是受保护的普通 JSON 文件、位于 `record_root` 内，不能为符号链接，最大 1 MiB。Linux 检查属主及组/其他用户权限（0600 或更严）。未知结构、重复 JSON 字段、非法句柄直接拒绝。
 
-**现有轮次记录适配尚未完成。** 不覆盖原文件，不为了适配生成新的业务请求；第二阶段先阅读旧脚本确认格式，再添加经过测试的读取适配。不能假定现有记录已经符合 v1。
+**现有服务器轮次记录（第二阶段已核实）**：Ubuntu 上既有的轮次 JSON 由旧验收流程写入，字段为 `url`、`handle`、`created_at`、`expires_at`，部分带 `baseline_receipts`、`baseline_log_lines`。工具接受只含这些字段且包含 `handle` 的文件，只取 `handle`，其余字段不参与判定。旧的 `baseline_*` 不是本工具的基线，不能代替 `--baseline`。含 `device_id` 等其他字段的文件（例如设备请求记录）会被拒绝。这些文件属主为 root、权限 0600，因此要以 root 运行。工具不修改原文件，也不为了适配生成新的业务请求。
 
 Windows 的权限位不等于 Linux 权限，Windows 离线测试跳过 POSIX 权限断言。真实采集必须在 Linux 核实。
 
@@ -192,4 +192,4 @@ python -m unittest discover -s scripts/customer-identity/tests -t scripts/custom
 5. 如缺历史基线或浏览器响应，验证“证据不足”输出，不要求伪造通过。
 6. 在独立验收报告记录环境、工具版本、哈希、命令、结果、差异及受阻事项，再由管理员审核 PR。
 
-常见错误：`RUN_ON_SERVER_WITH_APPROVED_RUNNER` 表示执行位置或权限不满足；`RECORD_FORMAT_UNSUPPORTED` 表示私有格式尚未适配；`OUTPUT_FILE_EXISTS` / `OUTPUT_INPUT_COLLISION` 表示拒绝覆盖；环境、schema、超时及 MySQL 错误只显示受限代码，需按获准运维流程在服务器内查明，不为了排错开启原始凭据输出。
+常见错误：`RUN_ON_SERVER_WITH_APPROVED_RUNNER` 表示执行位置或权限不满足；`RECORD_FORMAT_UNSUPPORTED` 表示记录既不是 v1 格式，也不是上述现有轮次格式；`OUTPUT_FILE_EXISTS` / `OUTPUT_INPUT_COLLISION` 表示拒绝覆盖；环境、schema、超时及 MySQL 错误只显示受限代码，需按获准运维流程在服务器内查明，不为了排错开启原始凭据输出。

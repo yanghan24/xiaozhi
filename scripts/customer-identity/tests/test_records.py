@@ -34,6 +34,15 @@ VALID_DOCUMENT = {
     "request_handle": "SyntheticHandle_1234",
 }
 VALID_HANDLE = VALID_DOCUMENT["request_handle"]
+# Same structure as the existing server round records, with synthetic values.
+LEGACY_DOCUMENT = {
+    "url": "https://bind.example.invalid/xiaozhi/bind/" + VALID_HANDLE,
+    "handle": VALID_HANDLE,
+    "created_at": 1700000000,
+    "expires_at": 1700000600,
+    "baseline_receipts": "0",
+    "baseline_log_lines": 0,
+}
 
 
 def write_file(path, content, mode=0o600):
@@ -211,11 +220,35 @@ class LoadRoundTest(RecordTestBase):
             ("wrong-schema", {"schema": "other", "request_handle": VALID_HANDLE}),
             ("extra-key", {"schema": VALID_DOCUMENT["schema"],
                            "request_handle": VALID_HANDLE, "extra": "synthetic"}),
+            ("legacy-extra-key", dict(LEGACY_DOCUMENT, extra="synthetic")),
+            ("legacy-without-handle", {"url": "https://example.invalid/bind/x",
+                                       "expires_at": 1}),
+            ("device-request-record", {"url": "https://example.invalid/bind/x",
+                                       "expires_at": 1, "device_id": "synthetic",
+                                       "handle": VALID_HANDLE}),
         ):
             with self.subTest(case=name):
                 write_json(self.path, value)
                 self.assert_code("RECORD_FORMAT_UNSUPPORTED", load_round,
                                  self.path, "A", self.root)
+
+    def test_existing_server_round_record_supplies_only_the_handle(self):
+        for name, value in (
+            ("full", LEGACY_DOCUMENT),
+            ("minimal", {"url": LEGACY_DOCUMENT["url"], "handle": VALID_HANDLE,
+                         "expires_at": LEGACY_DOCUMENT["expires_at"]}),
+        ):
+            with self.subTest(case=name):
+                write_json(self.path, value)
+                record = load_round(self.path, "A", self.root)
+                self.assertEqual(VALID_HANDLE, record.handle)
+                self.assertNotIn(VALID_HANDLE, repr(record))
+
+    def test_legacy_handle_is_validated_like_the_tool_format(self):
+        write_json(self.path, dict(LEGACY_DOCUMENT, handle="bad handle SyntheticSecret"))
+        error = self.assert_code("RECORD_HANDLE_INVALID", load_round,
+                                 self.path, "A", self.root)
+        self.assertNotIn("SyntheticSecret", str(error))
 
     def test_t29_handle_must_match_bounded_character_class(self):
         values = (
