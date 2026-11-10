@@ -34,6 +34,7 @@ _setup_websockets_logger()
 
 
 from core.connection import ConnectionHandler
+from core.product_asr import AudioPublication, MarketASR
 from config.config_loader import get_config_from_api_async
 from core.auth import AuthManager, AuthenticationError
 from core.utils.modules_initialize import initialize_modules
@@ -51,13 +52,15 @@ class WebSocketServer:
         product = config.get('product-voice', {})
         self.product_required = config.get('product_voice_required', False) or product.get('enabled', False)
         self.product_authority = None
+        self.product_audio = None
         if self.product_required:
             self.product_authority = VoiceAuthority(product.get('authority_url') or config.get('manager-api', {}).get('url', ''), product.get('service_key', ''))
+            self.product_audio = AudioPublication(product.get('asr_audio_base_url', ''))
         modules = initialize_modules(
             self.logger,
             self.config,
             "VAD" in self.config["selected_module"],
-            "ASR" in self.config["selected_module"],
+            "ASR" in self.config["selected_module"] and not self.product_required,
             "LLM" in self.config["selected_module"] and not self.product_required,
             False,
             "Memory" in self.config["selected_module"] and not self.product_required,
@@ -163,6 +166,7 @@ class WebSocketServer:
     async def _handle_product_connection(self, websocket):
         gate = None
         watcher = None
+        disconnect_watcher = None
         handler = None
         try:
             gate = await self.product_authority.open(dict(websocket.request.headers), websocket.request.path)
@@ -180,10 +184,17 @@ class WebSocketServer:
             config['voiceprint'] = {}
             handler = ConnectionHandler(config, self._vad, self._asr, MarketModel(gate), MemoryProvider({}), IntentProvider({}), self)
             handler.product_voice_gate = gate
+            handler.asr = MarketASR(gate, self.product_audio)
             def revoke():
+                handler.asr.cancel()
                 handler.client_abort = True
                 handler.stop_event.set()
                 handler.clear_queues()
+            async def on_disconnect():
+                await websocket.wait_closed()
+                revoke()
+                await gate.close()
+            disconnect_watcher = asyncio.create_task(on_disconnect())
             watcher = asyncio.create_task(gate.watch(websocket, revoke))
             self.sessions[handler.session_id] = handler
             await handler.handle_connection(GuardedSocket(websocket, gate))
@@ -193,16 +204,32 @@ class WebSocketServer:
             self.logger.bind(tag=TAG).error('Product voice connection failed')
             await websocket.close(code=1011, reason='Product voice unavailable')
         finally:
+            if disconnect_watcher is not None:
+                disconnect_watcher.cancel()
+                await asyncio.gather(disconnect_watcher, return_exceptions=True)
             if handler is not None:
+                handler.asr.cancel()
                 self.sessions.pop(handler.session_id, None)
             if watcher is not None:
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
             if gate is not None:
+                self.product_audio.revoke(gate)
                 await gate.close()
             await websocket.close()
     async def _http_response(self, websocket, request_headers):
         path = request_headers.path.partition("?")[0]
+        if path.startswith(AudioPublication.PATH):
+            data = await self.product_audio.read(request_headers.path) if self.product_audio else None
+            response = websocket.respond(200 if data is not None else 404, '')
+            response.body = data or b''
+            del response.headers['Content-Length']
+            del response.headers['Content-Type']
+            response.headers['Content-Length'] = str(len(response.body))
+            response.headers['Content-Type'] = 'audio/wav'
+            response.headers['Cache-Control'] = 'no-store'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            return response
         if path.startswith("/xiaozhi/v1/ready/"):
             return await self._session_readiness_response(websocket, path.rsplit("/", 1)[-1])
         # 检查是否为 WebSocket 升级请求
@@ -259,6 +286,9 @@ class WebSocketServer:
                 if required != self.product_required:
                     self.logger.bind(tag=TAG).error('Changing product voice mode requires a coordinated restart')
                     return False
+                if required and product.get('asr_audio_base_url', '').rstrip('/') != self.product_audio.origin:
+                    self.logger.bind(tag=TAG).error('Changing product audio origin requires a restart')
+                    return False
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 # 检查 VAD 和 ASR 类型是否需要更新
                 update_vad = check_vad_update(self.config, new_config)
@@ -273,7 +303,7 @@ class WebSocketServer:
                     self.logger,
                     new_config,
                     update_vad,
-                    update_asr,
+                    update_asr and not self.product_required,
                     "LLM" in new_config["selected_module"] and not self.product_required,
                     False,
                     "Memory" in new_config["selected_module"] and not self.product_required,

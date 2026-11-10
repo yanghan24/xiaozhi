@@ -381,6 +381,9 @@ class ConnectionHandler:
             # 入口处直接解码PCM，避免VAD和ASR重复解码
             pcm_frame = self._decode_opus_packet(message)
             if pcm_frame:
+                if getattr(self, 'product_voice_gate', None) is not None and self.asr_audio_queue.qsize() >= 100:
+                    await self.websocket.close(code=1009, reason='Audio input backlog')
+                    return
                 self.asr_audio_queue.put(pcm_frame)
 
     async def _process_mqtt_audio_message(self, message):

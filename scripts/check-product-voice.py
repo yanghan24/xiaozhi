@@ -98,7 +98,7 @@ async def production():
     config['server']['auth_key']='isolated-legacy-secret'
     config['server']['auth']={'enabled':False,'allowed_devices':[fixtures[0]['device_id'],fixtures[2]['device_id']]}
     config['product_voice_required']=True
-    config['product-voice']={'authority_url':BASE,'service_key':SERVICE}
+    config['product-voice']={'authority_url':BASE,'service_key':SERVICE,'asr_audio_base_url':'http://127.0.0.1:18086'}
     config['prompt']='Reply briefly.'
     config['context_providers']=[]
     config['selected_module']['ASR']='TestRemoteASR'

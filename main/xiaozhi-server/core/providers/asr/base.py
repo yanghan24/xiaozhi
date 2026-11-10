@@ -48,7 +48,10 @@ class ASRProviderBase(ABC):
                     handleAudioMessage(conn, message),
                     conn.loop,
                 )
-                future.result()
+                try:
+                    future.result()
+                finally:
+                    conn.asr_audio_queue.task_done()
             except queue.Empty:
                 continue
             except Exception as e:

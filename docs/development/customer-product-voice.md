@@ -16,7 +16,7 @@ Python 语音服务通过私网 `/xiaozhi/internal/device-voice/v1/{open,check,c
 
 产品 WebSocket 只接受精确 `/xiaozhi/v1/` 路径、Device-Id 与产品 Bearer 令牌；旧 HMAC 令牌、URL 查询参数、MQTT 回退、旧白名单和 auth.enabled=false 都不能绕过。产品 OTA 只发现 device_control 地址，不签发旧 websocket/activation；旧数字激活返回 403。该 discovery 响应不是固件下载能力，尚未验证实际固件兼容。
 
-正式 ConnectionHandler 对输入、模型请求、后续 TTS 输入和全部文本/二进制发送重新校验当前许可，并由 200 ms 观察任务在失效时终止连接、清理队列。同台多个连接分别受检；一次失败后连接不自行恢复。直连模式不加载旧管理员 LLM、记忆、工具或外部上下文/声纹能力。ASR 保留部署配置，仍需要独立有效的端点与凭据。
+正式 ConnectionHandler 对输入、模型请求、后续 TTS 输入和全部文本/二进制发送重新校验当前许可，并由 200 ms 观察任务在失效时终止连接、清理队列。同台多个连接分别受检；一次失败后连接不自行恢复。直连模式不加载旧管理员 LLM、记忆、工具或外部上下文/声纹能力。产品 ASR 使用归属账号当前业务 Key 调用集市 `qwen-audio-3.0-asr-flash-filetrans`，不再加载旧管理员 ASR。录音只在内存中生成 WAV，经短期地址供集市下载，异步识别成功后才交给模型。
 
 模型适配读取 OpenAI 风格 SSE 的 `delta.content`，忽略 reasoning 内容，要求 `[DONE]`，不自动重试资源请求。已经被上游受理的调用可能继续执行/计费；发送前检查无法撤回已经进入传输或设备缓冲区的音频。真实设备停播仍依赖租约、许可版本和固件 ACK，不能用服务器关闭连接代替真机验收。
 
@@ -25,7 +25,7 @@ Python 语音服务通过私网 `/xiaozhi/internal/device-voice/v1/{open,check,c
 本切片未部署公网服务。上线时必须一起更新 Java、Python、代理及支持产品协议的固件：
 
 - Java 设置 `device-control.enabled=true`、`device-control.voice-enabled=true`、正确的 HTTPS public-origin，以及至少 32 字符的独立 voice-service-secret。
-- Python 私有配置 `product-voice` 设置 `enabled: true`、`authority_url: http://api:8002/xiaozhi` 和同一个 `service_key`；禁止把该配置提交到 Git。管理端 server-base 也会发送 product_voice_required，缺少私网凭据时语音服务启动失败。
+- Python 私有配置 `product-voice` 设置 `enabled: true`、`authority_url: http://api:8002/xiaozhi` 、同一个 `service_key` 和 `asr_audio_base_url: https://bridge.hncig.cn:18443`；禁止把该配置提交到 Git。管理端 server-base 也会发送 product_voice_required，缺少私网凭据时语音服务启动失败。
 - `device-control.model-base-url` 默认为 `https://aimarket.hncig.cn/v1/`，只允许可信运维配置；它接收真实业务 Key，不能指向不可信地址。测试 harness 单独指定 loopback 受控模型，合成 Key 不发送到真实集市。
 - 开关切换必须协调重启；运行时 reload 拒绝产品模式切换。暂停产品语音时保持 device-control.enabled 与 Python 产品模式，只关闭 voice-enabled，确保不退回旧鉴权。读取旧 ready 状态时将其转为 device_disabled，并推进许可版本。
 - 已有 device_disabled 记录不自动启用，以免清除真实管理员禁用。此前实验阶段的禁用设备需经明确的管理恢复流程处理，不能靠升级批量打开。
@@ -36,4 +36,16 @@ Python 语音服务通过私网 `/xiaozhi/internal/device-voice/v1/{open,check,c
 
 真实集市模型列表已确认存在 qwen3.8-flash。早期账号积分不足；有积分账号授权后，真实模型 SSE、Edge TTS 与正式 WebSocket 音频输出已通过隔离联调，见[真实模型到 TTS 证据](../verification/2026-11-10-live-model-tts.md)。该测试使用私有凭据代理，真实账号与产品设备归属、公网及真机整链路仍未验收。
 
-当前逐帧/逐流片段权威检查会增加 HTTP 和数据库压力，全局短事务屏障的并发容量需 #19 验证。语音令牌与异常断线遗留会话尚无定期清理，部署前须补充保留/清理策略；正常连接关闭删除会话。固件、设备凭据交付、真实 ASR/模型/Edge 和公网停播端到端仍未验收，不关闭 #13 或 #11。
+当前逐帧/逐流片段权威检查会增加 HTTP 和数据库压力，全局短事务屏障的并发容量需 #19 验证。语音令牌与异常断线遗留会话尚无定期清理，部署前须补充保留/清理策略；正常连接关闭删除会话。固件、设备凭据交付、真实麦克风及公网物理停播端到端仍未验收，不关闭 #13 或 #11。
+
+## 异步 ASR 与音频发布
+
+音频上限为每段 60 秒（16 kHz 单声道 16 bit PCM）；每个语音进程最多发布 32 份录音，地址为 256 bit 随机能力令牌，最长 90 秒自动失效。完成、失败、超时、打断、开始新录音、断线或许可失效均清除对应发布；没有磁盘录音副本。每次下载仍检查当前许可，返回 no-store。发布路径只代理到持有音频的同一语音实例；多实例需要专门设计路由，不可直接随机负载均衡。修改发布 origin 需要重启。
+
+代理音频路径必须使用 HTTP/1.1，否则 websockets HTTP 解析器会拒绝 Nginx 默认的 HTTP/1.0。禁止记录能力 URL，代理禁用磁盘缓冲；TLS 公网地址必须能被集市访问。内网/公网可达性先用无付费音频下载预检。
+
+ASR 每段只提交一次，不自动重放付费请求。整个识别最多 60 秒，每个 HTTP 请求总时限 5 秒，JSON 最大 1 MiB，不跟随重定向。必须同时满足主任务和唯一子任务成功；结果地址限定配置的集市 origin 或指定官方结果存储域名，下载结果不发送业务 Key。失败不继续模型/TTS，也不撤销账号授权；当前失败只记录脱敏服务日志，设备侧错误提示体验仍待完善。已被集市受理的任务不能保证远端停止或免计费。
+
+每个连接同时处理一段识别；等待结果时继续消费并丢弃后续音频，防止持续收音积压。新的 listen.start 或 abort 取消旧识别；手动 stop 先排空已收到的 PCM，避免丢失尾音。物理打断体验仍需真实固件验证。
+
+真实集市 ASR → qwen3.8-flash → Edge → WebSocket 音频已在 Ubuntu 隔离环境通过，见[完整语音链路证据](../verification/2026-11-10-product-asr.md)。这是模拟设备与私有凭据代理的联调，不替代真实账号/产品设备映射、麦克风及扬声器验收。
