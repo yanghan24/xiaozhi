@@ -1,5 +1,7 @@
 # Ubuntu 独立测试部署与复验
 
+> 2026-11-10 设备续报：真实 P4 音箱通过现有公网 OTA/WSS 接入、现场问答及原首页恢复，见 [设备与固件交接](../handoff/2026-11-10-device-firmware.md)。本轮服务器版本、端口/防火墙/Wi-Fi 隔离及会话关联仍需配套归档；以下 2026-11-06 部署快照不表示本轮重新执行或覆盖了这些检查。
+
 记录日期：2026-11-06，Asia/Hong_Kong。后续后台服务、回归测试与设备协议检查统一在 Ubuntu `192.168.168.114` 进行，本机用于编辑、SSH 和浏览器访问。小智已部署到 `/home/jt/xiaozhi-ubuntu-test`，管理端、内部设备协议及同设备跨服务重启检查已通过，详见 [Ubuntu 实际验收](../verification/2026-11-06-ubuntu-deployment.md)。设备网络入口及真机音频仍待验证。[Windows 本机复验](../verification/2026-11-06-windows-ubuntu.md)保留为历史结果。
 
 当前环境复用服务器已有 `.env`、账号和数据卷。下文 clone、解压、初始化密码只用于全新环境；服务器 GitHub/Docker Registry 直连失败时使用已校验的[离线部署包](offline-bundle.md)。不要在当前数据库上重新初始化密码。
