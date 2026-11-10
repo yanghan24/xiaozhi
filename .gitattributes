@@ -1,2 +1,13 @@
 # Shell scripts are executed in Linux containers, including Windows checkouts.
 *.sh text eol=lf
+
+# Keep identity-check files identical to the recorded cross-platform checksums.
+scripts/customer-identity/check-identity.py text eol=lf
+scripts/customer-identity/identity_check/*.py text eol=lf
+scripts/customer-identity/tests/*.py text eol=lf
+scripts/customer-identity/examples/*.json text eol=lf
+scripts/customer-identity/env.example.json text eol=lf
+docs/development/customer-identity.md text eol=lf
+docs/development/customer-identity-check.md text eol=lf
+docs/verification/issue-36-offline-development.md text eol=lf
+docs/verification/evidence/issue-36-offline/* text eol=lf
