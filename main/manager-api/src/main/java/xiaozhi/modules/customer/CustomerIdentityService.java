@@ -68,7 +68,7 @@ final class CustomerIdentityService {
         if (rows.isEmpty()) throw new CustomerFailure(404, "FLOW_NOT_FOUND");
         var flow = rows.getFirst();
         String authorization = "NONE";
-        if (flow.get("subject_key") != null) {
+        if (flow.get("subject_key") != null && flow.get("authorization_generation") != null) {
             var grants = db.queryForList("SELECT status FROM customer_authorization WHERE subject_key=?", flow.get("subject_key"));
             if (!grants.isEmpty()) authorization = grants.getFirst().get("status").toString();
         }
@@ -107,18 +107,20 @@ final class CustomerIdentityService {
                 if (number(currentRequest, "permission_version") != number(flow, "permission_version")) throw new CustomerFailure(409, "STATE_CHANGED");
                 String subjectKey = CustomerSecrets.hash(config.issuer + "\n" + identity.subject());
                 long now = clock.millis();
-                String generation = CustomerSecrets.random();
-                String access = config.encrypt(identity.access()), refresh = config.encrypt(identity.refresh()), key = config.encrypt(identity.businessKey());
-                db.update("INSERT INTO customer_authorization(subject_key,generation,started_at_ms,issuer,subject,access_token,refresh_token,access_expires_at_ms,business_key,key_expires_at_ms,status,updated_at_ms,started_order) VALUES (?,?,?,?,?,?,?,?,?,?,'ACTIVE',?,?) ON DUPLICATE KEY UPDATE subject_key=VALUES(subject_key)",
-                        subjectKey, generation, flow.get("created_at_ms"), config.issuer, identity.subject(), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"));
-                db.update("UPDATE customer_authorization SET generation=?,started_at_ms=?,access_token=?,refresh_token=?,access_expires_at_ms=?,business_key=?,key_expires_at_ms=?,status='ACTIVE',updated_at_ms=?,started_order=? WHERE subject_key=? AND started_order<=?",
-                        generation, flow.get("created_at_ms"), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"), subjectKey, flow.get("creation_order"));
+                String generation = identity.businessKey()==null ? null : CustomerSecrets.random();
+                if (generation!=null) {
+                    String access = config.encrypt(identity.access()), refresh = config.encrypt(identity.refresh()), key = config.encrypt(identity.businessKey());
+                    db.update("INSERT INTO customer_authorization(subject_key,generation,started_at_ms,issuer,subject,access_token,refresh_token,access_expires_at_ms,business_key,key_expires_at_ms,status,updated_at_ms,started_order) VALUES (?,?,?,?,?,?,?,?,?,?,'ACTIVE',?,?) ON DUPLICATE KEY UPDATE subject_key=VALUES(subject_key)",
+                            subjectKey, generation, flow.get("created_at_ms"), config.issuer, identity.subject(), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"));
+                    db.update("UPDATE customer_authorization SET generation=?,started_at_ms=?,access_token=?,refresh_token=?,access_expires_at_ms=?,business_key=?,key_expires_at_ms=?,status='ACTIVE',updated_at_ms=?,started_order=? WHERE subject_key=? AND started_order<=?",
+                            generation, flow.get("created_at_ms"), access, refresh, identity.accessExpiresAt(), key, identity.keyExpiresAt(), now,flow.get("creation_order"), subjectKey, flow.get("creation_order"));
+                }
                 // A token can be minted after logout while an older code exchange is in flight.
                 // The originating flow, not token mint time, determines whether that login was ended.
                 boolean ended = !db.queryForList("SELECT jti_hash FROM customer_logout_receipt WHERE issuer=? AND issued_at_ms>=? AND received_at_ms>=? AND (sid=? OR (sid IS NULL AND subject=?)) LIMIT 1",
                         config.issuer, number(flow,"created_at_ms")/1000*1000, flow.get("created_at_ms"), identity.sid(), identity.subject()).isEmpty();
-                db.update("UPDATE customer_identity_flow SET status=?,verifier='',subject_key=?,issuer=?,subject=?,sid=?,identity_issued_at_ms=? WHERE id=? AND status='EXCHANGING'",
-                        ended ? "SESSION_ENDED" : "IDENTITY_VERIFIED", subjectKey, config.issuer, identity.subject(), identity.sid(), identity.issuedAt(), id);
+                db.update("UPDATE customer_identity_flow SET status=?,verifier='',subject_key=?,issuer=?,subject=?,sid=?,identity_issued_at_ms=?,authorization_generation=? WHERE id=? AND status='EXCHANGING'",
+                        ended ? "SESSION_ENDED" : "IDENTITY_VERIFIED", subjectKey, config.issuer, identity.subject(), identity.sid(), identity.issuedAt(), generation, id);
                 db.update("UPDATE customer_browser SET last_activity_ms=? WHERE id_hash=?", now, browser.get("id_hash"));
             });
         } catch (Exception e) {

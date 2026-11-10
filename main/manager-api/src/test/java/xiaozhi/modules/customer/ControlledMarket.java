@@ -104,8 +104,10 @@ final class ControlledMarket {
                             .claim("nonce", fault.equals("nonce") ? "wrong-nonce" : auth.get("nonce")).claim("sid", auth.get("sid")).build();
                     var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(rsa.getKeyID()).build(), claims);
                     jwt.sign(new RSASSASigner(fault.equals("signature") ? new RSAKeyGenerator(2048).generate() : rsa));
-                    reply(x, 200, Map.of("access_token", access, "refresh_token", "refresh-" + access, "token_type", "Bearer",
+                    var response=new HashMap<String,Object>(Map.of("access_token", access, "refresh_token", "refresh-" + access, "token_type", "Bearer",
                             "expires_in", 300, "scope", "openid profile credentials:manage offline_access", "id_token", jwt.serialize()));
+                    if (fault.equals("no-refresh")) response.remove("refresh_token");
+                    reply(x,200,response);
                 } catch (Exception e) { reply(x, 500, Map.of("error", "test_provider_error")); }
             });
             server.createContext("/me", x -> {
@@ -114,6 +116,9 @@ final class ControlledMarket {
             });
             server.createContext("/api/application-credentials", x -> {
                 var auth = authorization(x);
+                if (auth!=null && auth.getOrDefault("fault","").startsWith("key-")) {
+                    reply(x,auth.get("fault").equals("key-denied") ? 403 : 503,Map.of("error","controlled-key-unavailable")); return;
+                }
                 var data = new HashMap<String,Object>();
                 if (auth != null) {
                     data.put("subject", auth.get("sub")); data.put("client_id", "test-customer");

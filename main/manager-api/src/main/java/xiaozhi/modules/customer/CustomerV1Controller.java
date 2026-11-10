@@ -15,11 +15,55 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/customer/v1")
 public class CustomerV1Controller {
     private final CustomerIdentityService identities;
+    private final CustomerBindingService bindings;
     private final ObjectMapper json = new ObjectMapper()
             .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    CustomerV1Controller(CustomerIdentityService identities) { this.identities = identities; }
+    CustomerV1Controller(CustomerIdentityService identities, CustomerBindingService bindings) {
+        this.identities = identities; this.bindings=bindings;
+    }
+
+    @PostMapping({"/binding-flows", "/binding-flows/{id}/confirm"})
+    ResponseEntity<Map<String,Object>> unsupportedMedia() {
+        // Keep unmatched media types out of the management exception envelope.
+        return failure(new CustomerFailure(400,"INVALID_REQUEST"));
+    }
+
+    @PostMapping(value="/binding-flows/{id}/confirm", consumes=MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<com.fasterxml.jackson.databind.JsonNode> confirm(
+            @CookieValue(name="customer_browser", required=false) String cookie,
+            @RequestHeader(name="X-CSRF-Token", required=false) String csrf,
+            @RequestHeader(name="Origin", required=false) String origin,
+            @RequestHeader(name="Idempotency-Key", required=false) String key,
+            @PathVariable String id, @RequestBody String raw) {
+        try {
+            var body=json.readTree(raw);
+            if (!body.isObject() || !body.isEmpty()) throw new IllegalArgumentException();
+        } catch (Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+        var data=bindings.confirm(cookie,csrf,origin,id,key);
+        // Protocol versions are JSON numbers, independent of management Long serialization.
+        return ResponseEntity.ok().header("Cache-Control","no-store")
+                .body(json.valueToTree(Map.of("version",1,"code","OK","data",data)));
+    }
+
+    @PostMapping(value="/binding-flows/{id}/confirm", consumes=MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    ResponseEntity<?> confirmForm(@CookieValue(name="customer_browser", required=false) String cookie,
+            @RequestHeader(name="Origin", required=false) String origin, @PathVariable String id,
+            @RequestParam String csrf, @RequestParam String idempotency_key) {
+        try { bindings.confirm(cookie,csrf,origin,id,idempotency_key); }
+        catch (CustomerFailure rejected) {
+            String message=switch(rejected.getMessage()) {
+                case "DEVICE_ALREADY_BOUND" -> "设备已被绑定，请联系原归属账号。";
+                case "REQUEST_EXPIRED", "FLOW_EXPIRED" -> "设备请求已过期，请重新扫码。";
+                default -> "绑定未完成，身份或设备状态已变化，请重新扫码。";
+            };
+            return ResponseEntity.status(rejected.status).contentType(new MediaType("text","html",java.nio.charset.StandardCharsets.UTF_8))
+                    .header("Cache-Control","no-store").header("Content-Security-Policy","default-src 'none'; frame-ancestors 'none'")
+                    .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>绑定未完成</title><h1>"+message+"</h1></html>");
+        }
+        return ResponseEntity.status(303).header("Cache-Control","no-store").header("Location","/xiaozhi/customer/results/"+id).build();
+    }
 
     @PostMapping(value="/binding-flows", consumes=MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<Map<String,Object>> create(
@@ -65,7 +109,7 @@ public class CustomerV1Controller {
             case "IDENTITY_REQUIRED" -> "CUSTOMER_AUTH_REQUIRED";
             case "FLOW_ALREADY_USED", "REQUEST_CONSUMED" -> "STATE_CHANGED";
             case "CSRF_REJECTED", "REQUEST_NOT_FOUND", "REQUEST_EXPIRED", "FLOW_NOT_FOUND",
-                    "FLOW_EXPIRED", "STATE_CHANGED", "INVALID_REQUEST" -> failure.getMessage();
+                    "FLOW_EXPIRED", "STATE_CHANGED", "INVALID_REQUEST", "DEVICE_ALREADY_BOUND", "PURPOSE_MISMATCH" -> failure.getMessage();
             default -> "TEMPORARILY_UNAVAILABLE";
         };
         int status = code.equals("TEMPORARILY_UNAVAILABLE") ? 503 : failure.status;

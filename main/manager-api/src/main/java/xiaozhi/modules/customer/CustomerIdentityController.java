@@ -15,12 +15,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class CustomerIdentityController {
+    private static final MediaType HTML_UTF8 = new MediaType("text","html",java.nio.charset.StandardCharsets.UTF_8);
     private final JdbcTemplate db;
     private final java.time.Clock clock;
     private final CustomerIdentityService identities;
     private final CustomerOidcConfig config;
-    public CustomerIdentityController(JdbcTemplate db, CustomerIdentityService identities, @Qualifier("customerTime") java.time.Clock clock, CustomerOidcConfig config) {
-        this.db = db; this.identities = identities; this.clock = clock; this.config = config;
+    private final CustomerBindingService bindings;
+    public CustomerIdentityController(JdbcTemplate db, CustomerIdentityService identities, @Qualifier("customerTime") java.time.Clock clock, CustomerOidcConfig config, CustomerBindingService bindings) {
+        this.db = db; this.identities = identities; this.clock = clock; this.config = config; this.bindings=bindings;
     }
 
     @ExceptionHandler(CustomerFailure.class)
@@ -65,7 +67,7 @@ public class CustomerIdentityController {
     @GetMapping("/customer/identity-error/{status}")
     ResponseEntity<String> identityError(@PathVariable int status) {
         if (!java.util.Set.of(400,401,409,410,502,503).contains(status)) status = 400;
-        return ResponseEntity.status(status).contentType(MediaType.TEXT_HTML).header("Cache-Control", "no-store")
+        return ResponseEntity.status(status).contentType(HTML_UTF8).header("Cache-Control", "no-store")
                 .header("Referrer-Policy", "no-referrer").header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
                 .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>身份确认未完成</title><h1>身份确认未完成</h1><p>流程无效、已使用或已过期，请重新扫码。</p></html>");
     }
@@ -87,11 +89,24 @@ public class CustomerIdentityController {
             default -> "身份确认未完成，请重新扫码";
         };
         if (!"AVAILABLE".equals(data.get("request_status"))) message="设备请求已过期或已使用，请重新扫码";
-        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).header("Cache-Control", "no-store")
-                .header("Referrer-Policy", "no-referrer")
-                .header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+        boolean bound="IDENTITY_VERIFIED".equals(status) && bindings.isBound(cookie,id);
+        String action="<p>此步骤尚未绑定设备或恢复音箱使用许可。</p>";
+        if (bound) {
+            message="绑定成功";
+            action="<p>设备已归属当前集市账号。语音使用暂未启用。</p>";
+        } else if ("IDENTITY_VERIFIED".equals(status) && "AVAILABLE".equals(data.get("request_status"))
+                && "bind".equals(data.get("purpose")) && bindings.isProductFlow(cookie,id)) {
+            String csrf=identities.browser(cookie).get("csrf").toString();
+            action="<p>确认将这台设备绑定到本次登录的集市账号。</p><form method=\"post\" action=\"/xiaozhi/customer/v1/binding-flows/"
+                    + HtmlUtils.htmlEscape(id)+"/confirm\"><input type=\"hidden\" name=\"csrf\" value=\""+HtmlUtils.htmlEscape(csrf)
+                    +"\"><input type=\"hidden\" name=\"idempotency_key\" value=\""+HtmlUtils.htmlEscape(id)
+                    +"\"><button type=\"submit\">确认绑定设备</button></form>";
+        }
+        return ResponseEntity.ok().contentType(HTML_UTF8).header("Cache-Control", "no-store")
+                .header("Referrer-Policy", "same-origin")
+                .header("Content-Security-Policy", "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
                 .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>身份确认结果</title><h1>"
-                        + message + "</h1><p>"+HtmlUtils.htmlEscape(data.get("device_label").toString())+"</p><p>此步骤尚未绑定设备或恢复音箱使用许可。</p></html>");
+                        + message + "</h1><p>"+HtmlUtils.htmlEscape(data.get("device_label").toString())+"</p>"+action+"</html>");
     }
 
     @GetMapping("/bind/{handle}")
@@ -119,7 +134,7 @@ public class CustomerIdentityController {
             db.update("INSERT INTO customer_browser(id_hash,csrf,last_activity_ms) VALUES (?,?,?)", CustomerSecrets.hash(browser), csrf, now);
         }
         String alias = HtmlUtils.htmlEscape(String.valueOf(request.get("alias")));
-        var response = ResponseEntity.ok().contentType(MediaType.TEXT_HTML);
+        var response = ResponseEntity.ok().contentType(HTML_UTF8);
         if (created) response.header("Set-Cookie", ResponseCookie.from("customer_browser", browser).httpOnly(true).secure(true)
                 .sameSite("Lax").path("/xiaozhi").build().toString());
         return response.header("Cache-Control", "no-store")

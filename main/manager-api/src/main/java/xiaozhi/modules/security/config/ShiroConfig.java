@@ -86,6 +86,7 @@ public class ShiroConfig {
         filterMap.put("/customer/binding-flows/*", "anon");
         filterMap.put("/customer/v1/binding-flows", "anon");
         filterMap.put("/customer/v1/binding-flows/*", "anon");
+        filterMap.put("/customer/v1/binding-flows/*/confirm", "anon");
         filterMap.put("/customer/oidc/callback", "anon");
         filterMap.put("/customer/oidc/backchannel-logout", "anon");
         filterMap.put("/customer/results/*", "anon");

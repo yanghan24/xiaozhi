@@ -106,7 +106,7 @@ final class CustomerMarket {
             var parsed = OIDCTokenResponseParser.parse(incoming);
             if (!parsed.indicatesSuccess()) throw new CustomerFailure(502, "IDENTITY_EXCHANGE_FAILED");
             var tokens = ((OIDCTokenResponse) parsed).getOIDCTokens();
-            if (tokens.getIDToken() == null || tokens.getRefreshToken() == null) throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
+            if (tokens.getIDToken() == null || tokens.getAccessToken() == null) throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
             var validator = new IDTokenValidator(new Issuer(config.issuer), new ClientID(config.clientId), JWSAlgorithm.RS256, jwks());
             validator.setMaxClockSkew(30);
             var claims = validator.validate(tokens.getIDToken(), new Nonce(nonce));
@@ -114,20 +114,28 @@ final class CustomerMarket {
             String access = tokens.getAccessToken().getValue();
             Map<?,?> user = jsonRequest(metadata().getUserInfoEndpointURI(), "GET", access);
             if (!sub.equals(user.get("sub"))) throw new CustomerFailure(502, "IDENTITY_MISMATCH");
-            if (tokens.getAccessToken().getScope() != null && !tokens.getAccessToken().getScope().contains("credentials:manage"))
-                throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
-            URI issuer = URI.create(config.issuer);
-            URI credentials = new URI(issuer.getScheme(), null, issuer.getHost(), issuer.getPort(), "/api/application-credentials", null, null);
-            Map<?,?> envelope = jsonRequest(credentials, "POST", access);
-            if (!Integer.valueOf(20000).equals(envelope.get("code")) || !(envelope.get("data") instanceof Map<?,?> data)
-                    || !sub.equals(data.get("subject")) || !config.clientId.equals(data.get("client_id"))
-                    || !(data.get("api_key") instanceof String key) || key.isBlank()) throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
-            Object expiry = data.get("expires_at");
-            Long keyExpires = expiry == null ? null : java.time.Instant.parse(expiry.toString()).toEpochMilli();
-            long lifetime = tokens.getAccessToken().getLifetime();
-            if (lifetime <= 0 || lifetime > 300) throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
-            return new Identity(sub, claims.getStringClaim("sid"), claims.getIssueTime().getTime(), access,
-                    tokens.getRefreshToken().getValue(), clock.millis() + lifetime * 1000, key, keyExpires);
+            // Identity is already trusted. A failure obtaining business credentials must
+            // not discard it or replace another device's existing shared authorization.
+            try {
+                if (tokens.getRefreshToken()==null || (tokens.getAccessToken().getScope()!=null
+                        && !tokens.getAccessToken().getScope().contains("credentials:manage")))
+                    throw new CustomerFailure(502,"AUTHORIZATION_INCOMPLETE");
+                URI issuer = URI.create(config.issuer);
+                URI credentials = new URI(issuer.getScheme(), null, issuer.getHost(), issuer.getPort(), "/api/application-credentials", null, null);
+                Map<?,?> envelope = jsonRequest(credentials, "POST", access);
+                if (!Integer.valueOf(20000).equals(envelope.get("code")) || !(envelope.get("data") instanceof Map<?,?> data)
+                        || !sub.equals(data.get("subject")) || !config.clientId.equals(data.get("client_id"))
+                        || !(data.get("api_key") instanceof String key) || key.isBlank()) throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
+                Object expiry = data.get("expires_at");
+                Long keyExpires = expiry == null ? null : java.time.Instant.parse(expiry.toString()).toEpochMilli();
+                long lifetime = tokens.getAccessToken().getLifetime();
+                if (lifetime <= 0 || lifetime > 300 || (keyExpires!=null && keyExpires<=clock.millis()))
+                    throw new CustomerFailure(502, "AUTHORIZATION_INCOMPLETE");
+                return new Identity(sub, claims.getStringClaim("sid"), claims.getIssueTime().getTime(), access,
+                        tokens.getRefreshToken().getValue(), clock.millis() + lifetime * 1000, key, keyExpires);
+            } catch (Exception unavailable) {
+                return new Identity(sub,claims.getStringClaim("sid"),claims.getIssueTime().getTime(),null,null,0,null,null);
+            }
         } catch (CustomerFailure e) { throw e; }
         catch (Exception e) { throw new CustomerFailure(502, "IDENTITY_VERIFICATION_FAILED"); }
     }

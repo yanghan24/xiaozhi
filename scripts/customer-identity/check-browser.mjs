@@ -52,6 +52,15 @@ try {
   await page.getByRole('heading', { name: '身份已确认，等待手机确认' }).waitFor();
   observations.push('refusal and same-browser tab isolation');
 
+  await page.getByRole('button', { name: '确认绑定设备', exact: true }).click();
+  await page.getByRole('heading', { name: '绑定成功', exact: true }).waitFor();
+  assert.equal(page.url(), firstResult);
+  await page.screenshot({ path: `${output}/binding-confirmed.png`, fullPage: true });
+  await page.reload();
+  await page.getByRole('heading', { name: '绑定成功', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: '确认绑定设备', exact: true }).count(), 0);
+  observations.push('explicit phone confirmation commits binding; reload keeps success without a second mutation');
+
   for (const path of ['/xiaozhi/user/login', '/xiaozhi/user/register', '/xiaozhi/config/agent', '/xiaozhi/customer/unknown', '/xiaozhi/customer/v1/unknown']) {
     const response = await context.request.get(apiBase + path, { headers: apiHeaders });
     assert.equal(response.status(), 404);
