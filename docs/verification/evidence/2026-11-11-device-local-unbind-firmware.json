@@ -80,7 +80,37 @@
       "source": "user report in this conversation"
     },
     "server_stop_ack": {
-      "status": "pending_server_readback"
+      "status": "passed",
+      "source": "user-provided result of Ubuntu read-only SQL transaction in this conversation; not executed by the local agent",
+      "query_source_commit": "0d737f9b34deb524cf4d748d006620b1935df5d7",
+      "query_path": "docs/verification/evidence/2026-11-11-device-local-unbind-server-ack.sql",
+      "execution_environment": "Ubuntu",
+      "read_only_transaction": true,
+      "timezone": "Asia/Hong_Kong",
+      "events": [
+        {
+          "time_hong_kong": "2026-11-11T17:06:09.231+08:00",
+          "revision": 18,
+          "permission_version": 13,
+          "audio_stopped": true,
+          "received_at_ms": 1794387969231
+        },
+        {
+          "time_hong_kong": "2026-11-11T17:07:25.332+08:00",
+          "revision": 20,
+          "permission_version": 14,
+          "audio_stopped": false,
+          "received_at_ms": 1794388045332
+        }
+      ],
+      "current_state": {
+        "bound": true,
+        "local_enabled": true,
+        "reason": "ready",
+        "ownership_version": 3,
+        "permission_version": 14
+      },
+      "reported_running_api_source": "1b50709fd1cadfad966b12d4afedf78b1f279aa6"
     },
     "old_page_fence": {
       "status": "automated Ubuntu coverage; not physically reproduced this round"
@@ -88,9 +118,10 @@
     "target_device_voice_after_rebinding": {
       "status": "passed",
       "source": "user report in this conversation"
-    }
+    },
+    "local_unbind_cross_account_flow": "passed; old-page fencing covered by Ubuntu HTTP automation"
   },
   "pr67_draft": true,
   "merged": false,
-  "recorded_at_ms": 1794388272558
+  "recorded_at_ms": 1794388925407
 }
