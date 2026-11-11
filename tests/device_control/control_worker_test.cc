@@ -66,7 +66,8 @@ void CheckBeforeState() {
             Check(account.status == DeviceAccountStatus::Ready,
                   "HTTP 200 with null display fields must remain a valid account result");
     } else {
-        Check(!control.IsVoiceAllowed(), "sign-out must remain locally stopped until state confirms");
+        Check(!control.IsVoiceAllowed(),
+              "sign-out must remain locally stopped until state confirms");
     }
     throw Finished{};
 }
@@ -106,10 +107,9 @@ bool LoadDeviceIdentity(IdentityConfig& identity) {
     identity.ota_origin = "https://speaker.example:8443";
     return true;
 }
-HttpResult ControlRequest(const std::string& url, const std::string& method,
-                          const std::string& id, const std::string& credential,
-                          const std::string& body, const std::string&,
-                          const std::function<bool()>& cancelled) {
+HttpResult ControlRequest(const std::string& url, const std::string& method, const std::string& id,
+                          const std::string& credential, const std::string& body,
+                          const std::string&, const std::function<bool()>& cancelled) {
     Check(!cancelled(), "selected request must use the current control epoch");
     Check(id == "speaker-a" && credential == "test-only-device-credential",
           "worker must use the provisioned device identity");

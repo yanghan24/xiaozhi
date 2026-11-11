@@ -401,7 +401,8 @@ struct DeviceControl::Impl {
                     if (result.failure == device_control::HttpFailure::None) {
                         if (result.status == 404 || result.status == 405 || result.status == 501)
                             sign_out.Reject(DeviceSignOutStatus::Unsupported);
-                        else if (result.status == 400 || result.status == 409 || result.status == 410)
+                        else if (result.status == 400 || result.status == 409 ||
+                                 result.status == 410)
                             sign_out.Reject(DeviceSignOutStatus::Failed);
                     }
                     // Confirm success with /state, including when the response
