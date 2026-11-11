@@ -1,0 +1,259 @@
+{
+  "at": "2026-11-10T16:24:20.176551+00:00",
+  "phases": {
+    "before-weather-load": {
+      "count": 10,
+      "success": 10,
+      "failure": 0,
+      "complete_planned_sample": true,
+      "raw_counts_and_latencies_match_summary": true,
+      "timing_s": {
+        "stt_after_input": {
+          "samples": 10,
+          "p50": 2.2117790281772614,
+          "p95": 2.75371147505939,
+          "max": 2.75371147505939
+        },
+        "llm_after_input": {
+          "samples": 10,
+          "p50": 3.7607895210385323,
+          "p95": 6.648562228772789,
+          "max": 6.648562228772789
+        },
+        "first_audio_after_input": {
+          "samples": 10,
+          "p50": 6.527959679719061,
+          "p95": 15.708917453885078,
+          "max": 15.708917453885078
+        },
+        "complete_after_input": {
+          "samples": 10,
+          "p50": 16.850990897975862,
+          "p95": 41.52331333560869,
+          "max": 41.52331333560869
+        }
+      },
+      "raw_sha256": "6a07eaf8fb398bb3fd39bd76d074f21fc5d4d7844a5b7f72a08f4103d5a4a0ad",
+      "context": {
+        "scope": "server_product_protocol_with_real_ASR_LLM_TTS",
+        "primary_latency_measurement": "first decodable audio after input stop; completion also recorded",
+        "load_generator_sha256": "2de95acffa22abd8c9a13d053b420a574db73dec371aa9decbf3bb1e5379b765",
+        "physical_microphone_or_speaker": false,
+        "phase": "account2-before-weather-load",
+        "source_audio_sha256": "8cecf92c83378cca9edf26e6de6b4e3fdc1632d87d7ded77c7dabe8dca05541d",
+        "device_id_sha256": "9ff30572cd103eeba0e4ffc0c05332371b1f5d679ab5ef7319820b25bf7a02bb",
+        "tls_verified": true,
+        "connect_override": true,
+        "connect_reason": "LAN route preserves public Host and TLS SNI; public-port hairpin times out",
+        "count": 10,
+        "started_at": "2026-11-10T15:07:18.116262+00:00"
+      }
+    },
+    "during-warm-50": {
+      "count": 10,
+      "success": 10,
+      "failure": 0,
+      "complete_planned_sample": true,
+      "raw_counts_and_latencies_match_summary": true,
+      "timing_s": {
+        "stt_after_input": {
+          "samples": 10,
+          "p50": 2.121432845015079,
+          "p95": 2.459162008948624,
+          "max": 2.459162008948624
+        },
+        "llm_after_input": {
+          "samples": 10,
+          "p50": 3.3725851150229573,
+          "p95": 7.911346832755953,
+          "max": 7.911346832755953
+        },
+        "first_audio_after_input": {
+          "samples": 10,
+          "p50": 5.5557520827278495,
+          "p95": 9.552604604046792,
+          "max": 9.552604604046792
+        },
+        "complete_after_input": {
+          "samples": 10,
+          "p50": 15.368119342718273,
+          "p95": 20.15048401709646,
+          "max": 20.15048401709646
+        }
+      },
+      "raw_sha256": "6cb6666c98bff9404fcfa95f1325449d259da8130985815fed0d2588aa61f09d",
+      "context": {
+        "scope": "server_product_protocol_with_real_ASR_LLM_TTS",
+        "primary_latency_measurement": "first decodable audio after input stop; completion also recorded",
+        "load_generator_sha256": "2de95acffa22abd8c9a13d053b420a574db73dec371aa9decbf3bb1e5379b765",
+        "physical_microphone_or_speaker": false,
+        "phase": "account2-during-warm-50",
+        "source_audio_sha256": "8cecf92c83378cca9edf26e6de6b4e3fdc1632d87d7ded77c7dabe8dca05541d",
+        "device_id_sha256": "9ff30572cd103eeba0e4ffc0c05332371b1f5d679ab5ef7319820b25bf7a02bb",
+        "tls_verified": true,
+        "connect_override": true,
+        "connect_reason": "LAN route preserves public Host and TLS SNI; public-port hairpin times out",
+        "count": 10,
+        "started_at": "2026-11-10T15:21:08.042491+00:00"
+      }
+    },
+    "after-weather-load-50": {
+      "count": 10,
+      "success": 10,
+      "failure": 0,
+      "complete_planned_sample": true,
+      "raw_counts_and_latencies_match_summary": true,
+      "timing_s": {
+        "stt_after_input": {
+          "samples": 10,
+          "p50": 2.239890117198229,
+          "p95": 2.5194100318476558,
+          "max": 2.5194100318476558
+        },
+        "llm_after_input": {
+          "samples": 10,
+          "p50": 3.5756855150684714,
+          "p95": 6.402290252968669,
+          "max": 6.402290252968669
+        },
+        "first_audio_after_input": {
+          "samples": 10,
+          "p50": 5.546812261454761,
+          "p95": 15.225865686312318,
+          "max": 15.225865686312318
+        },
+        "complete_after_input": {
+          "samples": 10,
+          "p50": 16.0569852408953,
+          "p95": 24.250680634286255,
+          "max": 24.250680634286255
+        }
+      },
+      "raw_sha256": "d8f1c5912e799c74bcf85cbce04f5870494aa9322c14330aa0675141f14f9399",
+      "context": {
+        "scope": "server_product_protocol_with_real_ASR_LLM_TTS",
+        "primary_latency_measurement": "first decodable audio after input stop; completion also recorded",
+        "load_generator_sha256": "2de95acffa22abd8c9a13d053b420a574db73dec371aa9decbf3bb1e5379b765",
+        "physical_microphone_or_speaker": false,
+        "phase": "account2-after-weather-load-50",
+        "source_audio_sha256": "8cecf92c83378cca9edf26e6de6b4e3fdc1632d87d7ded77c7dabe8dca05541d",
+        "device_id_sha256": "9ff30572cd103eeba0e4ffc0c05332371b1f5d679ab5ef7319820b25bf7a02bb",
+        "tls_verified": true,
+        "connect_override": true,
+        "connect_reason": "LAN route preserves public Host and TLS SNI; public-port hairpin times out",
+        "count": 10,
+        "started_at": "2026-11-10T15:50:08.467113+00:00"
+      }
+    },
+    "during-cold-50": {
+      "count": 10,
+      "success": 10,
+      "failure": 0,
+      "complete_planned_sample": true,
+      "raw_counts_and_latencies_match_summary": true,
+      "timing_s": {
+        "stt_after_input": {
+          "samples": 10,
+          "p50": 2.216033078264445,
+          "p95": 2.756026939023286,
+          "max": 2.756026939023286
+        },
+        "llm_after_input": {
+          "samples": 10,
+          "p50": 3.5613738051615655,
+          "p95": 5.73515792703256,
+          "max": 5.73515792703256
+        },
+        "first_audio_after_input": {
+          "samples": 10,
+          "p50": 6.177343424875289,
+          "p95": 16.368034744635224,
+          "max": 16.368034744635224
+        },
+        "complete_after_input": {
+          "samples": 10,
+          "p50": 17.300283594988286,
+          "p95": 33.21756328828633,
+          "max": 33.21756328828633
+        }
+      },
+      "raw_sha256": "ac25292dd8796bce55f56695a0d01f816e6cbcefb73a95f12276a64673d5b139",
+      "context": {
+        "scope": "server_product_protocol_with_real_ASR_LLM_TTS",
+        "primary_latency_measurement": "first decodable audio after input stop; completion also recorded",
+        "load_generator_sha256": "2de95acffa22abd8c9a13d053b420a574db73dec371aa9decbf3bb1e5379b765",
+        "physical_microphone_or_speaker": false,
+        "phase": "account2-during-cold-50",
+        "source_audio_sha256": "8cecf92c83378cca9edf26e6de6b4e3fdc1632d87d7ded77c7dabe8dca05541d",
+        "device_id_sha256": "9ff30572cd103eeba0e4ffc0c05332371b1f5d679ab5ef7319820b25bf7a02bb",
+        "tls_verified": true,
+        "connect_override": true,
+        "connect_reason": "LAN route preserves public Host and TLS SNI; public-port hairpin times out",
+        "count": 10,
+        "started_at": "2026-11-10T15:54:15.758913+00:00"
+      }
+    }
+  },
+  "ratios": {
+    "during-warm-50": {
+      "stt_after_input": {
+        "p95_ratio_to_before": 0.8930354654877511,
+        "p95_ratio_to_after": 0.976086455901405
+      },
+      "llm_after_input": {
+        "p95_ratio_to_before": 1.1899334864488817,
+        "p95_ratio_to_after": 1.2357057428140736
+      },
+      "first_audio_after_input": {
+        "p95_ratio_to_before": 0.6081007575531102,
+        "p95_ratio_to_after": 0.627393200547825
+      },
+      "complete_after_input": {
+        "p95_ratio_to_before": 0.4852812167042612,
+        "p95_ratio_to_after": 0.8309244726355092
+      }
+    },
+    "during-cold-50": {
+      "stt_after_input": {
+        "p95_ratio_to_before": 1.0008408520590728,
+        "p95_ratio_to_after": 1.0939175855396999
+      },
+      "llm_after_input": {
+        "p95_ratio_to_before": 0.862616266448208,
+        "p95_ratio_to_after": 0.8957978630183524
+      },
+      "first_audio_after_input": {
+        "p95_ratio_to_before": 1.0419581611963424,
+        "p95_ratio_to_after": 1.0750150488552968
+      },
+      "complete_after_input": {
+        "p95_ratio_to_before": 0.7999738127785748,
+        "p95_ratio_to_after": 1.3697579787233871
+      }
+    }
+  },
+  "cold_overlap": {
+    "start": "2026-11-10T15:54:11.602174+00:00",
+    "fill_observed_complete": "2026-11-10T15:55:19.121446+00:00",
+    "counts": {
+      "attempt_started_before_fill_observed_complete": 2,
+      "input_stopped_during_fill": 2,
+      "first_audio_during_fill": 2,
+      "complete_question_during_fill": 2
+    },
+    "observation_poll_interval_s": 5,
+    "cold_phase_ratios_include_post_fill_questions": true
+  },
+  "raw_integrity_passed": true,
+  "all_real_questions_succeeded": true,
+  "same_account_generation_and_product_source": true,
+  "primary_warm_p95_proposed_limit_passed": true,
+  "proposed_p95_degradation_limit": 0.1,
+  "primary_warm_comparison_passed": true,
+  "limitations": [
+    "Ten serial questions per phase; p95 equals the worst sample, no statistical capacity/SLA claim",
+    "Cloud ASR/model/TTS latency varies independently of host contention",
+    "Cold fill can finish before all ten questions; actual overlap is reported separately",
+    "Real server protocol and decoded audio, not a physical microphone or speaker"
+  ]
+}

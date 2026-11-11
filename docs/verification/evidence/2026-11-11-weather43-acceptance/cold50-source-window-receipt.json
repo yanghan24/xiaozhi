@@ -1,0 +1,43 @@
+{
+  "start_inclusive": "2026-11-10T15:54:09.602174+00:00",
+  "end_inclusive": "2026-11-10T15:55:21.121446+00:00",
+  "requests": 570,
+  "counts_status_error_is_metadata": [
+    [
+      [
+        null,
+        "ClientConnectorError",
+        true
+      ],
+      2
+    ],
+    [
+      [
+        200,
+        null,
+        true
+      ],
+      102
+    ],
+    [
+      [
+        200,
+        null,
+        false
+      ],
+      21
+    ],
+    [
+      [
+        206,
+        null,
+        false
+      ],
+      445
+    ]
+  ],
+  "successful_payload_bytes": 29358974,
+  "raw_sha256": "570bc867f89f41f368dd13d4561da5a2f5d226c878890625e12bd79072a9eb51",
+  "scope": "shared trial relay; includes any ordinary primary-cache source calls within the same window",
+  "fault_injection_active": false
+}
