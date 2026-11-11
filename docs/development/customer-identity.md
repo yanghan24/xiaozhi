@@ -74,8 +74,10 @@ node scripts/customer-identity/check-browser.mjs
 
 复用现有配置和已通过证据，按 [#11 剩余验收](https://github.com/yanghan24/xiaozhi/issues/11)核对实际批准范围、通知覆盖、失败策略及故障恢复。可控集市结果与真实集市、最终设备联动的证据分别记录。下述共享撤销工具用于专项复验。
 
-共享撤销工具仅为 `scripts/customer-identity/verify-shared-revocation.py`，没有产品 HTTP 入口。运维从专用测试账号的受保护验收会话准备 `0600` JSON（`access_token`、`subject`、`client_id`），不从客户页面导出。显式指定 `--client-config`、`--private-test-session`、`--confirm-revoke-test-subject` 后，工具先核对 UserInfo 和应用，检查 Key 可访问模型列表，再撤销该用户在该应用的共享授权，验证同一 Key 被拒绝；只输出 HTTP 状态，不打印凭据，不发起模型推理。该动作影响此测试账号在同一应用的所有终端，不能用于单台音箱退出。
+成功路径共享撤销工具为 `scripts/customer-identity/verify-shared-revocation.py`，没有产品 HTTP 入口。运维从专用测试账号的受保护验收会话准备 `0600` JSON（`access_token`、`subject`、`client_id`），不从客户页面导出。显式指定 `--client-config`、`--private-test-session`、`--confirm-revoke-test-subject` 后，工具先核对 UserInfo 和应用，检查 Key 可访问模型列表，再撤销该用户在该应用的共享授权，验证同一 Key 被拒绝；只输出 HTTP 状态，不打印凭据，不发起模型推理。该动作影响此测试账号在同一应用的所有终端，不能用于单台音箱退出。
 
 ## 回退
 
 新增表与旧服务兼容；回退应用和代理允许路径即可停止新流程，保留表及加密密钥，不能用 Git 回退数据库或撤销外部已发出的授权。部署前须备份私有密钥并安排授权数据的受控恢复。#13、硬件验收、真实集市验收和规范通流式调用不在本次完成范围。
+
+过期令牌与异常结果专项使用[共享撤销探针](shared-revocation-probe.md)，分开准备、单次尝试和只读核查；可控测试不代替真实集市验收。
