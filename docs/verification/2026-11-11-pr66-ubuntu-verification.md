@@ -35,3 +35,13 @@ HTTP 客户端在 Ubuntu，通过临时 SSH loopback HTTP CONNECT 代理访问 `
 B 在补发后另行完成了解绑和换账号绑定，见[当前部署记录中的现场结果](../deployment/current.md)。当前归属版本 3 和许可版本 14 不能证明补发瞬间归属或本地调用许可不变；缺少紧邻补发的前后快照，历史归属保持仍不记为通过。单条映射证明当前原档案关联，不扩大为完整的历史硬件前后比对。
 
 备份及 API 重启执行请求被自动审批拒绝，返回仅为 `blocked by policy`；该次请求未执行，本轮未完成补发后服务重启验收。真实 OTA、正常恢复出厂、异常身份丢失后的完整补发及迟到/续作竞态仍按 PR #66 的待验收范围处理。本报告不关闭 #42 / #13，也不表示 PR #63 / #66 已合并。
+
+## 19:54 补充：本机可完成的检查
+
+用户要求暂缓重启问题，硬件留给硬件方。本轮继续在 Ubuntu 经相同 TLS 公网入口完成 [8 项拒绝检查](evidence/2026-11-11-pr66-ubuntu-verification/rejection-summary.json)：旧凭据访问 state、account、requests、state-acks 均为 401 / INVALID_DEVICE_CREDENTIAL；当前设备凭据创建、查询及完成 recovery 均为 401 / OPERATOR_AUTH_REQUIRED；新凭据携带互换的 P4/C6 标识为 403 / HARDWARE_MISMATCH。全部通过。
+
+这些请求前后，在内存中比对全部 dc_device 的凭据 hash、准入、归属、本地许可与许可/归属版本，以及全部恢复记录，结果完全一致。没有创建补发、改变归属或重启服务。该比对证明本轮拒绝请求无这些持久副作用，不替代历史补发前后保持性证据。
+
+同时重新读取现网组合提交 `1b50709` 之前已执行的隔离测试 XML，[摘录](evidence/2026-11-11-pr66-ubuntu-verification/existing-regression.json)确认 DeviceDeliveryHttpTest 20 项与 CustomerVoicePermissionHttpTest 24 项均无失败/错误/跳过。已有恢复用例覆盖原档案保持、旧交付重放拒绝、已退出设备回执续作、并发补发唯一后继、迟到恢复不能还原旧秘密、跨设备前驱拒绝、原归属/第二设备保持及旧语音/迟到扫码拒绝。这是既有服务端自动化证据复核，本轮未重跑，不能记为 P4 实际写回竞态已通过。
+
+本机本轮累计完成 24 项公网预检、2 项新旧凭据检查、8 项拒绝检查。下一步实机验收见[硬件方检查清单](../handoff/2026-11-11-pr66-hardware-acceptance.md)；API 重启验收单独暂缓。
