@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 from core.utils.dialogue import Message
 from core.providers.asr.dto.dto import InterfaceType
 from core.handle.receiveAudioHandle import startToChat
+from core.handle.abortHandle import handleAbortMessage
 from core.handle.reportHandle import enqueue_asr_report
 from core.handle.sendAudioHandle import send_stt_message, send_tts_message
 from core.handle.textMessageHandler import TextMessageHandler
@@ -95,6 +96,17 @@ class ListenTextMessageHandler(TextMessageHandler):
 
                 # 识别是否是唤醒词
                 is_wakeup_words = filtered_text in conn.config.get("wakeup_words")
+                if (
+                    is_wakeup_words
+                    and conn.config.get("interrupt_mode") == "wake_word"
+                ):
+                    await handleAbortMessage(conn)
+                # Ignore ordinary detections during playback in wake-word mode.
+                elif (
+                    conn.client_is_speaking
+                    and conn.config.get("interrupt_mode") == "wake_word"
+                ):
+                    return
                 # 是否开启唤醒词回复
                 enable_greeting = conn.config.get("enable_greeting", True)
 

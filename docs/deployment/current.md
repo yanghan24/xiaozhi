@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），依据[音箱显示名称修正部署记录](../verification/2026-11-11-speaker-profile-fix.md)。API 已包含 PR #52、长期烧录凭据、设备账号查询与本机退出，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音仍使用 PR #26 版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），依据[音箱显示名称修正部署记录](../verification/2026-11-11-speaker-profile-fix.md)。API 已包含 PR #52、长期烧录凭据、设备账号查询与本机退出，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音已在 PR #26 基础上配置五模式提示词及[唤醒词打断](../verification/2026-11-11-wake-word-interrupt.md)。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -27,7 +27,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1468eeb` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:885918d`，单实例 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:wake-word-20261111`，单实例 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 

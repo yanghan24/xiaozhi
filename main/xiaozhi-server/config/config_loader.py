@@ -62,6 +62,8 @@ async def get_config_from_api_async(config):
     if config_data is None:
         raise Exception("Failed to fetch server config from API")
 
+    config_data["interrupt_mode"] = config.get("interrupt_mode", "auto")
+
     config_data["read_config_from_api"] = True
     config_data["manager-api"] = {
         "url": config["manager-api"].get("url", ""),
