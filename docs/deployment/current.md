@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），依据[音箱设置服务端部署记录](../verification/2026-11-11-speaker-settings-deployment.md)。API 已包含 PR #52、长期烧录凭据、设备账号查询与本机退出；语音仍使用 PR #26 版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），依据[手机扫码页部署记录](../verification/2026-11-11-mobile-binding-style.md)。API 已包含 PR #52、长期烧录凭据、设备账号查询与本机退出，并统一手机扫码页为 AI 集市风格；语音仍使用 PR #26 版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -23,10 +23,10 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `b670a17c88ea86b5396c56785e776845fd93d82a`，基于已部署长期烧录凭据版 `3f963b6` |
+| API 源码 | `52e627f41aba6acfc004f89b8d1b02c36b64921b`，基于音箱设置版 `b670a17` |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:b670a17` |
+| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:52e627f` |
 | 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:885918d`，单实例 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
