@@ -2,6 +2,8 @@
 
 日期：2026-11-10，Asia/Shanghai。状态：**Ubuntu 真实自建取数、350/1,000 个热请求批次已测；冷启动与断源重启暴露限制，建议补齐持久结果缓存后继续验证，尚未通过完整上线验收。**
 
+本文件保留首轮方案及当时证据。后续独立出站、持久缓存、完整故障矩阵、新账号语音对照，以及用户最新确认的 **50 路**环境请求计划，以[续验收报告](../verification/2026-11-10-weather43-acceptance.md)和[隔离试验说明](../../deploy/weather43/README.md)为准。
+
 任务：[Issue #43](https://github.com/yanghan24/xiaozhi/issues/43)，父规格 [#40](https://github.com/yanghan24/xiaozhi/issues/40)。本地分支 `codex/43-self-hosted-weather-feasibility`，基于 `aa730ccea7403112f4d0ed35daed3fadb35fd776`。本轮仅在该分支新增文件，供方案评审。
 
 ## 1. 仓库与运行环境的理解
