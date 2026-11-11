@@ -1,0 +1,383 @@
+{
+  "source_baseline": {
+    "ncep_gfs013": 1794268800,
+    "cams_global": 1794225600
+  },
+  "observation_samples": 162,
+  "components": {
+    "weather": {
+      "snapshots": 3,
+      "new_runs_after_source_baseline": 2,
+      "required_new_runs": 1,
+      "transitions": [
+        {
+          "from_run": "2026-11-10T00:00:00+00:00",
+          "to_run": "2026-11-10T06:00:00+00:00",
+          "source": {
+            "first_observed_at": "2026-11-10T11:23:31.565908+00:00",
+            "metadata": {
+              "chunk_time_length": 481,
+              "crs_wkt": "GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-89.912125,-180.0,89.912125,179.88281]]]",
+              "data_end_time": 1795676400,
+              "last_run_availability_time": 1794309714,
+              "last_run_initialisation_time": 1794290400,
+              "last_run_modification_time": 1794309714,
+              "temporal_resolution_seconds": 3600,
+              "update_interval_seconds": 21600
+            },
+            "etag": "\"6078f6d6387edf49a1fb7d3a48c9a0a1\"",
+            "sha256": "ebe092a4abda762e35a403c827b3c9405f2ad76b1832451ee4c4f257022a790a"
+          },
+          "cached_fetched_at": "2026-11-10T11:33:17.862708+00:00",
+          "snapshot": "1815577-weather-1794290400.json",
+          "raw_engine_response_matches_sha256": true,
+          "same_coordinates_model_variables_and_query": true,
+          "publication_settling_grace_satisfied": true,
+          "overlapping_values_changed": true,
+          "fields": {
+            "time": {
+              "overlap_samples": 45,
+              "changed_values": 0,
+              "first_changed_examples": []
+            },
+            "temperature_2m": {
+              "overlap_samples": 45,
+              "changed_values": 36,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T15:00:00+00:00",
+                  "old": 13.1,
+                  "new": 13.0
+                },
+                {
+                  "valid_at": "2026-11-10T17:00:00+00:00",
+                  "old": 12.8,
+                  "new": 12.7
+                },
+                {
+                  "valid_at": "2026-11-10T18:00:00+00:00",
+                  "old": 12.7,
+                  "new": 12.3
+                }
+              ]
+            },
+            "relative_humidity_2m": {
+              "overlap_samples": 45,
+              "changed_values": 38,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T11:00:00+00:00",
+                  "old": 42,
+                  "new": 40
+                },
+                {
+                  "valid_at": "2026-11-10T12:00:00+00:00",
+                  "old": 43,
+                  "new": 41
+                },
+                {
+                  "valid_at": "2026-11-10T13:00:00+00:00",
+                  "old": 45,
+                  "new": 43
+                }
+              ]
+            },
+            "weather_code": {
+              "overlap_samples": 45,
+              "changed_values": 6,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-11T00:00:00+00:00",
+                  "old": 2,
+                  "new": 3
+                },
+                {
+                  "valid_at": "2026-11-12T00:00:00+00:00",
+                  "old": 3,
+                  "new": 51
+                },
+                {
+                  "valid_at": "2026-11-12T01:00:00+00:00",
+                  "old": 3,
+                  "new": 51
+                }
+              ]
+            }
+          },
+          "consistent": true
+        },
+        {
+          "from_run": "2026-11-10T06:00:00+00:00",
+          "to_run": "2026-11-10T12:00:00+00:00",
+          "source": {
+            "first_observed_at": "2026-11-10T17:47:21.698367+00:00",
+            "metadata": {
+              "chunk_time_length": 481,
+              "crs_wkt": "GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-89.912125,-180.0,89.912125,179.88281]]]",
+              "data_end_time": 1795698000,
+              "last_run_availability_time": 1794332825,
+              "last_run_initialisation_time": 1794312000,
+              "last_run_modification_time": 1794332825,
+              "temporal_resolution_seconds": 3600,
+              "update_interval_seconds": 21600
+            },
+            "etag": "\"338ec5252cdb9278b20ebfdcaf0a8661\"",
+            "sha256": "dd8ec13b395247ffd3b18a3ea248356e32421f765580b978c681c82581b19a95"
+          },
+          "cached_fetched_at": "2026-11-10T17:57:51.710326+00:00",
+          "snapshot": "1815577-weather-1794312000.json",
+          "raw_engine_response_matches_sha256": true,
+          "same_coordinates_model_variables_and_query": true,
+          "publication_settling_grace_satisfied": true,
+          "overlapping_values_changed": true,
+          "fields": {
+            "time": {
+              "overlap_samples": 42,
+              "changed_values": 0,
+              "first_changed_examples": []
+            },
+            "temperature_2m": {
+              "overlap_samples": 42,
+              "changed_values": 41,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T17:00:00+00:00",
+                  "old": 12.7,
+                  "new": 12.5
+                },
+                {
+                  "valid_at": "2026-11-10T18:00:00+00:00",
+                  "old": 12.3,
+                  "new": 12.4
+                },
+                {
+                  "valid_at": "2026-11-10T19:00:00+00:00",
+                  "old": 12.4,
+                  "new": 12.2
+                }
+              ]
+            },
+            "relative_humidity_2m": {
+              "overlap_samples": 42,
+              "changed_values": 33,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T18:00:00+00:00",
+                  "old": 51,
+                  "new": 49
+                },
+                {
+                  "valid_at": "2026-11-11T00:00:00+00:00",
+                  "old": 55,
+                  "new": 56
+                },
+                {
+                  "valid_at": "2026-11-11T01:00:00+00:00",
+                  "old": 56,
+                  "new": 53
+                }
+              ]
+            },
+            "weather_code": {
+              "overlap_samples": 42,
+              "changed_values": 10,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-11T00:00:00+00:00",
+                  "old": 3,
+                  "new": 2
+                },
+                {
+                  "valid_at": "2026-11-12T00:00:00+00:00",
+                  "old": 51,
+                  "new": 3
+                },
+                {
+                  "valid_at": "2026-11-12T01:00:00+00:00",
+                  "old": 51,
+                  "new": 3
+                }
+              ]
+            }
+          },
+          "consistent": true
+        }
+      ],
+      "observed_states": {
+        "loading": 1,
+        "fresh": 149,
+        "stale": 6
+      },
+      "invalid_states": []
+    },
+    "air_quality": {
+      "snapshots": 3,
+      "new_runs_after_source_baseline": 2,
+      "required_new_runs": 2,
+      "transitions": [
+        {
+          "from_run": "2026-11-09T12:00:00+00:00",
+          "to_run": "2026-11-10T00:00:00+00:00",
+          "source": {
+            "first_observed_at": "2026-11-10T09:55:23.884674+00:00",
+            "metadata": {
+              "chunk_time_length": 217,
+              "crs_wkt": "GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-90.0,-180.0,90.0,179.6]]]",
+              "data_end_time": 1794704400,
+              "last_run_availability_time": 1794304287,
+              "last_run_initialisation_time": 1794268800,
+              "last_run_modification_time": 1794304287,
+              "temporal_resolution_seconds": 3600,
+              "update_interval_seconds": 43200
+            },
+            "etag": "\"d6d6e77390c73ac18fb64f3c173a6616\"",
+            "sha256": "57dfc7ba119126a42f7161357a42da797ce27cb2f78f4b0c4f88692ded25c7fd"
+          },
+          "cached_fetched_at": "2026-11-10T10:02:42.853848+00:00",
+          "snapshot": "1815577-air_quality-1794268800.json",
+          "raw_engine_response_matches_sha256": true,
+          "same_coordinates_model_variables_and_query": true,
+          "publication_settling_grace_satisfied": true,
+          "overlapping_values_changed": true,
+          "fields": {
+            "time": {
+              "overlap_samples": 46,
+              "changed_values": 0,
+              "first_changed_examples": []
+            },
+            "pm2_5": {
+              "overlap_samples": 46,
+              "changed_values": 46,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T10:00:00+00:00",
+                  "old": 44.0,
+                  "new": 35.3
+                },
+                {
+                  "valid_at": "2026-11-10T11:00:00+00:00",
+                  "old": 57.3,
+                  "new": 47.5
+                },
+                {
+                  "valid_at": "2026-11-10T12:00:00+00:00",
+                  "old": 64.7,
+                  "new": 54.9
+                }
+              ]
+            },
+            "pm10": {
+              "overlap_samples": 46,
+              "changed_values": 46,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T10:00:00+00:00",
+                  "old": 44.9,
+                  "new": 36.0
+                },
+                {
+                  "valid_at": "2026-11-10T11:00:00+00:00",
+                  "old": 59.1,
+                  "new": 49.0
+                },
+                {
+                  "valid_at": "2026-11-10T12:00:00+00:00",
+                  "old": 67.3,
+                  "new": 57.2
+                }
+              ]
+            }
+          },
+          "consistent": true
+        },
+        {
+          "from_run": "2026-11-10T00:00:00+00:00",
+          "to_run": "2026-11-10T12:00:00+00:00",
+          "source": {
+            "first_observed_at": "2026-11-10T21:48:38.960523+00:00",
+            "metadata": {
+              "chunk_time_length": 217,
+              "crs_wkt": "GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-90.0,-180.0,90.0,179.6]]]",
+              "data_end_time": 1794747600,
+              "last_run_availability_time": 1794347196,
+              "last_run_initialisation_time": 1794312000,
+              "last_run_modification_time": 1794347196,
+              "temporal_resolution_seconds": 3600,
+              "update_interval_seconds": 43200
+            },
+            "etag": "\"c339dfab6688c66d6ff2c89e3b693964\"",
+            "sha256": "756474068e6ecab6520e2e6aa12fc921cf1a85986d0ad007dfd8c0b37d9fe0cd"
+          },
+          "cached_fetched_at": "2026-11-10T21:56:59.727922+00:00",
+          "snapshot": "1815577-air_quality-1794312000.json",
+          "raw_engine_response_matches_sha256": true,
+          "same_coordinates_model_variables_and_query": true,
+          "publication_settling_grace_satisfied": true,
+          "overlapping_values_changed": true,
+          "fields": {
+            "time": {
+              "overlap_samples": 37,
+              "changed_values": 0,
+              "first_changed_examples": []
+            },
+            "pm2_5": {
+              "overlap_samples": 37,
+              "changed_values": 37,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T21:00:00+00:00",
+                  "old": 49.5,
+                  "new": 73.6
+                },
+                {
+                  "valid_at": "2026-11-10T22:00:00+00:00",
+                  "old": 55.3,
+                  "new": 76.6
+                },
+                {
+                  "valid_at": "2026-11-10T23:00:00+00:00",
+                  "old": 70.5,
+                  "new": 78.2
+                }
+              ]
+            },
+            "pm10": {
+              "overlap_samples": 37,
+              "changed_values": 37,
+              "first_changed_examples": [
+                {
+                  "valid_at": "2026-11-10T21:00:00+00:00",
+                  "old": 51.5,
+                  "new": 76.1
+                },
+                {
+                  "valid_at": "2026-11-10T22:00:00+00:00",
+                  "old": 57.4,
+                  "new": 79.2
+                },
+                {
+                  "valid_at": "2026-11-10T23:00:00+00:00",
+                  "old": 72.6,
+                  "new": 80.6
+                }
+              ]
+            }
+          },
+          "consistent": true
+        }
+      ],
+      "observed_states": {
+        "loading": 1,
+        "fresh": 149,
+        "stale": 6
+      },
+      "invalid_states": []
+    }
+  },
+  "passed": true,
+  "limitations": [
+    "Engine does not emit a model run identifier; source metadata, 10-minute settling and overlapping values are audited together",
+    "Differences compare identical valid hours so a moving forecast window alone cannot count as a model update",
+    "These are model estimates, not monitoring-station observations"
+  ]
+}
