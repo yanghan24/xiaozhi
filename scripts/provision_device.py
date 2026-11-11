@@ -88,8 +88,10 @@ def read_frame(port, deadline):
     raise ProvisioningError("Timed out waiting for the maintenance image")
 
 
-def provision(port, manifest, repair=False, operation_id=None):
+def provision(port, manifest, action="write", operation_id=None):
     validate_manifest(manifest)
+    if action not in ("write", "repair", "recover"):
+        raise ProvisioningError("Invalid maintenance action")
     if operation_id is None:
         operation_id = secrets.token_hex(16)
     if not isinstance(operation_id, str) or not re.fullmatch(r"[0-9a-f]{32}", operation_id):
@@ -101,8 +103,11 @@ def provision(port, manifest, repair=False, operation_id=None):
             break
     if ready.get("hardware_id") != manifest["hardware_id"]:
         raise ProvisioningError("Connected hardware does not match the private manifest")
+    if action == "recover" and (not isinstance(ready.get("capabilities"), list)
+                                or "credential_recovery" not in ready["capabilities"]):
+        raise ProvisioningError("Install the verified recovery maintenance image before writing a new credential")
     request = {"version": 1, "operation_id": operation_id,
-               "action": "repair" if repair else "write", "identity": manifest}
+               "action": action, "identity": manifest}
     port.write(json.dumps(request, ensure_ascii=True, separators=(",", ":")).encode() + b"\n")
     port.flush()
     deadline = time.monotonic() + 15
@@ -144,7 +149,7 @@ def main():
             port.rts = False
             port.port = args.port
             port.open()
-            provision(port, manifest, repair=args.repair)
+            provision(port, manifest, action="repair" if args.repair else "write")
         print("PASS: device identity committed and read back; install the product image next")
         return 0
     except ProvisioningError as error:

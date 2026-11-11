@@ -231,6 +231,10 @@ class P4Hardware:
         with self.serial() as port:
             return provision(port, manifest, operation_id=operation)
 
+    def recover(self, manifest, operation):
+        with self.serial() as port:
+            return provision(port, manifest, action="recover", operation_id=operation)
+
     def reset(self):
         with self.connection():
             pass

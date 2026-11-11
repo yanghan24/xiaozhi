@@ -67,6 +67,14 @@ def verify(build):
     )
     checks["dashboard_and_control_linked"] = all(name in symbols for name in required_symbols)
     checks["no_maintenance_entrypoint"] = "RunDeviceProvisioning()" not in symbols
+    link = (build / "build.ninja").read_text()
+    checks["identity_erase_guard"] = (
+        any(line.endswith(" __wrap_nvs_flash_erase") for line in symbols.splitlines())
+        and "--wrap=nvs_flash_erase " in link
+        and "--wrap=nvs_flash_erase_partition" in link
+        and not any(line.endswith((" nvs_flash_erase", " nvs_flash_erase_partition"))
+                    for line in symbols.splitlines())
+    )
 
     partitions = {}
     table = (build / "partition_table/partition-table.bin").read_bytes()

@@ -26,7 +26,7 @@ void Reply(const std::string& json) {
 }
 void Ready() {
     Reply("{\"version\":1,\"mode\":\"device_provisioning\",\"hardware_id\":\"" +
-          DeviceHardwareId() + "\"}");
+          DeviceHardwareId() + "\",\"capabilities\":[\"credential_recovery\"]}");
 }
 void Apply(const std::string& line) {
     const char* result = "invalid_request";
@@ -52,11 +52,15 @@ void Apply(const std::string& line) {
     }
     const std::string action_name = cJSON_IsString(action) ? action->valuestring : "";
     if (valid && fields.empty() && cJSON_IsNumber(version) && version->valuedouble == 1 &&
-        (action_name == "write" || action_name == "repair") && cJSON_IsObject(identity)) {
+        (action_name == "write" || action_name == "repair" || action_name == "recover") &&
+        cJSON_IsObject(identity)) {
         std::unique_ptr<char, decltype(&cJSON_free)> json(cJSON_PrintUnformatted(identity),
                                                           cJSON_free);
         if (json) {
-            const auto stored = StoreDeviceIdentity(json.get(), action_name == "repair");
+            const auto mode = action_name == "recover"  ? IdentityWrite::Recovery
+                              : action_name == "repair" ? IdentityWrite::Repair
+                                                        : IdentityWrite::Provision;
+            const auto stored = StoreDeviceIdentity(json.get(), mode);
             result = stored == ESP_OK                  ? "stored"
                      : stored == ESP_ERR_INVALID_ARG   ? "invalid_identity"
                      : stored == ESP_ERR_INVALID_STATE ? "identity_conflict"

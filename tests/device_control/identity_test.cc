@@ -6,6 +6,8 @@
 #include "device_identity.h"
 #include "nvs.h"
 
+using device_control::IdentityWrite;
+
 using Entries = std::map<std::string, std::string>;
 static std::map<std::string, Entries> flash;
 struct Handle {
@@ -112,6 +114,9 @@ int main() {
     Check(device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
               identity.ota_origin == "https://speaker.example:18443",
           "read back full atomic record");
+    Check(device_control::StoreDeviceIdentity(
+              Replace(first, std::string(43, 'A'), std::string(43, 'B'))) == ESP_ERR_INVALID_STATE,
+          "ordinary delivery replay cannot rotate an existing credential");
     Check(device_control::StoreDeviceIdentity(Replace(first, "speaker-a", "speaker-b")) ==
               ESP_ERR_INVALID_STATE,
           "repair cannot change an existing device ID");
@@ -131,16 +136,20 @@ int main() {
           "NUL cannot truncate identity");
     auto rotated = Replace(first, std::string(43, 'A'), std::string(43, 'B'));
     fail_commit = true;
-    Check(device_control::StoreDeviceIdentity(rotated) == ESP_FAIL,
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_FAIL,
           "failed commit is never success");
     fail_commit = false;
     Check(
         device_control::LoadDeviceIdentity(identity) && identity.credential == std::string(43, 'A'),
         "failed replacement leaves the previous complete identity");
-    Check(device_control::StoreDeviceIdentity(rotated) == ESP_OK &&
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
               device_control::LoadDeviceIdentity(identity) &&
               identity.credential == std::string(43, 'B'),
           "credential rotation preserves device ID and replaces the full record");
+    Check(device_control::StoreDeviceIdentity(first) == ESP_ERR_INVALID_STATE &&
+              device_control::LoadDeviceIdentity(identity) &&
+              identity.credential == std::string(43, 'B'),
+          "an old delivery record cannot overwrite the recovered credential");
     flash["wifi"]["ssid"] = "test-network";
     flash["websocket"]["token"] = "obsolete-legacy-token";
     Check(device_control::ResetUserSettings() == ESP_OK && flash["wifi"].empty() &&
@@ -151,20 +160,31 @@ int main() {
     flash["device_ctrl"]["identity_v1"] = "damaged record";
     Check(!device_control::LoadDeviceIdentity(identity) && identity.credential.empty(),
           "corruption closes product access and clears any previously loaded credential");
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
+              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
+              identity.credential == std::string(43, 'B'),
+          "recovery restores a damaged blob without changing the surviving device anchor");
+    flash["device_ctrl"]["identity_v1"] = "damaged record";
     Check(device_control::StoreDeviceIdentity(first) == ESP_ERR_INVALID_STATE,
           "normal writes never silently overwrite a damaged record");
-    Check(device_control::StoreDeviceIdentity(Replace(first, "speaker-a", "speaker-b"), true) ==
-              ESP_ERR_INVALID_STATE,
+    Check(device_control::StoreDeviceIdentity(Replace(first, "speaker-a", "speaker-b"),
+                                              IdentityWrite::Repair) == ESP_ERR_INVALID_STATE,
           "repair requires the original immutable ID");
-    Check(device_control::StoreDeviceIdentity(first, true) == ESP_OK &&
+    Check(device_control::StoreDeviceIdentity(first, IdentityWrite::Repair) == ESP_OK &&
               device_control::LoadDeviceIdentity(identity),
           "explicit USB maintenance can restore a damaged blob from a matching private backup");
-    Check(device_control::StoreDeviceIdentity(rotated, true) == ESP_ERR_INVALID_STATE,
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Repair) ==
+              ESP_ERR_INVALID_STATE,
           "repair cannot override a healthy record; rotation uses normal writes");
     flash["device_ctrl"].erase("device_id");
     flash["device_ctrl"]["identity_v1"] = "damaged record";
-    Check(device_control::StoreDeviceIdentity(first, true) == ESP_ERR_INVALID_STATE,
-          "no repair without a surviving identity anchor");
+    Check(
+        device_control::StoreDeviceIdentity(first, IdentityWrite::Repair) == ESP_ERR_INVALID_STATE,
+        "no repair without a surviving identity anchor");
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
+              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
+              identity.credential == std::string(43, 'B'),
+          "authorized recovery rebuilds a missing anchor for a damaged identity blob");
     flash.clear();
     commits_before_failure = 1;
     Check(device_control::StoreDeviceIdentity(first) == ESP_FAIL &&
@@ -177,5 +197,9 @@ int main() {
     Check(device_control::StoreDeviceIdentity(first) == ESP_OK &&
               device_control::LoadDeviceIdentity(identity),
           "initial provisioning can be retried for the same registered device");
+    flash.clear();
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
+              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a",
+          "authorized recovery after complete identity loss retains the server-issued stable ID");
     std::cout << "device identity and reset tests passed\n";
 }

@@ -57,6 +57,14 @@ target_include_directories(device_identity_tests PRIVATE stubs "${CONTROL_DIR}"
 target_compile_options(device_identity_tests PRIVATE -Wall -Wextra -Werror)
 add_test(NAME device_identity_tests COMMAND device_identity_tests)
 
+add_executable(nvs_erase_guard_tests nvs_erase_guard_test.cc stubs/nvs_flash.cc
+  "${CONTROL_DIR}/nvs_erase_guard.cc")
+target_include_directories(nvs_erase_guard_tests PRIVATE stubs)
+target_compile_options(nvs_erase_guard_tests PRIVATE -Wall -Wextra -Werror)
+target_link_options(nvs_erase_guard_tests PRIVATE
+  -Wl,--wrap=nvs_flash_erase -Wl,--wrap=nvs_flash_erase_partition)
+add_test(NAME nvs_erase_guard_tests COMMAND nvs_erase_guard_tests)
+
 add_executable(device_delivery_tests delivery_test.cc
   "${CONTROL_DIR}/delivery_model.cc" "${IDF_PATH}/components/json/cJSON/cJSON.c")
 target_include_directories(device_delivery_tests PRIVATE "${CONTROL_DIR}"
