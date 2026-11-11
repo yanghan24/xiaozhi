@@ -209,6 +209,7 @@ struct DeviceControl::Impl {
                 generation = model.View().generation;
             }
             ResetAccount();
+            refresh = true;
             dirty = true;
         }
         if (cb)
@@ -356,7 +357,24 @@ struct DeviceControl::Impl {
                 }
                 continue;
             }
-            if (sent_account_permission != 0) {
+            // Menu endpoints share device authentication and the trusted TLS
+            // channel. Revoke before their display/business handling can return.
+            bool retry = false;
+            if (result.failure == device_control::HttpFailure::Tls ||
+                result.failure == device_control::HttpFailure::Invalid) {
+                FailClosed(result.failure == device_control::HttpFailure::Tls ? "tls_error"
+                                                                              : "invalid_response");
+                retry = true;
+            } else if (result.failure == device_control::HttpFailure::None &&
+                       (result.status == 401 || result.status == 403)) {
+                FailClosed("device_auth_required");
+                if (sent_sign_out != 0) {
+                    std::lock_guard<std::mutex> lock(mutex);
+                    if (sign_out.Expected() == sent_sign_out)
+                        sign_out.Reject(DeviceSignOutStatus::Failed);
+                }
+                retry = true;
+            } else if (sent_account_permission != 0) {
                 std::string username, balance;
                 const bool valid = result.failure == device_control::HttpFailure::None &&
                                    result.status == 200 &&
@@ -369,12 +387,11 @@ struct DeviceControl::Impl {
                     account_load = valid ? AccountLoad::Loaded : AccountLoad::Failed;
                     account_username = std::move(username);
                     account_balance = std::move(balance);
-                    if (result.status == 401 || result.status == 403 || result.status == 409)
+                    if (result.status == 409)
                         refresh = true;
                 }
                 continue;
-            }
-            if (sent_sign_out != 0) {
+            } else if (sent_sign_out != 0) {
                 const bool ok = result.failure == device_control::HttpFailure::None &&
                                 result.status == 200 &&
                                 device_control::ValidateSignOutResponse(result.body, sent_sign_out);
@@ -384,9 +401,7 @@ struct DeviceControl::Impl {
                     if (result.failure == device_control::HttpFailure::None) {
                         if (result.status == 404 || result.status == 405 || result.status == 501)
                             sign_out.Reject(DeviceSignOutStatus::Unsupported);
-                        else if (result.status == 400 || result.status == 401 ||
-                                 result.status == 403 || result.status == 409 ||
-                                 result.status == 410)
+                        else if (result.status == 400 || result.status == 409 || result.status == 410)
                             sign_out.Reject(DeviceSignOutStatus::Failed);
                     }
                     // Confirm success with /state, including when the response
@@ -401,17 +416,7 @@ struct DeviceControl::Impl {
                     refresh = true;
                 }
                 continue;
-            }
-            bool retry = false;
-            if (result.failure == device_control::HttpFailure::Tls ||
-                result.failure == device_control::HttpFailure::Invalid) {
-                FailClosed(result.failure == device_control::HttpFailure::Tls ? "tls_error"
-                                                                              : "invalid_response");
-                retry = true;
             } else if (result.failure != device_control::HttpFailure::None) {
-                retry = true;
-            } else if (result.status == 401 || result.status == 403) {
-                FailClosed("device_auth_required");
                 retry = true;
             } else if (result.status == 429) {
                 int64_t unix_ms;

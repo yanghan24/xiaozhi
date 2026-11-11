@@ -16,6 +16,20 @@ target_compile_options(device_control_tests PRIVATE -Wall -Wextra -Werror)
 enable_testing()
 add_test(NAME device_control_tests COMMAND device_control_tests)
 
+add_executable(control_worker_tests control_worker_test.cc
+  "${CONTROL_DIR}/device_control.cc" "${CONTROL_DIR}/control_model.cc"
+  "${IDF_PATH}/components/json/cJSON/cJSON.c")
+target_include_directories(control_worker_tests PRIVATE stubs "${CONTROL_DIR}"
+  "${IDF_PATH}/components/json/cJSON")
+target_compile_options(control_worker_tests PRIVATE -Wall -Wextra -Werror)
+foreach(operation account sign-out)
+  foreach(outcome unauthorized forbidden tls invalid missing server network timeout)
+    add_test(NAME control_worker_${operation}_${outcome}
+      COMMAND control_worker_tests ${operation} ${outcome})
+  endforeach()
+endforeach()
+add_test(NAME control_worker_account_nullable COMMAND control_worker_tests account nullable)
+
 find_package(Threads REQUIRED)
 add_executable(controlled_audio_access_tests
   "${CMAKE_CURRENT_LIST_DIR}/../audio_access/controlled_audio_access_test.cc")

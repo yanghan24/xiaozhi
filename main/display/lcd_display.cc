@@ -733,9 +733,11 @@ void LcdDisplay::UpdateSettingsShortcutVisibility() {
     binding_visible =
         binding_panel_ != nullptr && !lv_obj_has_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
 #endif
-    standby_dashboard_->SetSettingsShortcutVisible(binding_visible ||
-                                                   Application::GetInstance().GetDeviceState() ==
-                                                       kDeviceStateWifiConfiguring);
+    const auto state = Application::GetInstance().GetDeviceState();
+    const bool voice_active = state == kDeviceStateConnecting || state == kDeviceStateListening ||
+                              state == kDeviceStateSpeaking;
+    standby_dashboard_->SetSettingsShortcutVisible(binding_visible || voice_active ||
+                                                   state == kDeviceStateWifiConfiguring);
 }
 
 void LcdDisplay::UpdateStandbyDashboard(bool force) {
