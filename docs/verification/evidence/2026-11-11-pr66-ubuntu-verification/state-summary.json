@@ -1,0 +1,24 @@
+{
+  "observed_at": "2026-11-11T11:27:38.728212+00:00",
+  "read_only": true,
+  "recovered_devices": [
+    {
+      "status": "delivered",
+      "device_verified": "1",
+      "completed": "1",
+      "current_hash_matches_recovery": "1",
+      "original_hash_replaced": "1",
+      "predecessor_matches_original": "1",
+      "admitted": "1",
+      "local_enabled": "1",
+      "reason": "ready",
+      "permission_version": "14",
+      "ownership_version": "3",
+      "has_owner": "1",
+      "delivery_mapping_count": "1"
+    }
+  ],
+  "historical_ownership_comparison": "Not proven: subsequent unbind/rebind changed ownership; no immediate pre/post recovery snapshot supplied",
+  "restart": "not executed: automatic approval review rejected request with blocked by policy",
+  "old_new_http_check": "pending private material"
+}

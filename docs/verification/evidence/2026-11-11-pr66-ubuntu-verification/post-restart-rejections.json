@@ -1,0 +1,60 @@
+{
+  "observed_at": "2026-11-11T12:31:59.927820+00:00",
+  "device_alias": "B",
+  "checks": [
+    {
+      "name": "old state",
+      "http": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "old account",
+      "http": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "old request",
+      "http": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "old ACK",
+      "http": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "device cannot create recovery",
+      "http": 401,
+      "code": "OPERATOR_AUTH_REQUIRED",
+      "passed": true
+    },
+    {
+      "name": "device cannot query recovery",
+      "http": 401,
+      "code": "OPERATOR_AUTH_REQUIRED",
+      "passed": true
+    },
+    {
+      "name": "device cannot complete recovery",
+      "http": 401,
+      "code": "OPERATOR_AUTH_REQUIRED",
+      "passed": true
+    },
+    {
+      "name": "new credential wrong hardware",
+      "http": 403,
+      "code": "HARDWARE_MISMATCH",
+      "passed": true
+    }
+  ],
+  "all_device_credentials_owners_admission_local_permission_versions_unchanged": true,
+  "recovery_records_unchanged": true,
+  "tls_verified": true,
+  "transport": "Ubuntu via temporary loopback SSH CONNECT proxy",
+  "service_restarted": false,
+  "new_recovery_created": false
+}

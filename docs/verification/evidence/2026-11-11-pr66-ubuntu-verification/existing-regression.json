@@ -1,0 +1,48 @@
+{
+  "source_revision": "1b50709fd1cadfad966b12d4afedf78b1f279aa6",
+  "execution": "existing isolated regression reports; not rerun",
+  "suites": [
+    {
+      "name": "xiaozhi.modules.devicecontrol.DeviceDeliveryHttpTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "recovery_cases": [
+        {
+          "name": "administratorRecoveryKeepsTheDeviceAndRejectsOldCredentialAndDeliveryReplay",
+          "passed": true
+        },
+        {
+          "name": "recoveryWriteReceiptResumesWithoutEnablingASignedOutDevice",
+          "passed": true
+        },
+        {
+          "name": "concurrentRecoveryHasOneSuccessorAndLateRecoveryCannotRestoreOldSecrets",
+          "passed": true
+        },
+        {
+          "name": "recoveryRejectsOtherOperatorsMalformedRequestsAndCrossDevicePredecessors",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerVoicePermissionHttpTest",
+      "tests": "24",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "recovery_cases": [
+        {
+          "name": "speakerSignOutStopsOnlyItAndCannotReplayAfterRecovery",
+          "passed": true
+        },
+        {
+          "name": "credentialRecoveryKeepsOwnerAndOtherDeviceButRejectsOldVoiceAndLateResume",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}

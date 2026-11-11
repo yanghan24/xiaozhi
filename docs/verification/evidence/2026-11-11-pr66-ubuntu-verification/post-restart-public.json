@@ -1,0 +1,164 @@
+{
+  "observed_at": "2026-11-11T12:32:00.965884+00:00",
+  "origin": "https://bridge.hncig.cn:18443",
+  "tls_verification": true,
+  "real_credentials_used": false,
+  "devices_registered": false,
+  "flash_accessed": false,
+  "checks": 24,
+  "failures": 0,
+  "results": [
+    {
+      "name": "OTA health",
+      "http": 200,
+      "expected_http": 200,
+      "passed": true
+    },
+    {
+      "name": "voice HTTP health",
+      "http": 200,
+      "expected_http": 200,
+      "passed": true
+    },
+    {
+      "name": "OTA public discovery",
+      "http": 200,
+      "expected_http": 200,
+      "passed": true
+    },
+    {
+      "name": "legacy OTA activation blocked",
+      "http": 403,
+      "expected_http": 403,
+      "passed": true
+    },
+    {
+      "name": "control state anonymous",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "control state unissued credential",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "control request anonymous",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "control ACK anonymous",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "delivery query anonymous",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "TOOL_AUTH_REQUIRED",
+      "passed": true
+    },
+    {
+      "name": "delivery query unissued tool",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "TOOL_AUTH_REQUIRED",
+      "passed": true
+    },
+    {
+      "name": "tool authorize invalid login",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "OPERATOR_AUTH_REQUIRED",
+      "passed": true
+    },
+    {
+      "name": "device-check unissued credential",
+      "http": 401,
+      "expected_http": 401,
+      "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "ready anonymous",
+      "http": 401,
+      "expected_http": 401,
+      "passed": true
+    },
+    {
+      "name": "unissued audio URL",
+      "http": 404,
+      "expected_http": 404,
+      "passed": true
+    },
+    {
+      "name": "internal voice API blocked",
+      "http": 404,
+      "expected_http": 404,
+      "passed": true
+    },
+    {
+      "name": "management config blocked",
+      "http": 404,
+      "expected_http": 404,
+      "passed": true
+    },
+    {
+      "name": "management login blocked",
+      "http": 404,
+      "expected_http": 404,
+      "passed": true
+    },
+    {
+      "name": "unknown delivery route blocked",
+      "http": 404,
+      "expected_http": 404,
+      "passed": true
+    },
+    {
+      "name": "malformed operation ID blocked",
+      "http": 404,
+      "expected_http": 404,
+      "passed": true
+    },
+    {
+      "name": "authorize wrong method blocked",
+      "http": 403,
+      "expected_http": 403,
+      "passed": true
+    },
+    {
+      "name": "operation query wrong method blocked",
+      "http": 403,
+      "expected_http": 403,
+      "passed": true
+    },
+    {
+      "name": "delivery body over 4KB blocked",
+      "http": 413,
+      "expected_http": 413,
+      "passed": true
+    },
+    {
+      "name": "WSS rejects anonymous connection",
+      "upgrade_http": 101,
+      "close_code": 1008,
+      "passed": true
+    },
+    {
+      "name": "WSS rejects invalid credential",
+      "upgrade_http": 101,
+      "close_code": 1008,
+      "passed": true
+    }
+  ]
+}
