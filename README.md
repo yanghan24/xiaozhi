@@ -15,6 +15,7 @@
 - [任务 #3](https://github.com/yanghan24/xiaozhi/issues/3)、[任务 #4](https://github.com/yanghan24/xiaozhi/issues/4)、[父规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)
 - [2026-11-06 Ubuntu 独立测试部署（历史）](docs/deployment/ubuntu-isolated-test.md)、[A 层验收结果](docs/verification/issue-5-acceptance.md)
 - [P4 样机语音与固件交接](docs/handoff/2026-11-10-device-firmware.md)、[原有 UI 恢复记录](docs/verification/2026-11-10-p4-ui-recovery.md)
+- [设备身份保留与授权补发](docs/development/device-identity-recovery.md)、[B 应用更新/复位/重新配网验证](docs/verification/2026-11-11-device-identity-retention.md)
 - [换机/服务器交接](docs/handoff/2026-11-05-ubuntu-server.md)、[文档同步核查](docs/planning/document-sync-audit-2026-11-06.md)
 - [团队协作与回退](CONTRIBUTING.md)
 - [筑音硬件接入资料](筑音设备接入资料_核查稿_2026-11-06.md)

@@ -1,6 +1,9 @@
 # Shell scripts are executed in Linux containers, including Windows checkouts.
 *.sh text eol=lf
 
+# Preserve firmware patch checksums; blank diff context lines contain one space.
+integrations/firmware/*.patch text eol=lf whitespace=-blank-at-eol
+
 # Keep identity-check files identical to the recorded cross-platform checksums.
 scripts/customer-identity/check-identity.py text eol=lf
 scripts/customer-identity/identity_check/*.py text eol=lf

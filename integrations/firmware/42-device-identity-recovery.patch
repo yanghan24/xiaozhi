@@ -1,0 +1,870 @@
+diff --git a/.gitignore b/.gitignore
+index 6d9a36a..428c40c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,6 +1,6 @@
+ tmp/
+ components/
+-managed_components/
++managed_components
+ build/
+ dist/
+ .vscode/
+diff --git a/docs/device-identity-recovery.md b/docs/device-identity-recovery.md
+new file mode 100644
+index 0000000..e4bf10d
+--- /dev/null
++++ b/docs/device-identity-recovery.md
+@@ -0,0 +1,52 @@
++# 设备身份保留与授权补发
++
++关联 [#42](https://github.com/yanghan24/xiaozhi/issues/42)，服务端协议见 [PR #63](https://github.com/yanghan24/xiaozhi/pull/63)。本候选从实际 P4 产品固件 `00896abbb266bf5d2dda90a49b71ea7bb95c1a6f` 建立；现场固件仓库 origin 是本地镜像，不向第三方上游推送任务分支。
++
++## 实际存储与维护影响
++
++已核对的 P4 为 Waveshare 4.3、revision 3.2，32 MB 物理 Flash，使用 `partitions/v2/16m.csv`。`device_ctrl` 命名空间位于默认 `nvs` 分区 `0x9000..0xd000`，不是独立身份分区。本候选不修改分区表、bootloader、otadata、assets 或 C6 固件，不需要分区迁移。
++
++| 操作 | 实现行为与边界 |
++| --- | --- |
++| 应用槽重刷 | 交付适配器只写已确认的当前应用槽，读回核对应用、启动保护区及 assets；NVS 保持原值 |
++| OTA | 原 `Ota::Upgrade` 使用 `esp_ota_get_next_update_partition`、`esp_ota_begin/write/end`，仅写应用槽；仍需真实 OTA 验收 |
++| 重新配网 | 现有 WifiBoard 进入配网流程，不调用身份写入；仍需在当前 P4 实测 |
++| 正常恢复出厂 | 产品 `SystemReset` 使用 `ResetUserSettings`，按命名空间清理，跳过 `device_ctrl`，不退回旧固件；当前 P4 界面的具体恢复入口仍需现场确认 |
++| 普通 NVS 初始化失败/修复 | 主程序已有停止启动保护；本候选另外在产品和维护镜像最终链接时包装 `nvs_flash_erase` 与 `nvs_flash_erase_partition`，依赖组件的整分区自动擦除也返回 `ESP_ERR_INVALID_STATE`。损坏时停止接入并进入受控恢复，不自动修复整个分区 |
++| 全片擦除或身份损坏 | 身份不可用时关闭产品接入；核对原硬件档案后由管理员补发。整片擦除、原始 Flash 写入和运行其他固件不受上述 NVS 包装保护 |
++
++普通 `write` 只允许初次写入或同一身份重试，不能替换健康记录的凭据或可信地址。`repair` 仍只接受损坏记录及幸存的匹配 device_id anchor。新增 `recover` 允许在原 device_id 上写入管理员刚签发的完整身份；anchor 缺失且 blob 损坏时可重建后台已确认的原标识，完整且冲突的 anchor 始终拒绝。
++
++维护镜像是离线程序，不验证管理员登录或远程证明硬件。授权由联网工具在发送新秘密前通过服务端恢复接口检查；维护工作站和串口连接必须受控。新工具要求维护镜像声明 `credential_recovery` 能力，避免向旧镜像发送补发秘密。
++
++## 管理员补发工具
++
++前提：服务端已部署兼容 PR #63 的版本，管理员通过正常受保护入口登录；保留该设备已完成交付或上次已完成补发的私有 journal。普通烧录工具凭据不授予补发权限。
++
++物理适配器要求既有分区表、有效 otadata、受支持的应用槽及可初始化 NVS。它不直接接管全片已擦除的裸片；维护程序也不会自动擦除无法初始化的 NVS。此类设备须先经过另行验证的受控工序恢复固定布局、启动材料及可用 NVS，再写回后台当前恢复操作签发的凭据。布局重建、整个 NVS 损坏及不可读 anchor 的自动修复流程尚未交付，不把拒绝继续操作当作恢复完成。
++
++```bash
++python scripts/device_recovery.py \
++  --origin https://bridge.hncig.cn:18443 \
++  --admin-token-file .private/operator-login.json \
++  --previous-journal .private/delivery/device-a \
++  --journal .private/recovery/device-a-round-1 \
++  --port /dev/ttyACM0 \
++  --product-build build/product --maintenance-build build/maintenance
++```
++
++每轮使用新的恢复目录，并固定保留前驱 journal 与两份构建。工具先持久保存补发号和写入号，再经管理员路由预检、真实 P4 芯片核对和应用/NVS 备份，最后请求原档案补发。返回的原设备标识、P4/C6 映射、板型和可信 origin 必须匹配。
++
++新凭据在服务端创建补发时立即生效，设备写回前可能离线。工具只写应用槽，将补发身份提交到维护镜像并要求匹配的提交/读回回执，再恢复产品镜像。设备必须自己联网验证新凭据、原 P4/C6 与稳定标识，后台才记录写回完成。补发完成不启用设备、不改变客户归属或本台退出状态。
++
++响应丢失、USB 回执丢失或完成响应丢失时，重跑同一条命令，复用同一恢复目录。每次续作先检查后台当前操作，再接触硬件；新一轮补发已取代本轮时，409 会阻止本轮继续写入。已完成 journal 的复查不会再写身份。服务端凭据代际与物理 Flash 写入不是一个原子事务；竞争中写入了已过期材料的设备会被后台拒绝，须使用当前恢复操作重新写回，不能恢复旧后台秘密。
++
++若前驱 journal 也丢失，当前工具不提供按硬件找回档案的入口，应先通过受控运维途径恢复当前档案/操作元数据；不得通过新登记、删档或直接恢复旧 NVS 秘密绕过补发。
++
++## 验证与保护能力
++
++本机自动化测试只覆盖公开身份维护接口以及 HTTP、串口、esptool 的替身边界，不替代 Ubuntu 与真实 P4 验收。真实测试须分别记录应用更新、OTA、重新配网、普通恢复、异常丢失、补发写回、旧凭据拒绝和重启；后端回归与设备协议检查按主项目要求在 Ubuntu 执行。
++
++实际产品构建配置未开启 Secure Boot、Flash 加密或 NVS 加密。成功的现场适配器核对也要求设备未开启 Secure Boot/Flash 加密。身份是默认 NVS 中的秘密，独立命名空间、访问权限、擦除防护和后台 hash 都不等于设备秘密不可提取；没有验证 eFuse 秘密保护或抗物理攻击能力。
++
++回退应用不撤销后台补发。原始应用/NVS 备份只供受控恢复；凭据轮换后，不得把备份中的旧身份当作有效身份恢复。暂停补发时保留服务端恢复表、当前 hash 与加密密钥，并保留兼容新凭据的 API。
+diff --git a/main/CMakeLists.txt b/main/CMakeLists.txt
+index 6fb47c1..757cdcc 100644
+--- a/main/CMakeLists.txt
++++ b/main/CMakeLists.txt
+@@ -1081,6 +1081,9 @@ idf_component_register(SRCS ${SOURCES}
+                     )
+ 
+ if(CONFIG_XIAOZHI_DEVICE_CONTROL)
++    target_sources(${COMPONENT_LIB} PRIVATE "device_control/nvs_erase_guard.cc")
++    target_link_options(${COMPONENT_LIB} INTERFACE
++        "-Wl,--wrap=nvs_flash_erase" "-Wl,--wrap=nvs_flash_erase_partition")
+     # The existing 16 MB layout has 0x3f0000-byte app slots. Keep the complete
+     # P4 UI and optimize application glue for size; DSP/codec components retain
+     # their existing optimization settings.
+diff --git a/main/device_control/device_identity.cc b/main/device_control/device_identity.cc
+index bec310c..bd107ce 100644
+--- a/main/device_control/device_identity.cc
++++ b/main/device_control/device_identity.cc
+@@ -64,7 +64,7 @@ bool LoadDeviceIdentity(IdentityConfig& config) {
+     return true;
+ }
+ 
+-esp_err_t StoreDeviceIdentity(const std::string& json, bool repair_corrupt) {
++esp_err_t StoreDeviceIdentity(const std::string& json, IdentityWrite mode) {
+     IdentityConfig next;
+     if (!ParseIdentityConfig(json, DeviceHardwareId(), next))
+         return ESP_ERR_INVALID_ARG;
+@@ -87,10 +87,15 @@ esp_err_t StoreDeviceIdentity(const std::string& json, bool repair_corrupt) {
+         damaged = !ParseIdentityConfig(previous, next.hardware_id, current);
+         if (!damaged && current.device_id != next.device_id)
+             result = ESP_ERR_INVALID_STATE;
++        if (!damaged && mode == IdentityWrite::Provision &&
++            (current.credential != next.credential || current.ota_url != next.ota_url ||
++             current.control_origin != next.control_origin))
++            result = ESP_ERR_INVALID_STATE;
+     } else if (read_result != ESP_ERR_NVS_NOT_FOUND && !damaged) {
+         result = read_result;
+     }
+-    if ((damaged && (!repair_corrupt || anchor_result != ESP_OK)) || (repair_corrupt && !damaged))
++    if ((damaged && mode == IdentityWrite::Provision) ||
++        (mode == IdentityWrite::Repair && (!damaged || anchor_result != ESP_OK)))
+         result = ESP_ERR_INVALID_STATE;
+     if (result == ESP_OK && anchor_result == ESP_ERR_NVS_NOT_FOUND) {
+         // Persist the ID first. A power cut can leave an ID without a credential,
+diff --git a/main/device_control/device_identity.h b/main/device_control/device_identity.h
+index 350df68..bc42896 100644
+--- a/main/device_control/device_identity.h
++++ b/main/device_control/device_identity.h
+@@ -6,10 +6,13 @@
+ namespace device_control {
+ std::string DeviceHardwareId();
+ bool LoadDeviceIdentity(IdentityConfig& config);
+-// Maintenance only: credentials are replaced as one atomic blob. A separate immutable
+-// device_id anchor permits explicit repair of a damaged blob without changing identity.
+-// Repair requires a damaged blob and an intact matching anchor; it never erases NVS.
+-esp_err_t StoreDeviceIdentity(const std::string& json, bool repair_corrupt = false);
++enum class IdentityWrite { Provision, Repair, Recovery };
++// Provision permits initial issuance or an identical retry, never credential rotation.
++// Repair requires a damaged blob and matching ID anchor. Recovery writes a new
++// administrator-issued credential for the same ID; authorization is checked by
++// the connected recovery tool, not by this offline maintenance image.
++esp_err_t StoreDeviceIdentity(const std::string& json,
++                              IdentityWrite mode = IdentityWrite::Provision);
+ // Erase user namespaces without ever erasing device_ctrl, including during an interrupted reset.
+ esp_err_t ResetUserSettings();
+ void RunDeviceProvisioning();
+diff --git a/main/device_control/device_provisioning.cc b/main/device_control/device_provisioning.cc
+index d9cdc1f..6918261 100644
+--- a/main/device_control/device_provisioning.cc
++++ b/main/device_control/device_provisioning.cc
+@@ -26,7 +26,7 @@ void Reply(const std::string& json) {
+ }
+ void Ready() {
+     Reply("{\"version\":1,\"mode\":\"device_provisioning\",\"hardware_id\":\"" +
+-          DeviceHardwareId() + "\"}");
++          DeviceHardwareId() + "\",\"capabilities\":[\"credential_recovery\"]}");
+ }
+ void Apply(const std::string& line) {
+     const char* result = "invalid_request";
+@@ -52,11 +52,15 @@ void Apply(const std::string& line) {
+     }
+     const std::string action_name = cJSON_IsString(action) ? action->valuestring : "";
+     if (valid && fields.empty() && cJSON_IsNumber(version) && version->valuedouble == 1 &&
+-        (action_name == "write" || action_name == "repair") && cJSON_IsObject(identity)) {
++        (action_name == "write" || action_name == "repair" || action_name == "recover") &&
++        cJSON_IsObject(identity)) {
+         std::unique_ptr<char, decltype(&cJSON_free)> json(cJSON_PrintUnformatted(identity),
+                                                           cJSON_free);
+         if (json) {
+-            const auto stored = StoreDeviceIdentity(json.get(), action_name == "repair");
++            const auto mode = action_name == "recover"  ? IdentityWrite::Recovery
++                              : action_name == "repair" ? IdentityWrite::Repair
++                                                        : IdentityWrite::Provision;
++            const auto stored = StoreDeviceIdentity(json.get(), mode);
+             result = stored == ESP_OK                  ? "stored"
+                      : stored == ESP_ERR_INVALID_ARG   ? "invalid_identity"
+                      : stored == ESP_ERR_INVALID_STATE ? "identity_conflict"
+diff --git a/main/device_control/nvs_erase_guard.cc b/main/device_control/nvs_erase_guard.cc
+new file mode 100644
+index 0000000..b0c66b0
+--- /dev/null
++++ b/main/device_control/nvs_erase_guard.cc
+@@ -0,0 +1,8 @@
++#include <nvs_flash.h>
++
++// The deployed layout shares identity and settings in one NVS partition. Apply
++// this guard to the final product and maintenance links, including dependencies.
++// Ordinary resets use ResetUserSettings; damaged NVS requires explicit recovery.
++extern "C" esp_err_t __wrap_nvs_flash_erase() { return ESP_ERR_INVALID_STATE; }
++
++extern "C" esp_err_t __wrap_nvs_flash_erase_partition(const char*) { return ESP_ERR_INVALID_STATE; }
+diff --git a/scripts/delivery_hardware.py b/scripts/delivery_hardware.py
+index f20e6c8..0844de4 100644
+--- a/scripts/delivery_hardware.py
++++ b/scripts/delivery_hardware.py
+@@ -231,6 +231,10 @@ class P4Hardware:
+         with self.serial() as port:
+             return provision(port, manifest, operation_id=operation)
+ 
++    def recover(self, manifest, operation):
++        with self.serial() as port:
++            return provision(port, manifest, action="recover", operation_id=operation)
++
+     def reset(self):
+         with self.connection():
+             pass
+diff --git a/scripts/device_recovery.py b/scripts/device_recovery.py
+new file mode 100644
+index 0000000..79541c9
+--- /dev/null
++++ b/scripts/device_recovery.py
+@@ -0,0 +1,190 @@
++"""Resume an administrator-authorized credential recovery for a known physical P4.
++
++The previous delivery/recovery journal supplies the existing hardware mapping.
++Keep both journals private; administrator credentials are read from a file only.
++"""
++
++import argparse
++import os
++from pathlib import Path
++import re
++import secrets
++import sys
++import time
++
++from online_delivery import (Backend, DeliveryError, journal_lock, read_private,
++                             save_private, validate_hardware, validate_operation)
++from provision_device import ProvisioningError, validate_manifest
++
++
++class RecoveryBackend(Backend):
++    def create(self, state):
++        return self.request("POST", "recoveries", dict(version=1, device_id=state["device_id"],
++            previous_operation_id=state["previous_operation_id"]), state["operation_id"])
++
++    def get(self, state):
++        return self.request("GET", "recoveries/" + state["operation_id"])
++
++    def complete(self, state):
++        return self.request("POST", "recoveries/" + state["operation_id"] + "/complete",
++                            dict(version=1, write_operation_id=state["write_operation_id"]))
++
++
++def predecessor(previous, backend, artifacts):
++    if (not isinstance(previous, dict) or type(previous.get("version")) is not int
++            or previous["version"] != 1 or previous.get("phase") != "delivered"
++            or previous.get("origin") != backend.origin
++            or not isinstance(previous.get("operation_id"), str)
++            or not re.fullmatch(r"[0-9a-f]{32}", previous["operation_id"])
++            or not isinstance(previous.get("artifacts"), dict)
++            or previous["artifacts"].get("board_type") != artifacts["board_type"]):
++        raise DeliveryError("Use the completed private journal for this device and trusted backend")
++    identity = validate_manifest(previous.get("identity"))
++    hardware = previous.get("hardware")
++    if (not isinstance(hardware, dict) or hardware.get("hardware_id") != identity["hardware_id"]
++            or not isinstance(hardware.get("network_hardware_id"), str)
++            or not re.fullmatch(r"[0-9a-f]{12}", hardware["network_hardware_id"])
++            or hardware["hardware_id"] == hardware["network_hardware_id"]
++            or identity["ota_url"] != backend.origin + "/xiaozhi/ota/" or identity["control_origin"]):
++        raise DeliveryError("Previous journal does not identify this physical device and backend")
++    return dict(previous_operation_id=previous["operation_id"], device_id=identity["device_id"],
++                hardware={key: hardware[key] for key in ("hardware_id", "network_hardware_id")})
++
++
++def checked(result, state, include_identity=False):
++    result = validate_operation(result, state, identity=include_identity)
++    if result["device_id"] != state["device_id"]:
++        raise DeliveryError("Recovery changed the existing device record")
++    if include_identity and "identity" in state and result["identity"] != state["identity"]:
++        raise DeliveryError("Recovery replay changed the pinned credential")
++    return result
++
++
++def recover(directory, backend, hardware, artifacts, previous, progress=print):
++    expected = predecessor(previous, backend, artifacts)
++    with journal_lock(directory):
++        path = directory / "journal.json"
++        if path.exists():
++            state = read_private(path)
++            if (type(state.get("version")) is not int or state["version"] != 1
++                    or state.get("workflow") != "credential_recovery"
++                    or state.get("origin") != backend.origin or state.get("artifacts") != artifacts
++                    or any(state.get(key) != value for key, value in expected.items())
++                    or state.get("phase") not in {"prepared", "rotating", "writing", "written", "verifying", "delivered"}
++                    or any(not isinstance(state.get(key), str) or not re.fullmatch(r"[0-9a-f]{32}", state[key])
++                           for key in ("operation_id", "write_operation_id"))
++                    or state["operation_id"] == state["previous_operation_id"]):
++                raise DeliveryError("Recovery journal, predecessor or pinned artifacts changed")
++        else:
++            state = dict(version=1, workflow="credential_recovery", origin=backend.origin,
++                artifacts=artifacts, phase="prepared", operation_id=secrets.token_hex(16),
++                write_operation_id=secrets.token_hex(16), **expected)
++            save_private(path, state)
++
++        def checkpoint(phase, **values):
++            state.update(phase=phase, **values)
++            save_private(path, state)
++            progress("Recovery: " + phase)
++
++        # Only an authenticated administrator can receive this protected 404.
++        # A newer credential generation returns 409 before any physical I/O.
++        current = backend.lookup(state)
++        if current is not None:
++            checked(current, state)
++        elif state["phase"] not in ("prepared", "rotating"):
++            raise DeliveryError("Current recovery record is missing; do not reissue automatically")
++
++        if "baseline" not in state:
++            baseline = hardware.backup(directory / "backup")
++            if baseline.get("hardware_id") != state["hardware"]["hardware_id"]:
++                raise DeliveryError("Connected chip differs from the original device; no credential was rotated")
++            checkpoint("rotating", baseline=baseline)
++        else:
++            if state["baseline"].get("hardware_id") != state["hardware"]["hardware_id"]:
++                raise DeliveryError("Recovery backup identifies a different physical chip")
++            hardware.verify_baseline(state["baseline"])
++
++        if state["phase"] == "rotating":
++            result = checked(backend.create(state), state, include_identity=True)
++            checkpoint("writing", identity=result["identity"])
++
++        if state["phase"] in ("writing", "written", "verifying", "delivered"):
++            manifest = validate_manifest(state.get("identity"))
++            if (manifest["device_id"] != state["device_id"]
++                    or manifest["hardware_id"] != state["hardware"]["hardware_id"]
++                    or manifest["ota_url"] != backend.origin + "/xiaozhi/ota/" or manifest["control_origin"]):
++                raise DeliveryError("Recovery identity differs from the original hardware or trusted backend")
++        if state["phase"] in ("written", "verifying", "delivered"):
++            if state.get("write_receipt") != dict(version=1, operation_id=state["write_operation_id"], result="stored"):
++                raise DeliveryError("Recovery lacks a matching committed/read-back write receipt")
++
++        if state["phase"] == "writing":
++            checked(backend.get(state), state)
++            hardware.flash("maintenance", state["baseline"])
++            # Recheck after the potentially long application write, before sending a secret.
++            checked(backend.get(state), state)
++            receipt = hardware.recover(state["identity"], state["write_operation_id"])
++            if receipt != dict(version=1, operation_id=state["write_operation_id"], result="stored"):
++                raise DeliveryError("Recovery lacks a matching committed/read-back write receipt")
++            checkpoint("written", write_receipt=receipt)
++
++        if state["phase"] in ("written", "verifying"):
++            checked(backend.get(state), state)
++            checkpoint("verifying")
++            hardware.flash("product", state["baseline"])
++            report = hardware.report()
++            validate_hardware(report, state, state["device_id"])
++            deadline = time.monotonic() + 120
++            while checked(backend.get(state), state).get("device_verified_at_ms") is None:
++                if time.monotonic() >= deadline:
++                    raise DeliveryError("New credential device verification is pending; resume this journal")
++                time.sleep(2)
++            result = checked(backend.complete(state), state)
++            if result["status"] != "delivered":
++                raise DeliveryError("Recovery writeback has not completed")
++            checkpoint("delivered", completion=result)
++        elif state["phase"] == "delivered":
++            # A completed journal never rewrites an identity or changes admission.
++            hardware.reset()
++            validate_hardware(hardware.report(), state, state["device_id"])
++            if checked(backend.get(state), state)["status"] != "delivered":
++                raise DeliveryError("Recovery status changed")
++        if state["phase"] != "delivered":
++            raise DeliveryError("Recovery is incomplete; retain this journal")
++        return state
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--origin", required=True)
++    parser.add_argument("--admin-token-file", type=Path, required=True)
++    parser.add_argument("--previous-journal", type=Path, required=True)
++    parser.add_argument("--journal", type=Path, required=True)
++    parser.add_argument("--port", required=True)
++    parser.add_argument("--product-build", type=Path, required=True)
++    parser.add_argument("--maintenance-build", type=Path, required=True)
++    args = parser.parse_args()
++    os.umask(0o077)
++    try:
++        from delivery_hardware import P4Hardware, build_artifacts
++        token = read_private(args.admin_token_file).get("token")
++        if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,4096}", token):
++            raise DeliveryError("Invalid private administrator login file")
++        backend = RecoveryBackend(args.origin, token)
++        previous = read_private(args.previous_journal / "journal.json")
++        artifacts = build_artifacts(args.product_build, args.maintenance_build)
++        device = P4Hardware(args.port, args.product_build, args.maintenance_build, artifacts, args.journal)
++        recover(args.journal, backend, device, artifacts, previous)
++        print("Recovered: same device and hardware verified; ownership and local use state were not changed")
++        return 0
++    except ProvisioningError as failure:
++        print(str(failure), file=sys.stderr)
++    except KeyboardInterrupt:
++        print("Interrupted: retain and resume the same recovery journal", file=sys.stderr)
++    except Exception:
++        print("Recovery stopped: retain the private journal and pinned builds; do not start another operation", file=sys.stderr)
++    return 1
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/scripts/provision_device.py b/scripts/provision_device.py
+index a2cb8c4..4006ac9 100644
+--- a/scripts/provision_device.py
++++ b/scripts/provision_device.py
+@@ -88,8 +88,10 @@ def read_frame(port, deadline):
+     raise ProvisioningError("Timed out waiting for the maintenance image")
+ 
+ 
+-def provision(port, manifest, repair=False, operation_id=None):
++def provision(port, manifest, action="write", operation_id=None):
+     validate_manifest(manifest)
++    if action not in ("write", "repair", "recover"):
++        raise ProvisioningError("Invalid maintenance action")
+     if operation_id is None:
+         operation_id = secrets.token_hex(16)
+     if not isinstance(operation_id, str) or not re.fullmatch(r"[0-9a-f]{32}", operation_id):
+@@ -101,8 +103,11 @@ def provision(port, manifest, repair=False, operation_id=None):
+             break
+     if ready.get("hardware_id") != manifest["hardware_id"]:
+         raise ProvisioningError("Connected hardware does not match the private manifest")
++    if action == "recover" and (not isinstance(ready.get("capabilities"), list)
++                                or "credential_recovery" not in ready["capabilities"]):
++        raise ProvisioningError("Install the verified recovery maintenance image before writing a new credential")
+     request = {"version": 1, "operation_id": operation_id,
+-               "action": "repair" if repair else "write", "identity": manifest}
++               "action": action, "identity": manifest}
+     port.write(json.dumps(request, ensure_ascii=True, separators=(",", ":")).encode() + b"\n")
+     port.flush()
+     deadline = time.monotonic() + 15
+@@ -144,7 +149,7 @@ def main():
+             port.rts = False
+             port.port = args.port
+             port.open()
+-            provision(port, manifest, repair=args.repair)
++            provision(port, manifest, action="repair" if args.repair else "write")
+         print("PASS: device identity committed and read back; install the product image next")
+         return 0
+     except ProvisioningError as error:
+diff --git a/scripts/verify_product_build.py b/scripts/verify_product_build.py
+index 2b31f0c..585ce3f 100644
+--- a/scripts/verify_product_build.py
++++ b/scripts/verify_product_build.py
+@@ -67,6 +67,14 @@ def verify(build):
+     )
+     checks["dashboard_and_control_linked"] = all(name in symbols for name in required_symbols)
+     checks["no_maintenance_entrypoint"] = "RunDeviceProvisioning()" not in symbols
++    link = (build / "build.ninja").read_text()
++    checks["identity_erase_guard"] = (
++        any(line.endswith(" __wrap_nvs_flash_erase") for line in symbols.splitlines())
++        and "--wrap=nvs_flash_erase " in link
++        and "--wrap=nvs_flash_erase_partition" in link
++        and not any(line.endswith((" nvs_flash_erase", " nvs_flash_erase_partition"))
++                    for line in symbols.splitlines())
++    )
+ 
+     partitions = {}
+     table = (build / "partition_table/partition-table.bin").read_bytes()
+diff --git a/tests/device_control/CMakeLists.txt b/tests/device_control/CMakeLists.txt
+index 61cd32a..9cb977e 100644
+--- a/tests/device_control/CMakeLists.txt
++++ b/tests/device_control/CMakeLists.txt
+@@ -54,6 +54,14 @@ target_include_directories(device_identity_tests PRIVATE stubs "${CONTROL_DIR}"
+ target_compile_options(device_identity_tests PRIVATE -Wall -Wextra -Werror)
+ add_test(NAME device_identity_tests COMMAND device_identity_tests)
+ 
++add_executable(nvs_erase_guard_tests nvs_erase_guard_test.cc stubs/nvs_flash.cc
++  "${CONTROL_DIR}/nvs_erase_guard.cc")
++target_include_directories(nvs_erase_guard_tests PRIVATE stubs)
++target_compile_options(nvs_erase_guard_tests PRIVATE -Wall -Wextra -Werror)
++target_link_options(nvs_erase_guard_tests PRIVATE
++  -Wl,--wrap=nvs_flash_erase -Wl,--wrap=nvs_flash_erase_partition)
++add_test(NAME nvs_erase_guard_tests COMMAND nvs_erase_guard_tests)
++
+ add_executable(device_delivery_tests delivery_test.cc
+   "${CONTROL_DIR}/delivery_model.cc" "${IDF_PATH}/components/json/cJSON/cJSON.c")
+ target_include_directories(device_delivery_tests PRIVATE "${CONTROL_DIR}"
+diff --git a/tests/device_control/identity_test.cc b/tests/device_control/identity_test.cc
+index 6fe2522..9953fa6 100644
+--- a/tests/device_control/identity_test.cc
++++ b/tests/device_control/identity_test.cc
+@@ -6,6 +6,8 @@
+ #include "device_identity.h"
+ #include "nvs.h"
+ 
++using device_control::IdentityWrite;
++
+ using Entries = std::map<std::string, std::string>;
+ static std::map<std::string, Entries> flash;
+ struct Handle {
+@@ -112,6 +114,9 @@ int main() {
+     Check(device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
+               identity.ota_origin == "https://speaker.example:18443",
+           "read back full atomic record");
++    Check(device_control::StoreDeviceIdentity(
++              Replace(first, std::string(43, 'A'), std::string(43, 'B'))) == ESP_ERR_INVALID_STATE,
++          "ordinary delivery replay cannot rotate an existing credential");
+     Check(device_control::StoreDeviceIdentity(Replace(first, "speaker-a", "speaker-b")) ==
+               ESP_ERR_INVALID_STATE,
+           "repair cannot change an existing device ID");
+@@ -131,16 +136,20 @@ int main() {
+           "NUL cannot truncate identity");
+     auto rotated = Replace(first, std::string(43, 'A'), std::string(43, 'B'));
+     fail_commit = true;
+-    Check(device_control::StoreDeviceIdentity(rotated) == ESP_FAIL,
++    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_FAIL,
+           "failed commit is never success");
+     fail_commit = false;
+     Check(
+         device_control::LoadDeviceIdentity(identity) && identity.credential == std::string(43, 'A'),
+         "failed replacement leaves the previous complete identity");
+-    Check(device_control::StoreDeviceIdentity(rotated) == ESP_OK &&
++    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
+               device_control::LoadDeviceIdentity(identity) &&
+               identity.credential == std::string(43, 'B'),
+           "credential rotation preserves device ID and replaces the full record");
++    Check(device_control::StoreDeviceIdentity(first) == ESP_ERR_INVALID_STATE &&
++              device_control::LoadDeviceIdentity(identity) &&
++              identity.credential == std::string(43, 'B'),
++          "an old delivery record cannot overwrite the recovered credential");
+     flash["wifi"]["ssid"] = "test-network";
+     flash["websocket"]["token"] = "obsolete-legacy-token";
+     Check(device_control::ResetUserSettings() == ESP_OK && flash["wifi"].empty() &&
+@@ -151,20 +160,31 @@ int main() {
+     flash["device_ctrl"]["identity_v1"] = "damaged record";
+     Check(!device_control::LoadDeviceIdentity(identity) && identity.credential.empty(),
+           "corruption closes product access and clears any previously loaded credential");
++    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
++              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
++              identity.credential == std::string(43, 'B'),
++          "recovery restores a damaged blob without changing the surviving device anchor");
++    flash["device_ctrl"]["identity_v1"] = "damaged record";
+     Check(device_control::StoreDeviceIdentity(first) == ESP_ERR_INVALID_STATE,
+           "normal writes never silently overwrite a damaged record");
+-    Check(device_control::StoreDeviceIdentity(Replace(first, "speaker-a", "speaker-b"), true) ==
+-              ESP_ERR_INVALID_STATE,
++    Check(device_control::StoreDeviceIdentity(Replace(first, "speaker-a", "speaker-b"),
++                                              IdentityWrite::Repair) == ESP_ERR_INVALID_STATE,
+           "repair requires the original immutable ID");
+-    Check(device_control::StoreDeviceIdentity(first, true) == ESP_OK &&
++    Check(device_control::StoreDeviceIdentity(first, IdentityWrite::Repair) == ESP_OK &&
+               device_control::LoadDeviceIdentity(identity),
+           "explicit USB maintenance can restore a damaged blob from a matching private backup");
+-    Check(device_control::StoreDeviceIdentity(rotated, true) == ESP_ERR_INVALID_STATE,
++    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Repair) ==
++              ESP_ERR_INVALID_STATE,
+           "repair cannot override a healthy record; rotation uses normal writes");
+     flash["device_ctrl"].erase("device_id");
+     flash["device_ctrl"]["identity_v1"] = "damaged record";
+-    Check(device_control::StoreDeviceIdentity(first, true) == ESP_ERR_INVALID_STATE,
+-          "no repair without a surviving identity anchor");
++    Check(
++        device_control::StoreDeviceIdentity(first, IdentityWrite::Repair) == ESP_ERR_INVALID_STATE,
++        "no repair without a surviving identity anchor");
++    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
++              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
++              identity.credential == std::string(43, 'B'),
++          "authorized recovery rebuilds a missing anchor for a damaged identity blob");
+     flash.clear();
+     commits_before_failure = 1;
+     Check(device_control::StoreDeviceIdentity(first) == ESP_FAIL &&
+@@ -177,5 +197,9 @@ int main() {
+     Check(device_control::StoreDeviceIdentity(first) == ESP_OK &&
+               device_control::LoadDeviceIdentity(identity),
+           "initial provisioning can be retried for the same registered device");
++    flash.clear();
++    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
++              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a",
++          "authorized recovery after complete identity loss retains the server-issued stable ID");
+     std::cout << "device identity and reset tests passed\n";
+ }
+diff --git a/tests/device_control/nvs_erase_guard_test.cc b/tests/device_control/nvs_erase_guard_test.cc
+new file mode 100644
+index 0000000..e480968
+--- /dev/null
++++ b/tests/device_control/nvs_erase_guard_test.cc
+@@ -0,0 +1,9 @@
++#include <stdexcept>
++#include "nvs_flash.h"
++
++int main() {
++    if (nvs_flash_erase() != ESP_ERR_INVALID_STATE)
++        throw std::runtime_error("product dependencies must not erase the identity NVS partition");
++    if (nvs_flash_erase_partition("nvs") != ESP_ERR_INVALID_STATE)
++        throw std::runtime_error("a named partition erase must not bypass identity preservation");
++}
+diff --git a/tests/device_control/stubs/nvs_flash.cc b/tests/device_control/stubs/nvs_flash.cc
+new file mode 100644
+index 0000000..a9adf72
+--- /dev/null
++++ b/tests/device_control/stubs/nvs_flash.cc
+@@ -0,0 +1,4 @@
++#include "nvs_flash.h"
++
++extern "C" esp_err_t nvs_flash_erase() { return ESP_OK; }
++extern "C" esp_err_t nvs_flash_erase_partition(const char*) { return ESP_OK; }
+diff --git a/tests/device_control/stubs/nvs_flash.h b/tests/device_control/stubs/nvs_flash.h
+new file mode 100644
+index 0000000..02d0981
+--- /dev/null
++++ b/tests/device_control/stubs/nvs_flash.h
+@@ -0,0 +1,6 @@
++#pragma once
++
++#include "esp_err.h"
++
++extern "C" esp_err_t nvs_flash_erase();
++extern "C" esp_err_t nvs_flash_erase_partition(const char*);
+diff --git a/tests/device_control/test_device_recovery.py b/tests/device_control/test_device_recovery.py
+new file mode 100644
+index 0000000..494ea31
+--- /dev/null
++++ b/tests/device_control/test_device_recovery.py
+@@ -0,0 +1,200 @@
++import copy
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
++import online_delivery as delivery
++import device_recovery as recovery
++
++PUBLIC = "https://speaker.example:18443"
++ARTIFACTS = dict(board_type="test-p4", product_elf_sha256="e" * 64)
++
++
++class Backend:
++    origin = PUBLIC
++
++    def __init__(self):
++        self.operations = {}
++        self.fail = None
++        self.superseded = False
++
++    def fault(self, action):
++        if self.fail == action:
++            self.fail = None
++            raise delivery.DeliveryError("lost boundary response")
++
++    def lookup(self, state):
++        self.fault("authorization")
++        return self.get(state) if state["operation_id"] in self.operations else None
++
++    def create(self, state):
++        key = state["operation_id"]
++        if key not in self.operations:
++            self.operations[key] = dict(operation_id=key, device_id=state["device_id"],
++                hardware_id=state["hardware"]["hardware_id"],
++                network_hardware_id=state["hardware"]["network_hardware_id"],
++                board_type="test-p4", status="pending", device_verified_at_ms=None,
++                completed_at_ms=None, identity=dict(version=1, device_id=state["device_id"],
++                    hardware_id=state["hardware"]["hardware_id"], credential="B" * 43,
++                    ota_url=PUBLIC + "/xiaozhi/ota/", control_origin=""))
++        self.fault("create")
++        return copy.deepcopy(self.operations[key])
++
++    def get(self, state):
++        if self.superseded:
++            raise delivery.BackendFailure(409, "STATE_CHANGED")
++        result = copy.deepcopy(self.operations[state["operation_id"]])
++        result.pop("identity")
++        return result
++
++    def complete(self, state):
++        value = self.operations[state["operation_id"]]
++        if value["device_verified_at_ms"] is None:
++            raise delivery.DeliveryError("device has not checked its new credential")
++        value.update(status="delivered", completed_at_ms=200)
++        self.fault("complete")
++        return self.get(state)
++
++
++class Hardware:
++    def __init__(self, backend):
++        self.backend = backend
++        self.hardware = "020000000001"
++        self.identity = None
++        self.flashes = []
++        self.fail = None
++        self.backups = 0
++
++    def backup(self, directory):
++        self.backups += 1
++        return dict(hardware_id=self.hardware)
++
++    def verify_baseline(self, baseline):
++        if baseline["hardware_id"] != self.hardware:
++            raise delivery.DeliveryError("different physical chip")
++
++    def flash(self, kind, baseline):
++        self.verify_baseline(baseline)
++        self.flashes.append(kind)
++
++    def recover(self, identity, operation):
++        self.identity = copy.deepcopy(identity)
++        if self.fail == "write":
++            self.fail = None
++            raise delivery.DeliveryError("lost USB receipt")
++        return dict(version=1, operation_id=operation, result="stored")
++
++    def report(self):
++        for value in self.backend.operations.values():
++            if value["identity"] == self.identity:
++                value["device_verified_at_ms"] = 100
++        return dict(version=1, mode="device_hardware", hardware_id=self.hardware,
++            network_hardware_id="020000000101", network_connected=True,
++            device_id=self.identity["device_id"], firmware_elf_sha256="e" * 64)
++
++    def reset(self):
++        pass
++
++
++class RecoveryTests(unittest.TestCase):
++    def setUp(self):
++        self.temporary = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temporary.cleanup)
++        self.directory = Path(self.temporary.name) / "recovery"
++        self.backend = Backend()
++        self.hardware = Hardware(self.backend)
++        self.previous = dict(version=1, origin=PUBLIC, phase="delivered", operation_id="a" * 32,
++            artifacts=ARTIFACTS, hardware=dict(hardware_id="020000000001", network_hardware_id="020000000101"),
++            identity=dict(version=1, device_id="device-original", hardware_id="020000000001",
++                credential="A" * 43, ota_url=PUBLIC + "/xiaozhi/ota/", control_origin=""))
++        self.progress = []
++
++    def run_recovery(self):
++        return recovery.recover(self.directory, self.backend, self.hardware, ARTIFACTS,
++                                self.previous, self.progress.append)
++
++    def test_recovery_keeps_device_and_uses_a_new_credential_then_records_real_verification(self):
++        state = self.run_recovery()
++        self.assertEqual(state["phase"], "delivered")
++        self.assertEqual(state["identity"]["device_id"], "device-original")
++        self.assertEqual(state["previous_operation_id"], "a" * 32)
++        self.assertEqual(self.hardware.identity["credential"], "B" * 43)
++        self.assertEqual(self.hardware.flashes, ["maintenance", "product"])
++        self.assertNotIn("B" * 43, "\n".join(self.progress))
++
++    def test_unauthorized_administrator_stops_before_any_device_io(self):
++        self.backend.fail = "authorization"
++        with self.assertRaises(delivery.DeliveryError):
++            self.run_recovery()
++        self.assertEqual(self.hardware.backups, 0)
++        self.assertEqual(self.hardware.flashes, [])
++        self.assertEqual(self.backend.operations, {})
++
++    def test_wrong_physical_chip_does_not_rotate_or_write_any_credential(self):
++        self.hardware.hardware = "020000000002"
++        with self.assertRaises(delivery.DeliveryError):
++            self.run_recovery()
++        self.assertEqual(self.hardware.flashes, [])
++        self.assertEqual(self.backend.operations, {})
++
++    def test_lost_creation_response_reuses_the_durable_recovery_operation(self):
++        self.backend.fail = "create"
++        with self.assertRaises(delivery.DeliveryError):
++            self.run_recovery()
++        first = delivery.read_private(self.directory / "journal.json")
++        self.assertEqual(first["phase"], "rotating")
++        self.assertEqual(self.hardware.flashes, [])
++        final = self.run_recovery()
++        self.assertEqual(final["operation_id"], first["operation_id"])
++        self.assertEqual(len(self.backend.operations), 1)
++        self.assertEqual(final["phase"], "delivered")
++
++    def test_lost_usb_receipt_repeats_the_same_credential_and_write_operation(self):
++        self.hardware.fail = "write"
++        with self.assertRaises(delivery.DeliveryError):
++            self.run_recovery()
++        first = delivery.read_private(self.directory / "journal.json")
++        self.assertEqual(first["phase"], "writing")
++        written = copy.deepcopy(self.hardware.identity)
++        final = self.run_recovery()
++        self.assertEqual(self.hardware.identity, written)
++        self.assertEqual(final["write_operation_id"], first["write_operation_id"])
++        self.assertEqual(final["phase"], "delivered")
++
++    def test_lost_completion_response_resumes_without_creating_another_credential(self):
++        self.backend.fail = "complete"
++        with self.assertRaises(delivery.DeliveryError):
++            self.run_recovery()
++        first = delivery.read_private(self.directory / "journal.json")
++        self.assertEqual(first["phase"], "verifying")
++        final = self.run_recovery()
++        self.assertEqual(final["identity"], first["identity"])
++        self.assertEqual(len(self.backend.operations), 1)
++        self.assertEqual(final["phase"], "delivered")
++
++    def test_completed_recovery_never_rewrites_identity_and_newer_generation_stops_before_flash(self):
++        self.run_recovery()
++        writes = list(self.hardware.flashes)
++        self.run_recovery()
++        self.assertEqual(self.hardware.flashes, writes)
++        self.backend.superseded = True
++        with self.assertRaises(delivery.BackendFailure):
++            self.run_recovery()
++        self.assertEqual(self.hardware.flashes, writes)
++
++    def test_changed_candidate_or_predecessor_does_not_continue_existing_recovery(self):
++        self.run_recovery()
++        writes = list(self.hardware.flashes)
++        with self.assertRaises(delivery.DeliveryError):
++            recovery.recover(self.directory, self.backend, self.hardware,
++                dict(ARTIFACTS, product_elf_sha256="f" * 64), self.previous)
++        self.previous["operation_id"] = "f" * 32
++        with self.assertRaises(delivery.DeliveryError):
++            self.run_recovery()
++        self.assertEqual(self.hardware.flashes, writes)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/device_control/test_provision_device.py b/tests/device_control/test_provision_device.py
+index f5046d0..2ecf8fe 100644
+--- a/tests/device_control/test_provision_device.py
++++ b/tests/device_control/test_provision_device.py
+@@ -17,8 +17,11 @@ def manifest():
+ 
+ 
+ class Serial:
+-    def __init__(self, hardware="020000000001", result="stored"):
+-        self.frames = [json.dumps(dict(version=1, mode="device_provisioning", hardware_id=hardware)).encode() + b"\n"]
++    def __init__(self, hardware="020000000001", result="stored", recovery=False):
++        ready = dict(version=1, mode="device_provisioning", hardware_id=hardware)
++        if recovery:
++            ready["capabilities"] = ["credential_recovery"]
++        self.frames = [json.dumps(ready).encode() + b"\n"]
+         self.result = result
+         self.written = []
+ 
+@@ -84,7 +87,7 @@ class ProvisioningTests(unittest.TestCase):
+         with self.assertRaises(provisioning.ProvisioningError):
+             provisioning.provision(port, manifest())
+         port = Serial()
+-        provisioning.provision(port, manifest(), repair=True)
++        provisioning.provision(port, manifest(), action="repair")
+         self.assertEqual(json.loads(port.written[0])["action"], "repair")
+ 
+     def test_durable_write_id_is_reused_and_receipt_is_returned(self):
+@@ -99,6 +102,22 @@ class ProvisioningTests(unittest.TestCase):
+             provisioning.provision(port, manifest(), operation_id="unsafe")
+         self.assertEqual(port.written, [])
+ 
++    def test_recovery_uses_a_distinct_action_and_fixed_write_id(self):
++        port = Serial(recovery=True)
++        receipt = provisioning.provision(port, manifest(), action="recover", operation_id="d" * 32)
++        self.assertEqual(receipt, dict(version=1, operation_id="d" * 32, result="stored"))
++        self.assertEqual(json.loads(port.written[0])["action"], "recover")
++        port = Serial()
++        with self.assertRaises(provisioning.ProvisioningError):
++            provisioning.provision(port, manifest(), action="unexpected")
++        self.assertEqual(port.written, [])
++
++    def test_recovery_refuses_an_old_maintenance_image_before_sending_the_secret(self):
++        port = Serial()
++        with self.assertRaises(provisioning.ProvisioningError):
++            provisioning.provision(port, manifest(), action="recover", operation_id="d" * 32)
++        self.assertEqual(port.written, [])
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tools/device-provisioning/main/CMakeLists.txt b/tools/device-provisioning/main/CMakeLists.txt
+index 3e02be2..31ca41a 100644
+--- a/tools/device-provisioning/main/CMakeLists.txt
++++ b/tools/device-provisioning/main/CMakeLists.txt
+@@ -2,7 +2,10 @@ set(CONTROL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../main/device_control")
+ idf_component_register(SRCS "provision_main.cc"
+     "${CONTROL_DIR}/device_provisioning.cc"
+     "${CONTROL_DIR}/device_identity.cc"
++    "${CONTROL_DIR}/nvs_erase_guard.cc"
+     "${CONTROL_DIR}/identity_config.cc"
+     "${CONTROL_DIR}/control_model.cc"
+     INCLUDE_DIRS "${CONTROL_DIR}"
+     PRIV_REQUIRES nvs_flash json esp_driver_usb_serial_jtag esp_driver_uart esp_hw_support)
++target_link_options(${COMPONENT_LIB} INTERFACE
++    "-Wl,--wrap=nvs_flash_erase" "-Wl,--wrap=nvs_flash_erase_partition")
