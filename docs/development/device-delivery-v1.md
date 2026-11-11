@@ -1,5 +1,7 @@
 # 联网烧录与设备交付 v1
 
+后续 #42 的管理员补发、旧凭据撤销及 P4 接续边界见[设备凭据恢复](device-credential-recovery.md)。
+
 对应 [#41](https://github.com/yanghan24/xiaozhi/issues/41)，依赖 PR #26 的设备准入和客户控制实现。
 PR #48 只归档 `885918d` 的公网部署；它没有实现本文接口。新功能默认关闭。
 本切片不关闭 #41：Ubuntu HTTP 回归、真实 P4/C6 流程及第二台设备隔离尚待验收。

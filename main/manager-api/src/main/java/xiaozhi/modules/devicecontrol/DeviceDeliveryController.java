@@ -72,6 +72,33 @@ public class DeviceDeliveryController {
                 text(body, "network_hardware_id"), text(body, "board_type")));
     }
 
+    @PostMapping(value = "/recoveries", consumes = "application/json")
+    @RequiresPermissions("sys:role:superAdmin")
+    public JsonNode recover(HttpServletRequest request, HttpServletResponse response, @RequestBody String raw) {
+        prepare(request, response);
+        var body = body(raw, Set.of("version", "device_id", "previous_operation_id"));
+        return success(service.recover(SecurityUser.getUser(), request.getHeader("Idempotency-Key"),
+                text(body, "device_id"), text(body, "previous_operation_id")));
+    }
+
+    @GetMapping("/recoveries/{id}")
+    @RequiresPermissions("sys:role:superAdmin")
+    public JsonNode recovery(HttpServletRequest request, HttpServletResponse response, @PathVariable String id) {
+        prepare(request, response);
+        return success(service.recoveryReceipt(SecurityUser.getUser(), id, null));
+    }
+
+    @PostMapping(value = "/recoveries/{id}/complete", consumes = "application/json")
+    @RequiresPermissions("sys:role:superAdmin")
+    public JsonNode completeRecovery(HttpServletRequest request, HttpServletResponse response,
+            @PathVariable String id, @RequestBody String raw) {
+        prepare(request, response);
+        var body = body(raw, Set.of("version", "write_operation_id"));
+        String write = text(body, "write_operation_id");
+        DeviceDeliveryService.validateOperationId(write);
+        return success(service.recoveryReceipt(SecurityUser.getUser(), id, write));
+    }
+
     @GetMapping("/operations/{id}")
     public JsonNode get(HttpServletRequest request, HttpServletResponse response, @PathVariable String id) {
         return success(service.get(tool(request, response), id));
