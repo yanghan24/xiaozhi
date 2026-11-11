@@ -1,11 +1,15 @@
 {
-  "api_source": "557106a5e4d7b03eed788095d67974aba5c1bd3d",
+  "api_source": "6b2e7445932de7ee84bf89b6af3cf0a0d9f35e52",
+  "integrated_main": "a1577d7476b00af8a7940ad8d61cd148a3883bbe",
+  "preintegration_api_source": "557106a5e4d7b03eed788095d67974aba5c1bd3d",
   "firmware_source": "817e47bf4ac5a4907060c901dec898f256e2d653",
   "firmware_application_version": "2.2.6",
   "firmware_product_bytes": 3999344,
   "firmware_product_sha256": "5a1061471fc818ef35329c2ff4ba79ceeb8cfe1f1c71d4944f90d6156e02cbfc",
   "firmware_elf_sha256": "3dc1466226b43d139e2825323fcb34d31df515b5d49e21ccd2d169b08e90f8c7",
   "java": {
+    "scope": "local development precheck before main integration; not final candidate acceptance",
+    "source": "557106a5e4d7b03eed788095d67974aba5c1bd3d",
     "suites": 35,
     "tests": 350,
     "failures": 0,
@@ -36,9 +40,17 @@
   "protocol_schema_valid": true,
   "protocol_examples_valid": 20,
   "nginx_syntax_valid": true,
-  "review": {
+  "preintegration_review": {
     "standards_findings": 0,
     "spec_findings": 0
+  },
+  "ubuntu_final_candidate_regression": {
+    "status": "blocked",
+    "source": "6b2e7445932de7ee84bf89b6af3cf0a0d9f35e52",
+    "ssh_target": "jt@192.168.168.114",
+    "ssh_exit_code": 255,
+    "reason": "SSH connection to port 22 timed out",
+    "server_commands_executed": false
   },
   "deployment_pending": true,
   "public_route_acceptance_pending": true,
