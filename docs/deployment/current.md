@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-10（Asia/Hong_Kong），依据[长期烧录凭据部署记录](../verification/2026-11-10-long-lived-delivery.md)。产品 API 已在 PR #52 基础上增加长期烧录凭据，语音继续使用 [PR #26 部署](../verification/2026-11-10-pr26-server-deployment.md)的版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），依据[音箱设置服务端部署记录](../verification/2026-11-11-speaker-settings-deployment.md)。API 已包含 PR #52、长期烧录凭据、设备账号查询与本机退出；语音仍使用 PR #26 版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -11,6 +11,8 @@
 | 设备控制状态（GET） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/state |
 | 创建绑定/恢复请求（POST） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/requests |
 | 停播确认（POST） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/state-acks |
+| 本台归属账号与积分（GET） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/account |
+| 本台退出（POST） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/sign-out |
 | 语音 WebSocket | wss://bridge.hncig.cn:18443/xiaozhi/v1/ |
 | 手机绑定页 | 设备发码返回的 `https://bridge.hncig.cn:18443/xiaozhi/bind/{handle}` |
 
@@ -21,17 +23,17 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `3f963b6d5ce6110b3d68ff473f722f726d3c659e`，长期烧录凭据，基于 PR #52 `87839aa` 与当前主线 |
+| API 源码 | `b670a17c88ea86b5396c56785e776845fd93d82a`，基于已部署长期烧录凭据版 `3f963b6` |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:3f963b6` |
+| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:b670a17` |
 | 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:885918d`，单实例 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
-| 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，仅通过 SSH 隧道访问 |
+| 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
-本机连接 `ssh -N -L 127.0.0.1:28052:127.0.0.1:18052 jt@192.168.168.114` 后打开 `http://127.0.0.1:28052/#/login`。外网烧录工作站可使用管理员签发的[长期烧录工具凭据](../development/long-lived-delivery-credentials.md)，直接调用现有公网交付 API，无需管理页面或管理员密码。凭据不自动到期但可撤销；签发管理员停用/降权期间不可用。不要将管理员登录令牌、工具凭据或音箱接入凭据相互替换。
+外网烧录工作站继续使用已签发的长期烧录凭据；本次验证其有效状态及已撤销凭据的拒绝状态均保留。它不能登录管理页面。管理页面可用 `ssh -N -L 127.0.0.1:28052:127.0.0.1:18052 jt@192.168.168.114` 后访问 `http://127.0.0.1:28052/#/login`。
 
-公网只新增 credentials 签发/元数据查询/撤销精确路径，要求正常超级管理员 Bearer；普通管理登录、配置和内部 API 仍为 404。实际 API/数据库、语音、入口及必要数据备份的完整证据见[本次部署记录](../verification/2026-11-10-long-lived-delivery.md)。
+用户确认现有集市客户端已勾选 `balance:read` 后，本次设置 `CUSTOMER_OIDC_BALANCE_ENABLED=true`；不是通过开关证明客户端开通。历史账号可能需要扫码补授权，真实账号实时积分尚未验收。账号接口使用设备接入凭据，查询本台当前归属账号；本机退出保留归属和集市授权，仅停用本台许可。新路由与长期凭据管理路由为精确放行，普通管理登录、配置与内部 API 仍不公开。
 
 服务、回归和设备协议验证在 Ubuntu 执行。授权 sudo 操作前按私有凭据说明使用已有凭据通道；本页不存放密码或密钥。在服务器部署目录查看状态：
 
