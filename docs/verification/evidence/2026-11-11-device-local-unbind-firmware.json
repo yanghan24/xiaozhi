@@ -1,0 +1,96 @@
+{
+  "server": {
+    "source": "1b50709fd1cadfad966b12d4afedf78b1f279aa6",
+    "evidence_pr": 69,
+    "ubuntu_java_tests": 362,
+    "public_checks": 69,
+    "verification_source": "server deployment evidence in PR69; not rerun locally"
+  },
+  "firmware": {
+    "source": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+    "application_version": "2.2.6",
+    "product_bytes": 3998640,
+    "product_sha256": "0947b2a879a5ed3e5390796f55997706b189707a8593383049957fbc3514db4f",
+    "elf_sha256": "a04fda6db5e0feb4ea5c81d174fd44ecb606ae6a6cd3af6c1d40d4ee67683419",
+    "preserved_installed_source": "f03d98d",
+    "local_unbind_source": "817e47bf4ac5a4907060c901dec898f256e2d653",
+    "descriptor_date": "Nov 10 2026",
+    "descriptor_time": "16:21:23"
+  },
+  "development_checks": {
+    "ctest": {
+      "tests": 28,
+      "failures": 0
+    },
+    "python": {
+      "tests": 43,
+      "failures": 0
+    },
+    "product_checks": {
+      "total": 10,
+      "passed": 10
+    },
+    "spec_actionable_findings": 0,
+    "standards_mandatory_findings": 0,
+    "standards_optional_suggestions": 1
+  },
+  "physical_installation": {
+    "device_alias": "B",
+    "board": "Waveshare ESP32-P4 WiFi6 Touch LCD 4.3",
+    "chip_revision": 302,
+    "physical_flash_bytes": 33554432,
+    "preserved_partition_layout_bytes": 16777216,
+    "application_offset": 131072,
+    "application_slot": "ota_0",
+    "independent_application_readback_passed": true,
+    "protected_boot_regions_unchanged": true,
+    "assets_unchanged": true,
+    "flash_verified_at_ms": 1794387823726,
+    "boot": {
+      "firmware_source": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+      "server_source": "1b50709fd1cadfad966b12d4afedf78b1f279aa6",
+      "device_alias": "B",
+      "capture_seconds": 45,
+      "physical_reports": 1,
+      "hardware_matches": true,
+      "device_identity_matches": true,
+      "firmware_matches": true,
+      "network_connected": true,
+      "transcripts": 0,
+      "replies": 0,
+      "panic_events": 0,
+      "boot_events": 1,
+      "captured_at_ms": 1794387914887,
+      "boot_verified": true
+    }
+  },
+  "physical_acceptance": {
+    "local_confirmation_stop": {
+      "status": "passed",
+      "source": "user report in this conversation",
+      "observation": "立即停播了，并显示扫码登录"
+    },
+    "cross_account_binding": {
+      "status": "passed",
+      "source": "user report in this conversation",
+      "observation": "换账号绑定成功，两台都能回答"
+    },
+    "other_device_answer_after_rebinding": {
+      "status": "passed",
+      "source": "user report in this conversation"
+    },
+    "server_stop_ack": {
+      "status": "pending_server_readback"
+    },
+    "old_page_fence": {
+      "status": "automated Ubuntu coverage; not physically reproduced this round"
+    },
+    "target_device_voice_after_rebinding": {
+      "status": "passed",
+      "source": "user report in this conversation"
+    }
+  },
+  "pr67_draft": true,
+  "merged": false,
+  "recorded_at_ms": 1794388272558
+}

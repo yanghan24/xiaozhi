@@ -1,5 +1,7 @@
 # 本机退出并解除绑定：实现与自动化验证
 
+后续状态见[保留身份保护的配套固件记录](2026-11-11-device-local-unbind-firmware.md)和 [PR #69 的 Ubuntu 部署证据](https://github.com/yanghan24/xiaozhi/pull/69)。下文及原机器摘要保留初始候选、开发预检与当时待部署状态，不能据此判断当前服务端版本。
+
 用户在 2026-11-11 明确确认：本机设置的退出操作应释放本台归属，让其他账号直接扫码接手，无需原账号再用手机授权。规则见 [ADR-0008](../adr/0008-device-local-unbind.md)；[配套协议](../planning/device-local-unbind.md)和[服务器交接](../handoff/speaker-settings-server.md)记录部署顺序。
 
 ## 固定源码与产物
