@@ -54,6 +54,8 @@ PR #26 本次部署已完成服务端回归、公网协议检查和容器服务�
 
 PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 Java 回归，再备份、部署 API 与 `unbind` 精确路由；69 项公网检查通过，保留 PR #63 的恢复路由与原私有配置。受测与运行 JAR 一致，仅 API 重建。详见[部署证据与回退边界](../verification/2026-11-11-pr67-deployment.md)。
 
+2026-11-11 19:26–19:30 补充 [PR #66 Ubuntu 补发后验证](../verification/2026-11-11-pr66-ubuntu-verification.md)：B 的旧凭据独立请求返回 401，新凭据返回 200 / `delivered`，公网预检 24/24 通过；当前归属版本 3、许可版本 14。现场仍运行上述 `1b50709`，本轮未部署或重启。补发瞬间的历史归属比对及补发后服务重启尚未验收。
+
 ## 本地资料缺失或过时
 
 本地分支/worktree 不随 GitHub 合并自动更新。找不到本页、入口仍指向历史报告，或文档状态互相矛盾时，先核对 GitHub 最新 `main` 的[本页](https://github.com/yanghan24/xiaozhi/blob/main/docs/deployment/current.md)和它引用的部署证据，再判断资料是否缺失。
