@@ -29,7 +29,6 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
@@ -161,9 +160,7 @@ final class CustomerMarket {
         try {
             Map<?, ?> user = jsonRequest(metadata().getUserInfoEndpointURI(), "GET", access);
             if (!subject.equals(user.get("sub"))) return new CustomerAccountDetails.Display(null, null);
-            if (user.get("preferred_username") instanceof String value && !value.isBlank()
-                    && value.getBytes(StandardCharsets.UTF_8).length <= 256
-                    && value.codePoints().noneMatch(Character::isISOControl)) username = value;
+            username = CustomerProfileDisplay.name(user);
         } catch (Exception unavailable) {
             return new CustomerAccountDetails.Display(null, null);
         }
