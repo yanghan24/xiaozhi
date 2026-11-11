@@ -64,6 +64,7 @@ public class ShiroConfig {
         Map<String, Filter> filters = new HashMap<>();
         // oauth过滤
         filters.put("oauth2", new Oauth2Filter());
+        filters.put("deliveryAdmin", new xiaozhi.modules.devicecontrol.DeviceDeliveryAdminFilter());
         filters.put("deviceCredential", new xiaozhi.modules.devicecontrol.DeviceCredentialFilter(deviceControlService));
         // 服务密钥过滤
         filters.put("server", new ServerSecretFilter(sysParamsService));
@@ -78,6 +79,14 @@ public class ShiroConfig {
          * role：拥有某个角色权限才能访问
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
+        filterMap.put("/device-delivery/v1/authorize", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/credentials", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/credentials/*/revoke", "deliveryAdmin");
+        // Tool grants and pending device credentials have separate, bounded validation.
+        filterMap.put("/device-delivery/v1/operations", "anon");
+        filterMap.put("/device-delivery/v1/operations/*", "anon");
+        filterMap.put("/device-delivery/v1/operations/*/complete", "anon");
+        filterMap.put("/device-delivery/v1/device-check", "anon");
         filterMap.put("/device-control/**", "deviceCredential");
         // Private endpoint checks its separate service credential and current permission.
         filterMap.put("/internal/device-voice/v1/*", "anon");

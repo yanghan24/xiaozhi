@@ -27,6 +27,8 @@ import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Component
@@ -34,8 +36,11 @@ final class CustomerMarket {
     private final CustomerOidcConfig config;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build();
+    private final ObjectMapper json = new ObjectMapper().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     private volatile OIDCProviderMetadata metadata;
     private final java.time.Clock clock;
+    @org.springframework.beans.factory.annotation.Value("${customer.oidc.balance-enabled:${CUSTOMER_OIDC_BALANCE_ENABLED:false}}")
+    private boolean balanceEnabled;
     CustomerMarket(CustomerOidcConfig config, @Qualifier("customerTime") java.time.Clock clock) { this.config = config; this.clock = clock; }
     record Identity(String subject, String sid, long issuedAt, String access, String refresh,
                     long accessExpiresAt, String businessKey, Long keyExpiresAt) {
@@ -148,7 +153,36 @@ final class CustomerMarket {
         var response = http.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).header("Authorization", "Bearer " + access)
                 .method(method, HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() < 200 || response.statusCode() >= 300) throw new CustomerFailure(502, "MARKET_REQUEST_FAILED");
-        return new ObjectMapper().readValue(response.body(), Map.class);
+        return json.readValue(response.body(), Map.class);
+    }
+    CustomerAccountDetails.Display accountDisplay(String subject, String access) {
+        String username = null;
+        try {
+            Map<?, ?> user = jsonRequest(metadata().getUserInfoEndpointURI(), "GET", access);
+            if (!subject.equals(user.get("sub"))) return new CustomerAccountDetails.Display(null, null);
+            username = CustomerProfileDisplay.name(user);
+        } catch (Exception unavailable) {
+            return new CustomerAccountDetails.Display(null, null);
+        }
+        String balance = null;
+        try {
+            URI issuer = URI.create(config.issuer);
+            URI endpoint = new URI(issuer.getScheme(), null, issuer.getHost(), issuer.getPort(),
+                    "/api/application-balance", null, null);
+            Map<?, ?> envelope = jsonRequest(endpoint, "GET", access);
+            if (Integer.valueOf(20000).equals(envelope.get("code")) && envelope.get("data") instanceof Map<?, ?> data
+                    && subject.equals(data.get("subject")) && data.get("balance") instanceof Number amount) {
+                var decimal = new BigDecimal(amount.toString()).stripTrailingZeros();
+                if (decimal.precision() <= 30 && decimal.scale() >= -30 && decimal.scale() <= 30
+                        && decimal.precision() - decimal.scale() <= 30) {
+                    String display = decimal.toPlainString();
+                    if (display.length() <= 32) balance = display;
+                }
+            }
+        } catch (Exception unavailable) {
+            // A missing balance scope or unavailable balance endpoint must not affect voice access.
+        }
+        return new CustomerAccountDetails.Display(username, balance);
     }
     OIDCProviderMetadata metadata() {
         config.requireEnabled();
@@ -172,7 +206,8 @@ final class CustomerMarket {
     }
     String authorizationUrl(String state, String nonce, String verifier) {
         return new AuthenticationRequest.Builder(ResponseType.CODE,
-                Scope.parse("openid profile credentials:manage offline_access"), new ClientID(config.clientId), CustomerOidcConfig.CALLBACK)
+                Scope.parse("openid profile credentials:manage offline_access" + (balanceEnabled ? " balance:read" : "")),
+                new ClientID(config.clientId), CustomerOidcConfig.CALLBACK)
                 .endpointURI(metadata().getAuthorizationEndpointURI()).state(new State(state)).nonce(new Nonce(nonce))
                 .codeChallenge(CodeChallenge.compute(CodeChallengeMethod.S256, new CodeVerifier(verifier)), CodeChallengeMethod.S256)
                 .prompt(new Prompt(Prompt.Type.CONSENT)).build().toURI().toString();

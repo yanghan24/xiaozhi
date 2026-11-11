@@ -31,6 +31,9 @@ final class ControlledMarket {
     final Map<String,String> refreshModes = new ConcurrentHashMap<>();
     final Map<String,String> approvals = new ConcurrentHashMap<>();
     final Map<String,java.util.concurrent.CountDownLatch[]> refreshGates = new ConcurrentHashMap<>();
+    final Map<String,java.util.concurrent.CountDownLatch[]> profileGates = new ConcurrentHashMap<>();
+    final Map<String,Map<String,Object>> profiles = new ConcurrentHashMap<>();
+    final Map<String,java.math.BigDecimal> balances = new ConcurrentHashMap<>();
     final ObjectMapper json = new ObjectMapper();
     String browserSubject;
     ControlledMarket() {
@@ -98,6 +101,7 @@ final class ControlledMarket {
                         reply(x, 400, Map.of("error", "invalid_grant")); return;
                     }
                     String access = UUID.randomUUID().toString();
+                    if (fault.equals("no-balance")) auth.put("scope", auth.get("scope").replace(" balance:read", ""));
                     accesses.put(access, auth);
                     refreshes.put("refresh-" + access, auth);
                     var claims = new JWTClaimsSet.Builder().issuer(fault.equals("issuer") ? "https://wrong.example" : issuer)
@@ -107,14 +111,38 @@ final class ControlledMarket {
                     var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(rsa.getKeyID()).build(), claims);
                     jwt.sign(new RSASSASigner(fault.equals("signature") ? new RSAKeyGenerator(2048).generate() : rsa));
                     var response=new HashMap<String,Object>(Map.of("access_token", access, "refresh_token", "refresh-" + access, "token_type", "Bearer",
-                            "expires_in", 300, "scope", "openid profile credentials:manage offline_access", "id_token", jwt.serialize()));
+                            "expires_in", 300, "scope", auth.get("scope"), "id_token", jwt.serialize()));
                     if (fault.equals("no-refresh")) response.remove("refresh_token");
                     reply(x,200,response);
                 } catch (Exception e) { reply(x, 500, Map.of("error", "test_provider_error")); }
             });
             server.createContext("/me", x -> {
                 var auth = authorization(x);
-                reply(x, auth == null ? 401 : 200, auth == null ? Map.of("error", "invalid_token") : Map.of("sub", "userinfo".equals(auth.get("fault")) ? "another-user" : auth.get("sub")));
+                if (auth == null) {
+                    reply(x, 401, Map.of("error", "invalid_token")); return;
+                }
+                String subject = auth.get("sub");
+                var gate = profileGates.get(subject);
+                if (gate != null) {
+                    gate[0].countDown();
+                    try { gate[1].await(5, java.util.concurrent.TimeUnit.SECONDS); }
+                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+                }
+                var profile = new HashMap<String,Object>(profiles.getOrDefault(subject, Map.of()));
+                profile.put("sub", "userinfo".equals(auth.get("fault")) ? "another-user" : subject);
+                profile.putIfAbsent("preferred_username", "market-" + subject);
+                reply(x, 200, profile);
+            });
+            server.createContext("/api/application-balance", x -> {
+                var auth = authorization(x);
+                if (auth == null || !Arrays.asList(auth.get("scope").split(" ")).contains("balance:read")) {
+                    reply(x, 403, Map.of("error", "insufficient_scope")); return;
+                }
+                String subject = auth.get("sub");
+                reply(x, 200, Map.of("code", 20000, "message", "ok", "data", Map.of(
+                        "subject", "balance-mismatch".equals(auth.get("fault")) ? "another-user" : subject,
+                        "balance", balances.getOrDefault(subject, new java.math.BigDecimal("-12.75"))),
+                        "timestamp", System.currentTimeMillis()));
             });
             server.createContext("/api/application-credentials", x -> {
                 var auth = authorization(x);

@@ -52,9 +52,11 @@ public class DeviceCredentialFilter extends PathMatchingFilter {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         if (!path.startsWith("/device-control/v1/")) throw new ControlFailure(400, "UNSUPPORTED_VERSION");
         boolean state = path.equals("/device-control/v1/state") && request.getMethod().equals("GET");
-        boolean mutation = Set.of("/device-control/v1/requests", "/device-control/v1/state-acks").contains(path)
+        boolean account = path.equals("/device-control/v1/account") && request.getMethod().equals("GET");
+        boolean mutation = Set.of("/device-control/v1/requests", "/device-control/v1/state-acks",
+                "/device-control/v1/sign-out").contains(path)
                 && request.getMethod().equals("POST");
-        if (!state && !mutation) throw new ControlFailure(400, "INVALID_REQUEST");
+        if (!state && !account && !mutation) throw new ControlFailure(400, "INVALID_REQUEST");
         if (mutation) {
             try {
                 MediaType type = MediaType.parseMediaType(request.getContentType() == null ? "" : request.getContentType());
