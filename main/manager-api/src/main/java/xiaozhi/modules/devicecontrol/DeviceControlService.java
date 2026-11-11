@@ -159,6 +159,34 @@ public class DeviceControlService {
         });
     }
 
+    Map<String, Object> unbind(Identity identity, long expected) {
+        if (expected < 1) throw new ControlFailure(400, "INVALID_REQUEST");
+        return transactions.execute(tx -> {
+            permissions.barrier();
+            var row = load(identity, true);
+            long permission = number(row, "permission_version");
+            long revision = number(row, "revision");
+            long ownership = number(row, "ownership_version");
+            // An acknowledged response may be lost. Only the exact unbound successor
+            // satisfies that retry; a later binding must never be changed by it.
+            if (row.get("owner_subject") == null && "unbound".equals(row.get("reason"))
+                    && permission == expected + 1)
+                return Map.of("permission_version", permission, "binding_state", "unbound");
+            if (permission != expected || row.get("owner_subject") == null
+                    || "device_disabled".equals(row.get("reason")))
+                throw new ControlFailure(409, "STATE_CHANGED");
+            if (permission >= MAX_VERSION || revision >= MAX_VERSION || ownership >= MAX_VERSION)
+                throw new ControlFailure(503, "TEMPORARILY_UNAVAILABLE");
+            db.update("UPDATE dc_request SET status='replaced' WHERE device_id=? AND status='active'",
+                    identity.deviceId());
+            db.update("UPDATE dc_device SET owner_issuer=NULL,owner_subject=NULL,ownership_version=?,"
+                    + "local_enabled=false,permission_authorization_order=0,reason='unbound',"
+                    + "permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",
+                    ownership + 1, permission + 1, revision + 1, identity.deviceId());
+            return Map.of("permission_version", permission + 1, "binding_state", "unbound");
+        });
+    }
+
     Map<String, Object> poll(Identity identity, Long afterRevision, int waitMs) {
         var snapshot = state(identity);
         if (afterRevision == null || waitMs == 0 || number(snapshot, "revision") != afterRevision) return snapshot;

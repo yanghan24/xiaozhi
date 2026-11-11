@@ -1,0 +1,66 @@
+{
+  "api_source": "6b2e7445932de7ee84bf89b6af3cf0a0d9f35e52",
+  "integrated_main": "a1577d7476b00af8a7940ad8d61cd148a3883bbe",
+  "preintegration_api_source": "557106a5e4d7b03eed788095d67974aba5c1bd3d",
+  "firmware_source": "817e47bf4ac5a4907060c901dec898f256e2d653",
+  "firmware_application_version": "2.2.6",
+  "firmware_product_bytes": 3999344,
+  "firmware_product_sha256": "5a1061471fc818ef35329c2ff4ba79ceeb8cfe1f1c71d4944f90d6156e02cbfc",
+  "firmware_elf_sha256": "3dc1466226b43d139e2825323fcb34d31df515b5d49e21ccd2d169b08e90f8c7",
+  "java": {
+    "scope": "local development precheck before main integration; not final candidate acceptance",
+    "source": "557106a5e4d7b03eed788095d67974aba5c1bd3d",
+    "suites": 35,
+    "tests": 350,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "integration_guard_passed": true,
+    "environment": "isolated MySQL 8.0.41 / Redis 8.0.0 / Java 21 containers"
+  },
+  "firmware_ctest": {
+    "tests": 27,
+    "failures": 0
+  },
+  "firmware_python": {
+    "tests": 33,
+    "failures": 0
+  },
+  "product_checks": {
+    "product_config": true,
+    "maintenance_disabled": true,
+    "application_size_optimization": true,
+    "product_sources": true,
+    "no_maintenance_source": true,
+    "dashboard_and_control_linked": true,
+    "no_maintenance_entrypoint": true,
+    "preserved_16mb_layout": true,
+    "image_fits_both_slots": true
+  },
+  "protocol_schema_valid": true,
+  "protocol_examples_valid": 20,
+  "nginx_syntax_valid": true,
+  "preintegration_review": {
+    "standards_findings": 0,
+    "spec_findings": 0
+  },
+  "integrated_review": {
+    "source": "aa753820e84a07f9fb20db29d12240977681f5a7",
+    "base": "a1577d7476b00af8a7940ad8d61cd148a3883bbe",
+    "mode": "read-only source review, not runtime validation",
+    "standards_findings": 0,
+    "spec_findings": 0
+  },
+  "ubuntu_final_candidate_regression": {
+    "status": "blocked",
+    "source": "6b2e7445932de7ee84bf89b6af3cf0a0d9f35e52",
+    "ssh_target": "jt@192.168.168.114",
+    "ssh_exit_code": 255,
+    "reason": "SSH connection to port 22 timed out",
+    "server_commands_executed": false
+  },
+  "deployment_pending": true,
+  "public_route_acceptance_pending": true,
+  "new_firmware_flashed": false,
+  "different_account_physical_acceptance_pending": true
+}
