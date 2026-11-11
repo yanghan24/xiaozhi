@@ -45,6 +45,13 @@ public class DeviceControlController {
         return success(service.signOut(identity(request), version(body.path("expected_permission_version"))));
     }
 
+    @PostMapping(value = "/unbind", consumes = "application/json")
+    public JsonNode unbind(HttpServletRequest request, @RequestBody String rawBody) {
+        JsonNode body = parse(rawBody);
+        fields(body, Set.of("expected_permission_version"));
+        return success(service.unbind(identity(request), version(body.path("expected_permission_version"))));
+    }
+
     private Long queryNumber(HttpServletRequest request, String name, long max) {
         String value = request.getParameter(name);
         if (value == null) return null;
