@@ -245,6 +245,31 @@ class CheckEnvironmentTest(unittest.TestCase):
             self._check(runner)
         self.assertEqual(caught.exception.code, "DB_ALIAS_AMBIGUOUS")
 
+    def test_db_alias_on_another_identity_network_is_ambiguous(self):
+        # Review P2: the identity container may resolve "mysql" on any network
+        # it joins, not only the one shared with the configured database.
+        runner = FakeRunner()
+        runner.networks["identity1"]["othernet"] = {"Aliases": ["identity1"]}
+        runner.peers.append("otherdb")
+        runner.networks["otherdb"] = {"othernet": {"Aliases": ["otherdb", "mysql"]}}
+        with self.assertRaises(CheckError) as caught:
+            self._check(runner)
+        self.assertEqual(caught.exception.code, "DB_ALIAS_AMBIGUOUS")
+
+        runner = FakeRunner()
+        runner.networks["identity1"]["othernet"] = {"Aliases": ["identity1"]}
+        runner.peers.append("mysql")
+        runner.networks["mysql"] = {"othernet": {"Aliases": ["mysql"]}}
+        with self.assertRaises(CheckError) as caught:
+            self._check(runner)
+        self.assertEqual(caught.exception.code, "DB_ALIAS_AMBIGUOUS")
+
+    def test_db_alias_on_a_network_the_identity_cannot_see_is_unique(self):
+        runner = FakeRunner()
+        runner.peers.append("otherdb")
+        runner.networks["otherdb"] = {"unrelated": {"Aliases": ["otherdb", "mysql"]}}
+        self.assertEqual(self._check(runner)["db_target"], "ok")
+
     def test_peer_list_is_capped(self):
         runner = FakeRunner()
         runner.peers = ["peer%d" % index for index in range(101)]
@@ -413,6 +438,37 @@ class CheckEnvironmentTest(unittest.TestCase):
         runner.networks["peer1"] = {"sqlshared": {"Aliases": ["peer1", "shared_identity"]}}
         with mock.patch.object(envcheck, "_read_host_text", return_value=config):
             self.assertEqual(envcheck.check_environment(_env(), runner)["proxy_target"], "ok")
+
+    def test_notify_location_must_be_an_exact_match(self):
+        # Review P2: a prefix location can lose to a regex location in nginx,
+        # so only "location = <notify path>" proves where notifications go.
+        regex = ('    location ~ ^/xiaozhi/customer/oidc/ {\n'
+                 '      proxy_pass http://other:8080;\n'
+                 '    }\n')
+        prefix = CONFIG.replace("location = /xiaozhi/customer/oidc/backchannel-logout",
+                                "location /xiaozhi/customer/oidc/backchannel-logout")
+        for name, config in (
+            ("prefix", prefix),
+            ("prefix-with-regex", prefix.replace("    # END SYNTHETIC", regex + "    # END SYNTHETIC")),
+            ("preferential-prefix", CONFIG.replace(
+                "location = /xiaozhi/customer/oidc/backchannel-logout",
+                "location ^~ /xiaozhi/customer/oidc/backchannel-logout")),
+        ):
+            for marker in ("SYNTHETIC TRUSTED ROUTES", None):
+                with self.subTest(case=name, marker=marker):
+                    env = _env()
+                    env["entry"]["marker"] = marker
+                    with mock.patch.object(envcheck, "_read_host_text", return_value=config):
+                        with self.assertRaises(CheckError) as caught:
+                            envcheck.check_environment(env, FakeRunner())
+                    self.assertEqual(caught.exception.code, "PROXY_TARGET_MISMATCH")
+
+    def test_quoted_exact_notify_location_is_accepted(self):
+        config = CONFIG.replace("location = /xiaozhi/customer/oidc/backchannel-logout",
+                                'location = "/xiaozhi/customer/oidc/backchannel-logout"')
+        with mock.patch.object(envcheck, "_read_host_text", return_value=config):
+            self.assertEqual(envcheck.check_environment(_env(), FakeRunner())["proxy_target"],
+                             "ok")
 
     def test_log_not_configured_still_validates_proxy_environment(self):
         runner = FakeRunner()

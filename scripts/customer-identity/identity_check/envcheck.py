@@ -234,6 +234,9 @@ def _check_db_alias(env, runner, deadline, timeout):
     network = shared[0]
     if alias in _aliases(identity_networks[network]):
         raise CheckError("DB_ALIAS_AMBIGUOUS")
+    # The identity container resolves the alias on every network it joins,
+    # so a peer carrying it on any of them could be the database it reaches.
+    visible = set(identity_networks)
     listing = _run(env, runner, ["docker", "ps", "--format", "{{.Names}}"],
                    deadline, timeout)
     if listing.returncode != 0:
@@ -242,13 +245,16 @@ def _check_db_alias(env, runner, deadline, timeout):
     if len(peers) > MAX_PEERS:
         raise CheckError("ENV_PEER_LIMIT")
     for peer in peers:
-        if peer in (env["db"]["container"], env["identity_container"]):
+        if peer == env["identity_container"]:
             continue
         if sql.CONTAINER_RE.fullmatch(peer) is None:
             raise CheckError("ENV_INSPECT_FAILED")
         networks = _networks(env, runner, peer, deadline, timeout)
-        if network in networks and alias in _aliases(networks[network]):
-            raise CheckError("DB_ALIAS_AMBIGUOUS")
+        for name in visible & set(networks):
+            if peer == env["db"]["container"] and name == network:
+                continue
+            if peer == alias or alias in _aliases(networks[name]):
+                raise CheckError("DB_ALIAS_AMBIGUOUS")
 
 
 def _check_jdbc(env, runner, deadline, timeout):
@@ -353,11 +359,11 @@ def _locations(text):
 
 
 def _notify_location(args):
+    # Only an exact-match location is certain to win nginx's route selection;
+    # a prefix location can lose to a regex location elsewhere in the file.
     parts = args.split()
     if len(parts) == 2 and parts[0] == "=":
         return _unquote(parts[1]) == NOTIFY_LOCATION
-    if len(parts) == 1:
-        return _unquote(parts[0]) == NOTIFY_LOCATION
     return False
 
 
