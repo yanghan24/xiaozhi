@@ -232,7 +232,10 @@ def _check_db_alias(env, runner, deadline, timeout):
     if len(shared) != 1:
         raise CheckError("DB_ALIAS_AMBIGUOUS")
     network = shared[0]
-    if alias in _aliases(identity_networks[network]):
+    # The application can resolve its own name/aliases as well as peer names.
+    if (env["identity_container"] == alias
+            or any(alias in _aliases(settings)
+                   for settings in identity_networks.values())):
         raise CheckError("DB_ALIAS_AMBIGUOUS")
     # The identity container resolves the alias on every network it joins,
     # so a peer carrying it on any of them could be the database it reaches.

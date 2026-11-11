@@ -264,6 +264,32 @@ class CheckEnvironmentTest(unittest.TestCase):
             self._check(runner)
         self.assertEqual(caught.exception.code, "DB_ALIAS_AMBIGUOUS")
 
+    def test_identity_own_db_alias_on_any_network_is_ambiguous(self):
+        for network in ("sqlshared", "othernet"):
+            with self.subTest(network=network):
+                runner = FakeRunner()
+                runner.networks["identity1"][network] = {
+                    "Aliases": ["identity1", "mysql"]}
+                with self.assertRaises(CheckError) as caught:
+                    self._check(runner)
+                self.assertEqual(caught.exception.code, "DB_ALIAS_AMBIGUOUS")
+
+    def test_identity_container_name_cannot_be_the_db_alias(self):
+        runner = FakeRunner()
+        env = _env()
+        env["identity_container"] = "mysql"
+        runner.running["mysql"] = True
+        runner.networks["mysql"] = runner.networks.pop("identity1")
+        with mock.patch.object(envcheck, "_read_host_text", return_value=CONFIG):
+            with self.assertRaises(CheckError) as caught:
+                envcheck.check_environment(env, runner)
+        self.assertEqual(caught.exception.code, "DB_ALIAS_AMBIGUOUS")
+
+    def test_identity_second_network_without_db_alias_is_valid(self):
+        runner = FakeRunner()
+        runner.networks["identity1"]["othernet"] = {"Aliases": ["identity1"]}
+        self.assertEqual(self._check(runner)["db_target"], "ok")
+
     def test_db_alias_on_a_network_the_identity_cannot_see_is_unique(self):
         runner = FakeRunner()
         runner.peers.append("otherdb")
