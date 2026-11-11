@@ -20,15 +20,17 @@ import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={
     "server.servlet.context-path=/xiaozhi","server.forward-headers-strategy=native","renren.xss.enabled=true",
-    "device-control.enabled=true","device-control.public-origin=https://bridge.hncig.cn:18443",
+    "device-control.enabled=true","device-delivery.enabled=true","device-control.public-origin=https://bridge.hncig.cn:18443",
     "device-control.voice-enabled=true","device-control.voice-service-secret=isolated-voice-test-service-secret-123456"})
 @Import(CustomerTestTime.class)
 class CustomerVoicePermissionHttpTest {
     static final ControlledMarket market=new ControlledMarket();
+    static final java.nio.file.Path deliveryKey = deliveryKey();
     @DynamicPropertySource static void config(DynamicPropertyRegistry registry) {
         registry.add("customer.oidc.config-file",()->market.config.toString());
         registry.add("customer.oidc.refresh-delay-ms",()->"200");
         registry.add("customer.oidc.balance-enabled", () -> "true");
+        registry.add("device-delivery.encryption-key-file", () -> deliveryKey.toString());
     }
     @Autowired TestRestTemplate http;
     @Autowired JdbcTemplate db;
@@ -39,6 +41,89 @@ class CustomerVoicePermissionHttpTest {
     @Autowired CustomerOidcConfig oidcConfig;
     @BeforeEach void setup(){client=new BindingTestClient(http,db,market);org.mockito.Mockito.when(deviceClock.millis()).thenAnswer(call->customerClock.millis());}
     @AfterEach void reset(){CustomerTestTime.offset.set(0);CustomerTestTime.frozen.set(0);}
+
+    @Test void credentialRecoveryKeepsOwnerAndOtherDeviceButRejectsOldVoiceAndLateResume() throws Exception {
+        long admin = 420000000000001L;
+        String adminToken = "recovery-admin-" + UUID.randomUUID();
+        db.update("INSERT INTO sys_user(id,username,super_admin,status) VALUES (?,'recovery-http-admin',1,1)", admin);
+        db.update("INSERT INTO sys_user_token(id,user_id,token,expire_date) VALUES (?,?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))", admin, admin, adminToken);
+        try {
+            var auth = deliveryPost("authorize", adminToken, null, Map.of("version", 1));
+            assertEquals(200, auth.getStatusCode().value());
+            String tool = BindingTestClient.data(auth).get("tool_token").toString();
+            String operation = UUID.randomUUID().toString().replace("-", "");
+            String hardware = operation.substring(0, 12), network = operation.substring(12, 24);
+            var registration = deliveryPost("operations", tool, operation, Map.of("version", 1,
+                    "hardware_id", hardware, "network_hardware_id", network, "board_type", "test-p4"));
+            assertEquals(200, registration.getStatusCode().value());
+            var identity = (Map<?, ?>) BindingTestClient.data(registration).get("identity");
+            var original = new BindingTestClient.Device(identity.get("device_id").toString(), identity.get("credential").toString(), null);
+            assertEquals(200, http.postForEntity("/device-delivery/v1/device-check", new HttpEntity<>(
+                    Map.of("version", 1, "hardware_id", hardware, "network_hardware_id", network),
+                    BindingTestClient.deviceHeaders(original)), Map.class).getStatusCode().value());
+            assertEquals(200, deliveryPost("operations/" + operation + "/complete", tool, null,
+                    Map.of("version", 1, "write_operation_id", "a".repeat(32))).getStatusCode().value());
+            var other = client.device();
+            String owner = UUID.randomUUID().toString();
+            for (var device : java.util.List.of(client.request(original, "auto"), other)) {
+                var flow = client.scan(device);
+                client.login(flow, null, owner);
+                assertEquals(200, client.confirm(flow, "bind").getStatusCode().value());
+            }
+            var otherState = client.state(other);
+            String oldToken = ((Map<?, ?>) client.state(original).get("voice")).get("token").toString();
+            var opened = voice("open", Map.of("device_id", original.id(), "token", oldToken));
+            assertEquals(200, opened.getStatusCode().value());
+            String recoveryId = UUID.randomUUID().toString().replace("-", "");
+            var rotated = deliveryPost("recoveries", adminToken, recoveryId,
+                    Map.of("version", 1, "device_id", original.id(), "previous_operation_id", operation));
+            assertEquals(200, rotated.getStatusCode().value(), rotated.toString());
+            var recoveredIdentity = (Map<?, ?>) BindingTestClient.data(rotated).get("identity");
+            var recovered = new BindingTestClient.Device(original.id(), recoveredIdentity.get("credential").toString(), null);
+            assertEquals(401, account(original).getStatusCode().value());
+            assertEquals("market-" + owner, BindingTestClient.data(account(recovered)).get("username"));
+            assertEquals(403, voice("open", Map.of("device_id", original.id(), "token", oldToken)).getStatusCode().value());
+            assertEquals(403, voice("check", Map.of("session", opened.getBody().get("session"))).getStatusCode().value());
+            assertEquals(otherState.get("permission_version"), client.state(other).get("permission_version"));
+            assertEquals("allowed", client.state(other).get("use_permission"));
+
+            long permission = ((Number) client.state(recovered).get("permission_version")).longValue();
+            assertEquals(200, signOut(recovered, permission).getStatusCode().value());
+            var lateResume = client.scan(client.request(recovered, "auto"));
+            client.login(lateResume, null, owner);
+            var again = deliveryPost("recoveries", adminToken, UUID.randomUUID().toString().replace("-", ""),
+                    Map.of("version", 1, "device_id", original.id(), "previous_operation_id", recoveryId));
+            assertEquals(200, again.getStatusCode().value());
+            var latest = (Map<?, ?>) BindingTestClient.data(again).get("identity");
+            var current = new BindingTestClient.Device(original.id(), latest.get("credential").toString(), null);
+            assertEquals(409, client.confirm(lateResume, "late-resume").getStatusCode().value());
+            assertEquals("user_signed_out", client.state(current).get("reason"));
+            assertEquals("bound", client.state(current).get("binding_state"));
+            assertNull(client.state(current).get("voice"));
+            assertEquals(otherState.get("permission_version"), client.state(other).get("permission_version"));
+            assertEquals("allowed", client.state(other).get("use_permission"));
+        } finally {
+            db.update("DELETE FROM sys_user_token WHERE user_id=?", admin);
+            db.update("DELETE FROM sys_user WHERE id=?", admin);
+        }
+    }
+
+    private ResponseEntity<Map> deliveryPost(String suffix, String token, String operation, Map<String,Object> body) {
+        var headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth(token); headers.set("X-Forwarded-Proto", "https");
+        if (operation != null) headers.set("Idempotency-Key", operation);
+        return http.postForEntity("/device-delivery/v1/" + suffix, new HttpEntity<>(body, headers), Map.class);
+    }
+
+    private static java.nio.file.Path deliveryKey() {
+        try {
+            var path = java.nio.file.Files.createTempFile("recovery-voice-", ".private",
+                    java.nio.file.attribute.PosixFilePermissions.asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------")));
+            java.nio.file.Files.writeString(path, java.util.Base64.getEncoder().encodeToString(new byte[32]));
+            path.toFile().deleteOnExit();
+            return path;
+        } catch (java.io.IOException failure) { throw new ExceptionInInitializerError(failure); }
+    }
     @Test void deviceReadsOnlyItsCurrentOwnersLiveMarketAccount() {
         var device = client.device();
         assertEquals(409, account(device).getStatusCode().value());
