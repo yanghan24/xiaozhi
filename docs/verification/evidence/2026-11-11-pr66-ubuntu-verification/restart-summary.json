@@ -1,0 +1,13 @@
+{
+  "observed_at": "2026-11-11T12:31:35.197351+00:00",
+  "api_image": "xiaozhi-product-api:1b50709",
+  "api_readiness": true,
+  "device_credentials_admission_owner_permission_and_ownership_versions_unchanged": true,
+  "recovery_records_unchanged": true,
+  "delivery_hardware_mapping_unchanged": true,
+  "config_and_keys_unchanged": true,
+  "other_services_not_restarted": true,
+  "backup_directory": "/home/jt/pr26-deployment-885918d/private/backups/20261111T123123Z",
+  "api_started_before": "2026-11-11T08:34:45.277858624Z",
+  "api_started_after": "2026-11-11T12:31:25.043266835Z"
+}

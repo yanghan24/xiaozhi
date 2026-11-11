@@ -1,5 +1,7 @@
 # PR #66 Ubuntu 补发后验证
 
+最新结论：20:31–20:32 已完成下文补发后 API 重启验收；此前“未重启/暂缓/执行被拒绝”均为对应时间段的历史状态。硬件验收及补发瞬间历史归属比对仍未完成。
+
 2026-11-11 19:26–19:30（Asia/Hong_Kong），执行主机 `jt@192.168.168.114`。接续 [PR #66](https://github.com/yanghan24/xiaozhi/pull/66) 固定提交 `1d029f524377de926d363fb8400f1399cf11a9e2` 的 B 设备补发写回证据，关联 #42 / #13。本轮补充服务器状态及旧、新凭据独立 HTTP 检查，不代表全部恢复场景验收完成。
 
 ## 环境与前置证据
@@ -45,3 +47,21 @@ B 在补发后另行完成了解绑和换账号绑定，见[当前部署记录�
 同时重新读取现网组合提交 `1b50709` 之前已执行的隔离测试 XML，[摘录](evidence/2026-11-11-pr66-ubuntu-verification/existing-regression.json)确认 DeviceDeliveryHttpTest 20 项与 CustomerVoicePermissionHttpTest 24 项均无失败/错误/跳过。已有恢复用例覆盖原档案保持、旧交付重放拒绝、已退出设备回执续作、并发补发唯一后继、迟到恢复不能还原旧秘密、跨设备前驱拒绝、原归属/第二设备保持及旧语音/迟到扫码拒绝。这是既有服务端自动化证据复核，本轮未重跑，不能记为 P4 实际写回竞态已通过。
 
 本机本轮累计完成 24 项公网预检、2 项新旧凭据检查、8 项拒绝检查。下一步实机验收见[硬件方检查清单](../handoff/2026-11-11-pr66-hardware-acceptance.md)；API 重启验收单独暂缓。
+
+## 20:31–20:32 补充：API 重启验收通过
+
+用户重新明确要求开始 API 重启验收。本次准备并检查单独脚本后执行成功；不据此推断此前复合请求被拒绝的具体原因。
+
+重启前运行既有范围限定备份，保存至 `/home/jt/pr26-deployment-885918d/private/backups/20261111T123123Z`，排除对话正文和音频。随后仅重启 `xiaozhi-pr26-api`，镜像仍为 `xiaozhi-product-api:1b50709`，容器 ID 与镜像 ID 保持，启动时间从 `2026-11-11T08:34:45.277858624Z` 变为 `2026-11-11T12:31:25.043266835Z`。API readiness 恢复；语音、数据库、Redis、Nginx 的容器 ID 与启动时间保持。
+
+重启前后的全部设备凭据 hash、准入、归属、许可版本、reason、ownership_version、local_enabled，以及全部补发记录和交付硬件映射逐项一致。Compose、身份密钥和交付加密密钥的 hash 一致。私有快照位于 `/home/jt/pr66-verification/restart/`，不入库。
+
+| 重启后检查 | 结果 |
+| --- | --- |
+| 旧/新设备凭据 | 2/2，旧凭据仍为 401 / INVALID_DEVICE_CREDENTIAL，新凭据仍为 200 / OK / delivered |
+| 旧凭据控制访问、设备补发越权、硬件不匹配 | 8/8；检查前后设备关键状态及补发记录一致 |
+| 公网 OTA、鉴权、管理隔离、WSS 拒绝 | 24/24 |
+
+脱敏证据：[重启与状态比对](evidence/2026-11-11-pr66-ubuntu-verification/restart-summary.json)、[凭据检查](evidence/2026-11-11-pr66-ubuntu-verification/post-restart-credentials.json)、[拒绝检查](evidence/2026-11-11-pr66-ubuntu-verification/post-restart-rejections.json)、[公网预检](evidence/2026-11-11-pr66-ubuntu-verification/post-restart-public.json)。拒绝检查摘要中的 `service_restarted=false` 表示该检查脚本自身不执行重启，先前的实际重启由独立重启摘要记录。所有公网请求仍由 Ubuntu 经临时代理访问正常 TLS 公网域名，代理随后关闭。
+
+本次通过的是补发后产品 API 容器重启与持久状态保持，不包含 Ubuntu 主机重启、数据库/语音重启、实体音箱的重连播放或灾备恢复演练。重启前后归属一致不能补证过去补发瞬间归属保持；硬件清单仍待执行。
