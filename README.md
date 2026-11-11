@@ -8,7 +8,7 @@
 - [首版产品规则收口](docs/planning/product-rules-2026-11-09.md)
 - [日程、室外环境与烧录登记新增需求](docs/planning/reminders-weather-discovery-2026-11-10.md)（已纳入 2026-12-07 目标）、[天气替代调研](docs/development/weather-location-replacement-research.md)
 - [实施规格、任务边界与验收导航](docs/planning/task-spec-index.md)
-- [真实集市身份联调结果](docs/verification/2026-11-09-real-market-identity.md)、[注销通知管理员检查清单](docs/handoff/2026-11-10-market-logout-notification.md)
+- [真实集市身份验收汇总](docs/verification/2026-11-10-identity-acceptance-summary.md)、[注销通知检查清单（历史）](docs/handoff/2026-11-10-market-logout-notification.md)
 - [本机语音服务与设备协议验证](docs/development/voice-baseline.md)
 - [上游源码来源与导入范围](docs/development/upstream-baseline.md)
 - 实际验证记录：[管理端](docs/verification/issue-3-manager-baseline.md)、[语音与设备协议](docs/verification/issue-4-voice-protocol.md)
