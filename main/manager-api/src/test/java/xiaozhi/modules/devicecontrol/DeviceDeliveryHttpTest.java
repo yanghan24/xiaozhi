@@ -83,6 +83,7 @@ class DeviceDeliveryHttpTest {
     @AfterEach
     void cleanup() {
         var devices = db.queryForList("SELECT device_id FROM dc_delivery_operation WHERE operator_id IN (?,?)", ADMIN, USER);
+        db.update("DELETE FROM dc_device_recovery WHERE operator_id IN (?,?)", ADMIN, USER);
         db.update("DELETE FROM dc_delivery_operation WHERE operator_id IN (?,?)", ADMIN, USER);
         for (var device : devices) db.update("DELETE FROM dc_device WHERE device_id=?", device.get("device_id"));
         db.update("DELETE FROM dc_delivery_tool WHERE operator_id IN (?,?)", ADMIN, USER);
@@ -369,6 +370,136 @@ class DeviceDeliveryHttpTest {
         assertEquals(200, response.statusCode(), response.body());
         assertEquals("no-store", response.headers().firstValue("Cache-Control").orElse(""));
         return data(response);
+    }
+
+    @Test
+    void administratorRecoveryKeepsTheDeviceAndRejectsOldCredentialAndDeliveryReplay() throws Exception {
+        var original = create(1, id());
+        assertEquals(200, check(original, credential(original), hardware(1)).statusCode());
+        assertEquals(200, complete(original, WRITE).statusCode());
+        String recoveryId = id();
+        var request = Map.of("version", 1, "device_id", original.path("device_id").asText(),
+                "previous_operation_id", original.path("operation_id").asText());
+        var response = post("recoveries", ADMIN_TOKEN, recoveryId, request);
+        assertEquals(200, response.statusCode(), response.body());
+        var recovered = data(response);
+        assertEquals(original.path("device_id"), recovered.path("device_id"));
+        assertEquals(original.path("hardware_id"), recovered.path("hardware_id"));
+        assertNotEquals(credential(original), credential(recovered));
+        assertEquals(recovered, data(post("recoveries", ADMIN_TOKEN, recoveryId, request)));
+        assertEquals(401, check(original, credential(original), hardware(1)).statusCode());
+        assertEquals(409, post("operations", tool, original.path("operation_id").asText(), hardware(1)).statusCode());
+        assertEquals(409, complete(original, WRITE).statusCode());
+        assertEquals(200, check(recovered, credential(recovered), hardware(1)).statusCode());
+        assertEquals(409, post("recoveries", ADMIN_TOKEN, id(), request).statusCode());
+        for (String token : new String[] {null, USER_TOKEN, tool}) {
+            assertNotEquals(200, post("recoveries", token, id(), request).statusCode());
+        }
+    }
+
+    @Test
+    void recoveryWriteReceiptResumesWithoutEnablingASignedOutDevice() throws Exception {
+        var original = create(1, id());
+        assertEquals(200, check(original, credential(original), hardware(1)).statusCode());
+        assertEquals(200, complete(original, WRITE).statusCode());
+        // Existing signed-out ownership is the starting fixture, never written by recovery.
+        db.update("UPDATE dc_device SET owner_issuer='https://market.example',owner_subject='original-owner',ownership_version=2,reason='user_signed_out',local_enabled=false WHERE device_id=?",
+                original.path("device_id").asText());
+        var response = post("recoveries", ADMIN_TOKEN, id(), Map.of("version", 1,
+                "device_id", original.path("device_id").asText(), "previous_operation_id", original.path("operation_id").asText()));
+        assertEquals(200, response.statusCode(), response.body());
+        var recovered = data(response);
+        String suffix = "recoveries/" + recovered.path("operation_id").asText();
+        var receipt = Map.of("version", 1, "write_operation_id", WRITE);
+        assertEquals(409, post(suffix + "/complete", ADMIN_TOKEN, null, receipt).statusCode());
+        assertEquals(200, check(recovered, credential(recovered), hardware(1)).statusCode());
+        var completed = post(suffix + "/complete", ADMIN_TOKEN, null, receipt);
+        assertEquals(200, completed.statusCode(), completed.body());
+        assertEquals("delivered", data(completed).path("status").asText());
+        assertFalse(data(completed).has("identity"));
+        assertEquals(data(completed), data(post(suffix + "/complete", ADMIN_TOKEN, null, receipt)));
+        assertEquals(409, post(suffix + "/complete", ADMIN_TOKEN, null,
+                Map.of("version", 1, "write_operation_id", id())).statusCode());
+        var status = send("GET", "/device-delivery/v1/" + suffix, ADMIN_TOKEN, null, null, null, true);
+        assertEquals(200, status.statusCode(), status.body());
+        assertEquals(data(completed), data(status));
+        var state = send("GET", "/device-control/v1/state", credential(recovered), original.path("device_id").asText(), null, null, true);
+        assertEquals("bound", data(state).path("binding_state").asText());
+        assertEquals("user_signed_out", data(state).path("reason").asText());
+        assertEquals("blocked", data(state).path("use_permission").asText());
+        for (String token : new String[] {tool, USER_TOKEN, null}) {
+            assertNotEquals(200, post(suffix + "/complete", token, null, receipt).statusCode());
+            assertNotEquals(200, send("GET", "/device-delivery/v1/" + suffix, token, null, null, null, true).statusCode());
+        }
+    }
+
+    @Test
+    void concurrentRecoveryHasOneSuccessorAndLateRecoveryCannotRestoreOldSecrets() throws Exception {
+        var original = create(1, id());
+        assertEquals(200, check(original, credential(original), hardware(1)).statusCode());
+        assertEquals(200, complete(original, WRITE).statusCode());
+        var request = Map.of("version", 1, "device_id", original.path("device_id").asText(),
+                "previous_operation_id", original.path("operation_id").asText());
+        var keys = java.util.stream.IntStream.range(0, 6).mapToObj(i -> id()).toList();
+        var tasks = keys.stream().map(key -> CompletableFuture.supplyAsync(() -> {
+            try { return post("recoveries", ADMIN_TOKEN, key, request); }
+            catch (Exception failure) { throw new RuntimeException(failure); }
+        })).toList();
+        CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).get(30, java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(1, tasks.stream().filter(task -> task.join().statusCode() == 200).count());
+        assertEquals(5, tasks.stream().filter(task -> task.join().statusCode() == 409).count());
+        var recovered = data(tasks.stream().filter(task -> task.join().statusCode() == 200).findFirst().orElseThrow().join());
+        String operation = recovered.path("operation_id").asText();
+        var retries = java.util.stream.IntStream.range(0, 6).mapToObj(i -> CompletableFuture.supplyAsync(() -> {
+            try { return post("recoveries", ADMIN_TOKEN, operation, request); }
+            catch (Exception failure) { throw new RuntimeException(failure); }
+        })).toList();
+        for (var retry : retries) {
+            var response = retry.get(30, java.util.concurrent.TimeUnit.SECONDS);
+            assertEquals(200, response.statusCode());
+            assertEquals(recovered, data(response));
+        }
+        var next = post("recoveries", ADMIN_TOKEN, id(), Map.of("version", 1,
+                "device_id", original.path("device_id").asText(), "previous_operation_id", operation));
+        assertEquals(200, next.statusCode(), next.body());
+        assertNotEquals(credential(recovered), credential(data(next)));
+        assertEquals(409, post("recoveries", ADMIN_TOKEN, operation, request).statusCode());
+        assertEquals(401, check(recovered, credential(recovered), hardware(1)).statusCode());
+        assertEquals(409, post("recoveries/" + operation + "/complete", ADMIN_TOKEN, null,
+                Map.of("version", 1, "write_operation_id", WRITE)).statusCode());
+        assertEquals(200, check(data(next), credential(data(next)), hardware(1)).statusCode());
+        assertEquals(409, post("operations", tool, id(), hardware(1)).statusCode());
+    }
+
+    @Test
+    void recoveryRejectsOtherOperatorsMalformedRequestsAndCrossDevicePredecessors() throws Exception {
+        var original = create(1, id());
+        var other = create(2, id());
+        for (var device : List.of(original, other)) {
+            assertEquals(200, check(device, credential(device), hardware(device == original ? 1 : 2)).statusCode());
+            assertEquals(200, complete(device, WRITE).statusCode());
+        }
+        String operation = id();
+        var request = Map.of("version", 1, "device_id", original.path("device_id").asText(),
+                "previous_operation_id", original.path("operation_id").asText());
+        assertEquals(409, post("recoveries", ADMIN_TOKEN, id(), Map.of("version", 1,
+                "device_id", other.path("device_id").asText(), "previous_operation_id", original.path("operation_id").asText())).statusCode());
+        assertEquals(200, post("recoveries", ADMIN_TOKEN, operation, request).statusCode());
+        db.update("UPDATE sys_user SET super_admin=1 WHERE id=?", USER);
+        assertEquals(409, post("recoveries", USER_TOKEN, operation, request).statusCode());
+        assertEquals(404, send("GET", "/device-delivery/v1/recoveries/" + operation, USER_TOKEN, null, null, null, true).statusCode());
+        assertEquals(404, post("recoveries/" + operation + "/complete", USER_TOKEN, null,
+                Map.of("version", 1, "write_operation_id", WRITE)).statusCode());
+        assertEquals(400, post("recoveries", ADMIN_TOKEN, null, request).statusCode());
+        assertEquals(400, post("recoveries", ADMIN_TOKEN, id(), Map.of("version", 2,
+                "device_id", original.path("device_id").asText(), "previous_operation_id", operation)).statusCode());
+        assertEquals(400, post("recoveries?extra=1", ADMIN_TOKEN, id(), request).statusCode());
+        assertEquals(400, send("POST", "/device-delivery/v1/recoveries", ADMIN_TOKEN, null, id(),
+                "{\"version\":1,\"version\":1,\"device_id\":\"test\",\"previous_operation_id\":\"" + operation + "\"}", true).statusCode());
+        String longLived = issueCredential(ADMIN_TOKEN).path("tool_token").asText();
+        assertEquals(401, post("recoveries", longLived, id(), request).statusCode());
+        db.update("UPDATE sys_user SET status=0 WHERE id=?", ADMIN);
+        assertNotEquals(200, post("recoveries", ADMIN_TOKEN, operation, request).statusCode());
     }
 
     private static String id() { return UUID.randomUUID().toString().replace("-", ""); }
