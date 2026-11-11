@@ -300,10 +300,18 @@ class CheckEnvironmentTest(unittest.TestCase):
     def test_explicit_upstream_resolution(self):
         runner = FakeRunner()
         config = CONFIG.replace("proxy_pass http://identity1:8080;",
-                                "proxy_pass http://identity_up:8080;")
+                                "proxy_pass http://identity_up;")
         with mock.patch.object(envcheck, "_read_host_text", return_value=config):
             summary = envcheck.check_environment(_env(), runner)
         self.assertEqual(summary["proxy_target"], "ok")
+
+        # nginx refuses "upstream ... may not have port"; never accept it.
+        with_port = CONFIG.replace("proxy_pass http://identity1:8080;",
+                                   "proxy_pass http://identity_up:8080;")
+        with mock.patch.object(envcheck, "_read_host_text", return_value=with_port):
+            with self.assertRaises(CheckError) as caught:
+                envcheck.check_environment(_env(), FakeRunner())
+        self.assertEqual(caught.exception.code, "PROXY_TARGET_MISMATCH")
 
         config = config.replace(
             "upstream identity_up { server identity1:8080; }",
@@ -324,6 +332,87 @@ class CheckEnvironmentTest(unittest.TestCase):
             self.assertEqual(envcheck.check_environment(_env(), FakeRunner()),
                              {"containers": "ok", "db_target": "ok",
                               "proxy_target": "ok", "schema": "ok"})
+
+    def test_marker_fallback_requires_the_enclosing_notify_location(self):
+        # Review P2: a marker whose block only holds a proxy_pass must sit
+        # inside the notification location; another route must not pass.
+        login = CONFIG.replace("/xiaozhi/customer/oidc/backchannel-logout",
+                               "/xiaozhi/customer/oidc/callback")
+        nested_login = (
+            "http {\n  server {\n"
+            "    location = /xiaozhi/customer/oidc/callback {\n"
+            "      # BEGIN SYNTHETIC TRUSTED ROUTES\n"
+            "      access_log /var/log/nginx/notify.log notify;\n"
+            "      proxy_pass http://identity1:8080;\n"
+            "      # END SYNTHETIC TRUSTED ROUTES\n"
+            "    }\n  }\n}\n")
+        for name, config in (("login-route", login), ("nested-login", nested_login)):
+            with self.subTest(case=name):
+                with mock.patch.object(envcheck, "_read_host_text", return_value=config):
+                    with self.assertRaises(CheckError) as caught:
+                        envcheck.check_environment(_env(), FakeRunner())
+                self.assertEqual(caught.exception.code, "PROXY_TARGET_MISMATCH")
+
+    def test_marker_nested_inside_notify_location_is_accepted(self):
+        nested = (
+            "http {\n  server {\n"
+            "    location = /xiaozhi/customer/oidc/backchannel-logout {\n"
+            "      # BEGIN SYNTHETIC TRUSTED ROUTES\n"
+            "      access_log /var/log/nginx/notify.log notify;\n"
+            "      proxy_pass http://identity1:8080;\n"
+            "      # END SYNTHETIC TRUSTED ROUTES\n"
+            "    }\n  }\n}\n")
+        with mock.patch.object(envcheck, "_read_host_text", return_value=nested):
+            self.assertTrue(envcheck.entry_log_configured(_env(), FakeRunner()))
+            self.assertEqual(envcheck.check_environment(_env(), FakeRunner())["proxy_target"],
+                             "ok")
+
+    def test_named_upstream_without_port_uses_member_port(self):
+        # Review P2: proxy_pass to a named upstream carries no port; the
+        # member's port is what must be declared by the identity container.
+        config = CONFIG.replace("proxy_pass http://identity1:8080;",
+                                "proxy_pass http://identity_up;")
+        with mock.patch.object(envcheck, "_read_host_text", return_value=config):
+            self.assertEqual(envcheck.check_environment(_env(), FakeRunner())["proxy_target"],
+                             "ok")
+        wrong_member = config.replace("server identity1:8080;", "server identity1:9090;")
+        with mock.patch.object(envcheck, "_read_host_text", return_value=wrong_member):
+            with self.assertRaises(CheckError) as caught:
+                envcheck.check_environment(_env(), FakeRunner())
+        self.assertEqual(caught.exception.code, "PROXY_TARGET_MISMATCH")
+
+    def test_duplicate_proxy_alias_on_entry_network_is_ambiguous(self):
+        # Review P2: Docker DNS may resolve a duplicated alias to another
+        # container, so the proxy host must be unique on entry networks.
+        config = CONFIG.replace("proxy_pass http://identity1:8080;",
+                                "proxy_pass http://shared_identity:8080;")
+        runner = FakeRunner()
+        runner.networks["identity1"]["entrynet"]["Aliases"].append("shared_identity")
+        runner.peers.append("peer1")
+        runner.networks["peer1"] = {"entrynet": {"Aliases": ["peer1", "shared_identity"]}}
+        with mock.patch.object(envcheck, "_read_host_text", return_value=config):
+            with self.assertRaises(CheckError) as caught:
+                envcheck.check_environment(_env(), runner)
+        self.assertEqual(caught.exception.code, "PROXY_TARGET_AMBIGUOUS")
+
+        upstream = CONFIG.replace("upstream identity_up { server identity1:8080; }",
+                                  "upstream identity_up { server shared_identity:8080; }")
+        upstream = upstream.replace("proxy_pass http://identity1:8080;",
+                                    "proxy_pass http://identity_up;")
+        with mock.patch.object(envcheck, "_read_host_text", return_value=upstream):
+            with self.assertRaises(CheckError) as caught:
+                envcheck.check_environment(_env(), runner)
+        self.assertEqual(caught.exception.code, "PROXY_TARGET_AMBIGUOUS")
+
+    def test_alias_shared_only_on_a_network_the_entry_cannot_see_is_unique(self):
+        config = CONFIG.replace("proxy_pass http://identity1:8080;",
+                                "proxy_pass http://shared_identity:8080;")
+        runner = FakeRunner()
+        runner.networks["identity1"]["entrynet"]["Aliases"].append("shared_identity")
+        runner.peers.append("peer1")
+        runner.networks["peer1"] = {"sqlshared": {"Aliases": ["peer1", "shared_identity"]}}
+        with mock.patch.object(envcheck, "_read_host_text", return_value=config):
+            self.assertEqual(envcheck.check_environment(_env(), runner)["proxy_target"], "ok")
 
     def test_log_not_configured_still_validates_proxy_environment(self):
         runner = FakeRunner()

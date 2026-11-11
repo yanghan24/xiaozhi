@@ -374,6 +374,23 @@ def _marker_text(text, marker):
     return "\n".join(lines[begins[0] + 1:ends[0]])
 
 
+def _enclosing_notify_location(text, marker):
+    """True when the single marker block sits inside the exact notify location."""
+    begin = re.compile(r"(?m)^[ \t]*#[ \t]*BEGIN[ \t]+" + re.escape(marker) + r"[ \t]*$", re.I)
+    found = begin.search(text)
+    if found is None:
+        return False
+    position = found.start()
+    for match in _LOCATION_START.finditer(text):
+        brace = match.end() - 1
+        if brace >= position:
+            break
+        inner = _brace_block(text, brace)
+        if brace + 1 + len(inner) > position:
+            return _notify_location(" ".join(match.group(1).split()))
+    return False
+
+
 def _select_notify_location(text, marker):
     """Select the exact notification location, never the login route."""
     if marker:
@@ -383,8 +400,11 @@ def _select_notify_location(text, marker):
             raise CheckError("PROXY_TARGET_AMBIGUOUS")
         if len(matches) == 1:
             return matches[0]
-        # A marker may be nested inside the notification location.
-        if _directives(block.splitlines(), _PROXY_DIRECTIVE):
+        # A marker may be nested inside the notification location; a proxy
+        # directive alone does not show which route the block belongs to.
+        if (_directives(block.splitlines(), _PROXY_DIRECTIVE)
+                and not list(_locations(block))
+                and _enclosing_notify_location(text, marker)):
             return block
         raise CheckError("PROXY_TARGET_MISMATCH")
     matches = [inner for args, inner in _locations(text) if _notify_location(args)]
@@ -420,7 +440,7 @@ def _upstreams(text):
     return result
 
 
-def _upstream_target(blocks, identity_names, allowed_ports, scheme):
+def _upstream_target(blocks, identity_names, allowed_ports):
     servers = []
     for block in blocks:
         for match in _SERVER_RE.finditer(block):
@@ -435,12 +455,16 @@ def _upstream_target(blocks, identity_names, allowed_ports, scheme):
     match = re.fullmatch(r"([A-Za-z0-9][A-Za-z0-9_.-]*)(?::([0-9]{1,5}))?", target)
     if match is None or match.group(1) not in identity_names:
         raise CheckError("PROXY_TARGET_MISMATCH")
-    port = int(match.group(2)) if match.group(2) else (443 if scheme == "https" else 80)
+    # An upstream server without a port defaults to 80 regardless of the
+    # proxy_pass scheme (nginx upstream module).
+    port = int(match.group(2)) if match.group(2) else 80
     if not 1 <= port <= 65535 or port not in allowed_ports:
         raise CheckError("PROXY_TARGET_MISMATCH")
+    return match.group(1)
 
 
 def _parse_entry_config(text, env, identity_names, allowed_ports):
+    """Return (log configured, the host name nginx will resolve)."""
     block = _select_notify_location(text, env["entry"].get("marker"))
     access_logs = _directives(block.splitlines(), _ACCESS_DIRECTIVE)
     configured = any(_unquote(value.split()[0]) == env["entry"]["notify_log"]
@@ -455,15 +479,20 @@ def _parse_entry_config(text, env, identity_names, allowed_ports):
     if match is None:
         raise CheckError("PROXY_TARGET_MISMATCH")
     scheme, host, port_text = match.group(1).lower(), match.group(2), match.group(3)
+    upstreams = _upstreams(text)
+    if host in upstreams:
+        # A named upstream is referenced without a port; its member decides
+        # the real target and port.
+        if port_text:
+            raise CheckError("PROXY_TARGET_MISMATCH")
+        resolved = _upstream_target(upstreams[host], identity_names, allowed_ports)
+        return configured, resolved
     port = int(port_text) if port_text else (443 if scheme == "https" else 80)
     if not 1 <= port <= 65535 or port not in allowed_ports:
         raise CheckError("PROXY_TARGET_MISMATCH")
-    upstreams = _upstreams(text)
-    if host in upstreams:
-        _upstream_target(upstreams[host], identity_names, allowed_ports, scheme)
-    elif host not in identity_names:
+    if host not in identity_names:
         raise CheckError("PROXY_TARGET_MISMATCH")
-    return configured
+    return configured, host
 
 
 def _identity_reachability(env, runner, deadline, timeout):
@@ -500,7 +529,35 @@ def _identity_reachability(env, runner, deadline, timeout):
 def _entry_configuration(env, runner, deadline, timeout, identity_names, allowed_ports):
     _check_mounted(env, runner, deadline, timeout)
     text = _read_host_text(env["entry"]["config_file"], MAX_CONFIG_BYTES)
-    return {"configured": _parse_entry_config(text, env, identity_names, allowed_ports)}
+    configured, host = _parse_entry_config(text, env, identity_names, allowed_ports)
+    _check_proxy_host_unique(env, runner, deadline, timeout, host)
+    return {"configured": configured}
+
+
+def _check_proxy_host_unique(env, runner, deadline, timeout, host):
+    """No other container may answer to the proxy host on an entry network.
+
+    Docker DNS on a user network returns every container carrying the alias,
+    so a duplicate could route the notification to another backend.
+    """
+    entry_networks = set(_networks(env, runner, env["entry"]["container"],
+                                   deadline, timeout))
+    listing = _run(env, runner, ["docker", "ps", "--format", "{{.Names}}"],
+                   deadline, timeout)
+    if listing.returncode != 0:
+        raise CheckError("ENV_INSPECT_FAILED")
+    peers = [name.strip() for name in _text(listing.stdout).splitlines() if name.strip()]
+    if len(peers) > MAX_PEERS:
+        raise CheckError("ENV_PEER_LIMIT")
+    for peer in peers:
+        if peer == env["identity_container"]:
+            continue
+        if sql.CONTAINER_RE.fullmatch(peer) is None:
+            raise CheckError("ENV_INSPECT_FAILED")
+        networks = _networks(env, runner, peer, deadline, timeout)
+        for network in entry_networks & set(networks):
+            if peer == host or host in _aliases(networks[network]):
+                raise CheckError("PROXY_TARGET_AMBIGUOUS")
 
 
 def _check_schema(env, runner, deadline, timeout):
