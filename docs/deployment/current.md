@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），API 依据[音箱显示名称修正部署记录](../verification/2026-11-11-speaker-profile-fix.md)，语音镜像已由[PR #26 同步复验的只读实查](../verification/2026-11-11-pr26-main-sync.md)更新。API 已包含 PR #52、长期烧录凭据、设备账号查询与本机退出，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11（Asia/Hong_Kong），API 依据[PR #63 服务端部署记录](../verification/2026-11-11-pr63-deployment.md)，语音镜像已由[PR #26 同步复验的只读实查](../verification/2026-11-11-pr26-main-sync.md)更新。API 已包含 PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与本机退出，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -23,10 +23,10 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `1468eeb0ec0962e6a2862274f79471d3f7699e00`，基于手机页面版 `52e627f` 增加昵称优先显示 |
+| API 源码 | `7738647759689d8a345a0f563b103467ae0b3c68`，PR #63 固定 head（Draft，未合并）；保留手机页面与昵称优先显示 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1468eeb` |
+| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:7738647` |
 | 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:prompt-7f10cbd`，单实例；本轮仅只读核对，未重新部署 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
@@ -49,6 +49,8 @@ PR #26 本次部署已完成服务端回归、公网协议检查和容器服务�
 2026-11-11 补充[单台已绑定设备验收](../verification/2026-11-11-pr26-main-sync.md)：固件 `2.2.6 / 00896ab`，用户确认扫码账号页、完整语音回答、退出约 1 秒停播、设备重启保持退出及原账号明确恢复后完整回答；服务端对应许可 `7 → 8 → 9`，退出 ACK 为 `audio_stopped=true`，归属保持不变。首次绑定、第二设备隔离、Ubuntu 主机重启和并发容量不在这次结果内。
 
 2026-11-11 再补充[双机交付、中断恢复及隔离验收](../verification/2026-11-11-two-device-delivery.md)和[服务器核验](../verification/2026-11-11-pr52-server-acceptance.md)：两台独立凭据、B完整交付、三处进程中止续作和双机隔离通过，B许可版本4/revision5停播ACK已核对。上述结果不包含写入瞬间断电或历史单次重启根因定位。
+2026-11-11 16:25（Asia/Hong_Kong）部署 PR #63 服务端：新增补发记录表与管理员 recovery 精确入口，已完成备份、受测产物核对及 56 项公网检查。未执行真实设备补发或 P4 写回。补发后不能退回不理解恢复记录的旧 API；暂停新增补发应撤回 recovery 路由并保留兼容 API、当前凭据和原密钥。详见[部署证据与恢复边界](../verification/2026-11-11-pr63-deployment.md)。
+
 ## 本地资料缺失或过时
 
 本地分支/worktree 不随 GitHub 合并自动更新。找不到本页、入口仍指向历史报告，或文档状态互相矛盾时，先核对 GitHub 最新 `main` 的[本页](https://github.com/yanghan24/xiaozhi/blob/main/docs/deployment/current.md)和它引用的部署证据，再判断资料是否缺失。
