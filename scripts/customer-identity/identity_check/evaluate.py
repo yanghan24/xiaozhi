@@ -40,6 +40,7 @@ BASELINE_TARGET_CHANGED = "BASELINE_TARGET_CHANGED"
 BASELINE_STATUS = "BASELINE_STATUS"
 BASELINE_AUTHORIZATION = "BASELINE_AUTHORIZATION"
 BASELINE_DISTINCT = "BASELINE_DISTINCT"
+BASELINE_BROWSER_EXPIRED = "BASELINE_BROWSER_EXPIRED"
 WINDOW_REQUIRED = "WINDOW_REQUIRED"
 WINDOW_NOT_STARTED = "WINDOW_NOT_STARTED"
 WINDOW_OPEN = "WINDOW_OPEN"
@@ -791,6 +792,18 @@ def _idle_baseline_checks(checks, baseline, current, observation):
     return usable
 
 
+def _add_browser_valid_check(checks, check_id, last_activity_ms, observed_at_ms):
+    """The browser must still be inside its 30-minute idle window at observed_at."""
+    if last_activity_ms is None or observed_at_ms is None:
+        _add_check(checks, check_id, "premise", "insufficient", ACTIVITY_UNKNOWN)
+        return False
+    if last_activity_ms + IDLE_MS <= observed_at_ms:
+        _add_check(checks, check_id, "premise", "insufficient", BASELINE_BROWSER_EXPIRED)
+        return False
+    _add_check(checks, check_id, "premise", "pass")
+    return True
+
+
 def _two_account_baseline_checks(checks, baseline, current_a, current_b, observation):
     usable = True
     if observation.window is not None:
@@ -822,6 +835,9 @@ def _two_account_baseline_checks(checks, baseline, current_a, current_b, observa
             usable = False
         else:
             _add_check(checks, "baseline_authorization_" + suffix, "premise", "pass")
+        if not _add_browser_valid_check(checks, "baseline_browser_" + suffix,
+                                        prior.last_activity_ms, baseline.observed_at_ms):
+            usable = False
     if baseline.identities_distinct is not True:
         _add_check(checks, "baseline_distinct", "premise", "insufficient",
                    BASELINE_DISTINCT)
@@ -1311,6 +1327,10 @@ def _baseline_phase(observation, targets, scenario):
                 else:
                     _add_check(checks, "baseline_authorization_" + suffix, "premise",
                                "pass")
+                if not _add_browser_valid_check(checks, "baseline_browser_" + suffix,
+                                                flow.last_activity_ms,
+                                                observation.observed_at_ms):
+                    ready = False
     elif scenario == "logout":
         flow = _select_and_check(
             checks, observation.flows["A"], targets.get("A"), False, "target_unique"

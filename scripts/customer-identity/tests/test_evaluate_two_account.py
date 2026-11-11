@@ -8,12 +8,15 @@ from tests import helpers
 class TwoAccountTests(unittest.TestCase):
     def _baseline(self, status_a="IDENTITY_VERIFIED", status_b="IDENTITY_VERIFIED",
                   auth_a="ACTIVE", auth_b="ACTIVE", distinct=True,
-                  order_a=1, order_b=2):
+                  order_a=1, order_b=2, activity_a=helpers.BASE_MS,
+                  activity_b=helpers.BASE_MS):
         return helpers.baseline(
             "two-account",
             {
-                "A": [helpers.state_flow("F1", order_a, status_a, auth_a)],
-                "B": [helpers.state_flow("F2", order_b, status_b, auth_b)],
+                "A": [helpers.state_flow("F1", order_a, status_a, auth_a,
+                                         last_activity_ms=activity_a)],
+                "B": [helpers.state_flow("F2", order_b, status_b, auth_b,
+                                         last_activity_ms=activity_b)],
             },
             {"A": "F1", "B": "F2"},
             observed_at_ms=helpers.BASE_MS,
@@ -162,6 +165,62 @@ class TwoAccountTests(unittest.TestCase):
         self.assertEqual(result["result"], "insufficient")
         self.assertIn("BASELINE_REQUIRED", result["reasons"])
         self.assertFalse(result["baseline_ready"])
+
+    def test_baseline_browser_must_not_be_idle_expired(self):
+        # Review P2: a browser whose 30-minute deadline was reached at the
+        # baseline observation, or with no browser activity, is not a usable
+        # "both sessions valid" baseline.
+        cutoff = helpers.BASE_MS - evaluator.IDLE_MS
+        for name, values in (
+            ("a-expired", {"activity_a": cutoff}),
+            ("b-expired", {"activity_b": cutoff}),
+            ("a-missing", {"activity_a": None}),
+            ("b-missing", {"activity_b": None}),
+        ):
+            with self.subTest(case=name):
+                result = evaluator.evaluate(
+                    "two-account", self._observation(),
+                    baseline=self._baseline(**values),
+                )
+                self.assertEqual(result["result"], "insufficient")
+                self.assertEqual(result["exit_code"], 3)
+                checks = {check["id"]: check for check in result["checks"]}
+                suffix = name[0]
+                self.assertEqual(checks["baseline_browser_" + suffix]["result"],
+                                 "insufficient")
+
+    def test_baseline_browser_one_millisecond_before_deadline_is_usable(self):
+        result = evaluator.evaluate(
+            "two-account", self._observation(),
+            baseline=self._baseline(
+                activity_a=helpers.BASE_MS - evaluator.IDLE_MS + 1,
+                activity_b=helpers.BASE_MS - evaluator.IDLE_MS + 1),
+        )
+        self.assertEqual(result["result"], "pass")
+        checks = {check["id"]: check for check in result["checks"]}
+        self.assertEqual(checks["baseline_browser_a"]["result"], "pass")
+        self.assertEqual(checks["baseline_browser_b"]["result"], "pass")
+
+    def test_baseline_phase_rejects_idle_expired_or_missing_browser(self):
+        observed = helpers.BASE_MS + 1000000
+        for name, activity in (("expired", observed - evaluator.IDLE_MS),
+                               ("missing", None)):
+            with self.subTest(case=name):
+                data = helpers.observation(
+                    flows={
+                        "A": [helpers.flow("F1", 1, last_activity_ms=activity)],
+                        "B": [helpers.flow("F2", 2, last_activity_ms=observed)],
+                    },
+                    window=None, observed_at_ms=observed,
+                    identity_pairs=[{"a_label": "F1", "b_label": "F2",
+                                     "distinct": True}],
+                )
+                result = evaluator.evaluate("two-account", data, phase="baseline")
+                self.assertFalse(result["baseline_ready"])
+                checks = {check["id"]: check for check in result["checks"]}
+                self.assertEqual(checks["baseline_browser_a"]["result"],
+                                 "insufficient")
+                self.assertEqual(checks["baseline_browser_b"]["result"], "pass")
 
     def test_baseline_a_already_ended_is_insufficient(self):
         result = evaluator.evaluate(
