@@ -2,11 +2,18 @@ package xiaozhi.modules.customer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -21,6 +28,7 @@ class CustomerVoicePermissionHttpTest {
     @DynamicPropertySource static void config(DynamicPropertyRegistry registry) {
         registry.add("customer.oidc.config-file",()->market.config.toString());
         registry.add("customer.oidc.refresh-delay-ms",()->"200");
+        registry.add("customer.oidc.balance-enabled", () -> "true");
     }
     @Autowired TestRestTemplate http;
     @Autowired JdbcTemplate db;
@@ -31,6 +39,120 @@ class CustomerVoicePermissionHttpTest {
     @Autowired CustomerOidcConfig oidcConfig;
     @BeforeEach void setup(){client=new BindingTestClient(http,db,market);org.mockito.Mockito.when(deviceClock.millis()).thenAnswer(call->customerClock.millis());}
     @AfterEach void reset(){CustomerTestTime.offset.set(0);CustomerTestTime.frozen.set(0);}
+    @Test void deviceReadsOnlyItsCurrentOwnersLiveMarketAccount() {
+        var device = client.device();
+        assertEquals(409, account(device).getStatusCode().value());
+        var flow = client.scan(device);
+        var owner = UUID.randomUUID().toString();
+        assertTrue(client.login(flow, null, owner).get("scope").contains("balance:read"));
+        assertEquals(200, client.confirm(flow, "bind-account").getStatusCode().value());
+        var response = account(device);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("no-store", response.getHeaders().getCacheControl());
+        var data = BindingTestClient.data(response);
+        assertEquals(Map.of("device_id", device.id(), "permission_version", 2,
+                "username", "market-" + owner, "balance", "-12.75"), data);
+        market.balances.put(owner, new java.math.BigDecimal("900719925474099.125"));
+        assertEquals("900719925474099.125", BindingTestClient.data(account(device)).get("balance"));
+
+        var other = client.device();
+        var wrongCredential = new BindingTestClient.Device(device.id(), other.credential(), null);
+        assertEquals(401, account(wrongCredential).getStatusCode().value());
+        assertEquals(401, http.getForEntity("/device-control/v1/account", Map.class).getStatusCode().value());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"no-balance", "balance-mismatch"})
+    void unavailableBalanceDoesNotInventPointsOrStopVoice(String fault) {
+        var device = client.device();
+        var flow = client.scan(device);
+        var owner = UUID.randomUUID().toString();
+        client.login(flow, fault, owner);
+        assertEquals(200, client.confirm(flow, "bind-account").getStatusCode().value());
+        var details = BindingTestClient.data(account(device));
+        assertEquals("market-" + owner, details.get("username"));
+        assertTrue(details.containsKey("balance"));
+        assertNull(details.get("balance"));
+        assertEquals("allowed", client.state(device).get("use_permission"));
+    }
+
+    @Test void speakerSignOutStopsOnlyItAndCannotReplayAfterRecovery() {
+        var owner = UUID.randomUUID().toString();
+        var first = client.device();
+        var second = client.device();
+        for (var device : java.util.List.of(first, second)) {
+            var flow = client.scan(device);
+            client.login(flow, null, owner);
+            assertEquals(200, client.confirm(flow, "bind").getStatusCode().value());
+        }
+        var firstState = client.state(first);
+        var secondState = client.state(second);
+        String token = ((Map<?, ?>) firstState.get("voice")).get("token").toString();
+        var voiceSession = voice("open", Map.of("device_id", first.id(), "token", token));
+        assertEquals(200, voiceSession.getStatusCode().value());
+        long version = ((Number) firstState.get("permission_version")).longValue();
+        var wrongCredential = new BindingTestClient.Device(first.id(), second.credential(), null);
+        assertEquals(401, signOut(wrongCredential, version).getStatusCode().value());
+        var stopped = signOut(first, version);
+        assertEquals(200, stopped.getStatusCode().value());
+        assertEquals(stopped.getBody(), signOut(first, version).getBody());
+        var snapshot = client.state(first);
+        assertEquals("bound", snapshot.get("binding_state"));
+        assertEquals("user_signed_out", snapshot.get("reason"));
+        assertNull(snapshot.get("voice"));
+        assertEquals(version + 1, ((Number) snapshot.get("permission_version")).longValue());
+        assertEquals(403, voice("check", Map.of("session", voiceSession.getBody().get("session"))).getStatusCode().value());
+        assertEquals(409, account(first).getStatusCode().value());
+        assertEquals(secondState.get("permission_version"), client.state(second).get("permission_version"));
+        assertEquals("allowed", client.state(second).get("use_permission"));
+        assertEquals("market-" + owner, BindingTestClient.data(account(second)).get("username"));
+
+        var ack = Map.of("revision", snapshot.get("revision"),
+                "permission_version", snapshot.get("permission_version"), "audio_stopped", true);
+        var headers = BindingTestClient.deviceHeaders(first);
+        assertEquals(200, http.postForEntity("/device-control/v1/state-acks",
+                new HttpEntity<>(ack, headers), Map.class).getStatusCode().value());
+        var resume = client.scan(client.request(first, "auto"));
+        client.login(resume, null, owner);
+        assertEquals(200, client.confirm(resume, "resume").getStatusCode().value());
+        assertEquals(409, signOut(first, version).getStatusCode().value());
+        assertEquals("allowed", client.state(first).get("use_permission"));
+        assertEquals(version + 2, ((Number) client.state(first).get("permission_version")).longValue());
+    }
+
+    @Test void accountLookupDoesNotBlockOrLeakAcrossSignOut() throws Exception {
+        var device = client.device();
+        var flow = client.scan(device);
+        var owner = UUID.randomUUID().toString();
+        client.login(flow, null, owner);
+        assertEquals(200, client.confirm(flow, "bind").getStatusCode().value());
+        var gate = new CountDownLatch[] {new CountDownLatch(1), new CountDownLatch(1)};
+        market.profileGates.put(owner, gate);
+        var lookup = CompletableFuture.supplyAsync(() -> account(device));
+        try {
+            assertTrue(gate[0].await(4, TimeUnit.SECONDS));
+            assertEquals(200, CompletableFuture.supplyAsync(() -> signOut(device, 2))
+                    .get(3, TimeUnit.SECONDS).getStatusCode().value());
+        } finally {
+            gate[1].countDown();
+            market.profileGates.remove(owner);
+        }
+        var result = lookup.get(5, TimeUnit.SECONDS);
+        assertEquals(409, result.getStatusCode().value());
+        assertFalse(result.getBody().toString().contains(owner));
+    }
+
+    private ResponseEntity<Map> account(BindingTestClient.Device device) {
+        return http.exchange("/device-control/v1/account", HttpMethod.GET,
+                new HttpEntity<>(BindingTestClient.deviceHeaders(device)), Map.class);
+    }
+
+    private ResponseEntity<Map> signOut(BindingTestClient.Device device, long version) {
+        return http.postForEntity("/device-control/v1/sign-out",
+                new HttpEntity<>(Map.of("expected_permission_version", version),
+                        BindingTestClient.deviceHeaders(device)), Map.class);
+    }
+
     @Test void explicitOwnerResumeEnablesOnlyTargetAndIssuesBoundedVoiceCredentials() {
         String subject=java.util.UUID.randomUUID().toString();
         var a=client.device();var b=client.device();
