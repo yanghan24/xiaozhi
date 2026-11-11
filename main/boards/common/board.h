@@ -44,6 +44,14 @@ enum class PowerSaveLevel {
 // data contains additional info like SSID for Connecting/Connected events
 using NetworkEventCallback = std::function<void(NetworkEvent event, const std::string& data)>;
 
+enum class WifiLinkState { Unsupported, Off, Connecting, Connected, Provisioning };
+
+struct WifiLinkView {
+    WifiLinkState state = WifiLinkState::Unsupported;
+    std::string ssid;
+    std::string setup_url;
+};
+
 void* create_board();
 class AudioCodec;
 class Display;
@@ -78,6 +86,10 @@ public:
     virtual void StartNetwork() = 0;
     virtual void SetNetworkEventCallback(NetworkEventCallback callback) { (void)callback; }
     virtual const char* GetNetworkStateIcon() = 0;
+    virtual WifiLinkView GetWifiLinkView() const { return {}; }
+    // Network settings actions run on the application task.
+    virtual void SetWifiEnabled(bool enabled) { (void)enabled; }
+    virtual void ConfigureWifi() {}
     virtual bool GetBatteryLevel(int &level, bool& charging, bool& discharging);
     virtual esp_err_t EnsureStorageReady() { return ESP_OK; }
     virtual std::string GetSystemInfoJson();

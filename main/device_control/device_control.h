@@ -14,6 +14,29 @@ struct DeviceControlView {
     std::string verification_uri;
     std::string purpose;
     int64_t qr_deadline_ms = 0;
+    bool sign_out_pending = false;
+};
+
+enum class DeviceAccountStatus {
+    Unavailable,
+    Offline,
+    NeedsLogin,
+    SignedOut,
+    Synchronizing,
+    Loading,
+    Ready
+};
+enum class DeviceSignOutStatus { Idle, Pending, Unsupported, Failed };
+
+struct DeviceAccountView {
+    DeviceAccountStatus status = DeviceAccountStatus::Unavailable;
+    DeviceSignOutStatus sign_out = DeviceSignOutStatus::Idle;
+    uint64_t permission_version = 0;
+    bool can_refresh = false;
+    bool can_sign_out = false;
+    bool can_scan = false;
+    std::string username;
+    std::string balance;
 };
 
 struct DeviceVoiceConfig {
@@ -43,6 +66,10 @@ public:
     void Refresh();
     void RequestAccount();
     void CloseAccount();
+    DeviceAccountView GetAccountView() const;
+    void ShowAccountDetails(bool visible);
+    void RefreshAccountDetails();
+    bool SignOut(uint64_t expected_permission_version);
     void AcknowledgeState(uint64_t revision, uint64_t permission_version, bool audio_stopped);
 
     DeviceControl(const DeviceControl&) = delete;

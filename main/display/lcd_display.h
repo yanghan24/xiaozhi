@@ -58,7 +58,6 @@ protected:
     bool binding_qr_valid_ = false;
 
     void CreateDeviceBindingUi();
-    void UpdateAccountButtonPosition();
     void UpdateBindingCountdown();
 #endif
 
@@ -90,6 +89,7 @@ protected:
     void CreateStandbyDashboard();
     void UpdateStandbyDashboardVisibility();
     void UpdateStandbyDashboard(bool force = false);
+    void UpdateSettingsShortcutVisibility();
 #endif
 
 #if CONFIG_BOARD_TYPE_LICHUANG_DEV_S3

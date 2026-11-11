@@ -231,6 +231,77 @@ bool ValidateAckResponse(const std::string& json, uint64_t revision, uint64_t pv
            static_cast<uint64_t>(p) == pv;
 }
 
+bool ParseAccountDetails(const std::string& json, const std::string& device_id, uint64_t pv,
+                         std::string& username, std::string& balance) {
+    auto root = Parse(json);
+    const cJSON* data = nullptr;
+    std::string id, name, points;
+    int64_t permission;
+    if (!Envelope(root.get(), data) ||
+        !Object(data, {"device_id", "permission_version", "username", "balance"}) ||
+        !String(Item(data, "device_id"), id, 128) || id != device_id ||
+        !Int(Item(data, "permission_version"), permission, 1) ||
+        static_cast<uint64_t>(permission) != pv)
+        return false;
+
+    auto* user = Item(data, "username");
+    if (!cJSON_IsNull(user) && (!String(user, name, 256) ||
+                                std::any_of(name.begin(), name.end(),
+                                            [](unsigned char ch) { return ch < 32 || ch == 127; })))
+        return false;
+    auto* amount = Item(data, "balance");
+    if (!cJSON_IsNull(amount)) {
+        if (!String(amount, points, 32))
+            return false;
+        size_t start = points.front() == '-' ? 1 : 0;
+        const auto dot = points.find('.', start);
+        if (start == points.size() || dot == start || dot == points.size() - 1)
+            return false;
+        for (size_t i = start; i < points.size(); ++i) {
+            if (i != dot && (points[i] < '0' || points[i] > '9'))
+                return false;
+        }
+    }
+    username = std::move(name);
+    balance = std::move(points);
+    return true;
+}
+
+bool ValidateSignOutResponse(const std::string& json, uint64_t expected) {
+    auto root = Parse(json);
+    const cJSON* data = nullptr;
+    int64_t permission;
+    return expected < static_cast<uint64_t>(kSafeInt) && Envelope(root.get(), data) &&
+           Object(data, {"permission_version"}) &&
+           Int(Item(data, "permission_version"), permission, 1) &&
+           static_cast<uint64_t>(permission) == expected + 1;
+}
+
+bool SignOutRequest::Begin(uint64_t permission) {
+    if (Pending() || permission == 0 || permission >= static_cast<uint64_t>(kSafeInt))
+        return false;
+    expected_ = permission;
+    rejection_ = DeviceSignOutStatus::Idle;
+    return true;
+}
+
+void SignOutRequest::Reject(DeviceSignOutStatus status) {
+    if (Pending())
+        rejection_ = status;
+}
+
+bool SignOutRequest::Observe(const DeviceControlView& state) {
+    if (!Pending() || state.permission_version < expected_)
+        return false;
+    if (state.permission_version == expected_ && rejection_ == DeviceSignOutStatus::Idle)
+        return false;
+    status_ = state.reason == "user_signed_out"      ? DeviceSignOutStatus::Idle
+              : state.permission_version > expected_ ? DeviceSignOutStatus::Failed
+                                                     : rejection_;
+    expected_ = 0;
+    return true;
+}
+
 int64_t RetryDelayMs(const std::string& header, const std::string& json, int64_t unix_ms,
                      const std::string& response_date) {
     constexpr int64_t maximum = 9007199254740991LL;
@@ -486,6 +557,7 @@ bool Model::DiscardRequest() {
 }
 void Model::AdvanceGeneration(uint64_t floor) {
     view_.generation = std::max(view_.generation + 1, floor);
+    voice_.generation = view_.generation;
 }
 bool Model::Voice(int64_t now, DeviceVoiceConfig& out) const {
     if (!Allowed(now) || voice_.handshake_deadline_ms - now < 10000)

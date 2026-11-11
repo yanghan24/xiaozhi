@@ -228,12 +228,12 @@ void Application::Run() {
             Alert(Lang::Strings::ERROR, last_error_message_.c_str(), "circle_xmark", Lang::Sounds::OGG_EXCLAMATION);
         }
 
-        if (bits & MAIN_EVENT_NETWORK_CONNECTED) {
-            HandleNetworkConnectedEvent();
-        }
-
         if (bits & MAIN_EVENT_NETWORK_DISCONNECTED) {
             HandleNetworkDisconnectedEvent();
+        }
+
+        if (bits & MAIN_EVENT_NETWORK_CONNECTED) {
+            HandleNetworkConnectedEvent();
         }
 
         if (bits & MAIN_EVENT_ACTIVATION_DONE) {
@@ -304,6 +304,9 @@ void Application::Run() {
 }
 
 void Application::HandleNetworkConnectedEvent() {
+    const auto wifi = Board::GetInstance().GetWifiLinkView().state;
+    if (wifi != WifiLinkState::Unsupported && wifi != WifiLinkState::Connected)
+        return;  // An earlier got-IP event can be queued when Wi-Fi is turned off.
     ESP_LOGI(TAG, "Network connected");
     device_control::ReportDeliveryHardware();
     DeviceControl::GetInstance().NotifyNetwork(true);
@@ -1441,7 +1444,7 @@ void Application::ApplyDeviceControlView(const DeviceControlView& view) {
     }
     audio_service_.ApplyControlledAccess(view.generation, allowed);
     Board::GetInstance().GetDisplay()->ShowDeviceBinding(view);
-    if (view.permission_version == 0 ||
+    if (view.sign_out_pending || view.permission_version == 0 ||
         view.permission_version == acknowledged_permission_version_) {
         return;
     }

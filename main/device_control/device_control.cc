@@ -32,6 +32,7 @@ std::string RandomKey() {
 }  // namespace
 
 struct DeviceControl::Impl {
+    enum class AccountLoad { Empty, Pending, Loaded, Failed };
     std::mutex mutex;
     device_control::Model model{"", ""};
     std::function<void(const DeviceControlView&)> on_changed;
@@ -54,6 +55,13 @@ struct DeviceControl::Impl {
     int64_t rate_limit_until = 0;
     int64_t retry_until = 0;
     device_control::PendingCreate pending_create;
+    bool account_details_visible = false;
+    uint64_t account_ticket = 0;
+    AccountLoad account_load = AccountLoad::Empty;
+    std::string account_username;
+    std::string account_balance;
+    device_control::SignOutRequest sign_out;
+    int64_t sign_out_retry_at = 0;
 
     Impl() {
         esp_timer_create_args_t args{};
@@ -131,13 +139,65 @@ struct DeviceControl::Impl {
         auto view = model.View();
         if (!model.Allowed(now))
             view.voice_allowed = false;
-        if ((!view.verification_uri.empty() && now >= view.qr_deadline_ms) ||
+        view.sign_out_pending = sign_out.Pending();
+        if (view.sign_out_pending) {
+            view.voice_allowed = false;
+            view.reason = "signing_out";
+        }
+        if (!connected || view.sign_out_pending ||
+            (!view.verification_uri.empty() && now >= view.qr_deadline_ms) ||
             (view.voice_allowed && view.purpose == "account" && !account_mode)) {
             view.verification_uri.clear();
             view.purpose.clear();
             view.qr_deadline_ms = 0;
         }
         return view;
+    }
+    // Called with mutex held. A canceled account lookup may still finish; its
+    // ticket can never publish details after the panel or login has changed.
+    void ResetAccount() {
+        ++account_ticket;
+        account_username.clear();
+        account_balance.clear();
+        account_load = account_details_visible && configured && connected && !sign_out.Pending() &&
+                               model.Allowed(Now())
+                           ? AccountLoad::Pending
+                           : AccountLoad::Empty;
+    }
+    DeviceAccountView AccountView(int64_t now) const {
+        DeviceAccountView account;
+        account.sign_out = sign_out.Status();
+        if (!configured)
+            return account;
+        if (!connected) {
+            account.status = DeviceAccountStatus::Offline;
+            return account;
+        }
+        if (sign_out.Pending())
+            return account;
+
+        const auto view = model.View();
+        if (!model.Allowed(now)) {
+            account.can_scan = view.reason == "unbound" || view.reason == "user_signed_out" ||
+                               view.reason == "market_auth_required" ||
+                               view.reason == "market_auth_pending";
+            account.status = view.reason == "user_signed_out" ? DeviceAccountStatus::SignedOut
+                             : account.can_scan               ? DeviceAccountStatus::NeedsLogin
+                                                              : DeviceAccountStatus::Synchronizing;
+            return account;
+        }
+        account.permission_version = view.permission_version;
+        account.can_sign_out = view.permission_version > 0;
+        account.can_refresh = account_load != AccountLoad::Pending;
+        if (account_load == AccountLoad::Loaded) {
+            account.status = DeviceAccountStatus::Ready;
+            account.username = account_username;
+            account.balance = account_balance;
+        } else {
+            account.status = account_load == AccountLoad::Failed ? DeviceAccountStatus::Unavailable
+                                                                 : DeviceAccountStatus::Loading;
+        }
+        return account;
     }
     void FailClosed(const std::string& reason) {
         std::function<void(uint64_t)> cb;
@@ -148,6 +208,7 @@ struct DeviceControl::Impl {
                 cb = on_revoked;
                 generation = model.View().generation;
             }
+            ResetAccount();
             dirty = true;
         }
         if (cb)
@@ -162,9 +223,20 @@ struct DeviceControl::Impl {
             const auto old = model.View();
             applied = request ? model.ApplyRequest(result.body, Now(), result.elapsed_ms)
                               : model.ApplyState(result.body, Now(), result.elapsed_ms);
-            const auto next = model.View();
-            if (!request && applied == device_control::ApplyResult::Applied)
+            auto next = model.View();
+            bool sign_out_finished = false;
+            if (!request && applied == device_control::ApplyResult::Applied) {
                 pending_ack.Rebase(next);
+                sign_out_finished = sign_out.Observe(next);
+                if (sign_out_finished && next.voice_allowed && old.generation == next.generation) {
+                    // Lifting the local stop after a rejected request requires a
+                    // new audio generation even if server permission never changed.
+                    model.AdvanceGeneration();
+                    next = model.View();
+                }
+            }
+            if (sign_out_finished || old.generation != next.generation)
+                ResetAccount();
             if (!request && applied == device_control::ApplyResult::Applied && account_mode &&
                 (old.permission_version != next.permission_version ||
                  (!old.verification_uri.empty() && old.purpose == "account" &&
@@ -201,6 +273,8 @@ struct DeviceControl::Impl {
             }
             std::string endpoint, method = "GET", body, key, id, secret, origin;
             bool create = false, ack = false, can_run = false, sent_ack_audio = false;
+            bool immediate_state = false;
+            uint64_t sent_account_ticket = 0, sent_account_permission = 0, sent_sign_out = 0;
             uint64_t sent_ack_revision = 0, sent_ack_permission = 0;
             const auto epoch = interrupt.load();
             {
@@ -216,7 +290,15 @@ struct DeviceControl::Impl {
                         account_mode && (account_switch_pending || !model.HasServerRequest())
                             ? std::string("account")
                             : model.AutoIntent();
-                    if (!refresh && !need_lease && pending_ack.Pending()) {
+                    if (!refresh && sign_out.CanSend() && Now() >= sign_out_retry_at) {
+                        endpoint = "sign-out";
+                        method = "POST";
+                        sent_sign_out = sign_out.Expected();
+                        body = "{\"expected_permission_version\":" + std::to_string(sent_sign_out) +
+                               "}";
+                        refresh = true;
+                    } else if (!refresh && !need_lease && pending_ack.Pending() &&
+                               !sign_out.Pending()) {
                         ack = true;
                         endpoint = "state-acks";
                         method = "POST";
@@ -226,20 +308,28 @@ struct DeviceControl::Impl {
                         body = "{\"revision\":" + std::to_string(sent_ack_revision) +
                                ",\"permission_version\":" + std::to_string(sent_ack_permission) +
                                ",\"audio_stopped\":" + (sent_ack_audio ? "true" : "false") + "}";
-                    } else if (!refresh && !need_lease && !intent.empty()) {
+                    } else if (!refresh && !need_lease && !intent.empty() && !sign_out.Pending()) {
                         create = true;
                         endpoint = "requests";
                         method = "POST";
                         key = pending_create.Select(intent, view.permission_version, RandomKey());
                         body = "{\"intent\":\"" + intent + "\",\"expected_permission_version\":" +
                                std::to_string(view.permission_version) + "}";
+                    } else if (!refresh && !need_lease && account_load == AccountLoad::Pending &&
+                               !sign_out.Pending() && model.Allowed(Now())) {
+                        endpoint = "account";
+                        sent_account_ticket = account_ticket;
+                        sent_account_permission = view.permission_version;
                     } else {
+                        immediate_state = refresh;
                         int64_t wait = refresh ? 0 : 20000;
                         if (view.voice_allowed)
                             wait = std::min(wait, std::max<int64_t>(0, remaining - 30000));
                         if (!view.verification_uri.empty())
                             wait = std::min(
                                 wait, std::max<int64_t>(0, view.qr_deadline_ms - Now() - 1000));
+                        if (sign_out.CanSend())
+                            wait = std::min(wait, std::max<int64_t>(0, sign_out_retry_at - Now()));
                         endpoint = "state";
                         if (view.revision)
                             endpoint += "?after_revision=" + std::to_string(view.revision) +
@@ -258,8 +348,60 @@ struct DeviceControl::Impl {
             auto result = device_control::ControlRequest(
                 origin + endpoint, method, id, secret, body, key,
                 [this, epoch]() { return interrupt.load() != epoch; });
-            if (result.failure == device_control::HttpFailure::Cancelled)
+            if (result.failure == device_control::HttpFailure::Cancelled ||
+                interrupt.load() != epoch) {
+                if (immediate_state) {
+                    std::lock_guard<std::mutex> lock(mutex);
+                    refresh = true;
+                }
                 continue;
+            }
+            if (sent_account_permission != 0) {
+                std::string username, balance;
+                const bool valid = result.failure == device_control::HttpFailure::None &&
+                                   result.status == 200 &&
+                                   device_control::ParseAccountDetails(
+                                       result.body, id, sent_account_permission, username, balance);
+                std::lock_guard<std::mutex> lock(mutex);
+                if (sent_account_ticket == account_ticket && account_load == AccountLoad::Pending &&
+                    model.Allowed(Now()) &&
+                    model.View().permission_version == sent_account_permission) {
+                    account_load = valid ? AccountLoad::Loaded : AccountLoad::Failed;
+                    account_username = std::move(username);
+                    account_balance = std::move(balance);
+                    if (result.status == 401 || result.status == 403 || result.status == 409)
+                        refresh = true;
+                }
+                continue;
+            }
+            if (sent_sign_out != 0) {
+                const bool ok = result.failure == device_control::HttpFailure::None &&
+                                result.status == 200 &&
+                                device_control::ValidateSignOutResponse(result.body, sent_sign_out);
+                std::lock_guard<std::mutex> lock(mutex);
+                if (sign_out.Expected() == sent_sign_out && connected && device_id == id &&
+                    interrupt.load() == epoch) {
+                    if (result.failure == device_control::HttpFailure::None) {
+                        if (result.status == 404 || result.status == 405 || result.status == 501)
+                            sign_out.Reject(DeviceSignOutStatus::Unsupported);
+                        else if (result.status == 400 || result.status == 401 ||
+                                 result.status == 403 || result.status == 409 ||
+                                 result.status == 410)
+                            sign_out.Reject(DeviceSignOutStatus::Failed);
+                    }
+                    // Confirm success with /state, including when the response
+                    // was lost. Never retry using a newer permission version.
+                    sign_out_retry_at = Now() + (ok ? 1000 : 3000);
+                    if (result.status == 429)
+                        sign_out_retry_at =
+                            std::max(sign_out_retry_at,
+                                     Now() + device_control::RetryDelayMs(
+                                                 result.retry_after, result.body,
+                                                 model.EstimatedServerTime(Now()), result.date));
+                    refresh = true;
+                }
+                continue;
+            }
             bool retry = false;
             if (result.failure == device_control::HttpFailure::Tls ||
                 result.failure == device_control::HttpFailure::Invalid) {
@@ -388,6 +530,7 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
             impl_->pending_ack.Clear();
             impl_->account_mode = false;
             impl_->account_switch_pending = false;
+            impl_->sign_out = {};
         }
         impl_->configured = valid;
         impl_->base = base;
@@ -395,9 +538,7 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
         impl_->credential = credential;
         impl_->refresh = true;
         impl_->dirty = true;
-        // A successfully authenticated discovery just traversed the network.
-        if (valid)
-            impl_->connected = true;
+        impl_->ResetAccount();
         if (!impl_->task) {
             if (xTaskCreate([](void* p) { static_cast<Impl*>(p)->Run(); }, "device_control", 8192,
                             impl_.get(), 4, &impl_->task) != pdPASS) {
@@ -411,21 +552,34 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
     impl_->Wake(true);
 }
 void DeviceControl::NotifyNetwork(bool connected) {
+    std::function<void(uint64_t)> revoked;
+    uint64_t generation = 0;
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
+        if (impl_->connected == connected)
+            return;
+        // Reconnect must obtain a fresh state before opening a new voice
+        // connection, even when the lease had time left at disconnection.
+        if (connected && impl_->model.Revoke("synchronizing")) {
+            revoked = impl_->on_revoked;
+            generation = impl_->model.View().generation;
+        }
         impl_->connected = connected;
-        if (connected)
-            impl_->refresh = true;
+        impl_->refresh = true;
+        impl_->dirty = true;
+        impl_->ResetAccount();
     }
+    if (revoked)
+        revoked(generation);
     impl_->Wake(true);
 }
 bool DeviceControl::IsVoiceAllowed() const {
     std::lock_guard<std::mutex> lock(impl_->mutex);
-    return impl_->configured && impl_->model.Allowed(Now());
+    return impl_->configured && !impl_->sign_out.Pending() && impl_->model.Allowed(Now());
 }
 bool DeviceControl::IsCurrentGeneration(uint64_t generation) const {
     std::lock_guard<std::mutex> lock(impl_->mutex);
-    return impl_->configured && impl_->model.Allowed(Now()) &&
+    return impl_->configured && !impl_->sign_out.Pending() && impl_->model.Allowed(Now()) &&
            impl_->model.View().generation == generation;
 }
 uint64_t DeviceControl::GetGeneration() const {
@@ -436,7 +590,7 @@ bool DeviceControl::GetVoiceConfig(DeviceVoiceConfig& out) {
     bool allowed;
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
-        allowed = impl_->configured && impl_->model.Voice(Now(), out);
+        allowed = impl_->configured && !impl_->sign_out.Pending() && impl_->model.Voice(Now(), out);
     }
     if (!allowed)
         Refresh();
@@ -449,6 +603,8 @@ DeviceControlView DeviceControl::GetView() const {
 void DeviceControl::Refresh() {
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
+        if (impl_->sign_out.Pending())
+            return;
         impl_->refresh = true;
     }
     impl_->Wake(true);
@@ -456,6 +612,8 @@ void DeviceControl::Refresh() {
 void DeviceControl::RequestAccount() {
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
+        if (impl_->sign_out.Pending())
+            return;
         if (impl_->model.View().purpose != "account")
             impl_->model.DiscardRequest();
         impl_->account_mode = true;
@@ -476,12 +634,63 @@ void DeviceControl::CloseAccount() {
     }
     impl_->Wake(true);
 }
+DeviceAccountView DeviceControl::GetAccountView() const {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->AccountView(Now());
+}
+void DeviceControl::ShowAccountDetails(bool visible) {
+    bool fetch;
+    {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        if (impl_->account_details_visible == visible)
+            return;
+        impl_->account_details_visible = visible;
+        impl_->ResetAccount();
+        fetch = impl_->account_load == Impl::AccountLoad::Pending;
+    }
+    if (fetch)
+        impl_->Wake(true);
+}
+void DeviceControl::RefreshAccountDetails() {
+    {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        if (!impl_->account_details_visible || !impl_->AccountView(Now()).can_refresh)
+            return;
+        impl_->ResetAccount();
+    }
+    impl_->Wake(true);
+}
+bool DeviceControl::SignOut(uint64_t expected) {
+    std::function<void(uint64_t)> revoked;
+    uint64_t generation;
+    {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        const auto view = impl_->AccountView(Now());
+        if (!view.can_sign_out || view.permission_version != expected ||
+            !impl_->sign_out.Begin(expected))
+            return false;
+        impl_->model.AdvanceGeneration();
+        generation = impl_->model.View().generation;
+        revoked = impl_->on_revoked;
+        impl_->sign_out_retry_at = 0;
+        impl_->account_mode = false;
+        impl_->account_switch_pending = false;
+        impl_->pending_create.Clear();
+        impl_->ResetAccount();
+        impl_->refresh = true;
+        impl_->dirty = true;
+    }
+    if (revoked)
+        revoked(generation);
+    impl_->Wake(true);
+    return true;
+}
 void DeviceControl::AcknowledgeState(uint64_t revision, uint64_t pv, bool stopped) {
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
         const auto view = impl_->model.View();
-        if (pv != view.permission_version || revision > view.revision ||
-            (!view.voice_allowed && !stopped))
+        if (impl_->sign_out.Pending() || pv != view.permission_version ||
+            revision > view.revision || (!view.voice_allowed && !stopped))
             return;
         if (impl_->pending_ack.Pending() && impl_->pending_ack.Permission() == pv &&
             impl_->pending_ack.AudioStopped() && !stopped)
@@ -508,6 +717,10 @@ DeviceControlView DeviceControl::GetView() const { return {}; }
 void DeviceControl::Refresh() {}
 void DeviceControl::RequestAccount() {}
 void DeviceControl::CloseAccount() {}
+DeviceAccountView DeviceControl::GetAccountView() const { return {}; }
+void DeviceControl::ShowAccountDetails(bool) {}
+void DeviceControl::RefreshAccountDetails() {}
+bool DeviceControl::SignOut(uint64_t) { return false; }
 void DeviceControl::AcknowledgeState(uint64_t, uint64_t, bool) {}
 #endif
 

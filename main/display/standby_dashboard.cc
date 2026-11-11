@@ -1,6 +1,8 @@
 #include "standby_dashboard.h"
 
+#include "application.h"
 #include "board.h"
+#include "device_control/device_control.h"
 #include "features/music_player.h"
 #include "features/pomodoro_timer.h"
 #include "services/environment_service.h"
@@ -120,6 +122,40 @@ void StyleRule(lv_obj_t* rule, uint32_t color, lv_opa_t opacity) {
     lv_obj_set_style_radius(rule, 0, 0);
 }
 
+void SetHidden(lv_obj_t* obj, bool hidden) {
+    if (hidden)
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    else
+        lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+void SetButtonEnabled(lv_obj_t* button, bool enabled) {
+    if (enabled)
+        lv_obj_remove_state(button, LV_STATE_DISABLED);
+    else
+        lv_obj_add_state(button, LV_STATE_DISABLED);
+}
+
+void SetLabelText(lv_obj_t* label, const char* text) {
+    if (std::strcmp(lv_label_get_text(label), text) != 0)
+        lv_label_set_text(label, text);
+}
+
+bool WifiSettingsAvailable() {
+    const auto state = Application::GetInstance().GetDeviceState();
+    return state != kDeviceStateUpgrading && state != kDeviceStateActivating &&
+           state != kDeviceStateAudioTesting;
+}
+
+bool SettingsFontHasChinese(const lv_font_t* font) {
+    for (uint32_t letter : {0x7f6eu, 0x8d26u, 0x8fdeu, 0x79efu}) {  // 置、账、连、积
+        lv_font_glyph_dsc_t glyph{};
+        if (!lv_font_get_glyph_dsc(font, &glyph, letter, 0) || glyph.is_placeholder)
+            return false;
+    }
+    return true;
+}
+
 const char* BatteryIconForLevel(int level, bool charging) {
     if (charging) {
         return FONT_AWESOME_BATTERY_BOLT;
@@ -206,6 +242,7 @@ int LunarYearDays(int year) {
 StandbyDashboard::StandbyDashboard(lv_obj_t* parent, const lv_font_t* text_font,
                                    const lv_font_t* icon_font)
     : text_font_(text_font), icon_font_(icon_font) {
+    settings_chinese_ = SettingsFontHasChinese(text_font_);
     root_ = CreateObject(parent, 0, 0, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_bg_color(root_, lv_color_hex(kColorBackground), 0);
     lv_obj_set_style_bg_grad_color(root_, lv_color_hex(kColorBackgroundDeep), 0);
@@ -223,6 +260,7 @@ StandbyDashboard::StandbyDashboard(lv_obj_t* parent, const lv_font_t* text_font,
     CreatePomodoroEntry();
     CreateCalendarEntry();
     CreateMusicEntry();
+    CreateSettingsEntry();
     CreatePomodoroView();
     CreateCalendarView();
     CreateMusicView();
@@ -240,6 +278,10 @@ StandbyDashboard::~StandbyDashboard() {
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     StopPulseAnimation();
+    CloseSettingsView();
+    DestroySettingsView();
+    if (settings_shortcut_ != nullptr && lv_obj_is_valid(settings_shortcut_))
+        lv_obj_delete(settings_shortcut_);
     if (notification_timer_ != nullptr) {
         lv_timer_delete(notification_timer_);
         notification_timer_ = nullptr;
@@ -258,9 +300,25 @@ void StandbyDashboard::SetFonts(const lv_font_t* text_font, const lv_font_t* ico
         return;
     }
 
+    const bool chinese = SettingsFontHasChinese(text_font);
+    const bool relabel_settings = settings_chinese_ != chinese;
+    const bool reopen_settings = relabel_settings && settings_view_ != nullptr &&
+                                 !lv_obj_has_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
     ReplaceLabelFonts(root_, text_font_, text_font, icon_font_, icon_font);
+    if (relabel_settings)
+        DestroySettingsView();
+    else if (settings_view_ != nullptr)
+        ReplaceLabelFonts(settings_view_, text_font_, text_font, icon_font_, icon_font);
+    ReplaceLabelFonts(settings_shortcut_, text_font_, text_font, icon_font_, icon_font);
     text_font_ = text_font;
     icon_font_ = icon_font;
+    settings_chinese_ = chinese;
+    if (relabel_settings) {
+        for (auto* entry : {settings_entry_button_, settings_shortcut_})
+            SetLabelText(lv_obj_get_child(entry, 0), SettingsText("设置", "Setup"));
+        if (reopen_settings)
+            ShowSettingsView();
+    }
     lv_obj_invalidate(root_);
 }
 
@@ -302,7 +360,7 @@ void StandbyDashboard::CreateTopBar() {
     lv_obj_set_width(city_label_, 250);
     lv_label_set_long_mode(city_label_, LV_LABEL_LONG_DOT);
 
-    lv_obj_t* right_status = CreateObject(root_, 595, 5, 188, 38);
+    lv_obj_t* right_status = CreateObject(root_, 690, 5, 93, 38);
     MakeTransparent(right_status);
     lv_obj_set_flex_flow(right_status, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(right_status, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
@@ -562,9 +620,24 @@ void StandbyDashboard::CreateMusicEntry() {
     lv_obj_add_event_cb(music_entry_button_, MusicEntryEventCallback, LV_EVENT_CLICKED, this);
 }
 
+void StandbyDashboard::CreateSettingsEntry() {
+    auto open = [](lv_event_t* e) {
+        static_cast<StandbyDashboard*>(lv_event_get_user_data(e))->ShowSettingsView();
+    };
+    const char* title = SettingsText("设置", "Setup");
+    settings_entry_button_ =
+        CreateTechButton(root_, text_font_, title, 600, 5, 84, 38, lv_color_hex(kColorBlue));
+    lv_obj_add_event_cb(settings_entry_button_, open, LV_EVENT_CLICKED, this);
+    auto* layer = lv_display_get_layer_top(lv_obj_get_display(root_));
+    settings_shortcut_ =
+        CreateTechButton(layer, text_font_, title, 698, 5, 84, 38, lv_color_hex(kColorBlue));
+    lv_obj_add_event_cb(settings_shortcut_, open, LV_EVENT_CLICKED, this);
+    lv_obj_add_flag(settings_shortcut_, LV_OBJ_FLAG_HIDDEN);
+}
+
 void StandbyDashboard::SetMainEntryButtonsEnabled(bool enabled) {
-    const std::array<lv_obj_t*, 3> buttons = {pomodoro_entry_button_, calendar_entry_button_,
-                                              music_entry_button_};
+    const std::array<lv_obj_t*, 4> buttons = {pomodoro_entry_button_, calendar_entry_button_,
+                                              music_entry_button_, settings_entry_button_};
     for (auto* button : buttons) {
         if (button == nullptr) {
             continue;
@@ -1097,6 +1170,300 @@ void StandbyDashboard::CreateMusicView() {
     UpdateMusicView();
 }
 
+void StandbyDashboard::CreateSettingsView() {
+    auto* layer = lv_display_get_layer_top(lv_obj_get_display(root_));
+    settings_view_ = CreateObject(layer, 0, 0, 800, 480);
+    lv_obj_add_flag(settings_view_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(settings_view_, lv_color_hex(kColorBackground), 0);
+    lv_obj_set_style_bg_grad_color(settings_view_, lv_color_hex(kColorBackgroundDeep), 0);
+    lv_obj_set_style_bg_grad_dir(settings_view_, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_opa(settings_view_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(settings_view_, 0, 0);
+    lv_obj_set_style_pad_all(settings_view_, 0, 0);
+    lv_obj_set_style_radius(settings_view_, 0, 0);
+
+    auto label = [this](lv_obj_t* parent, const char* text, int x, int y, uint32_t color) {
+        auto* obj = CreateLabel(parent, text_font_, lv_color_hex(color), text);
+        lv_obj_set_pos(obj, x, y);
+        return obj;
+    };
+    auto* icon =
+        CreateLabel(settings_view_, icon_font_, lv_color_hex(kColorBlue), FONT_AWESOME_GEAR);
+    lv_obj_set_pos(icon, 18, 8);
+    label(settings_view_, SettingsText("设置", "Setup"), 54, 6, kColorText);
+    StyleRule(CreateObject(settings_view_, 0, 47, 800, 1), kColorBlue, LV_OPA_80);
+    auto* close = CreateTechButton(settings_view_, text_font_, SettingsText("关闭", "Back"), 698, 5,
+                                   84, 38, lv_color_hex(kColorAmber));
+    lv_obj_add_event_cb(
+        close,
+        [](lv_event_t* e) {
+            static_cast<StandbyDashboard*>(lv_event_get_user_data(e))->CloseSettingsView();
+        },
+        LV_EVENT_CLICKED, this);
+
+    auto* account = CreateObject(settings_view_, 18, 62, 374, 394);
+    StylePanel(account, kColorPanel);
+    lv_obj_set_style_border_color(account, lv_color_hex(kColorCyan), 0);
+    label(account, SettingsText("AI 集市", "AI Market"), 18, 12, kColorCyan);
+    StyleRule(CreateObject(account, 18, 54, 336, 1), kColorCyan, LV_OPA_50);
+    settings_account_state_ = label(account, "", 18, 70, kColorMuted);
+    lv_obj_set_width(settings_account_state_, 336);
+    label(account, SettingsText("用户名", "User"), 18, 136, kColorMuted);
+    settings_username_ = label(account, "", 135, 136, kColorText);
+    label(account, SettingsText("积分", "Points"), 18, 190, kColorMuted);
+    settings_balance_ = label(account, "", 135, 190, kColorCyan);
+    for (auto* value : {settings_username_, settings_balance_}) {
+        lv_obj_set_width(value, 218);
+        lv_label_set_long_mode(value, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    }
+
+    settings_refresh_button_ = CreateTechButton(account, text_font_, "", 18, 250, 116, 46,
+                                                lv_color_hex(kColorBlue), &settings_refresh_label_);
+    lv_obj_add_event_cb(
+        settings_refresh_button_,
+        [](lv_event_t* e) {
+            auto* self = static_cast<StandbyDashboard*>(lv_event_get_user_data(e));
+            if (self->sign_out_confirmation_)
+                self->sign_out_confirmation_ = 0;
+            else
+                DeviceControl::GetInstance().RefreshAccountDetails();
+            self->UpdateSettingsView();
+        },
+        LV_EVENT_CLICKED, this);
+    settings_consent_button_ =
+        CreateTechButton(account, text_font_, SettingsText("扫码授权", "Authorize"), 146, 250, 208,
+                         46, lv_color_hex(kColorCyan));
+    lv_obj_add_event_cb(
+        settings_consent_button_,
+        [](lv_event_t* e) {
+            auto* self = static_cast<StandbyDashboard*>(lv_event_get_user_data(e));
+            self->CloseSettingsView();
+            DeviceControl::GetInstance().RequestAccount();
+        },
+        LV_EVENT_CLICKED, this);
+    settings_sign_out_button_ =
+        CreateTechButton(account, text_font_, "", 18, 314, 336, 56, lv_color_hex(kColorAmber),
+                         &settings_sign_out_label_);
+    lv_obj_add_event_cb(
+        settings_sign_out_button_,
+        [](lv_event_t* e) {
+            static_cast<StandbyDashboard*>(lv_event_get_user_data(e))->HandleSettingsSignOut();
+        },
+        LV_EVENT_CLICKED, this);
+
+    auto* wifi = CreateObject(settings_view_, 408, 62, 374, 394);
+    StylePanel(wifi, kColorPanel);
+    label(wifi, "Wi-Fi", 18, 12, kColorCyan);
+    StyleRule(CreateObject(wifi, 18, 54, 336, 1), kColorBlue, LV_OPA_50);
+    settings_wifi_state_ = label(wifi, "", 18, 70, kColorText);
+    settings_wifi_detail_ = label(wifi, "", 18, 121, kColorMuted);
+    lv_obj_set_width(settings_wifi_detail_, 336);
+    lv_obj_set_height(settings_wifi_detail_, 114);
+    lv_label_set_long_mode(settings_wifi_detail_, LV_LABEL_LONG_DOT);
+    settings_wifi_button_ =
+        CreateTechButton(wifi, text_font_, "", 18, 250, 336, 46, lv_color_hex(kColorCyan),
+                         &settings_wifi_button_label_);
+    lv_obj_add_event_cb(
+        settings_wifi_button_,
+        [](lv_event_t* e) {
+            const auto state = Board::GetInstance().GetWifiLinkView().state;
+            if (!WifiSettingsAvailable() || state == WifiLinkState::Unsupported)
+                return;
+            lv_obj_add_state(static_cast<lv_obj_t*>(lv_event_get_target(e)), LV_STATE_DISABLED);
+            Application::GetInstance().Schedule([state]() {
+                auto& board = Board::GetInstance();
+                if (WifiSettingsAvailable() &&
+                    board.GetWifiLinkView().state != WifiLinkState::Unsupported)
+                    board.SetWifiEnabled(state == WifiLinkState::Off);
+            });
+        },
+        LV_EVENT_CLICKED, this);
+    settings_wifi_setup_button_ =
+        CreateTechButton(wifi, text_font_, SettingsText("更换网络", "Change network"), 18, 314, 336,
+                         56, lv_color_hex(kColorBlue));
+    lv_obj_add_event_cb(
+        settings_wifi_setup_button_,
+        [](lv_event_t* e) {
+            lv_obj_add_state(static_cast<lv_obj_t*>(lv_event_get_target(e)), LV_STATE_DISABLED);
+            Application::GetInstance().Schedule([]() {
+                if (WifiSettingsAvailable())
+                    Board::GetInstance().ConfigureWifi();
+            });
+        },
+        LV_EVENT_CLICKED, this);
+
+    settings_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            static_cast<StandbyDashboard*>(lv_timer_get_user_data(timer))->UpdateSettingsView();
+        },
+        250, this);
+}
+
+void StandbyDashboard::DestroySettingsView() {
+    if (settings_timer_ != nullptr) {
+        lv_timer_delete(settings_timer_);
+        settings_timer_ = nullptr;
+    }
+    if (settings_view_ != nullptr && lv_obj_is_valid(settings_view_))
+        lv_obj_delete(settings_view_);
+    settings_view_ = nullptr;
+}
+
+void StandbyDashboard::SetSettingsShortcutVisible(bool visible) {
+    settings_shortcut_needed_ = visible;
+    const bool settings_open =
+        settings_view_ != nullptr && !lv_obj_has_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
+    SetHidden(settings_shortcut_, settings_open || !visible);
+    if (settings_open)
+        lv_obj_move_foreground(settings_view_);
+    else if (visible)
+        lv_obj_move_foreground(settings_shortcut_);
+}
+
+void StandbyDashboard::ShowSettingsView() {
+    if (settings_view_ == nullptr)
+        CreateSettingsView();
+    sign_out_confirmation_ = 0;
+    lv_obj_remove_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
+    SetSettingsShortcutVisible(settings_shortcut_needed_);
+    DeviceControl::GetInstance().ShowAccountDetails(true);
+    UpdateSettingsView();
+    lv_timer_resume(settings_timer_);
+}
+
+void StandbyDashboard::CloseSettingsView() {
+    if (settings_view_ == nullptr || lv_obj_has_flag(settings_view_, LV_OBJ_FLAG_HIDDEN))
+        return;
+    lv_timer_pause(settings_timer_);
+    lv_obj_add_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
+    sign_out_confirmation_ = 0;
+    DeviceControl::GetInstance().ShowAccountDetails(false);
+    SetSettingsShortcutVisible(settings_shortcut_needed_);
+}
+
+void StandbyDashboard::UpdateSettingsView() {
+    const auto wifi = Board::GetInstance().GetWifiLinkView();
+    auto account = DeviceControl::GetInstance().GetAccountView();
+    if (wifi.state != WifiLinkState::Connected && wifi.state != WifiLinkState::Unsupported) {
+        const auto sign_out = account.sign_out;
+        account = {};
+        account.sign_out = sign_out;
+        account.status = DeviceAccountStatus::Offline;
+    }
+    if (!account.can_sign_out || account.permission_version != sign_out_confirmation_)
+        sign_out_confirmation_ = 0;
+    const bool confirm = sign_out_confirmation_ != 0;
+    const bool pending = account.sign_out == DeviceSignOutStatus::Pending;
+    const char* status = SettingsText("账号信息暂不可用", "Account unavailable");
+    if (pending) {
+        status = account.status == DeviceAccountStatus::Offline
+                     ? SettingsText("联网后继续退出", "Reconnect to sign out")
+                     : SettingsText("正在退出", "Signing out");
+    } else if (confirm) {
+        status = SettingsText("确认退出本台音箱？", "Sign out this speaker?");
+    } else if (account.can_sign_out && account.sign_out == DeviceSignOutStatus::Unsupported) {
+        status = SettingsText("服务暂不支持本机退出", "Server update needed");
+    } else if (account.can_sign_out && account.sign_out == DeviceSignOutStatus::Failed) {
+        status = SettingsText("退出未完成，可重试", "Could not sign out");
+    } else {
+        switch (account.status) {
+            case DeviceAccountStatus::Offline:
+                status = SettingsText("Wi-Fi 未连接", "Wi-Fi offline");
+                break;
+            case DeviceAccountStatus::NeedsLogin:
+                status = SettingsText("请扫码登录", "Scan QR to sign in");
+                break;
+            case DeviceAccountStatus::SignedOut:
+                status = SettingsText("已退出登录", "Signed out");
+                break;
+            case DeviceAccountStatus::Synchronizing:
+                status = SettingsText("正在同步登录状态", "Syncing login");
+                break;
+            case DeviceAccountStatus::Loading:
+                status = SettingsText("正在读取账号信息", "Loading account");
+                break;
+            case DeviceAccountStatus::Ready:
+                status = SettingsText("已登录", "Signed in");
+                break;
+            case DeviceAccountStatus::Unavailable:
+                break;
+        }
+    }
+    SetLabelText(settings_account_state_, status);
+    const bool ready = account.status == DeviceAccountStatus::Ready;
+    const char* missing = ready ? SettingsText("暂不可用", "Unavailable") : "-";
+    SetLabelText(settings_username_, account.username.empty() ? missing : account.username.c_str());
+    SetLabelText(settings_balance_, account.balance.empty() ? missing : account.balance.c_str());
+    SetHidden(settings_refresh_button_, !account.can_sign_out);
+    SetButtonEnabled(settings_refresh_button_, confirm || account.can_refresh);
+    SetLabelText(settings_refresh_label_,
+                 confirm ? SettingsText("取消", "Cancel") : SettingsText("刷新", "Refresh"));
+    SetHidden(settings_consent_button_,
+              confirm || !account.can_sign_out || !ready || !account.balance.empty());
+    SetHidden(settings_sign_out_button_, !account.can_sign_out && !pending && !account.can_scan);
+    SetButtonEnabled(settings_sign_out_button_, !pending);
+    SetLabelText(settings_sign_out_label_, pending   ? SettingsText("退出中", "Signing out")
+                                           : confirm ? SettingsText("确认退出", "Confirm")
+                                           : account.can_scan
+                                               ? SettingsText("扫码登录", "Scan QR")
+                                               : SettingsText("退出登录", "Sign out"));
+
+    const bool can_change = WifiSettingsAvailable() && wifi.state != WifiLinkState::Unsupported;
+    const bool off = wifi.state == WifiLinkState::Off;
+    const bool provisioning = wifi.state == WifiLinkState::Provisioning;
+    const char* wifi_status = SettingsText("Wi-Fi 不可用", "Wi-Fi unavailable");
+    std::string wifi_detail = wifi.ssid;
+    switch (wifi.state) {
+        case WifiLinkState::Connected:
+            wifi_status = SettingsText("已连接", "Connected");
+            break;
+        case WifiLinkState::Connecting:
+            wifi_status = SettingsText("正在连接", "Connecting");
+            break;
+        case WifiLinkState::Off:
+            wifi_status = SettingsText("已断开", "Disconnected");
+            wifi_detail =
+                SettingsText("连接时会使用已保存的网络。", "Reconnect to a saved network.");
+            break;
+        case WifiLinkState::Provisioning:
+            wifi_status = SettingsText("等待配网", "Wi-Fi setup");
+            wifi_detail =
+                wifi.setup_url.empty()
+                    ? SettingsText("请按音箱的配网提示操作。", "Follow the setup prompts.")
+                    : SettingsText("连接热点 ", "Join ") + wifi.ssid +
+                          SettingsText("\n打开 ", "\nOpen ") + wifi.setup_url;
+            break;
+        case WifiLinkState::Unsupported:
+            break;
+    }
+    SetLabelText(settings_wifi_state_, wifi_status);
+    SetLabelText(settings_wifi_detail_, wifi_detail.c_str());
+    SetLabelText(settings_wifi_button_label_, off ? SettingsText("连接 Wi-Fi", "Connect Wi-Fi")
+                                                  : SettingsText("断开 Wi-Fi", "Disconnect Wi-Fi"));
+    SetButtonEnabled(settings_wifi_button_, can_change);
+    SetButtonEnabled(settings_wifi_setup_button_, can_change && !provisioning);
+}
+
+void StandbyDashboard::HandleSettingsSignOut() {
+    const auto account = DeviceControl::GetInstance().GetAccountView();
+    if (account.can_scan) {
+        CloseSettingsView();
+        return;
+    }
+    if (!account.can_sign_out)
+        return;
+    if (sign_out_confirmation_ != account.permission_version) {
+        sign_out_confirmation_ = account.permission_version;
+        UpdateSettingsView();
+        return;
+    }
+    const auto expected = sign_out_confirmation_;
+    sign_out_confirmation_ = 0;
+    lv_obj_add_state(settings_sign_out_button_, LV_STATE_DISABLED);
+    Application::GetInstance().Schedule(
+        [expected]() { DeviceControl::GetInstance().SignOut(expected); });
+}
+
 void StandbyDashboard::CreateNotificationChip() {
     notification_chip_ = CreateObject(root_, 238, 4, 324, 40);
     lv_obj_set_style_bg_color(notification_chip_, lv_color_hex(kColorPanelSecondary), 0);
@@ -1280,6 +1647,7 @@ void StandbyDashboard::CloseMusicView() {
 }
 
 void StandbyDashboard::CloseFeatureViews() {
+    CloseSettingsView();
     pomodoro_visible_ = false;
     calendar_visible_ = false;
     music_visible_ = false;

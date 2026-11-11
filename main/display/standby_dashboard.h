@@ -31,6 +31,7 @@ public:
     void CloseCalendarView();
     void ShowMusicView();
     void CloseMusicView();
+    void SetSettingsShortcutVisible(bool visible);
     void CloseFeatureViews();
     bool IsPomodoroActive() const;
 
@@ -67,6 +68,26 @@ private:
     lv_obj_t* pomodoro_entry_button_ = nullptr;
     lv_obj_t* calendar_entry_button_ = nullptr;
     lv_obj_t* music_entry_button_ = nullptr;
+    lv_obj_t* settings_entry_button_ = nullptr;
+    lv_obj_t* settings_shortcut_ = nullptr;
+    lv_obj_t* settings_view_ = nullptr;
+    lv_obj_t* settings_account_state_ = nullptr;
+    lv_obj_t* settings_username_ = nullptr;
+    lv_obj_t* settings_balance_ = nullptr;
+    lv_obj_t* settings_refresh_button_ = nullptr;
+    lv_obj_t* settings_refresh_label_ = nullptr;
+    lv_obj_t* settings_consent_button_ = nullptr;
+    lv_obj_t* settings_sign_out_button_ = nullptr;
+    lv_obj_t* settings_sign_out_label_ = nullptr;
+    lv_obj_t* settings_wifi_state_ = nullptr;
+    lv_obj_t* settings_wifi_detail_ = nullptr;
+    lv_obj_t* settings_wifi_button_ = nullptr;
+    lv_obj_t* settings_wifi_button_label_ = nullptr;
+    lv_obj_t* settings_wifi_setup_button_ = nullptr;
+    lv_timer_t* settings_timer_ = nullptr;
+    uint64_t sign_out_confirmation_ = 0;
+    bool settings_shortcut_needed_ = false;
+    bool settings_chinese_ = false;
     lv_obj_t* pomodoro_view_ = nullptr;
     lv_obj_t* pomodoro_progress_arc_ = nullptr;
     lv_obj_t* pomodoro_state_label_ = nullptr;
@@ -137,6 +158,16 @@ private:
     void CreateCalendarView();
     void CreateMusicEntry();
     void CreateMusicView();
+    void CreateSettingsEntry();
+    void CreateSettingsView();
+    void DestroySettingsView();
+    void ShowSettingsView();
+    void CloseSettingsView();
+    void UpdateSettingsView();
+    void HandleSettingsSignOut();
+    const char* SettingsText(const char* chinese, const char* fallback) const {
+        return settings_chinese_ ? chinese : fallback;
+    }
     void SetMainEntryButtonsEnabled(bool enabled);
     void CreateNotificationChip();
     void CreateDigit(int index, int x, int y);

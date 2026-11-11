@@ -21,6 +21,9 @@ bool TrustedDiscovery(const std::string& ota_url, const std::string& base_url,
                       const std::string& ota_origin, const std::string& control_origin);
 bool HeaderValue(const std::string& value);
 bool ValidateAckResponse(const std::string& json, uint64_t revision, uint64_t permission_version);
+bool ParseAccountDetails(const std::string& json, const std::string& device_id,
+                         uint64_t permission_version, std::string& username, std::string& balance);
+bool ValidateSignOutResponse(const std::string& json, uint64_t expected_permission_version);
 int64_t RetryDelayMs(const std::string& retry_after, const std::string& json,
                      int64_t trusted_unix_ms, const std::string& response_date = {});
 
@@ -56,6 +59,26 @@ private:
     uint64_t revision_ = 0;
     uint64_t permission_ = 0;
     bool audio_stopped_ = false;
+};
+
+// Keep the original permission version across timeouts. Only a fresh state can
+// confirm that the device signed out or that the request was superseded.
+class SignOutRequest {
+public:
+    bool Begin(uint64_t permission);
+    void Reject(DeviceSignOutStatus status);
+    bool Observe(const DeviceControlView& state);
+    bool Pending() const { return expected_ != 0; }
+    bool CanSend() const { return Pending() && rejection_ == DeviceSignOutStatus::Idle; }
+    uint64_t Expected() const { return expected_; }
+    DeviceSignOutStatus Status() const {
+        return Pending() ? DeviceSignOutStatus::Pending : status_;
+    }
+
+private:
+    uint64_t expected_ = 0;
+    DeviceSignOutStatus rejection_ = DeviceSignOutStatus::Idle;
+    DeviceSignOutStatus status_ = DeviceSignOutStatus::Idle;
 };
 
 // Portable protocol boundary: responses and monotonic time in; UI/voice permission out.

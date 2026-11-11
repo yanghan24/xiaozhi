@@ -226,6 +226,50 @@ int main() {
           "a later explicit restore permits a fresh voice generation");
     stopped.Rebase(lifecycle.View());
     Check(!stopped.Pending(), "old stop evidence cannot acknowledge a later restored permission");
+    {
+        std::string username, points;
+        const std::string profile =
+            R"({"version":1,"code":"OK","data":{"device_id":"speaker-a","permission_version":6,"username":"market-user","balance":"-12.75"}})";
+        Check(device_control::ParseAccountDetails(profile, "speaker-a", 6, username, points) &&
+                  username == "market-user" && points == "-12.75",
+              "valid market details keep the display balance exactly as sent");
+        Check(!device_control::ParseAccountDetails(profile, "speaker-b", 6, username, points) &&
+                  !device_control::ParseAccountDetails(profile, "speaker-a", 7, username, points),
+              "details from a different device or permission must never be displayed");
+        Check(device_control::ParseAccountDetails(Replace(profile, R"("-12.75")", "null"),
+                                                  "speaker-a", 6, username, points) &&
+                  points.empty() && username == "market-user",
+              "missing balance is not zero");
+        Check(!device_control::ParseAccountDetails(Replace(profile, "-12.75", "12.7.5"),
+                                                   "speaker-a", 6, username, points),
+              "malformed balances are rejected");
+        Check(device_control::ValidateSignOutResponse(
+                  R"({"version":1,"code":"OK","data":{"permission_version":5}})", 4) &&
+                  !device_control::ValidateSignOutResponse(
+                      R"({"version":1,"code":"OK","data":{"permission_version":6}})", 4),
+              "a receipt can only name the immediate successor");
+
+        device_control::SignOutRequest request;
+        DeviceControlView ready;
+        ready.permission_version = 4;
+        ready.reason = "ready";
+        Check(request.Begin(4) && !request.Begin(5) && !request.Observe(ready) &&
+                  request.CanSend() && request.Expected() == 4,
+              "response loss or the original state can only retry the original logout");
+        Check(request.Observe(lifecycle.View()) && !request.CanSend(),
+              "a subsequent recovery cancels even a lost logout response");
+        Check(request.Begin(6), "explicit logout can target a newly confirmed permission");
+        request.Reject(DeviceSignOutStatus::Unsupported);
+        Check(!request.CanSend() && request.Pending() && request.Observe(lifecycle.View()) &&
+                  request.Status() == DeviceSignOutStatus::Unsupported,
+              "an older server requires a fresh allowed state before lifting the local stop");
+        Check(request.Begin(4), "start a logout for the original permission");
+        auto signed_out = ready;
+        signed_out.reason = "user_signed_out";
+        signed_out.permission_version = 5;
+        Check(request.Observe(signed_out) && request.Status() == DeviceSignOutStatus::Idle,
+              "a fresh signed-out snapshot confirms logout even if the write response was lost");
+    }
     device_control::Model rebooted("speaker-a", "https://speaker.example:8443");
     Check(!rebooted.Allowed(0), "reboot never restores an old voice lease before synchronization");
     std::cout << "device control host tests passed\n";

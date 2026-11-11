@@ -675,9 +675,7 @@ void LcdDisplay::UpdateCyberExitButtonVisibility() {
     DeviceState state = Application::GetInstance().GetDeviceState();
     bool voice_active = state == kDeviceStateConnecting || state == kDeviceStateListening ||
                         state == kDeviceStateSpeaking;
-#if CONFIG_XIAOZHI_DEVICE_CONTROL
-    UpdateAccountButtonPosition();
-#endif
+    UpdateSettingsShortcutVisibility();
     if (voice_active) {
         lv_obj_remove_state(cyber_exit_button_, LV_STATE_DISABLED);
         lv_obj_remove_flag(cyber_exit_button_, LV_OBJ_FLAG_HIDDEN);
@@ -718,12 +716,26 @@ void LcdDisplay::UpdateStandbyDashboardVisibility() {
                        standby_dashboard_->IsPomodoroActive();
     bool was_visible = standby_dashboard_->IsVisible();
     standby_dashboard_->SetVisible(should_show);
+    UpdateSettingsShortcutVisibility();
     if (should_show && !was_visible) {
         standby_dashboard_->Update(true);
         if (low_battery_popup_ != nullptr) {
             lv_obj_move_to_index(low_battery_popup_, -1);
         }
     }
+}
+
+void LcdDisplay::UpdateSettingsShortcutVisibility() {
+    if (standby_dashboard_ == nullptr)
+        return;
+    bool binding_visible = false;
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    binding_visible =
+        binding_panel_ != nullptr && !lv_obj_has_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
+#endif
+    standby_dashboard_->SetSettingsShortcutVisible(binding_visible ||
+                                                   Application::GetInstance().GetDeviceState() ==
+                                                       kDeviceStateWifiConfiguring);
 }
 
 void LcdDisplay::UpdateStandbyDashboard(bool force) {
@@ -833,6 +845,10 @@ void LcdDisplay::CreateDeviceBindingUi() {
     lv_obj_align(account_button_, LV_ALIGN_TOP_RIGHT, -8, 6);
     lv_obj_set_style_text_font(account_button_, font, 0);
     lv_obj_add_state(account_button_, LV_STATE_DISABLED);
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (standby_dashboard_ != nullptr)
+        lv_obj_add_flag(account_button_, LV_OBJ_FLAG_HIDDEN);
+#endif
     auto* account_label = lv_label_create(account_button_);
     lv_label_set_text(account_label, "账号");
     lv_obj_center(account_label);
@@ -866,20 +882,6 @@ void LcdDisplay::CreateDeviceBindingUi() {
         },
         100, this);
     lv_timer_pause(binding_timer_);
-}
-
-void LcdDisplay::UpdateAccountButtonPosition() {
-#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
-    if (account_button_ == nullptr || binding_panel_ == nullptr)
-        return;
-    const auto state = Application::GetInstance().GetDeviceState();
-    const bool voice_active = state == kDeviceStateConnecting || state == kDeviceStateListening ||
-                              state == kDeviceStateSpeaking;
-    const bool dashboard = !voice_active && lv_obj_has_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
-    // The dashboard's top-right area contains network/battery indicators.
-    lv_obj_align(account_button_, dashboard ? LV_ALIGN_BOTTOM_RIGHT : LV_ALIGN_TOP_RIGHT, -16,
-                 dashboard ? -8 : 6);
-#endif
 }
 
 void LcdDisplay::UpdateBindingCountdown() {
@@ -933,9 +935,18 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
     }
     lv_timer_pause(binding_timer_);
     lv_obj_add_flag(binding_close_button_, LV_OBJ_FLAG_HIDDEN);
-    if (view.voice_allowed && view.verification_uri.empty()) {
+    bool wifi_provisioning = false;
+    bool wifi_off = false;
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    const auto wifi = Board::GetInstance().GetWifiLinkView().state;
+    wifi_provisioning = wifi == WifiLinkState::Provisioning;
+    wifi_off = wifi == WifiLinkState::Off;
+#endif
+    if (wifi_provisioning || (view.voice_allowed && view.verification_uri.empty())) {
         lv_obj_add_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
-        UpdateAccountButtonPosition();
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        UpdateSettingsShortcutVisibility();
+#endif
         binding_uri_.clear();
         binding_purpose_.clear();
         binding_qr_valid_ = false;
@@ -943,8 +954,10 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
     }
 
     lv_obj_remove_flag(binding_panel_, LV_OBJ_FLAG_HIDDEN);
-    UpdateAccountButtonPosition();
     lv_obj_move_to_index(account_button_, -1);
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    UpdateSettingsShortcutVisibility();
+#endif
     if (view.voice_allowed && view.purpose == "account")
         lv_obj_remove_flag(binding_close_button_, LV_OBJ_FLAG_HIDDEN);
     if (binding_qr_frame_ != nullptr) {
@@ -952,7 +965,13 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
     }
     const char* title = "正在连接，请稍候";
     const char* detail = "连接后将自动更新";
-    if (view.reason == "unbound") {
+    if (wifi_off) {
+        title = "Wi-Fi 已断开";
+        detail = "可在设置中重新连接";
+    } else if (view.sign_out_pending) {
+        title = "正在退出本台音箱";
+        detail = "请稍候";
+    } else if (view.reason == "unbound") {
         title = "扫码登录并绑定";
     } else if (view.reason == "user_signed_out") {
         title = "扫码恢复本台音箱";
@@ -977,8 +996,9 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         detail = "请联系维护人员检查连接配置";
     }
     const bool can_show_qr =
-        view.reason == "unbound" || view.reason == "ready" || view.reason == "user_signed_out" ||
-        view.reason == "market_auth_required" || view.reason == "market_auth_pending";
+        !wifi_off &&
+        (view.reason == "unbound" || view.reason == "ready" || view.reason == "user_signed_out" ||
+         view.reason == "market_auth_required" || view.reason == "market_auth_pending");
     if (can_show_qr && view.purpose == "account") {
         title = "账号与绑定";
         detail = "请使用原归属账号登录";

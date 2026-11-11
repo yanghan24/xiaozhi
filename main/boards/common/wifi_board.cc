@@ -6,10 +6,11 @@
 #include "settings.h"
 #include "assets/lang_config.h"
 
+#include <esp_event.h>
+#include <esp_log.h>
+#include <esp_network.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <esp_network.h>
-#include <esp_log.h>
 #include <utility>
 
 #include <font_awesome.h>
@@ -22,6 +23,7 @@
 #endif
 
 static const char *TAG = "WifiBoard";
+ESP_EVENT_DEFINE_BASE(WIFI_BOARD_STATION);
 
 // Connection timeout in seconds
 static constexpr int CONNECT_TIMEOUT_SEC = 60;
@@ -39,6 +41,9 @@ WifiBoard::WifiBoard() {
 }
 
 WifiBoard::~WifiBoard() {
+    if (station_handler_)
+        esp_event_handler_instance_unregister(WIFI_BOARD_STATION, ESP_EVENT_ANY_ID,
+                                              station_handler_);
     if (connect_timer_) {
         esp_timer_stop(connect_timer_);
         esp_timer_delete(connect_timer_);
@@ -56,7 +61,20 @@ void WifiBoard::StartNetwork() {
     WifiManagerConfig config;
     config.ssid_prefix = "Xiaozhi";
     config.language = Lang::CODE;
-    wifi_manager.Initialize(config);
+    if (!wifi_manager.Initialize(config) && !wifi_manager.IsInitialized()) {
+        SetWifiLink(WifiLinkState::Unsupported);
+        return;
+    }
+    if (esp_event_handler_instance_register(
+            WIFI_BOARD_STATION, ESP_EVENT_ANY_ID,
+            [](void* arg, esp_event_base_t, int32_t action, void*) {
+                static_cast<WifiBoard*>(arg)->RunStationAction(static_cast<StationAction>(action));
+            },
+            this, &station_handler_) != ESP_OK) {
+        ESP_LOGE(TAG, "Could not register WiFi station actions");
+        SetWifiLink(WifiLinkState::Unsupported);
+        return;
+    }
 
     // Set unified event callback - forward to NetworkEvent with SSID data
     wifi_manager.SetEventCallback([this](WifiEvent event, const std::string& data) {
@@ -83,63 +101,75 @@ void WifiBoard::StartNetwork() {
     });
 
     // Try to connect or enter config mode
-    TryWifiConnect();
+    TryWifiConnect(true);
 }
 
-void WifiBoard::TryWifiConnect() {
+void WifiBoard::TryWifiConnect(bool boot) {
+    if (!wifi_enabled_ || station_action_pending_)
+        return;
     auto& ssid_manager = SsidManager::GetInstance();
     bool have_ssid = !ssid_manager.GetSsidList().empty();
 
     if (have_ssid) {
         // Start connection attempt with timeout
         ESP_LOGI(TAG, "Starting WiFi connection attempt");
-        esp_timer_start_once(connect_timer_, CONNECT_TIMEOUT_SEC * 1000000ULL);
-        WifiManager::GetInstance().StartStation();
+        SetWifiLink(WifiLinkState::Connecting);
+        PostStationAction(StationAction::Start);
     } else {
         // No SSID configured, enter config mode
         // Wait for the board version to be shown
-        vTaskDelay(pdMS_TO_TICKS(1500));
+        if (boot)
+            vTaskDelay(pdMS_TO_TICKS(1500));
         StartWifiConfigMode();
     }
 }
 
 void WifiBoard::OnNetworkEvent(NetworkEvent event, const std::string& data) {
+    if (!wifi_enabled_)
+        return;
     switch (event) {
         case NetworkEvent::Connected:
-            // Stop timeout timer
-            esp_timer_stop(connect_timer_);
+            CancelConnectTimeout();
+            SetWifiLink(WifiLinkState::Connected, data);
 #ifdef CONFIG_USE_ESP_BLUFI_WIFI_PROVISIONING
             // make sure blufi resources has been released
             Blufi::GetInstance().deinit();
 #endif
-            in_config_mode_ = false;
             ESP_LOGI(TAG, "Connected to WiFi: %s", data.c_str());
             break;
         case NetworkEvent::Scanning:
+            SetWifiLink(WifiLinkState::Connecting);
             ESP_LOGI(TAG, "WiFi scanning");
             break;
         case NetworkEvent::Connecting:
+            SetWifiLink(WifiLinkState::Connecting, data);
             ESP_LOGI(TAG, "WiFi connecting to %s", data.c_str());
             break;
         case NetworkEvent::Disconnected:
+            SetWifiLink(WifiLinkState::Connecting);
             ESP_LOGW(TAG, "WiFi disconnected");
             break;
         case NetworkEvent::WifiConfigModeEnter:
             ESP_LOGI(TAG, "WiFi config mode entered");
-            in_config_mode_ = true;
             break;
-        case NetworkEvent::WifiConfigModeExit:
+        case NetworkEvent::WifiConfigModeExit: {
             ESP_LOGI(TAG, "WiFi config mode exited");
-            in_config_mode_ = false;
-            // Try to connect with the new credentials
-            TryWifiConnect();
+            const auto session = wifi_session_.load();
+            // The AP's HTTP task can finish provisioning while the user is
+            // turning Wi-Fi off. Serialize the restart with the settings action.
+            Application::GetInstance().Schedule([this, session]() {
+                if (wifi_enabled_ && wifi_session_ == session &&
+                    GetWifiLinkView().state == WifiLinkState::Provisioning)
+                    TryWifiConnect();
+            });
             break;
+        }
         default:
             break;
     }
 
     // Notify external callback if set
-    if (network_event_callback_) {
+    if (wifi_enabled_ && network_event_callback_) {
         network_event_callback_(event, data);
     }
 }
@@ -150,23 +180,34 @@ void WifiBoard::SetNetworkEventCallback(NetworkEventCallback callback) {
 
 void WifiBoard::OnWifiConnectTimeout(void* arg) {
     auto* board = static_cast<WifiBoard*>(arg);
-    ESP_LOGW(TAG, "WiFi connection timeout, entering config mode");
-
-    WifiManager::GetInstance().StopStation();
-    board->StartWifiConfigMode();
+    const auto deadline = board->connect_deadline_us_.load();
+    if (deadline == 0 || esp_timer_get_time() < deadline)
+        return;
+    Application::GetInstance().Schedule([board, deadline]() {
+        if (!board->wifi_enabled_ || board->connect_deadline_us_ != deadline ||
+            WifiManager::GetInstance().IsConnected())
+            return;
+        ESP_LOGW(TAG, "WiFi connection timeout, entering config mode");
+        board->ConfigureWifi();
+    });
 }
 
 void WifiBoard::StartWifiConfigMode() {
-    in_config_mode_ = true;
+    if (!wifi_enabled_)
+        return;
+    SetWifiLink(WifiLinkState::Provisioning);
     // Transition to wifi configuring state
     Application::GetInstance().SetDeviceState(kDeviceStateWifiConfiguring);
 #ifdef CONFIG_USE_HOTSPOT_WIFI_PROVISIONING
     auto& wifi_manager = WifiManager::GetInstance();
 
     wifi_manager.StartConfigAp();
+    SetWifiLink(WifiLinkState::Provisioning, wifi_manager.GetApSsid(), wifi_manager.GetApWebUrl());
 
     // Show config prompt after a short delay
-    Application::GetInstance().Schedule([&wifi_manager]() {
+    Application::GetInstance().Schedule([this, &wifi_manager]() {
+        if (!wifi_enabled_ || GetWifiLinkView().state != WifiLinkState::Provisioning)
+            return;
         std::string hint = Lang::Strings::CONNECT_TO_HOTSPOT;
         hint += wifi_manager.GetApSsid();
         hint += Lang::Strings::ACCESS_VIA_BROWSER;
@@ -196,6 +237,114 @@ void WifiBoard::StartWifiConfigMode() {
 #endif
 }
 
+void WifiBoard::SetWifiLink(WifiLinkState state, const std::string& ssid,
+                            const std::string& setup_url) {
+    std::lock_guard<std::mutex> lock(wifi_link_mutex_);
+    if (wifi_enabled_ == (state != WifiLinkState::Off))
+        wifi_link_ = {state, ssid, setup_url};
+}
+
+WifiLinkView WifiBoard::GetWifiLinkView() const {
+    std::lock_guard<std::mutex> lock(wifi_link_mutex_);
+    return wifi_link_;
+}
+
+void WifiBoard::CancelConnectTimeout() {
+    connect_deadline_us_ = 0;
+    if (connect_timer_)
+        esp_timer_stop(connect_timer_);
+}
+
+bool WifiBoard::PostStationAction(StationAction action) {
+    if (station_action_pending_.exchange(true))
+        return false;
+    // WifiManager holds its lock when registering/unregistering station handlers.
+    // Run those calls on the default event loop, which already owns the handler
+    // lock, so a simultaneous got-IP/disconnect event cannot invert the locks.
+    if (esp_event_post(WIFI_BOARD_STATION, static_cast<int32_t>(action), nullptr, 0,
+                       pdMS_TO_TICKS(50)) == ESP_OK)
+        return true;
+    station_action_pending_ = false;
+    ESP_LOGW(TAG, "Could not queue WiFi station action");
+    return false;
+}
+
+void WifiBoard::RunStationAction(StationAction action) {
+    auto& wifi = WifiManager::GetInstance();
+    if (action == StationAction::Start) {
+        constexpr int64_t delay = CONNECT_TIMEOUT_SEC * 1000000LL;
+        CancelConnectTimeout();
+        if (connect_timer_) {
+            connect_deadline_us_ = esp_timer_get_time() + delay;
+            esp_timer_start_once(connect_timer_, delay);
+        }
+        wifi.StartStation();
+        station_action_pending_ = false;
+        return;
+    }
+    CancelConnectTimeout();
+    wifi.StopStation();
+    if (action == StationAction::Reconfigure) {
+        Application::GetInstance().Schedule([this]() {
+            StartWifiConfigMode();
+            station_action_pending_ = false;
+        });
+    } else {
+        FinishWifiOff();
+        station_action_pending_ = false;
+    }
+}
+
+void WifiBoard::FinishWifiOff() {
+    SetWifiLink(WifiLinkState::Off);
+    if (network_event_callback_)
+        network_event_callback_(NetworkEvent::Disconnected, "");
+}
+
+void WifiBoard::SetWifiEnabled(bool enabled) {
+    auto& wifi = WifiManager::GetInstance();
+    const auto state = GetWifiLinkView().state;
+    if (state == WifiLinkState::Unsupported || station_action_pending_ ||
+        wifi_enabled_.exchange(enabled) == enabled)
+        return;
+    ++wifi_session_;
+    if (enabled) {
+        TryWifiConnect();
+        return;
+    }
+    if (state != WifiLinkState::Provisioning) {
+        if (!PostStationAction(StationAction::Stop))
+            wifi_enabled_ = true;
+        return;
+    }
+    wifi.StopConfigAp();
+#ifdef CONFIG_USE_ESP_BLUFI_WIFI_PROVISIONING
+    Blufi::GetInstance().deinit();
+#endif
+    FinishWifiOff();
+}
+
+void WifiBoard::ConfigureWifi() {
+    const auto wifi_state = GetWifiLinkView().state;
+    if (station_action_pending_ || wifi_state == WifiLinkState::Unsupported ||
+        wifi_state == WifiLinkState::Provisioning)
+        return;
+    auto& app = Application::GetInstance();
+    const auto state = app.GetDeviceState();
+    if (state == kDeviceStateUpgrading || state == kDeviceStateActivating ||
+        state == kDeviceStateAudioTesting)
+        return;
+    if (state == kDeviceStateSpeaking || state == kDeviceStateListening ||
+        state == kDeviceStateConnecting)
+        app.SetDeviceState(kDeviceStateIdle);
+    const bool was_enabled = wifi_enabled_.exchange(true);
+    ++wifi_session_;
+    if (PostStationAction(StationAction::Reconfigure))
+        app.ResetProtocol();
+    else
+        wifi_enabled_ = was_enabled;
+}
+
 void WifiBoard::EnterWifiConfigMode() {
     ESP_LOGI(TAG, "EnterWifiConfigMode called");
     GetDisplay()->ShowNotification(Lang::Strings::ENTERING_WIFI_CONFIG_MODE);
@@ -213,12 +362,7 @@ void WifiBoard::EnterWifiConfigMode() {
             // Wait for 1 second to allow speaking to finish gracefully
             vTaskDelay(pdMS_TO_TICKS(1000));
 
-            // Stop any ongoing connection attempt
-            esp_timer_stop(board->connect_timer_);
-            WifiManager::GetInstance().StopStation();
-
-            // Enter config mode
-            board->StartWifiConfigMode();
+            Application::GetInstance().Schedule([board]() { board->ConfigureWifi(); });
 
             vTaskDelete(NULL);
         }, "wifi_cfg_delay", 4096, this, 2, NULL);
@@ -230,11 +374,7 @@ void WifiBoard::EnterWifiConfigMode() {
         return;
     }
 
-    // Stop any ongoing connection attempt
-    esp_timer_stop(connect_timer_);
-    WifiManager::GetInstance().StopStation();
-
-    StartWifiConfigMode();
+    app.Schedule([this]() { ConfigureWifi(); });
 }
 
 bool WifiBoard::IsInWifiConfigMode() const {
