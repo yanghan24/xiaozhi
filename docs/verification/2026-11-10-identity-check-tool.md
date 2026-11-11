@@ -13,7 +13,7 @@
 | 访问方式 | 堡垒机网页终端，以 `jt` 登录；需要 root 的步骤由负责人同意后用 `sudo` 执行，未把密码写进命令参数或文件 |
 | 系统 | Ubuntu 20.04，Python 3.8.10，MySQL 8.0.41 |
 
-服务器离线测试：`python3 -B -m unittest discover -s tests -t . -v`，共 261 条，261 通过，0 跳过，0 失败。Windows 上跳过的 5 项 POSIX 权限检查（T29）在这里实际运行并通过。本机 CPython 3.12.10 和 3.8.20 各 261 条，256 通过，5 跳过。
+服务器离线测试（`e75490f`）：`python3 -B -m unittest discover -s tests -t . -v`，共 261 条，261 通过，0 跳过，0 失败。Windows 上跳过的 5 项 POSIX 权限检查（T29）在这里实际运行并通过。本机 CPython 3.12.10 和 3.8.20 各 261 条，256 通过，5 跳过。审阅修复后的 `1794370` 为 269 条，见下文复跑一节。
 
 ## 现场核实的环境事实
 
@@ -77,6 +77,53 @@ python3 -I -B check-identity.py <场景> --env <私有目录>/env.json --record 
 
 除日志以外，数据库观察结果完全一致。日志的差别来自新工具多做的配置核对：旧脚本不检查日志当前是否还在写入。
 
+### 复用对应表
+
+审阅要求列出：每个旧脚本对应新工具的哪部分、复用了什么、行为差在哪、证据在哪。新工具没有照搬旧脚本里写死的文件名、句柄和 root 账号，复用的是查询语义和既有数据。
+
+| 旧脚本及作用 | 新工具对应 | 复用或适配方式 | 行为差异及原因 | 验证证据 |
+| --- | --- | --- | --- | --- |
+| `logout-retest2-status`：一轮的 flow 状态、sid 是否存在、创建/确认时间、授权状态；本 issuer 收据总数和最新时间；读取通知日志 | `login --record` 和 `logout --record --window-*`；`sql.py` 的 flow 行和 `receipts` 行；`source.py` 读取日志 | 复用同样的表关联（`customer_identity_flow` 左连 `customer_authorization`，按 `subject_key`）和只读事务；记录文件直接读旧格式，只取 `handle` | 一个请求有多个 flow 时逐个列出，不取第一行；收据分成历史总数、窗口新增、其他 issuer 三个数；读日志前先核对 `access_log` 是否仍配置，未配置时不读旧文件；用应用账号而不是 root | 首账号状态和收据时间一致；收据总数一致；日志差异见上表 |
+| `logout-retest2-match`：按 `issuer + sid` 和 `received_at >= created_at` 匹配收据 | `logout` 的 `matched_in_window` / `matched_before_window` | 复用 sid 匹配语义 | 新工具与服务端代码一致：有 sid 按 sid，无 sid 才按 issuer+sub，并加上 `created_at_ms <= LEAST(issued_at_ms+999, received_at_ms)` 条件；窗口前已有匹配收据时判证据不足 | 01:03:30.245 一致；T05–T09 离线测试 |
+| `two-account-status`：A/B 两轮状态、两者身份是否不同（只输出计数）、收据总数、日志 | `two-account --record-a --record-b --window-*` | 复用在 SQL 内比较 `subject_key`、只返回布尔值的做法 | 判定隔离通过还需要前基线：A/B 同时 `IDENTITY_VERIFIED / ACTIVE`，且浏览器都在 30 分钟内。旧脚本只看当前状态 | A/B 状态与“账号不同”一致；缺基线判证据不足（预期） |
+| `two-account-b-match`：B 的匹配收据 | `two-account` 中 B 的 `receipt_matched_b`；A 的 `receipt_absent_a` | 复用 sid 匹配语义 | 另外检查 A 没有收到自己的通知、A 仍保持会话 | 01:32:01.114 一致 |
+| `idle-retest-status`：最后活动、30 分钟截止点、已闲置分钟数、授权 | `idle --record` | 复用 `customer_browser.last_activity_ms + 1800000` 的截止计算 | 截止时刻当毫秒即判超时，与服务端 `<=` 一致；没有捕获的原浏览器响应时只报告数据观察，判证据不足 | 最后活动和截止点一致 |
+
+既有真实验收结论（登录、两次退出通知、双账号隔离、闲置）仍以 [身份验收汇总](2026-11-10-identity-acceptance-summary.md) 和原报告为准，本次没有推翻，也没有要求重新登录、退出或等待 30 分钟。历史上没有捕获的浏览器响应和工具基线不能倒造，所以新工具对这两项输出“证据不足”。
+
+## 审阅意见的修复（2026-11-11）
+
+PR #51 审阅提出 4 项 P2 判定问题。每项先补一条能复现原问题的回归测试，确认修复前失败，再修复；同时保留合法输入能通过的正向用例。
+
+| 问题 | 修复 | 回归测试 |
+| --- | --- | --- |
+| 双账号基线不检查浏览器有效期：活动时间缺失或刚好到期仍判通过 | 采集基线和使用基线时都检查 `last_activity_ms + 1800000 > 基线观察时间`；缺失或到期判证据不足（`BASELINE_BROWSER_EXPIRED` / `ACTIVITY_UNKNOWN`） | `test_baseline_browser_must_not_be_idle_expired`、`test_baseline_phase_rejects_idle_expired_or_missing_browser`；正向：差 1 毫秒到期时可用 |
+| marker 回退跳过通知路由校验：换成登录回调路由仍判 `proxy_target=ok` | 标记块里没有通知 location 时，标记必须位于精确的通知 location 内部 | `test_marker_fallback_requires_the_enclosing_notify_location`；正向：`test_marker_nested_inside_notify_location_is_accepted` |
+| 命名 upstream 先按默认 80 端口校验，合法配置被拒 | 先解析 upstream 的唯一成员，再校验成员端口；upstream 引用带端口时拒绝（nginx 本身也不接受） | `test_named_upstream_without_port_uses_member_port`、更新后的 `test_explicit_upstream_resolution` |
+| 代理别名没有唯一性检查：另一个容器在入口网络上用同一别名仍判通过 | 解析出的主机名在入口容器所在网络上只能由身份容器使用，否则判 `PROXY_TARGET_AMBIGUOUS` | `test_duplicate_proxy_alias_on_entry_network_is_ambiguous`；正向：别名只出现在入口看不到的网络时仍通过 |
+
+这些都是新工具对合成边界输入的处理问题，不代表真实账号或当前 nginx 配置出过这些故障，也不影响历史业务结论。当前现场配置是直连 `product-api:8002`、没有 marker，不会触发这几条路径。
+
+### 修复后的版本和现场复跑（2026-11-11 09:05–09:14 香港时间）
+
+| 项目 | 值 |
+| --- | --- |
+| 工具提交 | `1794370`（`bbcb4b3` 修双账号基线，`1794370` 修入口代理目标三项） |
+| 上传包 | tar.gz SHA-256 `e12c783893247949c98de3b46e109e3a54a3802efc4a9b192af900ed2915e0a7`，两端一致 |
+| 解压文件 | 41 个，汇总哈希 `c4b6f2153d0656c86ee75ac0b352b59a2547c18aedba8274f147bf8a594ef09c`，两端一致；目录 `~/xiaozhi-identity-check/1794370/` |
+| 离线测试 | 服务器 Python 3.8.10：269 条，全部通过，0 跳过；本机 3.12.10 / 3.8.20 各 269 条，264 通过，5 跳过（POSIX 权限检查） |
+
+用同一个检查脚本重跑上面 14 次运行，只换了工具路径。10 个场景结果逐项比较，包括结论、退出码、每个检查项及原因、flow 列表和收据时间：10 个和修复前完全相同，0 个有差异。4 个错误路径的错误码也相同。5 个旧脚本都正常退出。
+
+| 项目 | 前（01:12:20.944Z） | 后（01:12:50.237Z） |
+| --- | --- | --- |
+| 退出收据：行数 / 最大接收时间 | 35 / 01:32:01.114（11-10） | 相同 |
+| identity flow：行数 / 最大创建时间 | 491 / 00:56:59.481（11-11） | 相同 |
+| 浏览器：行数 / 最大活动时间 | 508 / 00:57:04.353（11-11） | 相同 |
+| 设备请求、授权行数 | 561、292 | 相同 |
+
+和昨晚相比，flow、浏览器、授权各多了 1 行，发生在 00:57（11-11），早于这次复跑，属于正常使用。复跑期间没有变化。脱敏扫描：10 个句柄、26 个文件，句柄原文、十六进制、IPv4、类 JWT、`Bearer` 都是 0 次。
+
 ## 没有产生业务写入
 
 运行全部工具和旧脚本前后，各做一次只读快照：
@@ -99,7 +146,7 @@ python3 -I -B check-identity.py <场景> --env <私有目录>/env.json --record 
 | 标准 | 证据 | 状态 |
 | --- | --- | --- |
 | 四种场景都通过参数选择，不改脚本、不写死轮次 | 上面 14 次运行只改参数；T31 静态检查 | 满足 |
-| 关键语义有离线脱敏测试 | 261 条离线测试，本机两个 Python 版本和服务器 Python 3.8.10 都通过 | 满足 |
+| 关键语义有离线脱敏测试 | 修复后 269 条离线测试，本机两个 Python 版本和服务器 Python 3.8.10 都通过 | 满足 |
 | 合成敏感值不泄露，输入、SQL、命令不能注入 | T24–T28；现场扫描 0 命中 | 满足 |
 | Ubuntu 有界只读检查，与旧查询交叉核对，不产生业务写入 | 本记录四场景、交叉对照、前后快照 | 满足；日志证据因配置已移除而不完整，已如实报告 |
 | 缺文件、容器不可用、schema 不符或有歧义时不假装成功 | 错误路径表；多 flow 逐个列出；已结束会话判证据不足 | 满足（schema 不符只做了离线测试，现场 schema 一致） |
