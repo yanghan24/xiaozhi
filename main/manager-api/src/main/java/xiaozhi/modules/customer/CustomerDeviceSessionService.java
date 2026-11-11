@@ -18,10 +18,13 @@ final class CustomerDeviceSessionService {
     private final Clock clock;
     private final TransactionTemplate transactions;
     private final boolean enabled;
+    private final CustomerDevicePermissionTransitions transitions;
     private record Context(Map<String,Object> browser, Map<String,Object> session, Map<String,Object> device) {}
     CustomerDeviceSessionService(JdbcTemplate db, CustomerIdentityService identities, PlatformTransactionManager manager,
-            @Qualifier("customerTime") Clock clock, @Value("${device-control.enabled:false}") boolean enabled) {
+            @Qualifier("customerTime") Clock clock, @Value("${device-control.enabled:false}") boolean enabled,
+            CustomerDevicePermissionTransitions transitions) {
         this.db=db;this.identities=identities;this.clock=clock;this.enabled=enabled;
+        this.transitions=transitions;
         transactions=new TransactionTemplate(manager);
         transactions.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
@@ -35,10 +38,9 @@ final class CustomerDeviceSessionService {
             if(!previous.isEmpty()) { touch(context);return receipt(previous.getFirst()); }
             var device=context.device();
             if(number(context.session(),"permission_version")!=number(device,"permission_version")) throw new CustomerFailure(409,"STATE_CHANGED");
-            long permission=next(device,"permission_version"),revision=next(device,"revision");
+            transitions.disable(device,"user_signed_out");
+            long permission=number(device,"permission_version"),revision=number(device,"revision");
             String id=CustomerSecrets.random();
-            db.update("UPDATE dc_request SET status='replaced' WHERE device_id=? AND status='active'",device.get("device_id"));
-            db.update("UPDATE dc_device SET local_enabled=false,reason='user_signed_out',permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",permission,revision,device.get("device_id"));
             db.update("INSERT INTO customer_device_operation(id,device_session_id,key_hash,permission_version,revision,created_at_ms) VALUES (?,?,?,?,?,?)",id,sessionId,CustomerSecrets.hash(key),permission,revision,clock.millis());
             touch(context);
             return Map.of("operation_id",id,"permission_version",permission,"execution","stored");
@@ -94,8 +96,5 @@ final class CustomerDeviceSessionService {
     }
     private void touch(Context context) { db.update("UPDATE customer_browser SET last_activity_ms=? WHERE id_hash=?",clock.millis(),context.browser().get("id_hash")); }
     private Map<String,Object> receipt(Map<String,Object> row) { return Map.of("operation_id",row.get("id"),"permission_version",row.get("permission_version"),"execution","stored"); }
-    private static long next(Map<String,Object> row,String field) {
-        long value=number(row,field);if(value>=9007199254740991L) throw new CustomerFailure(503,"TEMPORARILY_UNAVAILABLE");return value+1;
-    }
     private static long number(Map<String,Object> row,String field) { return CustomerIdentityService.number(row,field); }
 }

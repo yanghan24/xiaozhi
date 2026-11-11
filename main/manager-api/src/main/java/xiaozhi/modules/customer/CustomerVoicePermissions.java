@@ -17,17 +17,19 @@ public final class CustomerVoicePermissions {
     private final JdbcTemplate db;
     private final Clock clock;
     private final CustomerOidcConfig secrets;
+    private final CustomerDevicePermissionTransitions transitions;
     private final TransactionTemplate transactions;
     private final boolean enabled;
     private final String origin;
     private final String modelBase;
     public CustomerVoicePermissions(JdbcTemplate db,@Qualifier("customerTime") Clock clock,CustomerOidcConfig secrets,
-            PlatformTransactionManager manager,@Value("${device-control.enabled:false}") boolean control,
+            PlatformTransactionManager manager,CustomerDevicePermissionTransitions transitions,@Value("${device-control.enabled:false}") boolean control,
             @Value("${device-control.voice-enabled:false}") boolean voice,
             @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String origin,
             @Value("${device-control.model-base-url:https://aimarket.hncig.cn/v1/}") String modelBase) {
         this.db=db;this.clock=clock;this.secrets=secrets;this.enabled=control && voice;this.origin=origin;
         this.modelBase=modelBase;
+        this.transitions=transitions;
         transactions=new TransactionTemplate(manager);transactions.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
     public boolean enabled(){return enabled;}
@@ -40,13 +42,7 @@ public final class CustomerVoicePermissions {
             reason=grants.isEmpty()?"market_auth_required":blockedReason(grants.getFirst());
         }
         if(reason==null) return;
-        disable(device,reason);
-    }
-    private void disable(Map<String,Object> device,String reason) {
-        long permission=next(device,"permission_version"),revision=next(device,"revision");
-        db.update("UPDATE dc_device SET local_enabled=false,reason=?,permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",reason,permission,revision,device.get("device_id"));
-        db.update("UPDATE dc_request SET status='replaced' WHERE device_id=? AND status='active'",device.get("device_id"));
-        device.put("local_enabled",false);device.put("reason",reason);device.put("permission_version",permission);device.put("revision",revision);device.put("current_request_id",null);
+        transitions.disable(device,reason);
     }
     // Model requests use the independently valid business Key. Access-token refresh alone
     // does not revoke it; uncertain or rejected refresh outcomes do, and never auto-resume.
@@ -122,7 +118,7 @@ public final class CustomerVoicePermissions {
                 // A replacement grant cannot erase failures of still-existing old device permissions.
                 // Explicit bind/resume under a later flow has a higher order and is protected.
                 for(var device:db.queryForList("SELECT * FROM dc_device WHERE owner_issuer=? AND owner_subject=? AND local_enabled=true AND permission_authorization_order<=? ORDER BY device_id FOR UPDATE",
-                        grant.get("issuer"),grant.get("subject"),Long.parseLong(proof[3]))) disable(device,"market_auth_required");
+                        grant.get("issuer"),grant.get("subject"),Long.parseLong(proof[3]))) transitions.disable(device,"market_auth_required");
             }
             return Map.of("recorded",true);
         });
@@ -143,6 +139,5 @@ public final class CustomerVoicePermissions {
                 || !Boolean.TRUE.equals(device.get("local_enabled")) || !"ready".equals(device.get("reason"))) throw new CustomerFailure(403,"VOICE_DENIED");
         return device;
     }
-    private static long next(Map<String,Object> row,String field){long value=number(row,field);if(value>=9007199254740991L)throw new CustomerFailure(503,"TEMPORARILY_UNAVAILABLE");return value+1;}
     private static long number(Map<String,Object> row,String field){return CustomerIdentityService.number(row,field);}
 }
