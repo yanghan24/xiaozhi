@@ -148,8 +148,11 @@ class CustomerVoicePermissionHttpTest {
     }
 
     private ResponseEntity<Map> signOut(BindingTestClient.Device device, long version) {
+        // Keep protocol versions numeric despite the administrator MVC Long serializer.
+        var body = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                .put("expected_permission_version", version);
         return http.postForEntity("/device-control/v1/sign-out",
-                new HttpEntity<>(Map.of("expected_permission_version", version),
+                new HttpEntity<>(body,
                         BindingTestClient.deviceHeaders(device)), Map.class);
     }
 
