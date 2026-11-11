@@ -1,5 +1,24 @@
 [
   {
+    "name": "device_local_unbind_request",
+    "schema_ref": "#/$defs/deviceUnbindBody",
+    "payload": {
+      "expected_permission_version": 4
+    }
+  },
+  {
+    "name": "device_local_unbind_response",
+    "schema_ref": "#/$defs/deviceUnbindResponse",
+    "payload": {
+      "version": 1,
+      "code": "OK",
+      "data": {
+        "permission_version": 5,
+        "binding_state": "unbound"
+      }
+    }
+  },
+  {
     "name": "ota_discovery_nondefault_public_port",
     "schema_ref": "#/$defs/otaDiscoveryExtension",
     "payload": {

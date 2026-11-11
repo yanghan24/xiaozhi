@@ -135,6 +135,104 @@ class CustomerVoicePermissionHttpTest {
         assertEquals(version + 2, ((Number) client.state(first).get("permission_version")).longValue());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    void speakerUnbindAllowsAnotherAccountAndFencesEveryOldOwnerAction(boolean sameAccount,
+            boolean previouslySignedOut) {
+        var owner = UUID.randomUUID().toString();
+        var first = client.device();
+        var second = client.device();
+        var oldFlow = client.scan(first);
+        client.login(oldFlow, null, owner);
+        var oldSession = BindingTestClient.data(client.confirm(oldFlow, "bind-original"))
+                .get("device_session_id").toString();
+        var peerFlow = client.scan(second);
+        client.login(peerFlow, null, owner);
+        assertEquals(200, client.confirm(peerFlow, "bind-peer").getStatusCode().value());
+        var original = client.state(first);
+        var peer = client.state(second);
+        var voiceSession = voice("open", Map.of("device_id", first.id(),
+                "token", ((Map<?, ?>) original.get("voice")).get("token")));
+        assertEquals(200, voiceSession.getStatusCode().value());
+        BindingTestClient.Flow oldResume = null;
+        if (previouslySignedOut) {
+            assertEquals(200, signOut(first, ((Number) original.get("permission_version")).longValue())
+                    .getStatusCode().value());
+            oldResume = client.scan(client.request(first, "auto"));
+            client.login(oldResume, null, owner);
+            original = client.state(first);
+        }
+        long version = ((Number) original.get("permission_version")).longValue();
+
+        var wrongCredential = new BindingTestClient.Device(first.id(), second.credential(), null);
+        assertEquals(401, unbind(wrongCredential, version).getStatusCode().value());
+        assertEquals(409, unbind(first, version - 1).getStatusCode().value());
+        var released = unbind(first, version);
+        assertEquals(200, released.getStatusCode().value());
+        assertEquals("no-store", released.getHeaders().getCacheControl());
+        assertEquals(Map.of("permission_version", (int) version + 1, "binding_state", "unbound"),
+                BindingTestClient.data(released));
+        assertEquals(released.getBody(), unbind(first, version).getBody());
+        var waiting = client.state(first);
+        assertEquals("unbound", waiting.get("binding_state"));
+        assertEquals("unbound", waiting.get("reason"));
+        assertEquals("blocked", waiting.get("use_permission"));
+        assertNull(waiting.get("voice"));
+        assertEquals(403, voice("check", Map.of("session", voiceSession.getBody().get("session")))
+                .getStatusCode().value());
+        assertEquals(409, account(first).getStatusCode().value());
+
+        var next = client.request(first, "auto");
+        assertEquals("bind", ((Map<?, ?>) client.state(first).get("binding_request")).get("purpose"));
+        var nextFlow = client.scan(next);
+        var nextOwner = sameAccount ? owner : UUID.randomUUID().toString();
+        client.login(nextFlow, null, nextOwner);
+        assertEquals(200, client.confirm(nextFlow, "bind-next-owner").getStatusCode().value());
+        assertEquals("market-" + nextOwner, BindingTestClient.data(account(first)).get("username"));
+        assertEquals(409, client.confirm(oldFlow, "bind-original").getStatusCode().value());
+        assertEquals(403, client.post(oldFlow, "device-sessions/" + oldSession + "/sign-out", "late-stop")
+                .getStatusCode().value());
+        if (oldResume != null)
+            assertEquals(sameAccount ? 409 : 403, client.confirm(oldResume, "late-resume").getStatusCode().value());
+        assertEquals(409, unbind(first, version).getStatusCode().value());
+        assertEquals("allowed", client.state(first).get("use_permission"));
+        assertEquals(peer.get("permission_version"), client.state(second).get("permission_version"));
+        assertEquals(peer.get("revision"), client.state(second).get("revision"));
+        assertEquals("allowed", client.state(second).get("use_permission"));
+        assertEquals("market-" + owner, BindingTestClient.data(account(second)).get("username"));
+    }
+
+    private ResponseEntity<Map> unbind(BindingTestClient.Device device, long version) {
+        return deviceAction(device, "unbind", version);
+    }
+
+    @Test void accountLookupDoesNotBlockOrLeakAcrossUnbindAndNewOwner() throws Exception {
+        var device = client.device();
+        var flow = client.scan(device);
+        var owner = UUID.randomUUID().toString();
+        var nextOwner = UUID.randomUUID().toString();
+        client.login(flow, null, owner);
+        assertEquals(200, client.confirm(flow, "bind").getStatusCode().value());
+        var gate = new CountDownLatch[] {new CountDownLatch(1), new CountDownLatch(1)};
+        market.profileGates.put(owner, gate);
+        var lookup = CompletableFuture.supplyAsync(() -> account(device));
+        try {
+            assertTrue(gate[0].await(4, TimeUnit.SECONDS));
+            assertEquals(200, CompletableFuture.supplyAsync(() -> unbind(device, 2))
+                    .get(3, TimeUnit.SECONDS).getStatusCode().value());
+            var nextFlow = client.scan(client.request(device, "auto"));
+            client.login(nextFlow, null, nextOwner);
+            assertEquals(200, client.confirm(nextFlow, "bind-new-owner").getStatusCode().value());
+        } finally {
+            gate[1].countDown();
+            market.profileGates.remove(owner);
+        }
+        var result = lookup.get(5, TimeUnit.SECONDS);
+        assertEquals(409, result.getStatusCode().value());
+        assertFalse(result.getBody().toString().contains(owner));
+        assertEquals("market-" + nextOwner, BindingTestClient.data(account(device)).get("username"));
+    }
+
     @Test void accountLookupDoesNotBlockOrLeakAcrossSignOut() throws Exception {
         var device = client.device();
         var flow = client.scan(device);
@@ -163,12 +261,15 @@ class CustomerVoicePermissionHttpTest {
     }
 
     private ResponseEntity<Map> signOut(BindingTestClient.Device device, long version) {
+        return deviceAction(device, "sign-out", version);
+    }
+
+    private ResponseEntity<Map> deviceAction(BindingTestClient.Device device, String action, long version) {
         // Keep protocol versions numeric despite the administrator MVC Long serializer.
         var body = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
                 .put("expected_permission_version", version);
-        return http.postForEntity("/device-control/v1/sign-out",
-                new HttpEntity<>(body,
-                        BindingTestClient.deviceHeaders(device)), Map.class);
+        return http.postForEntity("/device-control/v1/" + action,
+                new HttpEntity<>(body, BindingTestClient.deviceHeaders(device)), Map.class);
     }
 
     @Test void explicitOwnerResumeEnablesOnlyTargetAndIssuesBoundedVoiceCredentials() {

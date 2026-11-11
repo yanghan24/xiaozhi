@@ -25,6 +25,9 @@
       "$ref": "#/$defs/signOutResponse"
     },
     {
+      "$ref": "#/$defs/deviceUnbindResponse"
+    },
+    {
       "$ref": "#/$defs/operationResponse"
     },
     {
@@ -606,6 +609,45 @@
         "code",
         "data"
       ],
+      "additionalProperties": false
+    },
+    "deviceUnbindBody": {
+      "type": "object",
+      "properties": {
+        "expected_permission_version": {
+          "$ref": "#/$defs/safeInt"
+        }
+      },
+      "required": ["expected_permission_version"],
+      "additionalProperties": false
+    },
+    "deviceUnbindData": {
+      "type": "object",
+      "properties": {
+        "permission_version": {
+          "$ref": "#/$defs/safeInt"
+        },
+        "binding_state": {
+          "const": "unbound"
+        }
+      },
+      "required": ["permission_version", "binding_state"],
+      "additionalProperties": false
+    },
+    "deviceUnbindResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "code": {
+          "const": "OK"
+        },
+        "data": {
+          "$ref": "#/$defs/deviceUnbindData"
+        }
+      },
+      "required": ["version", "code", "data"],
       "additionalProperties": false
     },
     "operationData": {
