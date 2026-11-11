@@ -26,7 +26,7 @@ final class CustomerDevicePageController {
         } else if(Boolean.TRUE.equals(data.get("can_sign_out"))) {
             content+="<form method=\"post\" action=\"/xiaozhi/customer/v1/device-sessions/"+HtmlUtils.htmlEscape(id)+"/sign-out\">"
                     +"<input type=\"hidden\" name=\"csrf\" value=\""+HtmlUtils.htmlEscape(data.get("csrf").toString())+"\">"
-                    +"<input type=\"hidden\" name=\"idempotency_key\" value=\""+HtmlUtils.htmlEscape(id)+"\"><button type=\"submit\">退出本台音箱</button></form>";
+                    +"<input type=\"hidden\" name=\"idempotency_key\" value=\""+HtmlUtils.htmlEscape(id)+"\"><button class=\"danger\" type=\"submit\">退出本台音箱</button></form>";
         } else content+="<p>设备状态已变化，请重新扫码。</p>";
         return html(200,"账号与绑定",content);
     }
@@ -37,7 +37,7 @@ final class CustomerDevicePageController {
     private ResponseEntity<String> html(int status,String title,String content) {
         return ResponseEntity.status(status).contentType(new MediaType("text","html",StandardCharsets.UTF_8))
                 .header("Cache-Control","no-store").header("Referrer-Policy","same-origin")
-                .header("Content-Security-Policy","default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
-                .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>"+title+"</title><h1>"+title+"</h1>"+content+"</html>");
+                .header("Content-Security-Policy",CustomerPage.policy("'self'"))
+                .body(CustomerPage.render(title,content));
     }
 }
