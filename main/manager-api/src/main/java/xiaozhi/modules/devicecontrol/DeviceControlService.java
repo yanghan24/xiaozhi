@@ -26,18 +26,23 @@ public class DeviceControlService {
     static final long MAX_VERSION = 9007199254740991L;
     private final SecureRandom random = new SecureRandom();
     private final Semaphore waiters = new Semaphore(64);
+    private final Semaphore accountReaders = new Semaphore(8);
     private final JdbcTemplate db;
     private final TransactionTemplate transactions;
     private final Clock clock;
     private final boolean enabled;
     private final String publicOrigin;
     private final xiaozhi.modules.customer.CustomerVoicePermissions permissions;
+    private final xiaozhi.modules.customer.CustomerAccountDetails accountDetails;
 
     public DeviceControlService(JdbcTemplate db, PlatformTransactionManager transactionManager,
             @Qualifier("deviceControlClock") Clock clock,
             @Value("${device-control.enabled:false}") boolean enabled,
-            @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin, xiaozhi.modules.customer.CustomerVoicePermissions permissions) {
+            @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin,
+            xiaozhi.modules.customer.CustomerVoicePermissions permissions,
+            xiaozhi.modules.customer.CustomerAccountDetails accountDetails) {
         this.db = db; this.permissions=permissions;
+        this.accountDetails = accountDetails;
         this.transactions = new TransactionTemplate(transactionManager);
         this.clock = clock;
         this.enabled = enabled;
@@ -56,6 +61,7 @@ public class DeviceControlService {
     }
 
     record Identity(String deviceId, String hash) { }
+    private record AccountOwner(String issuer, String subject, long ownership, long permission) {}
 
     Identity authenticate(String authorization, String deviceId) {
         if (!enabled) throw new ControlFailure(503, "TEMPORARILY_UNAVAILABLE");
@@ -101,6 +107,55 @@ public class DeviceControlService {
             state.put("lease", voice==null?null:Map.of("permission_version",row.get("permission_version"),"expires_at_ms",responseNow+60000,"expires_in_ms",60000));
             state.put("voice", voice);
             return state;
+        });
+    }
+
+    private AccountOwner accountOwner(Identity identity) {
+        return transactions.execute(tx -> {
+            permissions.barrier();
+            var row = load(identity, true);
+            permissions.reconcile(row);
+            if (row.get("owner_subject") == null || !"ready".equals(row.get("reason")))
+                throw new ControlFailure(409, "STATE_CHANGED");
+            return new AccountOwner((String) row.get("owner_issuer"), (String) row.get("owner_subject"),
+                    number(row, "ownership_version"), number(row, "permission_version"));
+        });
+    }
+
+    Map<String, Object> account(Identity identity) {
+        if (!accountReaders.tryAcquire()) throw new ControlFailure(429, "RATE_LIMITED");
+        try {
+            var owner = accountOwner(identity);
+            // The market request must not hold a device lock or the shared identity barrier.
+            var details = accountDetails.read(owner.issuer(), owner.subject());
+            if (!owner.equals(accountOwner(identity))) throw new ControlFailure(409, "STATE_CHANGED");
+            var data = new LinkedHashMap<String, Object>();
+            data.put("device_id", identity.deviceId());
+            data.put("permission_version", owner.permission());
+            data.put("username", details.username());
+            data.put("balance", details.balance());
+            return data;
+        } finally {
+            accountReaders.release();
+        }
+    }
+
+    Map<String, Object> signOut(Identity identity, long expected) {
+        return transactions.execute(tx -> {
+            permissions.barrier();
+            var row = load(identity, true);
+            long permission = number(row, "permission_version");
+            long revision = number(row, "revision");
+            if (row.get("owner_subject") == null || "device_disabled".equals(row.get("reason")))
+                throw new ControlFailure(409, "STATE_CHANGED");
+            if ("user_signed_out".equals(row.get("reason")) && permission == expected + 1)
+                return Map.of("permission_version", permission);
+            if (permission != expected || "user_signed_out".equals(row.get("reason")))
+                throw new ControlFailure(409, "STATE_CHANGED");
+            if (permission >= MAX_VERSION || revision >= MAX_VERSION)
+                throw new ControlFailure(503, "TEMPORARILY_UNAVAILABLE");
+            DeviceSignOut.store(db, identity.deviceId(), permission + 1, revision + 1);
+            return Map.of("permission_version", permission + 1);
         });
     }
 
