@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /** Keep product error envelopes and HTTP statuses separate from upstream Result. */
 @Order(-100)
-@RestControllerAdvice(assignableTypes = DeviceControlController.class)
+@RestControllerAdvice(assignableTypes = {DeviceControlController.class, DeviceDeliveryController.class})
 public class DeviceControlErrors {
     @ExceptionHandler(ControlFailure.class)
     public ResponseEntity<Map<String, Object>> failure(ControlFailure failure) {
@@ -22,6 +22,11 @@ public class DeviceControlErrors {
     @ExceptionHandler({HttpMessageNotReadableException.class, HttpMediaTypeNotSupportedException.class})
     public ResponseEntity<Map<String, Object>> invalid(Exception exception) {
         return failure(new ControlFailure(400, "INVALID_REQUEST"));
+    }
+
+    @ExceptionHandler(org.apache.shiro.authz.AuthorizationException.class)
+    public ResponseEntity<Map<String, Object>> forbidden(Exception exception) {
+        return failure(new ControlFailure(403, "OPERATOR_REQUIRED"));
     }
 
     @ExceptionHandler(Exception.class)
