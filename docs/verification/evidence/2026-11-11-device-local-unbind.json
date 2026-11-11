@@ -1,0 +1,47 @@
+{
+  "api_source": "557106a5e4d7b03eed788095d67974aba5c1bd3d",
+  "firmware_source": "817e47bf4ac5a4907060c901dec898f256e2d653",
+  "firmware_application_version": "2.2.6",
+  "firmware_product_bytes": 3999344,
+  "firmware_product_sha256": "5a1061471fc818ef35329c2ff4ba79ceeb8cfe1f1c71d4944f90d6156e02cbfc",
+  "firmware_elf_sha256": "3dc1466226b43d139e2825323fcb34d31df515b5d49e21ccd2d169b08e90f8c7",
+  "java": {
+    "suites": 35,
+    "tests": 350,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "integration_guard_passed": true,
+    "environment": "isolated MySQL 8.0.41 / Redis 8.0.0 / Java 21 containers"
+  },
+  "firmware_ctest": {
+    "tests": 27,
+    "failures": 0
+  },
+  "firmware_python": {
+    "tests": 33,
+    "failures": 0
+  },
+  "product_checks": {
+    "product_config": true,
+    "maintenance_disabled": true,
+    "application_size_optimization": true,
+    "product_sources": true,
+    "no_maintenance_source": true,
+    "dashboard_and_control_linked": true,
+    "no_maintenance_entrypoint": true,
+    "preserved_16mb_layout": true,
+    "image_fits_both_slots": true
+  },
+  "protocol_schema_valid": true,
+  "protocol_examples_valid": 20,
+  "nginx_syntax_valid": true,
+  "review": {
+    "standards_findings": 0,
+    "spec_findings": 0
+  },
+  "deployment_pending": true,
+  "public_route_acceptance_pending": true,
+  "new_firmware_flashed": false,
+  "different_account_physical_acceptance_pending": true
+}
