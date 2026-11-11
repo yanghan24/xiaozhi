@@ -151,8 +151,9 @@ public class CustomerV1Controller {
     private ResponseEntity<String> actionError(CustomerFailure rejected) {
         String message="OWNER_REQUIRED".equals(rejected.getMessage())?"请使用原归属账号操作。":"操作未完成，身份或设备状态已变化，请重新扫码。";
         return ResponseEntity.status(rejected.status).contentType(new MediaType("text","html",java.nio.charset.StandardCharsets.UTF_8))
-                .header("Cache-Control","no-store").header("Content-Security-Policy","default-src 'none'; frame-ancestors 'none'")
-                .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>操作未完成</title><h1>"+message+"</h1></html>");
+                .header("Cache-Control","no-store").header("Referrer-Policy","no-referrer")
+                .header("Content-Security-Policy",CustomerPage.policy("'self'"))
+                .body(CustomerPage.render("操作未完成","<p>"+message+"</p>"));
     }
     private ResponseEntity<Map<String,Object>> success(int status, Map<String,Object> data) {
         return ResponseEntity.status(status).header("Cache-Control","no-store")

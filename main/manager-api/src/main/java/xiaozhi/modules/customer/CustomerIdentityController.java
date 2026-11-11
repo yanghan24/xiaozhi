@@ -69,8 +69,8 @@ public class CustomerIdentityController {
     ResponseEntity<String> identityError(@PathVariable int status) {
         if (!java.util.Set.of(400,401,409,410,502,503).contains(status)) status = 400;
         return ResponseEntity.status(status).contentType(HTML_UTF8).header("Cache-Control", "no-store")
-                .header("Referrer-Policy", "no-referrer").header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
-                .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>身份确认未完成</title><h1>身份确认未完成</h1><p>流程无效、已使用或已过期，请重新扫码。</p></html>");
+                .header("Referrer-Policy", "no-referrer").header("Content-Security-Policy", CustomerPage.policy("'self'"))
+                .body(CustomerPage.render("身份确认未完成", "<p>流程无效、已使用或已过期，请重新扫码。</p>"));
     }
     @PostMapping(value="/customer/oidc/backchannel-logout", consumes=MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     ResponseEntity<Void> backchannel(@RequestParam(name="logout_token", required=false) String token) {
@@ -114,9 +114,9 @@ public class CustomerIdentityController {
         }
         return ResponseEntity.ok().contentType(HTML_UTF8).header("Cache-Control", "no-store")
                 .header("Referrer-Policy", "same-origin")
-                .header("Content-Security-Policy", "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
-                .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>身份确认结果</title><h1>"
-                        + message + "</h1><p>"+HtmlUtils.htmlEscape(data.get("device_label").toString())+"</p>"+action+"</html>");
+                .header("Content-Security-Policy", CustomerPage.policy("'self'"))
+                .body(CustomerPage.render(message, "<div class=\"device\"><small>当前设备</small>"
+                        +HtmlUtils.htmlEscape(data.get("device_label").toString())+"</div>"+action));
     }
 
     @GetMapping("/bind/{handle}")
@@ -130,7 +130,9 @@ public class CustomerIdentityController {
                 case 410 -> "设备请求已过期，请重新扫码";
                 default -> "设备请求已使用";
             };
-            return ResponseEntity.status(failure.status).header("Cache-Control","no-store").body(message);
+            return ResponseEntity.status(failure.status).contentType(HTML_UTF8).header("Cache-Control","no-store")
+                    .header("Referrer-Policy","no-referrer").header("Content-Security-Policy",CustomerPage.policy("'self'"))
+                    .body(CustomerPage.render(message,"<p>请在音箱上重新打开二维码，再用手机扫码继续。</p>"));
         }
         long now = clock.millis();
         String browser = existingCookie;
@@ -151,14 +153,13 @@ public class CustomerIdentityController {
                 // no-referrer turns a navigation POST's Origin into null in Chromium.
                 // same-origin preserves CSRF validation without leaking the request to the provider.
                 .header("Referrer-Policy", "same-origin")
-                .header("Content-Security-Policy", "default-src 'none'; form-action 'self' "
+                .header("Content-Security-Policy", CustomerPage.policy("'self' "
                         + (config.issuer == null ? "" : java.net.URI.create(config.issuer).resolve("/").toString())
-                        + "; frame-ancestors 'none'; base-uri 'none'")
-                .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                        + "<title>确认设备身份</title><h1>" + alias + "</h1><p>通过 AI 集市确认身份，随后在手机上确认设备操作。</p>"
+                        ))
+                .body(CustomerPage.render("确认设备身份", "<div class=\"device\"><small>当前设备</small>" + alias + "</div><p>通过 AI 集市确认身份，随后在手机上确认设备操作。</p>"
                         + "<form method=\"post\" action=\"/xiaozhi/customer/v1/binding-flows\">"
                         + "<input type=\"hidden\" name=\"csrf\" value=\"" + csrf + "\">"
                         + "<input type=\"hidden\" name=\"request_handle\" value=\"" + HtmlUtils.htmlEscape(handle) + "\">"
-                        + "<button type=\"submit\">通过 AI 集市确认身份</button></form></html>");
+                        + "<button type=\"submit\">通过 AI 集市确认身份</button></form>"));
     }
 }
