@@ -60,6 +60,8 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 
 ## 本地资料缺失或过时
 
+#13 各项服务器证据与未完成范围见 [A01–A24 验收矩阵](../verification/2026-11-11-issue13-server-acceptance.md)。该轮新增隔离测试尚未取得结果，SSH 握手超时后的运行状态需恢复连接核实，不代表新增部署或当前健康确认。
+
 本地分支/worktree 不随 GitHub 合并自动更新。找不到本页、入口仍指向历史报告，或文档状态互相矛盾时，先核对 GitHub 最新 `main` 的[本页](https://github.com/yanghan24/xiaozhi/blob/main/docs/deployment/current.md)和它引用的部署证据，再判断资料是否缺失。
 
 无需切换工作分支即可只读获取：
