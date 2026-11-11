@@ -94,8 +94,8 @@ esp_err_t StoreDeviceIdentity(const std::string& json, IdentityWrite mode) {
     } else if (read_result != ESP_ERR_NVS_NOT_FOUND && !damaged) {
         result = read_result;
     }
-    if ((damaged && (mode == IdentityWrite::Provision || anchor_result != ESP_OK)) ||
-        (mode == IdentityWrite::Repair && !damaged))
+    if ((damaged && mode == IdentityWrite::Provision) ||
+        (mode == IdentityWrite::Repair && (!damaged || anchor_result != ESP_OK)))
         result = ESP_ERR_INVALID_STATE;
     if (result == ESP_OK && anchor_result == ESP_ERR_NVS_NOT_FOUND) {
         // Persist the ID first. A power cut can leave an ID without a credential,

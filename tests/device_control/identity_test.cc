@@ -181,6 +181,10 @@ int main() {
     Check(
         device_control::StoreDeviceIdentity(first, IdentityWrite::Repair) == ESP_ERR_INVALID_STATE,
         "no repair without a surviving identity anchor");
+    Check(device_control::StoreDeviceIdentity(rotated, IdentityWrite::Recovery) == ESP_OK &&
+              device_control::LoadDeviceIdentity(identity) && identity.device_id == "speaker-a" &&
+              identity.credential == std::string(43, 'B'),
+          "authorized recovery rebuilds a missing anchor for a damaged identity blob");
     flash.clear();
     commits_before_failure = 1;
     Check(device_control::StoreDeviceIdentity(first) == ESP_FAIL &&
