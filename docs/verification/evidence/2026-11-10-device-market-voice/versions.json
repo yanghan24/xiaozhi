@@ -1,0 +1,192 @@
+{
+  "captured_at_utc": "2026-11-10T03:27:30.764219+00:00",
+  "containers": [
+    {
+      "name": "xiaozhi-ubuntu-test-api-1",
+      "container_id": "b5a58d1e5b708c5d6dda43adf5a4f6ee2eabf878035c7b0051f13b5740d1a489",
+      "image_id": "sha256:3b4ea5cfbe509b8e1835cfa5e18b02b934ad04dd0a80a4580c913bf83f39b569",
+      "image_tag": "xiaozhi-manager-api:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_repo_digests": [],
+      "created": "2026-11-09T13:39:09.620501134Z",
+      "started_at": "2026-11-09T13:39:10.592832371Z",
+      "status": "running",
+      "health": null,
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 939524096,
+      "image_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_version": "22.04"
+    },
+    {
+      "name": "xiaozhi-ubuntu-test-voice-1",
+      "container_id": "703115ade66d3ac1155dbf66d80024e07e96709e79d51f4f65a55130237c5284",
+      "image_id": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "image_tag": "xiaozhi-voice:local-20261106-netmirror",
+      "image_repo_digests": [],
+      "created": "2026-11-06T09:10:54.063048137Z",
+      "started_at": "2026-11-10T03:12:07.657494817Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 671088640,
+      "image_revision": "working-tree",
+      "image_version": null
+    },
+    {
+      "name": "xiaozhi-ubuntu-test-web-1",
+      "container_id": "24abbe393906868ce15bdb26f4f9ed3240e5fb05f348aec8c4bb599fdb0e84f7",
+      "image_id": "sha256:bebb0deaf0fdcea397a227cdd2b8ddda4a052c6c174c3419f0004564db437516",
+      "image_tag": "xiaozhi-manager-web:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_repo_digests": [],
+      "created": "2026-11-06T09:06:34.905390586Z",
+      "started_at": "2026-11-06T10:45:34.900620391Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 100663296,
+      "image_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_version": null
+    },
+    {
+      "name": "xiaozhi-ubuntu-test-mysql-1",
+      "container_id": "959e975da4ac400ac8d4c785b0cc873894ef6d711ee811894b2eae4e67118f3b",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "image_tag": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_repo_digests": [],
+      "created": "2026-11-06T09:06:32.278060056Z",
+      "started_at": "2026-11-06T10:45:28.872428506Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 671088640,
+      "image_revision": null,
+      "image_version": null
+    },
+    {
+      "name": "xiaozhi-ubuntu-test-redis-1",
+      "container_id": "4beda8efb2d0a83d9408e4e10fe388545494ac11ac3cd9931e441ce0abb31e52",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "image_tag": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_repo_digests": [],
+      "created": "2026-11-06T09:06:32.278484407Z",
+      "started_at": "2026-11-06T10:45:28.869281615Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 201326592,
+      "image_revision": null,
+      "image_version": null
+    },
+    {
+      "name": "xiaozhi-ubuntu-test-public-entry-public-entry-1",
+      "container_id": "808acf20d1d0c95b6ea647d3572a34a834edca3742d8f1484c69f06ba527a693",
+      "image_id": "sha256:1ff4bb4faebcfb1f7e01144fa9904a570ab9bab88694457855feb6c6bba3fa07",
+      "image_tag": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "image_repo_digests": [],
+      "created": "2026-11-09T09:05:15.574962084Z",
+      "started_at": "2026-11-09T09:05:15.882281533Z",
+      "status": "running",
+      "health": null,
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 100663296,
+      "image_revision": null,
+      "image_version": null
+    },
+    {
+      "name": "xiaozhi-issue6-market-bridge",
+      "container_id": "8ed86e8c26e0167730cbb0ccf8199f10e1f6d94d8e68ac7103fee203021eef19",
+      "image_id": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "image_tag": "xiaozhi-voice:local-20261106-netmirror",
+      "image_repo_digests": [],
+      "created": "2026-11-10T03:07:24.062540525Z",
+      "started_at": "2026-11-10T03:11:56.80222292Z",
+      "status": "running",
+      "health": null,
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 201326592,
+      "image_revision": "working-tree",
+      "image_version": null
+    },
+    {
+      "name": "issue11-identity",
+      "container_id": "54ea1734e14f61746229a17ec14798937c1aba9e0410f164e0356466d33e7546",
+      "image_id": "sha256:57965572db3e41796eff350cabfcd2bf3ea886377fdd5973f587758557980cf4",
+      "image_tag": "xiaozhi-manager-api-tests:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "image_repo_digests": [],
+      "created": "2026-11-09T13:49:31.307327922Z",
+      "started_at": "2026-11-09T13:49:31.661951918Z",
+      "status": "running",
+      "health": null,
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 0,
+      "image_revision": null,
+      "image_version": "24.04"
+    },
+    {
+      "name": "issue29-db",
+      "container_id": "489e52d23068d2669693a83b99718c5f3ec267b6467686e0d1866cb07fd1968b",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "image_tag": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_repo_digests": [],
+      "created": "2026-11-09T11:31:53.456831025Z",
+      "started_at": "2026-11-09T13:49:31.051416348Z",
+      "status": "running",
+      "health": null,
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 0,
+      "image_revision": null,
+      "image_version": null
+    },
+    {
+      "name": "issue29-redis",
+      "container_id": "bdd151b2eaefbd50a48fd8e8cab016b4a1fccc17a4e86e70f5a7340e6b1ad28d",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "image_tag": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_repo_digests": [],
+      "created": "2026-11-09T11:31:54.619708131Z",
+      "started_at": "2026-11-09T13:49:31.28073354Z",
+      "status": "running",
+      "health": null,
+      "restart_policy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "memory_limit_bytes": 0,
+      "image_revision": null,
+      "image_version": null
+    }
+  ],
+  "bridge_code_sha256": "2fd9278c1b6600f04d56c777a6bb64675f26a6584c0e5e2f456568f5aa8bdef5",
+  "host": {
+    "uname": "Linux 5.11.0-27-generic x86_64 GNU/Linux",
+    "os_release": "NAME=\"Ubuntu\"\nVERSION=\"20.04.3 LTS (Focal Fossa)\"\nID=ubuntu\nID_LIKE=debian\nPRETTY_NAME=\"Ubuntu 20.04.3 LTS\"\nVERSION_ID=\"20.04\"\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nVERSION_CODENAME=focal\nUBUNTU_CODENAME=focal\n",
+    "docker_version": "26.1.3",
+    "timezone": "+0800 CST"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "source": "existing Ubuntu surefire XML; not rerun",
+  "source_directory": "/home/jt/profile-fix-regression-1468eeb/.runtime/pr52/surefire-reports",
+  "totals": {
+    "tests": 349,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "identity_suites": [
+    {
+      "name": "xiaozhi.modules.customer.CustomerIdentityHttpTest",
+      "tests": 43,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "uncertainRefreshNeverReplaysAndOnlyConfirmedInvalidGrantRequiresReauthorization(String)[1]",
+        "uncertainRefreshNeverReplaysAndOnlyConfirmedInvalidGrantRequiresReauthorization(String)[2]",
+        "uncertainRefreshNeverReplaysAndOnlyConfirmedInvalidGrantRequiresReauthorization(String)[3]",
+        "olderCallbackCannotReplaceNewerGrantEvenWhenFlowsStartInSameMillisecond",
+        "unknownDeviceRequestDoesNotOpenAnIdentityFlow",
+        "validRequestOpensPhonePageAndExpiredRequestCannotBeUsed",
+        "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[1]",
+        "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[2]",
+        "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[3]",
+        "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[4]",
+        "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[5]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[1]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[2]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[3]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[4]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[5]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[6]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[7]",
+        "invalidLogoutDoesNotChangeAnyIdentity(String)[8]",
+        "callbackCannotCrossBrowsersOrReplayAndRefusalIsClear",
+        "failedRefreshPersistenceNeverReplaysTheConsumedRefreshToken",
+        "oidcSuccessConfirmsIdentityAndRemovesCodeFromAddress",
+        "versionedIdentityEntrySharesTheBrowserAndFlowWithTheCompatibilityEntry",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[1]",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[2]",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[3]",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[4]",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[5]",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[6]",
+        "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[7]",
+        "refreshRotatesOnceBeforeAccessExpiryWhileBusinessKeyWithNoExpiryRemainsUsable",
+        "rejectedCallbackAlsoRedirectsAwayFromTemporaryCode",
+        "flowRequiresBrowserCsrfAndSeparateTabsKeepTheirOwnTarget",
+        "signedBackchannelNeedsNoCookieInvalidatesOnlyMatchingIdentityAndPreservesGrant",
+        "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[1]",
+        "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[2]",
+        "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[3]",
+        "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[4]",
+        "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[5]",
+        "logoutReceivedDuringLoginCannotBeUndoneByTheCallback",
+        "oldRefreshFailureCannotInvalidateNewAuthorization",
+        "expiredFlowNoLongerAppearsToBeWaitingAndResultIdentifiesTheTargetDevice",
+        "transactionExpiresAtFiveMinutesAndPollingCannotExtendThirtyMinuteIdle"
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerIdentityRestartTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "identityRefreshChainAndLogoutDedupSurviveRestartAndConcurrentInstances"
+      ]
+    }
+  ]
+}

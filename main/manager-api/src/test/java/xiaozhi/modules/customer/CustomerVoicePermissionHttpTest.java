@@ -265,11 +265,11 @@ class CustomerVoicePermissionHttpTest {
     }
 
     private ResponseEntity<Map> deviceAction(BindingTestClient.Device device, String action, long version) {
-        var headers = BindingTestClient.deviceHeaders(device);
-        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-        // The legacy admin mapper writes Long IDs as strings; the device protocol needs a JSON number.
+        // Keep protocol versions numeric despite the administrator MVC Long serializer.
+        var body = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                .put("expected_permission_version", version);
         return http.postForEntity("/device-control/v1/" + action,
-                new HttpEntity<>("{\"expected_permission_version\":" + version + "}", headers), Map.class);
+                new HttpEntity<>(body, BindingTestClient.deviceHeaders(device)), Map.class);
     }
 
     @Test void explicitOwnerResumeEnablesOnlyTargetAndIssuesBoundedVoiceCredentials() {

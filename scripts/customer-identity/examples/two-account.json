@@ -1,0 +1,190 @@
+{
+  "schema": "xiaozhi-identity-check-v1",
+  "scenario": "two-account",
+  "phase": "check",
+  "result": "insufficient",
+  "exit_code": 3,
+  "observed_at": {
+    "utc": "2026-11-12T02:00:00.123Z",
+    "hong_kong": "2026-11-12T10:00:00.123+08:00"
+  },
+  "clock_skew_ms": 0,
+  "environment": {
+    "containers": "ok",
+    "db_target": "ok",
+    "proxy_target": "ok",
+    "schema": "ok"
+  },
+  "flows": {
+    "A": [
+      {
+        "label": "F1",
+        "stored_status": "IDENTITY_VERIFIED",
+        "effective_status": "IDENTITY_VERIFIED",
+        "authorization": "ACTIVE",
+        "target": true,
+        "created_at": {
+          "utc": "2026-11-12T01:20:00.123Z",
+          "hong_kong": "2026-11-12T09:20:00.123+08:00"
+        },
+        "expires_at": {
+          "utc": "2026-11-12T01:25:00.123Z",
+          "hong_kong": "2026-11-12T09:25:00.123+08:00"
+        },
+        "sid_present": true,
+        "identity_present": true,
+        "matched_before_window": 0,
+        "matched_in_window": 0,
+        "matched_received_at": []
+      }
+    ],
+    "B": [
+      {
+        "label": "F1",
+        "stored_status": "SESSION_ENDED",
+        "effective_status": "SESSION_ENDED",
+        "authorization": "ACTIVE",
+        "target": true,
+        "created_at": {
+          "utc": "2026-11-12T01:20:00.123Z",
+          "hong_kong": "2026-11-12T09:20:00.123+08:00"
+        },
+        "expires_at": {
+          "utc": "2026-11-12T01:25:00.123Z",
+          "hong_kong": "2026-11-12T09:25:00.123+08:00"
+        },
+        "sid_present": true,
+        "identity_present": true,
+        "matched_before_window": 0,
+        "matched_in_window": 1,
+        "matched_received_at": [
+          {
+            "utc": "2026-11-12T01:56:00.123Z",
+            "hong_kong": "2026-11-12T09:56:00.123+08:00"
+          }
+        ]
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "not_truncated",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "clock_skew",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "baseline_available",
+      "kind": "premise",
+      "result": "insufficient",
+      "reason": "BASELINE_REQUIRED"
+    },
+    {
+      "id": "target_unique_a",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "target_unique_b",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "window_started",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "identities_distinct",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "authorization_a_info",
+      "kind": "info",
+      "result": "pass"
+    },
+    {
+      "id": "authorization_b_info",
+      "kind": "info",
+      "result": "pass"
+    },
+    {
+      "id": "authorization_stable_a",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "no_prior_receipt_b",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "receipt_absent_a",
+      "kind": "criterion",
+      "result": "pass"
+    },
+    {
+      "id": "receipt_matched_b",
+      "kind": "criterion",
+      "result": "pass"
+    },
+    {
+      "id": "session_held_a",
+      "kind": "criterion",
+      "result": "pass"
+    },
+    {
+      "id": "session_ended_b",
+      "kind": "criterion",
+      "result": "pass"
+    },
+    {
+      "id": "entry_log_204",
+      "kind": "criterion",
+      "result": "pass"
+    },
+    {
+      "id": "no_notify_supported",
+      "kind": "premise",
+      "result": "pass"
+    },
+    {
+      "id": "matched_receipts",
+      "kind": "info",
+      "result": "pass"
+    }
+  ],
+  "window": {
+    "start": {
+      "utc": "2026-11-12T01:55:00.123Z",
+      "hong_kong": "2026-11-12T09:55:00.123+08:00"
+    },
+    "end": {
+      "utc": "2026-11-12T01:59:00.123Z",
+      "hong_kong": "2026-11-12T09:59:00.123+08:00"
+    },
+    "closed": true
+  },
+  "receipts": {
+    "issuer_total": 5,
+    "issuer_before_window": 4,
+    "issuer_in_window": 1,
+    "other_issuer_total": 32
+  },
+  "log": {
+    "status": "complete",
+    "reasons": [],
+    "post_204_in_window": 1,
+    "post_400_in_window": 0,
+    "boundary_lines": 0
+  },
+  "identities_distinct": true,
+  "notes": [
+    "OTHER_ISSUER_RECEIPTS"
+  ]
+}

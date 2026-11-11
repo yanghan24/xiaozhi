@@ -2,7 +2,7 @@ package xiaozhi.modules.devicecontrol;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** Shared state transition for the phone page and the device's own settings. */
+/** Persists the device settings sign-out after the caller validates its permission version. */
 public final class DeviceSignOut {
     private DeviceSignOut() {}
 

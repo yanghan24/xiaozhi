@@ -1,0 +1,142 @@
+{
+  "at": "2026-11-10T21:59:50.308136+00:00",
+  "source_commit": "5a7219c7536ec3fd0c05bfdea58fbbaf2c34a711",
+  "containers": {
+    "xiaozhi-pr26-api": {
+      "image_id": "sha256:8e49c55c7c4f23f2f61b24223fbdc477ceadba4bdb0822c1e84c993bb9156666",
+      "running": true,
+      "started_at": "2026-11-10T13:35:52.478157689Z",
+      "restart_count": 0,
+      "oom_killed": false
+    },
+    "xiaozhi-pr26-voice": {
+      "image_id": "sha256:e519f14843fefbeab0e3c966da0733b81be7e1512b1c9774579f5d252a0a67a8",
+      "running": true,
+      "started_at": "2026-11-10T06:34:45.979709949Z",
+      "restart_count": 0,
+      "oom_killed": false
+    },
+    "xiaozhi-weather43-acceptance-openmeteo-1": {
+      "image_id": "sha256:7b1114b8a78e27fabac5c08a322ceb8d540b0a3c75419941d9e26d54dfc379df",
+      "running": true,
+      "started_at": "2026-11-10T16:24:18.391719162Z",
+      "restart_count": 0,
+      "oom_killed": false
+    },
+    "xiaozhi-weather43-acceptance-result-cache-1": {
+      "image_id": "sha256:e519f14843fefbeab0e3c966da0733b81be7e1512b1c9774579f5d252a0a67a8",
+      "running": true,
+      "started_at": "2026-11-10T15:07:14.974931364Z",
+      "restart_count": 0,
+      "oom_killed": false
+    },
+    "xiaozhi-weather43-acceptance-data-relay-1": {
+      "image_id": "sha256:e519f14843fefbeab0e3c966da0733b81be7e1512b1c9774579f5d252a0a67a8",
+      "running": true,
+      "started_at": "2026-11-10T08:56:55.949895409Z",
+      "restart_count": 0,
+      "oom_killed": false
+    }
+  },
+  "source_relay_counters": {
+    "scope": "raw_source_relay",
+    "metrics": {
+      "requests": 17354,
+      "source_requests": 17302,
+      "source_bytes": 507334326,
+      "injected_failures": 52,
+      "errors": 241
+    }
+  },
+  "voice_verification_outcome": "completed",
+  "research_outcome": "continue",
+  "unadjusted_cgroup_memory": {
+    "xiaozhi-pr26-api": {
+      "usage": 403320832,
+      "max_usage": 403984384,
+      "limit": 805306368,
+      "failcnt": null,
+      "stats": {
+        "cache": 3379200,
+        "total_cache": 3379200,
+        "total_inactive_file": 2433024,
+        "inactive_file": 2433024
+      }
+    },
+    "xiaozhi-pr26-voice": {
+      "usage": 142209024,
+      "max_usage": 179142656,
+      "limit": 805306368,
+      "failcnt": null,
+      "stats": {
+        "cache": 15814656,
+        "total_cache": 15814656,
+        "total_inactive_file": 1486848,
+        "inactive_file": 1486848
+      }
+    },
+    "xiaozhi-weather43-acceptance-openmeteo-1": {
+      "usage": 376549376,
+      "max_usage": 381825024,
+      "limit": 8589934592,
+      "failcnt": null,
+      "stats": {
+        "cache": 354410496,
+        "total_cache": 354410496,
+        "total_inactive_file": 353136640,
+        "inactive_file": 353136640
+      }
+    },
+    "xiaozhi-weather43-acceptance-result-cache-1": {
+      "usage": 47349760,
+      "max_usage": 59285504,
+      "limit": 268435456,
+      "failcnt": null,
+      "stats": {
+        "cache": 5947392,
+        "total_cache": 5947392,
+        "total_inactive_file": 1622016,
+        "inactive_file": 1622016
+      }
+    },
+    "xiaozhi-weather43-acceptance-data-relay-1": {
+      "usage": 56664064,
+      "max_usage": 67186688,
+      "limit": 201326592,
+      "failcnt": null,
+      "stats": {
+        "cache": 6217728,
+        "total_cache": 6217728,
+        "total_inactive_file": 1081344,
+        "inactive_file": 1081344
+      }
+    }
+  },
+  "source_file_sha256": {
+    "scripts/weather43/data_relay.py": "12c9d04a693622c70c71adb9ac9f7bf78366805834d56482d13d37cbcfe4beb0",
+    "scripts/weather43/run_coexistence.sh": "a6eec5fcbfe18e10ccb3aab58eab3d08b4c901ae708760e005cad86aacf1cabf",
+    "scripts/weather43/s3_relay.py": "81eccb258b1c0418c342200d6f0a6fc151fcdbd17d7b82506810f0cf7c50a82b",
+    "scripts/weather43/cache_service.py": "e5f02fa806d8ded433791647f4bd588e9bf070610bbdc2aaeb873b2abe13fb2e",
+    "scripts/weather43/location_update_checks.py": "054be008537d4eb7b455e98580a032e4f36f2e0d02b6490db95480656897e903",
+    "scripts/weather43/acceptance_50.py": "cc05ea66310d10c244b07d442fcb7347f7cb27d65795c4973e5fa2f9e8ec70ed",
+    "scripts/weather43/observe_updates.py": "6e3f977c0158a1961f409d216556fc72b5580dad0401bf3b878b7f7550838745",
+    "scripts/weather43/cleanup_fixtures.py": "dc5774ddae566ac79a45b326405634250c768862a3f33fcf74e6252865f209fd",
+    "scripts/weather43/summarize_updates.py": "4d50528cdca29f5121041f2d92c6a3c140063c18f1af902f31bd3c616bcbd9d0",
+    "scripts/weather43/network_soak.py": "4ab629d69fbab6c4c589e5b160a9cd76e9b960f2ca706fe977d83a3cc43d057e",
+    "scripts/weather43/network_checks.py": "0d871d0736be1550031acba4978b0d9560eb1dfd0a0cb5f9b9f1091ff9251f35",
+    "scripts/weather43/recovery_checks.py": "78aa46bbf5af19a9bd0ca747a110367d5ff421cd45bf8c14b3f78f43c61988d0",
+    "scripts/weather43/acceptance_load.py": "215f4c88ca9b3a40f3269320b18f455033aac404302b2c6091b09bf46f71fc9b",
+    "scripts/weather43/location_candidates.py": "5b02c151c46ef783214540be6d28e0142bf0c53971285cfe467bdd5b99b3dbd8",
+    "scripts/weather43/metrics_report.py": "6728c85cc6811ecd80753b7d67f8664c4cb228ba4e77e83730e930d0e8c315ce",
+    "scripts/weather43/voice_coexist.py": "2de95acffa22abd8c9a13d053b420a574db73dec371aa9decbf3bb1e5379b765",
+    "scripts/weather43/load_local.py": "6d8bd1bf2b48f2ae903c7ddb058c66272c6db7697b78b583664280b9a6fb847c",
+    "scripts/weather43/evaluate_locations.py": "d7053f8043e233f804de5661671ad555be36bfe371a85bf440d6c6537cf8f857",
+    "scripts/weather43/wait_capacity_window.py": "147d5dc9110ef480d2dc978407ab2a81b2c07d74a583e36c09f9cbb659b2abee",
+    "scripts/weather43/coexist_report.py": "c9c06fcf489d4cc1899afa71f8037c87bc8ffff1a83c7817070513b9a19e498b",
+    "scripts/weather43/probe_sources.py": "4de508d783c4d8fd58c6194710d0203bcb0f51faae451cb38242c214bb5f1bb1",
+    "scripts/weather43/final_capacity.py": "9941ab6b63fbad8756b4183538c94928baff5b49cbd8fc317c0e4923b4e00e79",
+    "scripts/weather43/build_locations.py": "332323c57dc4fa74faeeb8a382107f4df18591b8ce4fd11315d2d8b62b0ab939",
+    "scripts/weather43/finish_observation.py": "79dc4a2ff57588996cd6d57ae975c4b1ba61107091bf64318ba7de96fa947eae"
+  },
+  "scope": "isolated HTTP/cache feasibility; real server voice protocol; no physical speaker or firmware claim"
+}

@@ -1,0 +1,33 @@
+{
+  "agent": {
+    "id": "8d47067dedd14d8bb04fa48f7edf5731",
+    "agentName": "issue-6-esp32-p4-test",
+    "asrModelId": "e3db62e78430a4d7ec5774f41b593402",
+    "llmModelId": "0957f97dd55e902ba5dcf92b01d67cc4",
+    "ttsModelId": "TTS_EdgeTTS"
+  },
+  "devices": [
+    {
+      "mac": "10:bd:a3:80:72:80",
+      "version": "2.2.6"
+    }
+  ],
+  "containers": [
+    {
+      "Id": "703115ade66d3ac1155dbf66d80024e07e96709e79d51f4f65a55130237c5284",
+      "Image": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "Name": "/xiaozhi-ubuntu-test-voice-1"
+    },
+    {
+      "Id": "8ed86e8c26e0167730cbb0ccf8199f10e1f6d94d8e68ac7103fee203021eef19",
+      "Image": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "Name": "/xiaozhi-issue6-market-bridge"
+    }
+  ],
+  "physical_first_round": {
+    "transcript_visible": true,
+    "full_answer_audible": true,
+    "error_prompt": false,
+    "source": "user_confirmation"
+  }
+}

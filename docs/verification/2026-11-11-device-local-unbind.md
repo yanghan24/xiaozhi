@@ -1,6 +1,6 @@
 # 本机退出并解除绑定：实现与自动化验证
 
-用户在 2026-11-11 明确确认：本机设置的退出操作应释放本台归属，让其他账号直接扫码接手，无需原账号再用手机授权。规则见 [ADR-0007](../adr/0007-device-local-unbind.md)；[配套协议](../planning/device-local-unbind.md)和[服务器交接](../handoff/speaker-settings-server.md)记录部署顺序。
+用户在 2026-11-11 明确确认：本机设置的退出操作应释放本台归属，让其他账号直接扫码接手，无需原账号再用手机授权。规则见 [ADR-0008](../adr/0008-device-local-unbind.md)；[配套协议](../planning/device-local-unbind.md)和[服务器交接](../handoff/speaker-settings-server.md)记录部署顺序。
 
 ## 固定源码与产物
 
