@@ -32,6 +32,7 @@ final class ControlledMarket {
     final Map<String,String> approvals = new ConcurrentHashMap<>();
     final Map<String,java.util.concurrent.CountDownLatch[]> refreshGates = new ConcurrentHashMap<>();
     final Map<String,java.util.concurrent.CountDownLatch[]> profileGates = new ConcurrentHashMap<>();
+    final Map<String,Map<String,Object>> profiles = new ConcurrentHashMap<>();
     final Map<String,java.math.BigDecimal> balances = new ConcurrentHashMap<>();
     final ObjectMapper json = new ObjectMapper();
     String browserSubject;
@@ -127,8 +128,10 @@ final class ControlledMarket {
                     try { gate[1].await(5, java.util.concurrent.TimeUnit.SECONDS); }
                     catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
                 }
-                reply(x, 200, Map.of("sub", "userinfo".equals(auth.get("fault")) ? "another-user" : subject,
-                        "preferred_username", "market-" + subject));
+                var profile = new HashMap<String,Object>(profiles.getOrDefault(subject, Map.of()));
+                profile.put("sub", "userinfo".equals(auth.get("fault")) ? "another-user" : subject);
+                profile.putIfAbsent("preferred_username", "market-" + subject);
+                reply(x, 200, profile);
             });
             server.createContext("/api/application-balance", x -> {
                 var auth = authorization(x);
