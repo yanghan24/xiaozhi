@@ -298,6 +298,30 @@ class CustomerBindingHttpTest {
         assertEquals("INVALID_REQUEST",wrongMedia.getBody().get("code"));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"confirm","open-account","sign-out"})
+    void deviceActionsRejectNonEmptyOrMalformedJsonWithoutChangingPermission(String action) {
+        var device=client.device();var flow=client.scan(device);client.login(flow,null,null);
+        String session=BindingTestClient.data(client.confirm(flow,"bind")).get("device_session_id").toString();
+        String path="sign-out".equals(action) ? "device-sessions/"+session+"/sign-out"
+                : "binding-flows/"+flow.id()+"/"+action;
+        var headers=new org.springframework.http.HttpHeaders();headers.putAll(flow.headers());
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.set("Idempotency-Key","invalid-body");
+        var before=client.state(device);
+        for(String raw:new String[]{"null","[]","1","\"text\"","{\"device_id\":\"another-device\"}","{} {}","{"}) {
+            var response=http.postForEntity("/customer/v1/"+path,
+                    new org.springframework.http.HttpEntity<>(raw,headers),java.util.Map.class);
+            assertEquals(400,response.getStatusCode().value(),action+": "+raw);
+            assertEquals("INVALID_REQUEST",response.getBody().get("code"));
+            assertEquals(1,response.getBody().get("version"));
+        }
+        var after=client.state(device);
+        assertEquals(before.get("permission_version"),after.get("permission_version"));
+        assertEquals(before.get("revision"),after.get("revision"));
+        assertEquals(before.get("reason"),after.get("reason"));
+    }
+
     @Test void failedReceiptSaveRollsBackOwnershipAndTheSameRequestCanRetry() {
         var device=client.device();var flow=client.scan(device);client.login(flow,null,null);
         assertTrue(flow.id().matches("[A-Za-z0-9_-]{43}"));

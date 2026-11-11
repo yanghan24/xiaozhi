@@ -38,10 +38,7 @@ public class CustomerV1Controller {
             @RequestHeader(name="Origin", required=false) String origin,
             @RequestHeader(name="Idempotency-Key", required=false) String key,
             @PathVariable String id, @RequestBody String raw) {
-        try {
-            var body=json.readTree(raw);
-            if (!body.isObject() || !body.isEmpty()) throw new IllegalArgumentException();
-        } catch (Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+        requireEmptyObject(raw);
         var data=bindings.confirm(cookie,csrf,origin,id,key);
         // Protocol versions are JSON numbers, independent of management Long serialization.
         return ResponseEntity.ok().header("Cache-Control","no-store")
@@ -106,8 +103,7 @@ public class CustomerV1Controller {
             @RequestHeader(name="Origin",required=false) String origin,
             @RequestHeader(name="Idempotency-Key",required=false) String key,
             @PathVariable String id,@RequestBody String raw) {
-        try { var body=json.readTree(raw);if(!body.isObject() || !body.isEmpty()) throw new IllegalArgumentException(); }
-        catch(Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+        requireEmptyObject(raw);
         return ResponseEntity.ok().header("Cache-Control","no-store")
                 .body(json.valueToTree(Map.of("version",1,"code","OK","data",sessions.signOut(cookie,csrf,origin,id,key))));
     }
@@ -124,8 +120,7 @@ public class CustomerV1Controller {
             @RequestHeader(name="Origin",required=false) String origin,
             @RequestHeader(name="Idempotency-Key",required=false) String key,
             @PathVariable String id,@RequestBody String raw) {
-        try { var body=json.readTree(raw);if(!body.isObject() || !body.isEmpty()) throw new IllegalArgumentException(); }
-        catch(Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+        requireEmptyObject(raw);
         return ResponseEntity.ok().header("Cache-Control","no-store")
                 .body(json.valueToTree(Map.of("version",1,"code","OK","data",bindings.openAccount(cookie,csrf,origin,id,key))));
     }
@@ -154,6 +149,13 @@ public class CustomerV1Controller {
                 .header("Cache-Control","no-store").header("Content-Security-Policy","default-src 'none'; frame-ancestors 'none'")
                 .body("<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>操作未完成</title><h1>"+message+"</h1></html>");
     }
+    private void requireEmptyObject(String raw) {
+        try {
+            var body = json.readTree(raw);
+            if (body == null || !body.isObject() || !body.isEmpty()) throw new IllegalArgumentException();
+        } catch (Exception invalid) { throw new CustomerFailure(400,"INVALID_REQUEST"); }
+    }
+
     private ResponseEntity<Map<String,Object>> success(int status, Map<String,Object> data) {
         return ResponseEntity.status(status).header("Cache-Control","no-store")
                 .body(Map.of("version",1,"code","OK","data",data));
