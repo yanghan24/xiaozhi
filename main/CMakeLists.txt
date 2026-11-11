@@ -1081,6 +1081,9 @@ idf_component_register(SRCS ${SOURCES}
                     )
 
 if(CONFIG_XIAOZHI_DEVICE_CONTROL)
+    target_sources(${COMPONENT_LIB} PRIVATE "device_control/nvs_erase_guard.cc")
+    target_link_options(${COMPONENT_LIB} INTERFACE
+        "-Wl,--wrap=nvs_flash_erase" "-Wl,--wrap=nvs_flash_erase_partition")
     # The existing 16 MB layout has 0x3f0000-byte app slots. Keep the complete
     # P4 UI and optimize application glue for size; DSP/codec components retain
     # their existing optimization settings.

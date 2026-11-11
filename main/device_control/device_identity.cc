@@ -64,7 +64,7 @@ bool LoadDeviceIdentity(IdentityConfig& config) {
     return true;
 }
 
-esp_err_t StoreDeviceIdentity(const std::string& json, bool repair_corrupt) {
+esp_err_t StoreDeviceIdentity(const std::string& json, IdentityWrite mode) {
     IdentityConfig next;
     if (!ParseIdentityConfig(json, DeviceHardwareId(), next))
         return ESP_ERR_INVALID_ARG;
@@ -87,10 +87,15 @@ esp_err_t StoreDeviceIdentity(const std::string& json, bool repair_corrupt) {
         damaged = !ParseIdentityConfig(previous, next.hardware_id, current);
         if (!damaged && current.device_id != next.device_id)
             result = ESP_ERR_INVALID_STATE;
+        if (!damaged && mode == IdentityWrite::Provision &&
+            (current.credential != next.credential || current.ota_url != next.ota_url ||
+             current.control_origin != next.control_origin))
+            result = ESP_ERR_INVALID_STATE;
     } else if (read_result != ESP_ERR_NVS_NOT_FOUND && !damaged) {
         result = read_result;
     }
-    if ((damaged && (!repair_corrupt || anchor_result != ESP_OK)) || (repair_corrupt && !damaged))
+    if ((damaged && (mode == IdentityWrite::Provision || anchor_result != ESP_OK)) ||
+        (mode == IdentityWrite::Repair && !damaged))
         result = ESP_ERR_INVALID_STATE;
     if (result == ESP_OK && anchor_result == ESP_ERR_NVS_NOT_FOUND) {
         // Persist the ID first. A power cut can leave an ID without a credential,

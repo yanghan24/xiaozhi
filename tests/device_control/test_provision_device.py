@@ -17,8 +17,11 @@ def manifest():
 
 
 class Serial:
-    def __init__(self, hardware="020000000001", result="stored"):
-        self.frames = [json.dumps(dict(version=1, mode="device_provisioning", hardware_id=hardware)).encode() + b"\n"]
+    def __init__(self, hardware="020000000001", result="stored", recovery=False):
+        ready = dict(version=1, mode="device_provisioning", hardware_id=hardware)
+        if recovery:
+            ready["capabilities"] = ["credential_recovery"]
+        self.frames = [json.dumps(ready).encode() + b"\n"]
         self.result = result
         self.written = []
 
@@ -84,7 +87,7 @@ class ProvisioningTests(unittest.TestCase):
         with self.assertRaises(provisioning.ProvisioningError):
             provisioning.provision(port, manifest())
         port = Serial()
-        provisioning.provision(port, manifest(), repair=True)
+        provisioning.provision(port, manifest(), action="repair")
         self.assertEqual(json.loads(port.written[0])["action"], "repair")
 
     def test_durable_write_id_is_reused_and_receipt_is_returned(self):
@@ -97,6 +100,22 @@ class ProvisioningTests(unittest.TestCase):
         port = Serial()
         with self.assertRaises(provisioning.ProvisioningError):
             provisioning.provision(port, manifest(), operation_id="unsafe")
+        self.assertEqual(port.written, [])
+
+    def test_recovery_uses_a_distinct_action_and_fixed_write_id(self):
+        port = Serial(recovery=True)
+        receipt = provisioning.provision(port, manifest(), action="recover", operation_id="d" * 32)
+        self.assertEqual(receipt, dict(version=1, operation_id="d" * 32, result="stored"))
+        self.assertEqual(json.loads(port.written[0])["action"], "recover")
+        port = Serial()
+        with self.assertRaises(provisioning.ProvisioningError):
+            provisioning.provision(port, manifest(), action="unexpected")
+        self.assertEqual(port.written, [])
+
+    def test_recovery_refuses_an_old_maintenance_image_before_sending_the_secret(self):
+        port = Serial()
+        with self.assertRaises(provisioning.ProvisioningError):
+            provisioning.provision(port, manifest(), action="recover", operation_id="d" * 32)
         self.assertEqual(port.written, [])
 
 
