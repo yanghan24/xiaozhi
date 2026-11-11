@@ -44,6 +44,13 @@
     "standards_findings": 0,
     "spec_findings": 0
   },
+  "integrated_review": {
+    "source": "aa753820e84a07f9fb20db29d12240977681f5a7",
+    "base": "a1577d7476b00af8a7940ad8d61cd148a3883bbe",
+    "mode": "read-only source review, not runtime validation",
+    "standards_findings": 0,
+    "spec_findings": 0
+  },
   "ubuntu_final_candidate_regression": {
     "status": "blocked",
     "source": "6b2e7445932de7ee84bf89b6af3cf0a0d9f35e52",
