@@ -1,6 +1,6 @@
 # #42 固件候选与 B 身份保留验证
 
-2026-11-11，Asia/Shanghai。关联 [#42](https://github.com/yanghan24/xiaozhi/issues/42) / [#13](https://github.com/yanghan24/xiaozhi/issues/13)。本轮交付固件补丁、主机测试和真实 B 的维护保留证据；#42 继续保持打开。
+2026-11-11，Asia/Shanghai。关联 [#42](https://github.com/yanghan24/xiaozhi/issues/42) / [#13](https://github.com/yanghan24/xiaozhi/issues/13)。本轮交付固件补丁、主机测试、真实 B 的维护保留与管理员补发写回证据；#42 继续保持打开。
 
 ## 固定源码与产物
 
@@ -12,7 +12,7 @@
 | 产品 ELF | `89acbe49ad649b4732f85d4a81a6b1a7201dba6fded4998009d3534bc84dbb07` |
 | 维护应用 | `fa98219626bee420de3c25674bfb32f42e4aafb2e550589c56c93195c2826bea` |
 
-产品和维护镜像均以 ESP-IDF v5.5.5 构建成功；生成配置与原基线逐项一致，原主程序源文件无缺失，只新增擦除保护源文件。产品镜像 10 项检查通过，应用槽剩余 130,384 字节。维护镜像本轮完成构建和主机验证，未刷入真实 B。详细结果见[构建及测试摘要](evidence/2026-11-11-device-identity-retention/build-and-tests.json)。
+产品和维护镜像均以 ESP-IDF v5.5.5 构建成功；生成配置与原基线逐项一致，原主程序源文件无缺失，只新增擦除保护源文件。产品镜像 10 项检查通过，应用槽剩余 130,384 字节。两份镜像均已用于后述真实 B 的补发流程。[构建及测试摘要](evidence/2026-11-11-device-identity-retention/build-and-tests.json)保留首次构建时的部署前状态，后续部署与补发以新增证据为准。
 
 ## 本机主机验证与审查
 
@@ -48,8 +48,42 @@ B 原应用与归档的 `settings-00896ab/candidate.bin` 有效应用内容逐�
 
 ## 尚未完成
 
-PR #63 当前为 OPEN/Draft，head `7738647759689d8a345a0f563b103467ae0b3c68`；本轮未合并、未部署、未轮换真实凭据。后续仍须在 Ubuntu 与真实 P4 验证授权补发写回、旧凭据拒绝、迟到/续作竞态、原档案和客户归属/本台退出状态保留，以及恢复后的设备与服务重启。PR #63 既有服务端测试证据不能代替这些现场结果。
+PR #63 仍未合并，固定 head `7738647759689d8a345a0f563b103467ae0b3c68` 已由 Ubuntu 执行者部署，见 [PR #68 部署记录](2026-11-11-pr63-deployment.md)。本机已完成下述真实 B 补发写回；旧凭据独立 HTTP 拒绝、迟到/续作竞态、后台归属/许可状态比对及补发后服务重启仍待 Ubuntu 接续。用户对原账号的确认不代替后台 ownership_version 或已退出状态的核对。
 
 真实 OTA、正常恢复出厂入口及其维护保留尚未验证；全片擦除后的布局重建、整个 NVS 损坏和不可读 anchor 的受控恢复工序尚未交付。原记录异常丢失后的完整补发流程尚未实测，没有执行破坏性擦除来制造通过证据。
 
 原分区未迁移，Secure Boot、Flash/NVS 加密未启用；不宣称秘密不可提取。应用回退不撤销后台恢复或凭据代际，详见[操作与恢复边界](../development/device-identity-recovery.md)。
+
+## 管理员补发与设备写回
+
+Ubuntu 部署后，用户在现场提供正常运营管理员登录；长期烧录凭据没有被当作补发授权。工具在创建补发前核对已完成的 B 交付 journal、管理员权限、P4 芯片及完整应用/NVS 备份。2026-11-11 16:59（+08:00），后台为原档案签发新凭据，维护镜像执行 `recover` 并提交/读回，恢复上述 `f03d98d` 产品镜像；设备自身验证新凭据及原硬件映射后，后台完成记录为 `delivered`。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 原档案和硬件 | 稳定设备 ID、P4/C6 对和可信 origin 与首次交付相同 |
+| 凭据轮换 | 新凭据与原凭据不同；没有新登记第二档案 |
+| USB 写回 | `stored` 回执匹配预先持久化的同一写入操作号 |
+| 设备验证与后台完成 | 产品硬件/ELF 报告验证通过，后台设备验证及完成时间均非空，状态为 `delivered` |
+| 私有续作材料 | 原交付 journal 保留；后续新一轮补发以前一轮已完成 recovery journal 为前驱 |
+
+脱敏结果见 [b-credential-recovery.json](evidence/2026-11-11-device-identity-retention/b-credential-recovery.json)。本轮是在健康身份上授权轮换，没有人为清空 NVS 或模拟全片擦除；不把它记为异常丢失后的完整恢复验收。
+
+## 当前镜像与补发后复位
+
+补发完成后的重跑检查遇到两次串口打开失败；随后读到另一构建的 ELF，工具按固定产物校验拒绝继续。用户确认此前另有工具操作 B，现已停止。当前镜像确定来自现场 `41-firmware-online-delivery` worktree 的 `860e045ab7d9599ab2b0b9135a6cef6f4222069b`，包含本机退出解绑改动，已经合入 `f03d98d` 的身份保护。身份存储、维护写回和恢复工具相关源码与受测提交逐字节相同。
+
+当前产品 SHA-256 为 `0947b2a879a5ed3e5390796f55997706b189707a8593383049957fbc3514db4f`，ELF 为 `a04fda6db5e0feb4ea5c81d174fd44ecb606ae6a6cd3af6c1d40d4ee67683419`。只读备份确认实际应用与该产物完整匹配，启动保护区及 assets 与本轮恢复基线一致，镜像 10 项检查通过。备份后的 USB 复位报告保持原设备 ID/P4/C6、当前 ELF 和联网，后台本轮恢复仍为当前 `delivered`。本次核对没有再次补发或写入 Flash/身份。
+
+用户随后确认「原账号正常，能听到完整回答」。见[当前镜像检查](evidence/2026-11-11-device-identity-retention/b-current-image.json)和[现场确认](evidence/2026-11-11-device-identity-retention/b-post-recovery-user-confirmation.json)。以上是当前 `860e045` 的补发后运行/复位结果；原 `f03d98d` 完成记录在镜像不变条件下的正常重跑尚未获得完整实机通过结果，不把固件失配拒绝算成该路径通过。
+
+## Ubuntu 接续
+
+现场保留 0600 的 `ubuntu-verification-material.json`，包含 B 的旧/新凭据及原硬件对，不含管理员登录，仅在物理写回完成后导出。通过安全通道传到 Ubuntu 私有目录；不要粘贴到聊天或加入 Git。使用[独立检查脚本](../../scripts/check-recovery-writeback.py)：
+
+```bash
+python3 scripts/check-recovery-writeback.py \
+  --material private/ubuntu-verification-material.json \
+  --output private/b-recovery-credential-check
+```
+
+脚本要求 Ubuntu、输入 0600、输出目录 0700，保持正常 HTTPS 证书验证并拒绝重定向；可沿用 PR #68 的已验证代理通道。只在物理设备验证及后台完成之后，分别检查旧凭据 401 / `INVALID_DEVICE_CREDENTIAL`、新凭据 200 / `delivered`，原始响应留在私有目录。仅分享脱敏 `summary.json`。本机只做语法及非 Ubuntu 拒绝检查，没有执行这两项 HTTP 检查；原账号/许可状态和服务重启还需另外核对。

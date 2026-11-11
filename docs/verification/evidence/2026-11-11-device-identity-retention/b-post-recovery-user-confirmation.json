@@ -1,0 +1,11 @@
+{
+  "recorded_at_utc": "2026-11-11T09:58:29.964587+00:00",
+  "source": "user confirmation in this session",
+  "device_alias": "B",
+  "installed_firmware_source": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+  "after_credential_recovery_and_reset": true,
+  "original_account_display_normal": true,
+  "complete_voice_reply_heard": true,
+  "server_ownership_version_compared": false,
+  "server_local_use_state_compared": false
+}
