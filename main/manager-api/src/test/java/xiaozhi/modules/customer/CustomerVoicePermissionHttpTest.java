@@ -76,6 +76,21 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("allowed", client.state(device).get("use_permission"));
     }
 
+    @Test void speakerNameMatchesTheMarketDisplayAndRefreshesLive() {
+        var device = client.device();
+        var flow = client.scan(device);
+        var owner = UUID.randomUUID().toString();
+        market.profiles.put(owner, Map.of("preferred_username", "wx_generated123",
+                "name", "集市名称", "nickname", "集市昵称"));
+        client.login(flow, null, owner);
+        assertEquals(200, client.confirm(flow, "bind-display-name").getStatusCode().value());
+        assertEquals("集市昵称", BindingTestClient.data(account(device)).get("username"));
+        market.profiles.put(owner, Map.of("preferred_username", "wx_generated123", "name", "更新名称"));
+        assertEquals("更新名称", BindingTestClient.data(account(device)).get("username"));
+        market.profiles.put(owner, Map.of("preferred_username", "wx_generated123"));
+        assertEquals("wx_generated123", BindingTestClient.data(account(device)).get("username"));
+    }
+
     @Test void speakerSignOutStopsOnlyItAndCannotReplayAfterRecovery() {
         var owner = UUID.randomUUID().toString();
         var first = client.device();
