@@ -288,18 +288,15 @@ def replace_product(directory, backend, hardware, previous, replacement, progres
         if result["status"] != "pending" or (revision is None and result.get("device_verified_at_ms") is not None):
             raise DeliveryError("Product replacement cannot change a verified or completed delivery")
         hardware.verify_baseline(state["baseline"])
-        report = hardware.report()
-        try:
-            validate_hardware(report, state, state["identity"]["device_id"])
-        except DeliveryError:
-            if revision is None:
-                raise
-            validate_hardware(report, dict(state, artifacts=replacement), state["identity"]["device_id"])
         if revision is None:
-            # Recheck after the physical boot report before fixing the replacement intent.
-            result = validate_operation(backend.get(state), state)
-            if result["status"] != "pending" or result.get("device_verified_at_ms") is not None:
-                raise DeliveryError("Device verification changed; no replacement was written")
+            report = hardware.report()
+            validate_hardware(report, state, state["identity"]["device_id"])
+        # A half-written image may not boot. Resume from the durable previous
+        # report and verified physical baseline; require a fresh report after writing.
+        result = validate_operation(backend.get(state), state)
+        if result["status"] != "pending" or (revision is None and result.get("device_verified_at_ms") is not None):
+            raise DeliveryError("Device verification changed; no replacement was written")
+        if revision is None:
             revision = dict(phase="prepared", previous_artifacts=previous,
                             replacement_artifacts=replacement, previous_report=report)
             state["product_revision"] = revision

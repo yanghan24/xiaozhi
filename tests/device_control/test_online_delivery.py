@@ -101,13 +101,17 @@ class Hardware:
     def flash(self, kind, baseline):
         self.verify_baseline(baseline)
         self.flashes.append(kind)
+        if kind == "product" and self.fail == "product-mid-write":
+            self.image = "incomplete"
+            self.fault("product-mid-write")
         self.image = kind
         if kind == "product" and self.next_product_elf:
             self.product_elf = self.next_product_elf
         self.fault(kind + ("-after-write" if self.identity else ""))
 
     def report(self):
-        assert self.image == "product"
+        if self.image != "product":
+            raise delivery.DeliveryError("No running product application")
         for value in self.backend.operations.values():
             if self.verify_device and self.identity == value["identity"]:
                 value["device_verified_at_ms"] = 100
@@ -367,6 +371,20 @@ class DeliveryTests(unittest.TestCase):
                                      previous, replacement, self.progress.append)
         self.assertEqual(self.hardware.flashes, [])
         self.assertEqual(self.hardware.writes, [])
+
+    def test_product_replacement_can_resume_when_interrupted_image_cannot_boot(self):
+        previous, replacement, saved = self.pending_product_revision()
+        self.hardware.fail = "product-mid-write"
+        with self.assertRaisesRegex(delivery.DeliveryError, "injected hardware interruption"):
+            delivery.replace_product(self.directory, self.backend, self.hardware,
+                                     previous, replacement, self.progress.append)
+        self.assertEqual(self.hardware.image, "incomplete")
+        result = delivery.replace_product(self.directory, self.backend, self.hardware,
+                                          previous, replacement, self.progress.append)
+        self.assertEqual(result["product_revision"]["phase"], "verified")
+        self.assertEqual(result["write_receipt"], saved["write_receipt"])
+        self.assertEqual(self.hardware.writes, [])
+        self.assertEqual(self.backend.complete_calls, [])
 
     def test_product_replacement_rejects_other_hardware_or_unrecognized_running_image(self):
         previous, replacement, _ = self.pending_product_revision()
