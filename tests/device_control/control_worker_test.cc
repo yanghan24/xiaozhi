@@ -36,6 +36,23 @@ const char* AllowedState =
     R"({"version":1,"code":"OK","data":{"device_id":"speaker-a","revision":28,"permission_version":4,"server_time_ms":1000000,"binding_state":"bound","use_permission":"allowed","reason":"ready","binding_request":null,"lease":{"permission_version":4,"expires_at_ms":1060000,"expires_in_ms":60000},"voice":{"url":"wss://speaker.example:8443/xiaozhi/v1/","token":"voice-token","expires_at_ms":1300000,"protocol_version":1,"permission_version":4}}})";
 const char* NullableAccount =
     R"({"version":1,"code":"OK","data":{"device_id":"speaker-a","permission_version":4,"username":null,"balance":null}})";
+const char* UnboundState =
+    R"({"version":1,"code":"OK","data":{"device_id":"speaker-a","revision":29,"permission_version":5,"server_time_ms":1000000,"binding_state":"unbound","use_permission":"blocked","reason":"unbound","binding_request":null,"lease":null,"voice":null}})";
+
+bool Released() {
+    return outcome == "success" || outcome == "signed-out" || outcome == "reauth" ||
+           outcome == "auth-pending";
+}
+
+std::string InitialState() {
+    if (outcome != "signed-out" && outcome != "reauth" && outcome != "auth-pending")
+        return AllowedState;
+    const std::string reason = outcome == "signed-out" ? "user_signed_out"
+                               : outcome == "reauth"  ? "market_auth_required"
+                                                       : "market_auth_pending";
+    return R"({"version":1,"code":"OK","data":{"device_id":"speaker-a","revision":28,"permission_version":4,"server_time_ms":1000000,"binding_state":"bound","use_permission":"blocked","reason":")" +
+           reason + R"(","binding_request":null,"lease":null,"voice":null}})";
+}
 
 bool Fatal() {
     return outcome == "unauthorized" || outcome == "forbidden" || outcome == "tls" ||
@@ -115,15 +132,17 @@ HttpResult ControlRequest(const std::string& url, const std::string& method, con
           "worker must use the provisioned device identity");
     if (url.find("/state") != std::string::npos) {
         Check(method == "GET", "state synchronization must use GET");
+        if (sent_operation && Released())
+            return {200, UnboundState, {}, {}, HttpFailure::None, 1};
         if (sent_operation)
             CheckBeforeState();
-        return {200, AllowedState, {}, {}, HttpFailure::None, 1};
+        return {200, InitialState(), {}, {}, HttpFailure::None, 1};
     }
     Check(url == "https://speaker.example:8443/xiaozhi/device-control/v1/" + operation,
           "worker chose an unexpected menu endpoint");
     Check(!sent_operation, "worker must synchronize state before retrying the menu operation");
     Check(method == (operation == "account" ? "GET" : "POST"), "wrong menu method");
-    if (operation == "sign-out")
+    if (operation == "unbind")
         Check(body == R"({"expected_permission_version":4})",
               "sign-out must retain the explicitly confirmed permission version");
     sent_operation = true;
@@ -136,10 +155,10 @@ HttpResult ControlRequest(const std::string& url, const std::string& method, con
 
 int main(int argc, char** argv) {
     try {
-        Check(argc == 3, "usage: control_worker_tests account|sign-out outcome");
+        Check(argc == 3, "usage: control_worker_tests account|unbind outcome");
         operation = argv[1];
         outcome = argv[2];
-        Check(operation == "account" || operation == "sign-out", "unknown operation");
+        Check(operation == "account" || operation == "unbind", "unknown operation");
         response.failure = device_control::HttpFailure::None;
         if (outcome == "unauthorized")
             response.status = 401;
@@ -160,12 +179,24 @@ int main(int argc, char** argv) {
         else if (outcome == "nullable") {
             response.status = 200;
             response.body = NullableAccount;
+        } else if (Released()) {
+            response.status = 200;
+            response.body = R"({"version":1,"code":"OK","data":{"permission_version":5,"binding_state":"unbound"}})";
         } else
             Check(false, "unknown outcome");
         auto& control = DeviceControl::GetInstance();
         control.SetCallbacks(
             [&](const DeviceControlView& view) {
-                if (!view.voice_allowed || opened)
+                if (sent_operation && Released() && view.reason == "unbound") {
+                    Check(!view.sign_out_pending && !control.IsVoiceAllowed(),
+                          "confirmed unbinding stays silent and clears the pending operation");
+                    const auto account = control.GetAccountView();
+                    Check(account.can_scan && !account.can_sign_out && account.username.empty() &&
+                              account.balance.empty(),
+                          "released device offers a new login without any previous account data");
+                    throw Finished{};
+                }
+                if (view.permission_version != 4 || opened)
                     return;
                 opened = true;
                 if (operation == "account")

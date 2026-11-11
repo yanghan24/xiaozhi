@@ -62,7 +62,8 @@ private:
 };
 
 // Keep the original permission version across timeouts. Only a fresh state can
-// confirm that the device signed out or that the request was superseded.
+// confirm unbinding or that a later permission superseded the request. Rejection
+// keeps the local audio stop until explicit retry or a subsequent permission.
 class SignOutRequest {
 public:
     bool Begin(uint64_t permission);
@@ -72,7 +73,9 @@ public:
     bool CanSend() const { return Pending() && rejection_ == DeviceSignOutStatus::Idle; }
     uint64_t Expected() const { return expected_; }
     DeviceSignOutStatus Status() const {
-        return Pending() ? DeviceSignOutStatus::Pending : status_;
+        if (!Pending())
+            return status_;
+        return rejection_ == DeviceSignOutStatus::Idle ? DeviceSignOutStatus::Pending : rejection_;
     }
 
 private:

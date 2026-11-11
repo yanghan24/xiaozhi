@@ -271,14 +271,17 @@ bool ValidateSignOutResponse(const std::string& json, uint64_t expected) {
     auto root = Parse(json);
     const cJSON* data = nullptr;
     int64_t permission;
+    std::string binding;
     return expected < static_cast<uint64_t>(kSafeInt) && Envelope(root.get(), data) &&
-           Object(data, {"permission_version"}) &&
+           Object(data, {"permission_version", "binding_state"}) &&
+           String(Item(data, "binding_state"), binding) && binding == "unbound" &&
            Int(Item(data, "permission_version"), permission, 1) &&
            static_cast<uint64_t>(permission) == expected + 1;
 }
 
 bool SignOutRequest::Begin(uint64_t permission) {
-    if (Pending() || permission == 0 || permission >= static_cast<uint64_t>(kSafeInt))
+    if ((Pending() && (permission != expected_ || rejection_ == DeviceSignOutStatus::Idle)) ||
+        permission == 0 || permission >= static_cast<uint64_t>(kSafeInt))
         return false;
     expected_ = permission;
     rejection_ = DeviceSignOutStatus::Idle;
@@ -291,13 +294,11 @@ void SignOutRequest::Reject(DeviceSignOutStatus status) {
 }
 
 bool SignOutRequest::Observe(const DeviceControlView& state) {
-    if (!Pending() || state.permission_version < expected_)
+    if (!Pending() || state.permission_version <= expected_)
         return false;
-    if (state.permission_version == expected_ && rejection_ == DeviceSignOutStatus::Idle)
-        return false;
-    status_ = state.reason == "user_signed_out"      ? DeviceSignOutStatus::Idle
-              : state.permission_version > expected_ ? DeviceSignOutStatus::Failed
-                                                     : rejection_;
+    status_ = state.reason == "unbound" && state.permission_version == expected_ + 1
+                  ? DeviceSignOutStatus::Idle
+                  : DeviceSignOutStatus::Failed;
     expected_ = 0;
     return true;
 }

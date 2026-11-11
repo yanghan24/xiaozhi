@@ -1357,14 +1357,14 @@ void StandbyDashboard::UpdateSettingsView() {
     const char* status = SettingsText("账号信息暂不可用", "Account unavailable");
     if (pending) {
         status = account.status == DeviceAccountStatus::Offline
-                     ? SettingsText("联网后继续退出", "Reconnect to sign out")
-                     : SettingsText("正在退出", "Signing out");
+                     ? SettingsText("联网后继续解绑", "Reconnect to unbind")
+                     : SettingsText("正在退出并解绑", "Unbinding");
     } else if (confirm) {
-        status = SettingsText("确认退出本台音箱？", "Sign out this speaker?");
+        status = SettingsText("解绑后其他账号可扫码登录", "Other accounts can sign in after unbinding");
     } else if (account.can_sign_out && account.sign_out == DeviceSignOutStatus::Unsupported) {
-        status = SettingsText("服务暂不支持本机退出", "Server update needed");
+        status = SettingsText("后台需升级以支持解绑", "Server update needed to unbind");
     } else if (account.can_sign_out && account.sign_out == DeviceSignOutStatus::Failed) {
-        status = SettingsText("退出未完成，可重试", "Could not sign out");
+        status = SettingsText("解绑未完成，请重试", "Unbinding failed; retry");
     } else {
         switch (account.status) {
             case DeviceAccountStatus::Offline:
@@ -1374,7 +1374,7 @@ void StandbyDashboard::UpdateSettingsView() {
                 status = SettingsText("请扫码登录", "Scan QR to sign in");
                 break;
             case DeviceAccountStatus::SignedOut:
-                status = SettingsText("已退出登录", "Signed out");
+                status = SettingsText("已停用，仍绑定原账号", "Stopped; still bound");
                 break;
             case DeviceAccountStatus::Synchronizing:
                 status = SettingsText("正在同步登录状态", "Syncing login");
@@ -1402,11 +1402,11 @@ void StandbyDashboard::UpdateSettingsView() {
               confirm || !account.can_sign_out || !ready || !account.balance.empty());
     SetHidden(settings_sign_out_button_, !account.can_sign_out && !pending && !account.can_scan);
     SetButtonEnabled(settings_sign_out_button_, !pending);
-    SetLabelText(settings_sign_out_label_, pending   ? SettingsText("退出中", "Signing out")
-                                           : confirm ? SettingsText("确认退出", "Confirm")
+    SetLabelText(settings_sign_out_label_, pending   ? SettingsText("解绑中", "Unbinding")
+                                           : confirm ? SettingsText("确认退出并解绑", "Confirm unbinding")
                                            : account.can_scan
                                                ? SettingsText("扫码登录", "Scan QR")
-                                               : SettingsText("退出登录", "Sign out"));
+                                               : SettingsText("退出并解除绑定", "Sign out and unbind"));
 
     const bool can_change = WifiSettingsAvailable() && wifi.state != WifiLinkState::Unsupported;
     const bool off = wifi.state == WifiLinkState::Off;

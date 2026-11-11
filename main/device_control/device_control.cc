@@ -173,17 +173,26 @@ struct DeviceControl::Impl {
             account.status = DeviceAccountStatus::Offline;
             return account;
         }
-        if (sign_out.Pending())
+        if (sign_out.Pending()) {
+            account.permission_version = sign_out.Expected();
+            account.can_sign_out = sign_out.Status() != DeviceSignOutStatus::Pending;
             return account;
+        }
 
         const auto view = model.View();
+        account.permission_version = view.permission_version;
+        account.can_sign_out = view.permission_version > 0 &&
+                               (view.reason == "ready" || view.reason == "user_signed_out" ||
+                                view.reason == "market_auth_required" ||
+                                view.reason == "market_auth_pending");
         if (!model.Allowed(now)) {
-            account.can_scan = view.reason == "unbound" || view.reason == "user_signed_out" ||
-                               view.reason == "market_auth_required" ||
-                               view.reason == "market_auth_pending";
-            account.status = view.reason == "user_signed_out" ? DeviceAccountStatus::SignedOut
-                             : account.can_scan               ? DeviceAccountStatus::NeedsLogin
-                                                              : DeviceAccountStatus::Synchronizing;
+            account.can_scan = view.reason == "unbound";
+            if (view.reason == "user_signed_out")
+                account.status = DeviceAccountStatus::SignedOut;
+            else if (account.can_scan || account.can_sign_out)
+                account.status = DeviceAccountStatus::NeedsLogin;
+            else
+                account.status = DeviceAccountStatus::Synchronizing;
             return account;
         }
         account.permission_version = view.permission_version;
@@ -292,7 +301,7 @@ struct DeviceControl::Impl {
                             ? std::string("account")
                             : model.AutoIntent();
                     if (!refresh && sign_out.CanSend() && Now() >= sign_out_retry_at) {
-                        endpoint = "sign-out";
+                        endpoint = "unbind";
                         method = "POST";
                         sent_sign_out = sign_out.Expected();
                         body = "{\"expected_permission_version\":" + std::to_string(sent_sign_out) +

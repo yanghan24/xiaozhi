@@ -971,8 +971,8 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         title = "Wi-Fi 已断开";
         detail = "可在设置中重新连接";
     } else if (view.sign_out_pending) {
-        title = "正在退出本台音箱";
-        detail = "请稍候";
+        title = "正在退出并解除绑定";
+        detail = "可在设置查看进度或重试";
     } else if (view.reason == "unbound") {
         title = "扫码登录并绑定";
     } else if (view.reason == "user_signed_out") {

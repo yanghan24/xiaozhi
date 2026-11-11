@@ -244,10 +244,12 @@ int main() {
                                                    "speaker-a", 6, username, points),
               "malformed balances are rejected");
         Check(device_control::ValidateSignOutResponse(
-                  R"({"version":1,"code":"OK","data":{"permission_version":5}})", 4) &&
+                  R"({"version":1,"code":"OK","data":{"permission_version":5,"binding_state":"unbound"}})", 4) &&
                   !device_control::ValidateSignOutResponse(
-                      R"({"version":1,"code":"OK","data":{"permission_version":6}})", 4),
-              "a receipt can only name the immediate successor");
+                      R"({"version":1,"code":"OK","data":{"permission_version":6,"binding_state":"unbound"}})", 4) &&
+                  !device_control::ValidateSignOutResponse(
+                      R"({"version":1,"code":"OK","data":{"permission_version":5}})", 4),
+              "a receipt must confirm unbinding at the immediate successor permission");
 
         device_control::SignOutRequest request;
         DeviceControlView ready;
@@ -260,15 +262,24 @@ int main() {
               "a subsequent recovery cancels even a lost logout response");
         Check(request.Begin(6), "explicit logout can target a newly confirmed permission");
         request.Reject(DeviceSignOutStatus::Unsupported);
-        Check(!request.CanSend() && request.Pending() && request.Observe(lifecycle.View()) &&
+        Check(!request.CanSend() && request.Pending() && !request.Observe(lifecycle.View()) &&
                   request.Status() == DeviceSignOutStatus::Unsupported,
-              "an older server requires a fresh allowed state before lifting the local stop");
+              "an older server must not lift the local stop while the original owner remains");
+        Check(request.Begin(6) && request.CanSend(),
+              "an explicitly confirmed retry can retry only the same rejected permission");
+        auto later_permission = ready;
+        later_permission.permission_version = 7;
+        Check(request.Observe(later_permission), "a subsequent permission supersedes the attempt");
         Check(request.Begin(4), "start a logout for the original permission");
         auto signed_out = ready;
         signed_out.reason = "user_signed_out";
         signed_out.permission_version = 5;
+        Check(request.Observe(signed_out) && request.Status() == DeviceSignOutStatus::Failed,
+              "stopping voice while retaining the owner must never confirm unbinding");
+        Check(request.Begin(4), "retry a release only after explicit confirmation");
+        signed_out.reason = "unbound";
         Check(request.Observe(signed_out) && request.Status() == DeviceSignOutStatus::Idle,
-              "a fresh signed-out snapshot confirms logout even if the write response was lost");
+              "an unbound snapshot confirms release even if its write response was lost");
     }
     device_control::Model rebooted("speaker-a", "https://speaker.example:8443");
     Check(!rebooted.Allowed(0), "reboot never restores an old voice lease before synchronization");
