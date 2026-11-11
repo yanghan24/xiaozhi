@@ -33,6 +33,18 @@ public class DeviceControlController {
         return success(service.poll(identity(request), after, wait == null ? 0 : wait.intValue()));
     }
 
+    @GetMapping("/account")
+    public JsonNode account(HttpServletRequest request) {
+        return success(service.account(identity(request)));
+    }
+
+    @PostMapping(value = "/sign-out", consumes = "application/json")
+    public JsonNode signOut(HttpServletRequest request, @RequestBody String rawBody) {
+        JsonNode body = parse(rawBody);
+        fields(body, Set.of("expected_permission_version"));
+        return success(service.signOut(identity(request), version(body.path("expected_permission_version"))));
+    }
+
     private Long queryNumber(HttpServletRequest request, String name, long max) {
         String value = request.getParameter(name);
         if (value == null) return null;

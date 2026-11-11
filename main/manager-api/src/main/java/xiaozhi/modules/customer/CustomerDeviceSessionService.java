@@ -37,8 +37,7 @@ final class CustomerDeviceSessionService {
             if(number(context.session(),"permission_version")!=number(device,"permission_version")) throw new CustomerFailure(409,"STATE_CHANGED");
             long permission=next(device,"permission_version"),revision=next(device,"revision");
             String id=CustomerSecrets.random();
-            db.update("UPDATE dc_request SET status='replaced' WHERE device_id=? AND status='active'",device.get("device_id"));
-            db.update("UPDATE dc_device SET local_enabled=false,reason='user_signed_out',permission_version=?,revision=?,current_request_id=NULL WHERE device_id=?",permission,revision,device.get("device_id"));
+            xiaozhi.modules.devicecontrol.DeviceSignOut.store(db, device.get("device_id").toString(), permission, revision);
             db.update("INSERT INTO customer_device_operation(id,device_session_id,key_hash,permission_version,revision,created_at_ms) VALUES (?,?,?,?,?,?)",id,sessionId,CustomerSecrets.hash(key),permission,revision,clock.millis());
             touch(context);
             return Map.of("operation_id",id,"permission_version",permission,"execution","stored");
