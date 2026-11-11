@@ -1,0 +1,159 @@
+{
+  "baseline_devices": [
+    {
+      "alias": "device-4f309155",
+      "reason": "ready",
+      "revision": 17,
+      "permission_version": 9
+    },
+    {
+      "alias": "device-25855fcf",
+      "reason": "ready",
+      "revision": 13,
+      "permission_version": 9
+    }
+  ],
+  "loss": {
+    "observed_at_epoch": 1794382795.7198985,
+    "phase": "remote_revocation_and_discarded_response",
+    "witness": {
+      "observed_at_epoch": 1794382795.696255,
+      "upstream_http": 200,
+      "upstream_confirmed_revoked": true,
+      "upstream_calls": 1,
+      "response_discarded_for_caller": true,
+      "injection": "operator_transport_adapter; not packet_loss_or_upstream_5xx"
+    },
+    "caller_result": {
+      "phase": "attempted",
+      "http": null,
+      "outcome": "unconfirmed",
+      "automatic_retry": false
+    },
+    "repeat_blocked_before_transport": true,
+    "old_key": {
+      "phase": "observed",
+      "old_key_http": 401,
+      "authorization_outcome": "requires_correlated_evidence"
+    },
+    "old_access_userinfo_http": 401,
+    "natural_refresh_due_epoch": 1794382848.695,
+    "recovery": "pending_natural_detection_and_user_reauthorization"
+  },
+  "observations": [
+    {
+      "observed_at_epoch": 1794382850.251211,
+      "grant_status": "REAUTH_REQUIRED",
+      "generation_changed": false,
+      "same_owner_device_count": 2,
+      "devices": [
+        {
+          "alias": "device-4f309155",
+          "reason": "market_auth_required",
+          "revision": 18,
+          "stop_ack_count": 0,
+          "permission_version": 10
+        },
+        {
+          "alias": "device-25855fcf",
+          "reason": "market_auth_required",
+          "revision": 14,
+          "stop_ack_count": 0,
+          "permission_version": 10
+        }
+      ]
+    },
+    {
+      "observed_at_epoch": 1794382921.7689486,
+      "grant_status": "REAUTH_REQUIRED",
+      "generation_changed": false,
+      "same_owner_device_count": 2,
+      "devices": [
+        {
+          "alias": "device-4f309155",
+          "reason": "market_auth_required",
+          "revision": 19,
+          "stop_ack_count": 1,
+          "permission_version": 10
+        },
+        {
+          "alias": "device-25855fcf",
+          "reason": "market_auth_required",
+          "revision": 14,
+          "stop_ack_count": 0,
+          "permission_version": 10
+        }
+      ]
+    },
+    {
+      "observed_at_epoch": 1794383106.0332832,
+      "grant_status": "ACTIVE",
+      "generation_changed": true,
+      "same_owner_device_count": 2,
+      "devices": [
+        {
+          "alias": "device-4f309155",
+          "reason": "ready",
+          "revision": 20,
+          "stop_ack_count": 0,
+          "permission_version": 11
+        },
+        {
+          "alias": "device-25855fcf",
+          "reason": "market_auth_required",
+          "revision": 14,
+          "stop_ack_count": 0,
+          "permission_version": 10
+        }
+      ],
+      "userinfo_http": 200,
+      "subject_matches": true,
+      "new_key_http": 200,
+      "balance_http": 200,
+      "balance_business_success": true,
+      "profile_fields_present": [
+        "name",
+        "nickname",
+        "preferred_username"
+      ],
+      "old_key_after_reauthorization": 401,
+      "recovery_complete": false
+    },
+    {
+      "observed_at_epoch": 1794383176.7572613,
+      "grant_status": "ACTIVE",
+      "generation_changed": true,
+      "same_owner_device_count": 2,
+      "devices": [
+        {
+          "alias": "device-4f309155",
+          "reason": "ready",
+          "revision": 20,
+          "stop_ack_count": 0,
+          "permission_version": 11
+        },
+        {
+          "alias": "device-25855fcf",
+          "reason": "ready",
+          "revision": 16,
+          "stop_ack_count": 0,
+          "permission_version": 11
+        }
+      ],
+      "userinfo_http": 200,
+      "subject_matches": true,
+      "new_key_http": 200,
+      "balance_http": 200,
+      "balance_business_success": true,
+      "profile_fields_present": [
+        "name",
+        "nickname",
+        "preferred_username"
+      ],
+      "old_key_after_reauthorization": 401,
+      "recovery_complete": true
+    }
+  ],
+  "tool_sha256": "24fb45bd7ddb79b0f721869db9d178919c467cb0bd437dde453a9030763a9cdc",
+  "temporary_plaintext_files_deleted": true
+}
