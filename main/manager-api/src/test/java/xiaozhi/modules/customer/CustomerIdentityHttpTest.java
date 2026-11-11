@@ -23,7 +23,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /** Exercises the application's actual HTTP filters, not direct controller calls. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"server.servlet.context-path=/xiaozhi", "renren.xss.enabled=true"})
+        properties = {"server.servlet.context-path=/xiaozhi", "renren.xss.enabled=true",
+                "server.forward-headers-strategy=native", "device-control.enabled=true",
+                "device-control.public-origin=https://bridge.hncig.cn:18443"})
 @Import(CustomerTestTime.class)
 class CustomerIdentityHttpTest {
     @AfterEach void resetTime() { CustomerTestTime.offset.set(0); CustomerTestTime.frozen.set(0); }
@@ -36,6 +38,97 @@ class CustomerIdentityHttpTest {
     @Autowired TestRestTemplate http;
     @Autowired JdbcTemplate db;
     @org.springframework.boot.test.web.server.LocalServerPort int port;
+
+    @ParameterizedTest
+    @ValueSource(strings={"credential", "version", "disabled", "replaced", "expired"})
+    void admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String invalidation) {
+        String device = "qr-" + UUID.randomUUID();
+        String credential = CustomerSecrets.random();
+        db.update("INSERT INTO dc_device(device_id,credential_hash) VALUES (?,?)", device, CustomerSecrets.hash(credential));
+        var deviceHeaders = new HttpHeaders();
+        deviceHeaders.setBearerAuth(credential);
+        deviceHeaders.set("Device-Id", device);
+        deviceHeaders.set("X-Forwarded-Proto", "https");
+        deviceHeaders.set("Idempotency-Key", UUID.randomUUID().toString());
+        var issued = http.postForEntity("/device-control/v1/requests", new HttpEntity<>(
+                Map.of("intent","auto","expected_permission_version",1), deviceHeaders), Map.class);
+        assertEquals(200, issued.getStatusCode().value());
+        var request = (Map<?,?>)((Map<?,?>)issued.getBody().get("data")).get("binding_request");
+        String path = java.net.URI.create(request.get("verification_uri").toString()).getPath().substring("/xiaozhi".length());
+        var page = http.getForEntity(path, String.class);
+        assertEquals(200, page.getStatusCode().value());
+        var headers = new HttpHeaders();
+        headers.set("Cookie",page.getHeaders().getFirst("Set-Cookie").split(";",2)[0]);
+        headers.set("X-CSRF-Token",page.getBody().split("name=\"csrf\" value=\"")[1].split("\"")[0]);
+        headers.setOrigin("https://bridge.hncig.cn:18443");
+        var created=http.postForEntity("/customer/v1/binding-flows",new HttpEntity<>(
+                Map.of("request_handle",path.substring("/bind/".length())),headers),Map.class);
+        assertEquals(201,created.getStatusCode().value());
+        var data=(Map<?,?>)created.getBody().get("data");
+        Flow flow=new Flow(headers,data.get("flow_id").toString(),data.get("authorization_url").toString());
+        finish(flow);
+        assertEquals("IDENTITY_VERIFIED",status(flow).get("status"));
+        var state=http.exchange("/device-control/v1/state",HttpMethod.GET,new HttpEntity<>(deviceHeaders),Map.class);
+        var stateData=(Map<?,?>)state.getBody().get("data");
+        assertEquals("unbound",stateData.get("binding_state"));
+        assertEquals("blocked",stateData.get("use_permission"));
+        assertEquals(null,stateData.get("voice"));
+        // Controlled admin/state fixtures; public rotation/confirmation is not part of this slice.
+        switch (invalidation) {
+            case "credential" -> db.update("UPDATE dc_device SET credential_hash=NULL WHERE device_id=?",device);
+            case "version" -> db.update("UPDATE dc_device SET permission_version=permission_version+1 WHERE device_id=?",device);
+            case "disabled" -> db.update("UPDATE dc_device SET admitted=false WHERE device_id=?",device);
+            case "replaced" -> db.update("UPDATE dc_request SET status='replaced' WHERE device_id=?",device);
+            case "expired" -> CustomerTestTime.offset.set(600_000);
+        }
+        assertEquals(invalidation.equals("expired") ? 410 : 409,http.getForEntity(path,String.class).getStatusCode().value());
+        assertEquals(invalidation.equals("expired") ? "EXPIRED" : "CONSUMED",status(flow).get("request_status"));
+        var retry=http.postForEntity("/customer/v1/binding-flows",new HttpEntity<>(
+                Map.of("request_handle",path.substring("/bind/".length())),headers),Map.class);
+        assertEquals(invalidation.equals("expired") ? "REQUEST_EXPIRED" : "STATE_CHANGED",retry.getBody().get("code"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"{}", "{\"request_handle\":17}", "{\"request_handle\":\"x\",\"extra\":1}",
+            "{\"request_handle\":\"x\",\"request_handle\":\"y\"}", "{\"request_handle\":\"x\"} {}"})
+    void versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String body) {
+        Flow flow=start();
+        flow.headers().setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        var response=http.postForEntity("/customer/v1/binding-flows",new HttpEntity<>(body,flow.headers()),Map.class);
+        assertEquals(400,response.getStatusCode().value());
+        assertEquals("INVALID_REQUEST",response.getBody().get("code"));
+        assertEquals(java.util.Set.of("version","code","message"),response.getBody().keySet());
+        assertTrue(response.getBody().get("message") instanceof String message && !message.isBlank());
+    }
+
+    @Test
+    void versionedIdentityEntrySharesTheBrowserAndFlowWithTheCompatibilityEntry() {
+        String handle = request(600_000);
+        var page = http.getForEntity("/bind/" + handle, String.class);
+        var headers = new HttpHeaders();
+        headers.set("Cookie", page.getHeaders().getFirst("Set-Cookie").split(";", 2)[0]);
+        headers.set("X-CSRF-Token", page.getBody().split("name=\"csrf\" value=\"")[1].split("\"")[0]);
+        headers.setOrigin("https://bridge.hncig.cn:18443");
+        var created = http.postForEntity("/customer/v1/binding-flows",
+                new HttpEntity<>(Map.of("request_handle", handle), headers), Map.class);
+        assertEquals(201, created.getStatusCode().value());
+        assertEquals(1, created.getBody().get("version"));
+        assertEquals("OK", created.getBody().get("code"));
+        String id = ((Map<?,?>)created.getBody().get("data")).get("flow_id").toString();
+        var current = http.exchange("/customer/v1/binding-flows/" + id, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+        var legacy = http.exchange("/customer/binding-flows/" + id, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+        assertEquals(200, current.getStatusCode().value());
+        assertEquals(legacy.getBody().get("data"), current.getBody().get("data"));
+        assertEquals("no-store", current.getHeaders().getCacheControl());
+        var missingBrowser = http.getForEntity("/customer/v1/binding-flows/" + id, Map.class);
+        assertEquals(401, missingBrowser.getStatusCode().value());
+        assertEquals("CUSTOMER_AUTH_REQUIRED", missingBrowser.getBody().get("code"));
+        headers.setOrigin("https://attacker.example");
+        var rejected = http.postForEntity("/customer/v1/binding-flows",
+                new HttpEntity<>(Map.of("request_handle", handle), headers), Map.class);
+        assertEquals(403, rejected.getStatusCode().value());
+        assertEquals("CSRF_REJECTED", rejected.getBody().get("code"));
+    }
 
     @Test
     void olderCallbackCannotReplaceNewerGrantEvenWhenFlowsStartInSameMillisecond() throws Exception {

@@ -48,7 +48,10 @@ class ASRProviderBase(ABC):
                     handleAudioMessage(conn, message),
                     conn.loop,
                 )
-                future.result()
+                try:
+                    future.result()
+                finally:
+                    conn.asr_audio_queue.task_done()
             except queue.Empty:
                 continue
             except Exception as e:
@@ -84,6 +87,9 @@ class ASRProviderBase(ABC):
     async def handle_voice_stop(self, conn: "ConnectionHandler", asr_audio_task: List[bytes]):
         """并行处理ASR和声纹识别"""
         try:
+            gate = getattr(conn, 'product_voice_gate', None)
+            if gate is not None:
+                await gate.check_async()
             total_start_time = time.monotonic()
 
             # 数据已经是PCM直接使用

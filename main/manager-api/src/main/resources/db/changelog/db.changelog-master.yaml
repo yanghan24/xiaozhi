@@ -809,3 +809,73 @@ databaseChangeLog:
         - sqlFile:
             encoding: utf8
             path: classpath:db/changelog/202611091950.sql
+  - changeSet:
+      id: 202611091600
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091600.sql
+  - changeSet:
+      id: 202611091601
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091601.sql
+  - changeSet:
+      id: 202611091602
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611091602.sql
+  - changeSet:
+      id: 202611092000
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611092000.sql
+  - changeSet:
+      id: 202611092010
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611092010.sql
+  - changeSet:
+      id: 202611100900
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611100900.sql
+  - changeSet:
+      id: 202611100910
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611100910.sql
+  - changeSet:
+      id: 202611101000
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611101000.sql
+  - changeSet:
+      id: 202611101100
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611101100.sql
+  - changeSet:
+      id: 202611101200
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611101200.sql

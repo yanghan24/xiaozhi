@@ -1,0 +1,12 @@
+{
+  "result": "pass",
+  "externalMarket": "controlled substitute",
+  "observations": [
+    "phone consent, successful callback, clean URL",
+    "refusal and same-browser tab isolation",
+    "explicit phone confirmation commits binding; reload keeps success without a second mutation",
+    "owner device page, explicit single-device sign-out, truthful pending-ACK status and read-only reload",
+    "proxy denies admin and unknown routes; CSRF and signed notification boundary",
+    "secure HttpOnly cookie; no tokens or Key in phone result"
+  ]
+}

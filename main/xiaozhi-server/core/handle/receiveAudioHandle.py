@@ -15,6 +15,9 @@ TAG = __name__
 
 
 async def handleAudioMessage(conn: "ConnectionHandler", pcm_frame):
+    gate = getattr(conn, 'product_voice_gate', None)
+    if gate is not None:
+        await gate.check_async()
     # 当前片段是否有人说话
     have_voice = conn.vad.is_vad(conn, pcm_frame)
     # 如果设备刚刚被唤醒，短暂忽略VAD检测

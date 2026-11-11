@@ -52,7 +52,8 @@ public class ShiroConfig {
 
     @Bean("shiroFilter")
     public static ShiroFilterFactoryBean shirFilter(@Lazy WebSecurityManager securityManager,
-            @Lazy SysParamsService sysParamsService) {
+            @Lazy SysParamsService sysParamsService,
+            @Lazy xiaozhi.modules.devicecontrol.DeviceControlService deviceControlService) {
         ShiroFilterConfiguration config = new ShiroFilterConfiguration();
         config.setFilterOncePerRequest(true);
 
@@ -63,6 +64,7 @@ public class ShiroConfig {
         Map<String, Filter> filters = new HashMap<>();
         // oauth过滤
         filters.put("oauth2", new Oauth2Filter());
+        filters.put("deviceCredential", new xiaozhi.modules.devicecontrol.DeviceCredentialFilter(deviceControlService));
         // 服务密钥过滤
         filters.put("server", new ServerSecretFilter(sysParamsService));
         shiroFilter.setFilters(filters);
@@ -76,14 +78,24 @@ public class ShiroConfig {
          * role：拥有某个角色权限才能访问
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
+        filterMap.put("/device-control/**", "deviceCredential");
+        // Private endpoint checks its separate service credential and current permission.
+        filterMap.put("/internal/device-voice/v1/*", "anon");
         // Customer identity has its own browser/CSRF/OIDC validation. Never
         // authenticate these sessions as management users.
         filterMap.put("/bind/*", "anon");
         filterMap.put("/customer/binding-flows", "anon");
         filterMap.put("/customer/binding-flows/*", "anon");
+        filterMap.put("/customer/v1/binding-flows", "anon");
+        filterMap.put("/customer/v1/binding-flows/*", "anon");
+        filterMap.put("/customer/v1/binding-flows/*/confirm", "anon");
+        filterMap.put("/customer/v1/binding-flows/*/open-account", "anon");
+        filterMap.put("/customer/v1/device-sessions/*/sign-out", "anon");
+        filterMap.put("/customer/v1/device-operations/*", "anon");
         filterMap.put("/customer/oidc/callback", "anon");
         filterMap.put("/customer/oidc/backchannel-logout", "anon");
         filterMap.put("/customer/results/*", "anon");
+        filterMap.put("/customer/devices/*", "anon");
         filterMap.put("/customer/identity-error/*", "anon");
         filterMap.put("/ota/**", "anon");
         filterMap.put("/otaMag/download/**", "anon");

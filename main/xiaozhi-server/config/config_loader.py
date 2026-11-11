@@ -63,6 +63,7 @@ async def get_config_from_api_async(config):
         raise Exception("Failed to fetch server config from API")
 
     config_data["read_config_from_api"] = True
+    config_data["product-voice"] = config.get("product-voice", {})
     config_data["manager-api"] = {
         "url": config["manager-api"].get("url", ""),
         "secret": config["manager-api"].get("secret", ""),

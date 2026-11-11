@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Primary;
 class CustomerTestTime {
     static final AtomicLong offset = new AtomicLong();
     static final AtomicLong frozen = new AtomicLong();
-    @Bean @Primary
+    @Bean @Primary @org.springframework.beans.factory.annotation.Qualifier("customerTime")
     Clock testCustomerClock() {
         return new Clock() {
             public ZoneId getZone() { return ZoneOffset.UTC; }

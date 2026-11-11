@@ -36,6 +36,10 @@ import xiaozhi.modules.sys.service.SysParamsService;
 @RequiredArgsConstructor
 @RequestMapping("/ota/")
 public class OTAController {
+    @org.springframework.beans.factory.annotation.Value("${device-control.enabled:false}")
+    private boolean productControl;
+    @org.springframework.beans.factory.annotation.Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}")
+    private String productOrigin;
     private final DeviceService deviceService;
     private final SysParamsService sysParamsService;
 
@@ -45,6 +49,11 @@ public class OTAController {
             @RequestBody DeviceReportReqDTO deviceReportReqDTO,
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
             @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
+        if (productControl) {
+            // Discovery is public; only the independent control credential can obtain voice access.
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).header("Cache-Control","no-store")
+                    .body("{\"device_control\":{\"version\":1,\"base_url\":\""+productOrigin+"/xiaozhi/device-control/v1/\"}}");
+        }
         if (StringUtils.isBlank(deviceId)) {
             return createResponse(DeviceReportRespDTO.createError("Device ID is required"));
         }
@@ -64,6 +73,7 @@ public class OTAController {
     public ResponseEntity<String> activateDevice(
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
             @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
+        if (productControl) return ResponseEntity.status(403).header("Cache-Control","no-store").body("Product device control required");
         if (StringUtils.isBlank(deviceId)) {
             return ResponseEntity.status(202).build();
         }
