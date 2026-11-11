@@ -227,6 +227,8 @@ OIDC 后通道通知需验证签名、接收方、时间/事件、sid/sub 及 jt
 
 ## 6. 退出、失联及语音闸门
 
+2026-11-11 新增本机明确确认的「退出并解除绑定」，见 [ADR-0007](../adr/0007-device-local-unbind.md) 和[配套协议与验收](../planning/device-local-unbind.md)。新固件调用 `POST /xiaozhi/device-control/v1/unbind`，本台设备凭据鉴权，body 为 `{"expected_permission_version":N}`；成功 `data: {permission_version:N+1,binding_state:"unbound"}`。同一事务停用许可、清除本台归属、递增归属代际并替换旧请求；其后仅可取得新 bind 码，任意集市账号均可重新绑定。旧请求不能解绑后来重新绑定的设备，旧页面和旧语音凭据不得跨归属生效。下文旧 `sign-out` 及手机退出的停用/恢复协议继续适用，不能作为本机解绑成功的替代证据。
+
 退出事务先保存目标设备 blocked/user_signed_out 并递增 permission_version/revision；同一管理数据库事务生成可可靠传播的状态事件。语音端立即禁止该台的新智能体/TTS 调用、停止发送和旧任务输出，唤醒控制长轮询。通知必须支持多实例，不能只修改本机内存或只依赖可能丢失的 pub/sub。
 
 语音 token 签发、握手、调用及输出必须核对当前设备准入、归属、许可版本和有效业务授权；旧 token、现有多个连接、旧 TTS 回调、重启后的任务均不得绕过。对每次调用/输出采用权威校验或有明确撤销屏障的方案，不能把过期前的缓存许可当作退出后继续调用的理由。实际已被集市受理的生成可能继续结算，不能将本地停播描述为远端取消。

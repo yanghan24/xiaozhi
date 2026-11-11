@@ -54,7 +54,7 @@ public class DeviceCredentialFilter extends PathMatchingFilter {
         boolean state = path.equals("/device-control/v1/state") && request.getMethod().equals("GET");
         boolean account = path.equals("/device-control/v1/account") && request.getMethod().equals("GET");
         boolean mutation = Set.of("/device-control/v1/requests", "/device-control/v1/state-acks",
-                "/device-control/v1/sign-out").contains(path)
+                "/device-control/v1/sign-out", "/device-control/v1/unbind").contains(path)
                 && request.getMethod().equals("POST");
         if (!state && !account && !mutation) throw new ControlFailure(400, "INVALID_REQUEST");
         if (mutation) {
