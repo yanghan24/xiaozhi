@@ -1,0 +1,50 @@
+{
+  "captured_at_utc": "2026-11-10T03:27:30.764219+00:00",
+  "files": {
+    "association.json": {
+      "bytes": 1741,
+      "sha256": "eca93bee3245463c4d71f943d53dc9ff1af6356389903272880b66ac1f2508d0"
+    },
+    "conversation-events.json": {
+      "bytes": 32935,
+      "sha256": "b31de342a89d0f8240e0c66a43250de953c6b111f89c29b358c17c611e2a2f88"
+    },
+    "protocol-chain.json": {
+      "bytes": 213,
+      "sha256": "f993a5dade40d48da91e19f3dcc4664ff796eac7fb6087e4aaa125c1cfd4c15f"
+    },
+    "real-chain.json": {
+      "bytes": 215,
+      "sha256": "7ae4d6b74d0110e9784b64c1f3c1104276b5b578529dee02d2b1df2f4101c4a0"
+    },
+    "resources.json": {
+      "bytes": 3745,
+      "sha256": "3c6acd76e7170ecba178a9f234d6a38e6796318b39add9fb27d14d5f1b0aa838"
+    },
+    "restart-after.json": {
+      "bytes": 929,
+      "sha256": "6245202fc64313f0e8259091595bddd95e466440f0e3659dec5e0323453be47b"
+    },
+    "restart-before.json": {
+      "bytes": 978,
+      "sha256": "344d3561fa9c850f8c43eb2bd3f3d3a7366c6a2187f77ad64d760b7d9755c51b"
+    },
+    "runtime-artifacts.json": {
+      "bytes": 16791,
+      "sha256": "9e9aa535fcf06b981d76d0d3e09088939b3af13e2df799082d3b5482289be5c7"
+    },
+    "versions.json": {
+      "bytes": 7606,
+      "sha256": "cf91c76d3e390ee22bb8b1d27f6fd661bca8b4a5220f5bc667598a7e593cc9f7"
+    }
+  },
+  "excludes": [
+    "credentials",
+    "raw logs",
+    "recordings",
+    "conversation text",
+    "environment values",
+    "capability URLs"
+  ],
+  "runtime_artifacts_note": "Runtime JAR and Python checksums collected after initial snapshot"
+}

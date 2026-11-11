@@ -11,3 +11,7 @@ status: accepted
 [ADR-0005](0005-backend-owns-device-management.md) 明确设备管理及绑定归属由小智管理后台维护，账号、应用和权限继续以集市为准；此前将设备管理归于集市的 [ADR-0002](0002-market-owns-device-bindings.md) 已废止。
 
 [ADR-0003](0003-oidc-web-login-for-device-binding.md) 将客户入口调整为设备屏幕二维码引导的网页与 OIDC 登录流程，替换本记录中的微信小程序入口。
+
+## 2026-11-10 接入范围调整
+
+本期接入对象改为 [MCP 知识库问答](../planning/mcp-knowledge-scope-2026-11-10.md)，智能体需求留待后续。本文设备管理、账号身份及资源权限职责继续适用；知识库凭据与账号的授权关系按实际契约核实，不直接套用旧应用 Key 的生命周期。

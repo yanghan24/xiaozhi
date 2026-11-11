@@ -1,0 +1,30 @@
+# Standalone feasibility project; do not combine with the product Compose files.
+# Run with --project-name xiaozhi-weather43 --project-directory <repository root>.
+services:
+  openmeteo:
+    # Resolve and record an official image digest before starting; no floating tags.
+    image: ${OPEN_METEO_IMAGE:?Set an official Open-Meteo image@sha256 digest}
+    environment:
+      REMOTE_DATA_DIRECTORY: https://openmeteo.s3.amazonaws.com/data/
+      CACHE_SIZE: 8GB
+    ports:
+      - "127.0.0.1:18084:8080"
+    volumes:
+      - ./.runtime/weather43/model-data:/app/data
+    tmpfs:
+      - /tmp:size=134217728,mode=1777
+    read_only: true
+    cpus: 2.0
+    mem_limit: 8g
+    memswap_limit: 8g
+    pids_limit: 256
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

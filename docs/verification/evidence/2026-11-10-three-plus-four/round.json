@@ -1,0 +1,103 @@
+{
+  "round": "latest 3+4 question selected after user confirmation",
+  "device_alias": "P4-C6-...72:80",
+  "agent_name": "issue-6-esp32-p4-test",
+  "session_id": "94ddeb39-0de7-475c-9d3a-2aafa3bd07ed",
+  "source_export_at_utc": "2026-11-10T04:52:57.658739+00:00",
+  "selected_window_utc": [
+    "2026-11-10T04:51:34Z",
+    "2026-11-10T04:51:42Z"
+  ],
+  "bridge_requests": [
+    {
+      "event": "market_request",
+      "request_id": "cb4b4c785b0b6dc85016676fea097ef9",
+      "operation": "asr",
+      "started_at_utc": "2026-11-10T04:51:34.657417+00:00",
+      "stage_offsets_ms": {
+        "authorization": 0.02,
+        "upload": 0.27,
+        "wav_validation": 2.2,
+        "asr_submit": 2.56,
+        "asr_poll": 311.64,
+        "asr_result_download": 1667.55,
+        "asr_complete": 1880.92
+      },
+      "bridge_http_status": 200,
+      "upstream_http_status": 200,
+      "upstream_error_code": null,
+      "error_type": null,
+      "stage": "asr_complete",
+      "upload_session_id": "94ddeb39-0de7-475c-9d3a-2aafa3bd07ed",
+      "finished_at_utc": "2026-11-10T04:51:36.539201+00:00",
+      "elapsed_ms": 1881.78
+    },
+    {
+      "event": "market_request",
+      "request_id": "06d885784ad77cd4fa40a912a0b75a21",
+      "operation": "llm",
+      "started_at_utc": "2026-11-10T04:51:36.568416+00:00",
+      "stage_offsets_ms": {
+        "authorization": 0.01,
+        "llm_input": 0.21,
+        "llm_submit": 0.59,
+        "llm_complete": 1017.93
+      },
+      "bridge_http_status": 200,
+      "upstream_http_status": 200,
+      "upstream_error_code": null,
+      "error_type": null,
+      "stage": "llm_complete",
+      "first_stream_chunk_ms": 266.55,
+      "finished_at_utc": "2026-11-10T04:51:37.587237+00:00",
+      "elapsed_ms": 1018.83
+    }
+  ],
+  "voice_events": [
+    {
+      "time_utc": "2026-11-10T04:51:34.653094073Z",
+      "kind": "asr_file",
+      "session_id": "94ddeb39-0de7-475c-9d3a-2aafa3bd07ed"
+    },
+    {
+      "time_utc": "2026-11-10T04:51:36.541735492Z",
+      "kind": "asr_text",
+      "text": "3+4等于几？"
+    },
+    {
+      "time_utc": "2026-11-10T04:51:36.543380431Z",
+      "kind": "llm_input",
+      "text": "3+4等于几？"
+    },
+    {
+      "time_utc": "2026-11-10T04:51:39.300174504Z",
+      "kind": "tts_text",
+      "text": "SentenceType.FIRST, 七呀"
+    },
+    {
+      "time_utc": "2026-11-10T04:51:41.033239611Z",
+      "kind": "tts_text",
+      "text": "SentenceType.FIRST, 这题闭着眼都能答"
+    },
+    {
+      "time_utc": "2026-11-10T04:51:41.271804949Z",
+      "kind": "tts_text",
+      "text": "SentenceType.LAST, None"
+    }
+  ],
+  "matching_basis": "User specified the question; latest exact ASR text match. ASR upload carries session UUID. LLM and TTS linked by adjacent single-turn time window; not a propagated cross-service turn ID.",
+  "physical_playback_confirmation": "Onsite user reports 6.30 seconds from stopping speech to complete playback for the question 三加四等于几; this is user feedback, not a firmware playback ACK.",
+  "actual_speech_end_to_speaker_start_ms": null,
+  "actual_speech_end_to_playback_end_ms": 6300,
+  "onsite_measurement": {
+    "evidence_source": "onsite_user_report",
+    "question": "三加四等于几",
+    "start_event": "user_finished_speaking",
+    "end_event": "device_finished_playing_complete_answer",
+    "elapsed_seconds": 6.30,
+    "timing_method": null,
+    "report_saved_at_utc": "2026-11-10T04:53:07Z",
+    "actual_test_wallclock": null,
+    "note": "The saved time is not the actual speech or playback time. User supplied the duration and clarified its endpoints; no device timestamps or timing tool were supplied."
+  }
+}
