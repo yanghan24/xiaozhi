@@ -18,6 +18,9 @@ async def handleAudioMessage(conn: "ConnectionHandler", pcm_frame):
     gate = getattr(conn, 'product_voice_gate', None)
     if gate is not None:
         await gate.check_async()
+    # Playback input belongs to the device's wake-word detector, not ASR/VAD.
+    if conn.config.get("interrupt_mode", "wake_word") == "wake_word" and conn.client_is_speaking:
+        return
     # 当前片段是否有人说话
     have_voice = conn.vad.is_vad(conn, pcm_frame)
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
@@ -44,6 +47,9 @@ async def resume_vad_detection(conn: "ConnectionHandler"):
 
 
 async def startToChat(conn: "ConnectionHandler", text):
+    # An ASR request started before playback may finish after playback began.
+    if conn.config.get("interrupt_mode", "wake_word") == "wake_word" and conn.client_is_speaking:
+        return
     # 检查输入是否是JSON格式（包含说话人信息）
     speaker_name = None
     actual_text = text

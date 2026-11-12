@@ -1188,8 +1188,8 @@ class ConnectionHandler:
         emotion_flag = True
         try:
             for response in llm_responses:
-                if self.client_abort:
-                    break
+                if self.client_abort or current_sentence_id != self.sentence_id:
+                    return
                 if self.intent_type == "function_call" and functions is not None:
                     content, tools_call = response
                     if "content" in response:
@@ -1270,6 +1270,8 @@ class ConnectionHandler:
                         content_type=ContentType.ACTION,
                     )
                 )
+            return
+        if self.client_abort or current_sentence_id != self.sentence_id:
             return
         # 处理function call
         if tool_call_flag:
@@ -1402,9 +1404,11 @@ class ConnectionHandler:
                         enqueue_tool_report(self, tool_call_data['name'], tool_input, str(e), report_tool_call=False)
 
                 # 统一处理工具调用结果
-                if tool_results:
+                if tool_results and not self.client_abort and current_sentence_id == self.sentence_id:
                     self._handle_function_result(tool_results, depth=depth, streamed_text=streamed_text)
 
+        if self.client_abort or current_sentence_id != self.sentence_id:
+            return
         # 存储对话内容
         if len(response_message) > 0:
             text_buff = "".join(response_message)

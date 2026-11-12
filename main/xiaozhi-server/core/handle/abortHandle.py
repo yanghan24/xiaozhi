@@ -11,6 +11,8 @@ async def handleAbortMessage(conn: "ConnectionHandler"):
     # 设置成打断状态，会自动打断llm、tts任务
     conn.close_after_chat = False
     conn.client_abort = True
+    # Invalidate work already held by LLM/TTS workers, beyond the drained queues.
+    conn.sentence_id = None
     if getattr(conn, 'product_voice_gate', None) is not None and conn.asr is not None:
         conn.asr.cancel()
     conn.clear_queues()

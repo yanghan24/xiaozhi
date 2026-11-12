@@ -67,6 +67,9 @@ tool_call_timeout: 30
 enable_wakeup_words_response_cache: true
 # 开场是否回复唤醒词
 enable_greeting: true
+# 播报中仅允许设备唤醒词“你好小智”打断；auto 保留原自动语音打断。
+# 按钮停止、账号权限失效等显式停播仍然有效。
+interrupt_mode: wake_word
 # 说完话是否开启提示音
 enable_stop_tts_notify: false
 # 说完话是否开启提示音，音效地址

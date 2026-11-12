@@ -64,6 +64,8 @@ async def get_config_from_api_async(config):
 
     config_data["read_config_from_api"] = True
     config_data["product-voice"] = config.get("product-voice", {})
+    # This transport policy is local even when agent/model settings come from API.
+    config_data["interrupt_mode"] = config.get("interrupt_mode", "wake_word")
     config_data["manager-api"] = {
         "url": config["manager-api"].get("url", ""),
         "secret": config["manager-api"].get("secret", ""),

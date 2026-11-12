@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 from core.utils.dialogue import Message
 from core.providers.asr.dto.dto import InterfaceType
 from core.handle.receiveAudioHandle import startToChat
+from core.handle.abortHandle import handleAbortMessage
 from core.handle.reportHandle import enqueue_asr_report
 from core.handle.sendAudioHandle import send_stt_message, send_tts_message
 from core.handle.textMessageHandler import TextMessageHandler
@@ -27,6 +28,15 @@ class ListenTextMessageHandler(TextMessageHandler):
         return TextMessageType.LISTEN
 
     async def handle(self, conn: "ConnectionHandler", msg_json: Dict[str, Any]) -> None:
+        if msg_json.get("state") == "detect" and conn.config.get("interrupt_mode", "wake_word") == "wake_word":
+            _, wake_text = remove_punctuation_and_length(msg_json.get("text", ""))
+            if conn.client_is_speaking:
+                if wake_text == "你好小智":
+                    await handleAbortMessage(conn)
+                return
+            # Some devices send both abort and detect for the same wake event.
+            if conn.client_abort and wake_text == "你好小智":
+                return
         if "mode" in msg_json:
             conn.client_listen_mode = msg_json["mode"]
             conn.logger.bind(tag=TAG).debug(
