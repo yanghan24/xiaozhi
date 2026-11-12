@@ -11,7 +11,7 @@
 | 应用更新 | 只写已核对的当前应用槽，保留 NVS、bootloader、分区表、otadata、assets。B 已通过全量应用读回及写入前后 NVS 字节一致性核对 |
 | OTA | 既有实现使用 `esp_ota_get_next_update_partition` 和 `esp_ota_begin/write/end` 写应用槽；真实 OTA 尚未验证，当前公网发现接口不分发固件 |
 | 重新配网 | 通过既有 Wi-Fi 配网流程修改网络设置。B 已重新配网，机器报告保持原 P4/C6、稳定设备 ID 和新 ELF，用户确认显示及原账号正常 |
-| 正常恢复出厂 | 通用 `SystemReset` 调用按命名空间清理的 `ResetUserSettings`，跳过 `device_ctrl`；当前 P4 的实际恢复入口及真机结果待验证 |
+| 正常恢复出厂 | 通用 `SystemReset` 调用按命名空间清理的 `ResetUserSettings`，跳过 `device_ctrl`；P4 设置页二次确认入口已完成[候选及本机准备](../verification/2026-11-12-p4-maintenance-preparation.md)，尚未刷入 B，真机结果待验证 |
 | 普通 NVS 初始化失败 | 主程序停止启动，不自动整分区擦除。产品和维护镜像均在最终链接包装两个 NVS 整分区擦除 API，依赖组件同样受保护 |
 | 全片擦除或严重损坏 | 失去身份时拒绝产品接入。布局、otadata、可用 NVS 或 anchor 不可读时，当前工具会停止，另需受控修复；没有交付自动重建布局或整分区修复工序 |
 
