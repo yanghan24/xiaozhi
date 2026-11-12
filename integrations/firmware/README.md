@@ -1,6 +1,8 @@
 # P4 身份保留与授权补发补丁
 
-关联 [#42](https://github.com/yanghan24/xiaozhi/issues/42)。本目录交付独立固件工程的增量源码；主项目仍为服务端仓库，不包含完整 ESP32 固件基线或私有构建配置。
+完整固件源码现同步到本仓库的 [`firmware/p4`](https://github.com/yanghan24/xiaozhi/tree/firmware/p4) 分支，当前烧录版与恢复出厂候选分别通过固定标签和 GitHub Releases 提供源码、应用镜像与校验值。版本入口及后续同步要求见[固件同步与发布](../../docs/development/firmware-publishing.md)。本目录继续保留原增量补丁。
+
+关联 [#42](https://github.com/yanghan24/xiaozhi/issues/42)。本目录交付独立固件工程的增量源码；服务端 `main` 的目录树不包含完整 ESP32 固件基线，完整源码由上述独立固件分支提供，实际构建配置随 Release 附件管理。
 
 | 项目 | 固定值 |
 | --- | --- |
@@ -10,7 +12,7 @@
 | 增量文件 | [42-device-identity-recovery.patch](42-device-identity-recovery.patch) |
 | 增量 SHA-256 | `e69c70ab8d937c8a7c42834cfd43b58b25933be7615a9b225fe8159f5ac62536` |
 
-现场完整基线在 `/home/bimcenter/Projects/xiaozhi/.worktrees/41-firmware-online-delivery`，受测实现位于其同级的 `42-firmware-identity-recovery`，分支为 `feat/42-identity-recovery`。旧 `/home/bimcenter/Projects/ESP32-XiaoZhi-Custom` 有既有未提交内容，不作为本补丁基点。现场固件的 origin 是本地镜像；这些源码提交没有推送到第三方固件上游。
+现场完整基线在 `/home/bimcenter/Projects/xiaozhi/.worktrees/41-firmware-online-delivery`，受测实现位于其同级的 `42-firmware-identity-recovery`，分支为 `feat/42-identity-recovery`。旧 `/home/bimcenter/Projects/ESP32-XiaoZhi-Custom` 有既有未提交内容，不作为本补丁基点。现场固件的 origin 仍是本地镜像；当前组合版及其祖先已同步到本仓库的独立固件分支，没有推送到第三方固件上游。
 
 在拥有上述固定基点的干净、独立固件 checkout 中应用；没有基点时须先取得经核对的基线，不能把本补丁直接应用到服务端仓库或任意上游版本：
 
