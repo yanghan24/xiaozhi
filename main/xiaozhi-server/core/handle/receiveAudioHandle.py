@@ -1,6 +1,7 @@
 import time
 import json
 import asyncio
+import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -111,9 +112,13 @@ async def startToChat(conn: "ConnectionHandler", text):
     await send_stt_message(conn, actual_text)
 
     # 准备开始新会话
-    conn.client_abort = False
+    with conn._response_lock:
+        conn.client_abort = False
+        # Allocate before scheduling so an abort also invalidates queued work.
+        conn.sentence_id = uuid.uuid4().hex
+        sentence_id = conn.sentence_id
 
-    conn.executor.submit(conn.chat, actual_text)
+    conn.executor.submit(conn.chat, actual_text, sentence_id=sentence_id)
 
 
 async def no_voice_close_connect(conn: "ConnectionHandler", have_voice):

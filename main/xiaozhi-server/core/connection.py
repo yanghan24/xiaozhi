@@ -114,6 +114,7 @@ class ConnectionHandler:
         self.sample_rate = 24000  # 默认采样率，从客户端 hello 消息中动态更新
 
         # 客户端状态相关
+        self._response_lock = threading.RLock()
         self.client_abort = False
         self.client_is_speaking = False
         self.client_listen_mode = "auto"
@@ -1083,7 +1084,7 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def chat(self, query, depth=0):
+    def chat(self, query, depth=0, sentence_id=None):
         gate = getattr(self, "product_voice_gate", None)
         if gate is not None:
             gate.check()
@@ -1093,21 +1094,24 @@ class ConnectionHandler:
         if query is not None:
             self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
 
-        # 为最顶层时新建会话ID和发送FIRST请求
-        if depth == 0:
-            current_sentence_id = str(uuid.uuid4().hex)
-            self.sentence_id = current_sentence_id  # 更新共享属性
-            self.dialogue.put(Message(role="user", content=query))
-            self.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=current_sentence_id,
-                    sentence_type=SentenceType.FIRST,
-                    content_type=ContentType.ACTION,
+        with self._response_lock:
+            if sentence_id is not None and (self.client_abort or sentence_id != self.sentence_id):
+                return
+            # 为最顶层时新建会话ID和发送FIRST请求
+            if depth == 0:
+                current_sentence_id = sentence_id or str(uuid.uuid4().hex)
+                self.sentence_id = current_sentence_id  # 更新共享属性
+                self.dialogue.put(Message(role="user", content=query))
+                self.tts.tts_text_queue.put(
+                    TTSMessageDTO(
+                        sentence_id=current_sentence_id,
+                        sentence_type=SentenceType.FIRST,
+                        content_type=ContentType.ACTION,
+                    )
                 )
-            )
-        else:
-            # 递归调用时，使用当前的sentence_id
-            current_sentence_id = self.sentence_id
+            else:
+                # 递归调用时，使用当前的sentence_id
+                current_sentence_id = sentence_id or self.sentence_id
 
         # 设置最大递归深度，避免无限循环，可根据实际需求调整
         MAX_DEPTH = 5
@@ -1404,35 +1408,41 @@ class ConnectionHandler:
                         enqueue_tool_report(self, tool_call_data['name'], tool_input, str(e), report_tool_call=False)
 
                 # 统一处理工具调用结果
-                if tool_results and not self.client_abort and current_sentence_id == self.sentence_id:
-                    self._handle_function_result(tool_results, depth=depth, streamed_text=streamed_text)
+                if tool_results:
+                    with self._response_lock:
+                        if self.client_abort or current_sentence_id != self.sentence_id:
+                            return
+                        followup = self._handle_function_result(tool_results, current_sentence_id, streamed_text)
+                    if followup:
+                        self.chat(None, depth=depth + 1, sentence_id=current_sentence_id)
 
-        if self.client_abort or current_sentence_id != self.sentence_id:
-            return
-        # 存储对话内容
-        if len(response_message) > 0:
-            text_buff = "".join(response_message)
-            self.tts.store_tts_text(current_sentence_id, text_buff)
-            self.dialogue.put(Message(role="assistant", content=text_buff))
+        with self._response_lock:
+            if self.client_abort or current_sentence_id != self.sentence_id:
+                return
+            # 存储对话内容
+            if len(response_message) > 0:
+                text_buff = "".join(response_message)
+                self.tts.store_tts_text(current_sentence_id, text_buff)
+                self.dialogue.put(Message(role="assistant", content=text_buff))
 
-        if depth == 0:
-            self.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=current_sentence_id,
-                    sentence_type=SentenceType.LAST,
-                    content_type=ContentType.ACTION,
+            if depth == 0:
+                self.tts.tts_text_queue.put(
+                    TTSMessageDTO(
+                        sentence_id=current_sentence_id,
+                        sentence_type=SentenceType.LAST,
+                        content_type=ContentType.ACTION,
+                    )
                 )
-            )
-            # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
-            self.logger.bind(tag=TAG).debug(
-                lambda: json.dumps(
-                    self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False
+                # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
+                self.logger.bind(tag=TAG).debug(
+                    lambda: json.dumps(
+                        self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False
+                    )
                 )
-            )
 
         return True
 
-    def _handle_function_result(self, tool_results, depth, streamed_text=""):
+    def _handle_function_result(self, tool_results, sentence_id, streamed_text=""):
         need_llm_tools = []
         record_tools = []
 
@@ -1448,8 +1458,8 @@ class ConnectionHandler:
                         f"Skipping duplicate TTS for tool {tool_call_data['name']}, already streamed"
                     )
                 else:
-                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=text)
-                    self.tts.store_tts_text(self.sentence_id, text)
+                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=text, sentence_id=sentence_id)
+                    self.tts.store_tts_text(sentence_id, text)
                 self.dialogue.put(Message(role="assistant", content=text))
             elif result.action == Action.REQLLM:
                 need_llm_tools.append((result, tool_call_data))
@@ -1538,7 +1548,7 @@ class ConnectionHandler:
                         )
                     )
 
-            self.chat(None, depth=depth + 1)
+            return True
 
     def _report_worker(self):
         """聊天记录上报工作线程"""
