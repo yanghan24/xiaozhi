@@ -1123,12 +1123,15 @@ class ConnectionHandler:
             )
             force_final_answer = True
             # 添加系统指令，要求 LLM 基于现有信息回答
-            self.dialogue.put(
-                Message(
-                    role="user",
-                    content="[系统提示] 已达到最大工具调用次数限制，请你基于目前已经获取的所有信息，直接给出最终答案。不要再尝试调用任何工具。",
+            with self._response_lock:
+                if self.client_abort or current_sentence_id != self.sentence_id:
+                    return
+                self.dialogue.put(
+                    Message(
+                        role="user",
+                        content="[系统提示] 已达到最大工具调用次数限制，请你基于目前已经获取的所有信息，直接给出最终答案。不要再尝试调用任何工具。",
+                    )
                 )
-            )
 
         # Define intent functions
         functions = None
@@ -1335,8 +1338,11 @@ class ConnectionHandler:
                                     )
                             # 写入对话历史
                             da_response = self._clean_response_garbage(da_response)
-                            self.tts.store_tts_text(current_sentence_id, da_response)
-                            self.dialogue.put(Message(role="assistant", content=da_response))
+                            with self._response_lock:
+                                if self.client_abort or current_sentence_id != self.sentence_id:
+                                    return
+                                self.tts.store_tts_text(current_sentence_id, da_response)
+                                self.dialogue.put(Message(role="assistant", content=da_response))
 
                     if not real_tool_calls:
                         if depth == 0:
@@ -1360,8 +1366,11 @@ class ConnectionHandler:
                 streamed_text = ""
                 if len(response_message) > 0:
                     streamed_text = "".join(response_message)
-                    self.tts.store_tts_text(current_sentence_id, streamed_text)
-                    self.dialogue.put(Message(role="assistant", content=streamed_text))
+                    with self._response_lock:
+                        if self.client_abort or current_sentence_id != self.sentence_id:
+                            return
+                        self.tts.store_tts_text(current_sentence_id, streamed_text)
+                        self.dialogue.put(Message(role="assistant", content=streamed_text))
                 response_message.clear()
 
                 # 收集所有工具调用的 Future
