@@ -977,9 +977,13 @@ void Application::HandleWakeWordDetectedEvent() {
     ESP_LOGI(TAG, "Wake word detected: %s (state: %d)", wake_word.c_str(), (int)state);
 
 #if CONFIG_WAKE_WORD_ONLY_INTERRUPT
-    if (state == kDeviceStateSpeaking && wake_word != "你好小智") {
-        // The detector stops itself on every match, including other keywords.
-        audio_service_.EnableWakeWordDetection(VoiceAllowed());
+    if (state == kDeviceStateSpeaking) {
+        InterruptPlaybackWithWakeWord(wake_word, audio_service_,
+            [this]() { AbortSpeaking(kAbortReasonWakeWordDetected); },
+            [this]() {
+                play_popup_on_listening_ = false;
+                SetListeningMode(GetDefaultListeningMode());
+            });
         return;
     }
 #endif
@@ -1009,12 +1013,7 @@ void Application::HandleWakeWordDetectedEvent() {
             audio_service_.EnableWakeWordDetection(true);
         } else {
             // Play popup sound and start listening again
-#if CONFIG_WAKE_WORD_ONLY_INTERRUPT
-            audio_service_.ResetDecoder();
-            play_popup_on_listening_ = false;
-#else
             play_popup_on_listening_ = true;
-#endif
             SetListeningMode(GetDefaultListeningMode());
         }
     } else if (state == kDeviceStateActivating) {
