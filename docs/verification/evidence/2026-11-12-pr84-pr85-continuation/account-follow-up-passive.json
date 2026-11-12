@@ -1,0 +1,54 @@
+{
+  "observed_at": "2026-11-12T22:02:21.605735+08:00",
+  "completed_at": "2026-11-12T22:03:06.677283+08:00",
+  "passive_capture": true,
+  "flash_written": false,
+  "credential_rotated": false,
+  "received_uart_bytes": 7663,
+  "control_failures": [
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    }
+  ],
+  "websocket_connection_timeouts": 1,
+  "websocket_error_code": "0x8006",
+  "boot_report_seen": false,
+  "panic": 0,
+  "ubuntu_public_discovery": {
+    "http_status": 200,
+    "elapsed_seconds": 0.05
+  },
+  "user_observation": {
+    "source": "Direct user follow-up in this chat",
+    "initial_screen": "Account information temporarily unavailable",
+    "after_reboot": "Account information briefly appears, then changes to synchronizing login status"
+  },
+  "limitation": "The exact interval from account display to synchronization was not measured"
+}

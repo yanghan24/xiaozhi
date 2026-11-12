@@ -1,0 +1,53 @@
+{
+  "observed_at": "2026-11-12T22:10:18.652945+08:00",
+  "completed_at": "2026-11-12T22:11:59.966810+08:00",
+  "ordinary_reset": true,
+  "flash_written": false,
+  "credential_rotated": false,
+  "received_uart_bytes": 17975,
+  "boot_report_seen": true,
+  "boot_device_identity_present": true,
+  "fixed_firmware_elf_matches": true,
+  "transitions": [
+    {
+      "previous": "unknown",
+      "current": "starting",
+      "uptime_ms": 936
+    },
+    {
+      "previous": "starting",
+      "current": "activating",
+      "uptime_ms": 10855
+    },
+    {
+      "previous": "activating",
+      "current": "idle",
+      "uptime_ms": 16876
+    }
+  ],
+  "control_failures": [
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0,
+      "uptime_ms": 16823
+    },
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0,
+      "uptime_ms": 18514
+    }
+  ],
+  "wifi_connected_events": 1,
+  "wifi_disconnect_events": 0,
+  "panic": 0,
+  "wake_events": 0,
+  "user_retest": {
+    "source": "Direct user confirmation after this capture",
+    "account_page": "Still synchronizing",
+    "complete_voice_answer": false
+  },
+  "functional_acceptance_passed": false,
+  "limitation": "No further connection failures in this capture does not establish successful polling or lease renewal"
+}
