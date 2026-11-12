@@ -57,6 +57,7 @@ class MaintenanceControl:
 
     async def connection(self, reader, writer):
         result = {'status': 'denied'}
+        request = None
         try:
             peer = writer.get_extra_info('socket')
             _, uid, _ = struct.unpack('3i', peer.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
@@ -65,11 +66,16 @@ class MaintenanceControl:
             raw = await asyncio.wait_for(reader.readline(), 3)
             if len(raw) > 8192 or not raw.endswith(b'\n'):
                 raise MaintenanceDenied()
+            request = json.loads(raw)
             async with self.lock:
-                result = await self.execute(json.loads(raw))
+                result = await self.execute(request)
         except Exception:
             # URLs, credentials, device responses, and exception text never enter logs/output.
-            pass
+            if isinstance(request, dict) and request.get('action') == 'upgrade':
+                operation = request.get('operation_id')
+                if (isinstance(operation, str) and re.fullmatch(r'[a-f0-9]{32}', operation)
+                        and (self.directory / (operation + '.json')).exists()):
+                    result = {'status': 'result_unknown_do_not_retry'}
         finally:
             writer.write(json.dumps(result).encode() + b'\n')
             try:

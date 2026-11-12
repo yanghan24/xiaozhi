@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-11-12T03:19:04.725383+00:00",
+  "device": "B",
+  "session_status": "current",
+  "upgrade_sent": false,
+  "permission_version": 17,
+  "mcp_ready": true,
+  "probe_status": "upgrade_tool_available"
+}

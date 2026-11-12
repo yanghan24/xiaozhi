@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-11-12T03:20:45.199624+00:00",
+  "operation_id": "e029d00a3ade4616adebfce862108b73",
+  "durable_reservation_exists": true,
+  "reservation_status": "reserved_result_unknown",
+  "current_session_status": "no_unique_session",
+  "same_session": false,
+  "current_permission_version": null,
+  "ota_success_proven": false,
+  "automatic_retry": false
+}

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from pathlib import Path
 import socket
 import tempfile
@@ -153,6 +154,7 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
                 await self.control.execute(self.request('upgrade', url=url))
         self.assertFalse(any(f['method'] == 'tools/call' for f in self.frames))
 
+    @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Requires Linux root Unix credentials')
     async def test_real_unix_socket_is_private_and_status_contains_no_url(self):
         await self.control.start()
         try:
@@ -169,6 +171,22 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await self.control.close()
 
+    @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Requires Linux root Unix credentials')
+    async def test_real_socket_reports_unknown_instead_of_denied_after_reserved_send_failure(self):
+        self.lose_result = True
+        await self.control.start()
+        try:
+            reader, writer = await asyncio.open_unix_connection(str(Path(self.temp.name) / 'control.sock'))
+            writer.write(json.dumps(self.request('upgrade')).encode() + b'\n')
+            await writer.drain()
+            result = json.loads(await reader.readline())
+            self.assertEqual({'status': 'result_unknown_do_not_retry'}, result)
+            writer.close()
+            await writer.wait_closed()
+        finally:
+            await self.control.close()
+
+    @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Requires Linux root Unix credentials')
     async def test_regular_file_cannot_be_replaced_as_stale_socket(self):
         path = Path(self.temp.name) / 'control.sock'
         path.write_text('keep')
@@ -176,6 +194,7 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
             await self.control.start()
         self.assertEqual('keep', path.read_text())
 
+    @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Requires Linux root Unix credentials')
     async def test_stale_socket_can_recover_after_process_restart(self):
         path = Path(self.temp.name) / 'control.sock'
         sock = socket.socket(socket.AF_UNIX)

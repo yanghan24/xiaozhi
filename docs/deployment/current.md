@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11 16:35（Asia/Hong_Kong），API 依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，语音镜像已由[PR #26 同步复验的只读实查](../verification/2026-11-11-pr26-main-sync.md)更新。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-12 11:20（Asia/Hong_Kong），API 依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，语音已按[B OTA 服务器记录](../verification/2026-11-12-p4-ota-server.md)增加本机维护通道，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -28,7 +28,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:prompt-7f10cbd`，单实例；本轮仅只读核对，未重新部署 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:p4-maintenance-20261112`，基于 `prompt-7f10cbd` 增加 B 的 root Unix 维护通道；2026-11-12 11:14 单独重建，原配置和系统提示词保留 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
@@ -59,6 +59,8 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 后续 Ubuntu 已独立验证旧凭据拒绝、新凭据 delivered 及当前状态，见 [PR #74 接续核验](https://github.com/yanghan24/xiaozhi/pull/74)。B 后来的解绑/换绑不能倒推补发瞬间归属保持；历史比对、补发后服务重启及其余硬件恢复关卡仍未完成。
 
 ## 本地资料缺失或过时
+
+2026-11-12 B 的 [OTA 服务器记录](../verification/2026-11-12-p4-ota-server.md)已接收并校验 r2 产品包，准备短时签名 HTTPS 下载和仅限 B 当前产品会话的本机维护通道。11:19 实际隐藏工具查询可用；11:20 单次调用后结果未知，预留记录保留且未重试，真实 OTA/应用槽读回及恢复出厂等待硬件核实。API 保持 `1b50709`。bin 含原构建的 IoT token，不提供匿名或永久下载链接。
 
 本地分支/worktree 不随 GitHub 合并自动更新。找不到本页、入口仍指向历史报告，或文档状态互相矛盾时，先核对 GitHub 最新 `main` 的[本页](https://github.com/yanghan24/xiaozhi/blob/main/docs/deployment/current.md)和它引用的部署证据，再判断资料是否缺失。
 
