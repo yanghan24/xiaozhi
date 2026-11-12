@@ -1,6 +1,6 @@
-# B 受控 OTA 的 Ubuntu 准备
+# B 受控 OTA 的安装结果与恢复出厂接续
 
-2026-11-12 10:49 起（Asia/Hong_Kong），服务器 `jt@192.168.168.114`。接续 [PR #77](https://github.com/yanghan24/xiaozhi/pull/77)；本轮完成产物接收、状态快照、受控下载和本机维护通道。**11:20 已向 B 尝试一次升级调用，结果未知、未重试；真实 OTA、应用槽/身份读回及恢复出厂尚未验收。** 用户安排硬件方记录串口，随后确认已唤醒 B。
+2026-11-12 10:49 起（Asia/Hong_Kong），服务器 `jt@192.168.168.114`。接续 [PR #77](https://github.com/yanghan24/xiaozhi/pull/77)；本轮完成产物接收、状态快照、受控下载和本机维护通道。**11:20 仅下发一次；硬件方随后报告目标固件全量读回一致、`ota_0 → ota_1` 且身份/凭据保持，用户确认扫码账号及完整语音正常。** 原调用回执仍未知，11:20 下载/写入/自动重启没有实时日志；不重发。恢复出厂前基线已保存，硬件操作结果待回传。
 
 ## 产物及私有存储
 
@@ -9,13 +9,13 @@
 | 项目 | 固定值 |
 | --- | --- |
 | 候选源码 | `a30f6a8d3e47068004af0685d5c229cb7648cdae` |
-| B 原应用 | 用户/硬件证据为 `860e045`，本轮没有串口读回 |
+| B 原应用 | 用户/硬件前置证据为 `860e045`；升级后运行目标 ELF 由硬件方读回报告确认 |
 | 产品 bin | 4,003,072 字节；`b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7` |
 | 目标 ELF | `364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3` |
 | 应用版本 | `2.2.6`，本轮不以版本字符串变化判断成功 |
 | 服务器产物目录 | `/home/jt/issue42-p4-ota-20261112/p4-a30f6a8-r2`，私有目录 |
 
-r2 元数据纠正了原包“无凭据”的宽泛说法：没有设备接入凭据、管理员登录或原始 Flash/NVS，但 bin 保留了原构建中的 IoT HTTP token，`public_distribution_allowed=false`。不将归档/bin 放 Git 或公开 release；服务器只准备短时签名下载。归档校验脚本 `/home/jt/issue42-p4-ota-stage.sh` 验证固定大小/hash、四个普通文件的允许清单和完整校验清单，不直接解包任意路径。
+r2 元数据纠正了原包“无凭据”的宽泛说法：没有设备接入凭据、管理员登录或原始 Flash/NVS，但 bin 保留了原构建中的 IoT HTTP token，`public_distribution_allowed=false`。不将归档/bin 放 Git 或公开 release；服务器曾提供短时签名下载，安装确认后已撤销该路由。归档校验脚本 `/home/jt/issue42-p4-ota-stage.sh` 验证固定大小/hash、四个普通文件的允许清单和完整校验清单，不直接解包任意路径。
 
 ## 即时状态及服务
 
@@ -31,7 +31,7 @@ r2 元数据纠正了原包“无凭据”的宽泛说法：没有设备接入�
 
 Ubuntu 已使用私有 URL 完整下载并核对固定 SHA-256；公网 `bridge.hncig.cn:18443` 复核同样通过，保留 TLS 证书校验。公网复核经过临时 loopback SSH CONNECT 代理，已关闭，不宣称 Ubuntu 无代理公网出站已恢复。见[HTTPS 证据](evidence/2026-11-12-p4-ota-server/https.json)。能力 URL/签名密钥只保存在服务器私有 `download-private.json`，不进入本报告。
 
-硬件就绪时执行 `/home/jt/refresh-download.sh` 重新生成 15 分钟链接，重新运行 `/home/jt/issue42-p4-ota-public-check.sh` 核对后再使用。停止提供下载使用已准备的 `/home/jt/revoke-download.sh`：只移除此维护块并重载 Nginx，保留其他任务可能增加的配置和私有规范产物。该撤销脚本仅通过语法检查，尚未实际撤销；链接过期后的 410 已实测。
+11:19 下发前执行 `/home/jt/refresh-download.sh` 重新生成 15 分钟链接，并经公网完整校验后使用。硬件确认目标已安装后，11:34 执行 `/home/jt/revoke-download.sh`，只移除此维护块并重载 Nginx，保留其他配置和私有规范产物。[撤销复核](evidence/2026-11-12-p4-ota-server/download-revocation.json)使用正常 TLS 域名/证书、连接 Ubuntu 本机 443，旧能力 URL 返回 404，产品发现仍为 200；该复核不是新的公网 18443 探测。下载路由已撤销，不为恢复出厂重新开放或再次下发。
 
 ## 受控下发通道
 
@@ -43,20 +43,36 @@ Ubuntu 已使用私有 URL 完整下载并核对固定 SHA-256；公网 `bridge.
 
 11:14:34 实际 root socket 查询返回 `no_unique_session`，表示当时没有唯一活跃产品语音连接，不说明 B 不在线或不支持升级。用户随后确认已唤醒 B，11:19:04 再次查询，唯一会话、许可版本 17、MCP ready 均匹配，真实 `self.upgrade_firmware` 查询可用，见[最新查询摘要](evidence/2026-11-12-p4-ota-server/control-probe.json)。
 
-## 11:20 单次调用：结果未知
+## 11:20 单次调用及安装结果核对
 
 11:19:43 已重新生成并经公网 TLS 完整验证当前能力 URL。记录用户“硬件方准备并记录，我转达就绪”和“已经唤醒B”的本次就绪信息后，再次采集 B/A 即时快照，核对 B 当前会话及工具，执行一次受控调用。操作号 `e029d00a3ade4616adebfce862108b73`，没有自动重发。
 
 客户端[返回摘要](evidence/2026-11-12-p4-ota-server/dispatch.json)中的 `denied` 是部署时异常包装器的通用状态，**不能解释为命令确定未发送或设备明确拒绝**。11:20:45 的[操作审计](evidence/2026-11-12-p4-ota-server/dispatch-audit.json)确认发送前持久预留存在，状态 `reserved_result_unknown`，原 B 活跃会话已不在。此证据不能判定下载/写入/重启成功，也不能区分发送失败、回执丢失或升级过程中断开。
 
-服务器[后续状态](evidence/2026-11-12-p4-ota-server/post-dispatch-state.json)仍为 B ready / 许可 17 / 归属 5，新旧应用 ELF 不由该 API 状态证明。硬件方需提供串口与当前应用槽/ELF 读回；此前 `ota_0` 和目标 `ota_1` 只是待验证前后条件，不能据会话断开自动打勾。
+服务器[调用后状态](evidence/2026-11-12-p4-ota-server/post-dispatch-state.json)仍为 B ready / 许可 17 / 归属 5，新旧应用 ELF 不由该 API 状态证明。随后用户转述硬件方 11:28–11:30 的 Flash 读回和复位启动核验：运行目标 ELF `364a1d6f…`，`ota_0 → ota_1`，状态 VALID、CRC 有效，产品 bin 全量读回与目标一致；核验复位后联网，身份、接入凭据及整个 `device_ctrl` 保持一致。上述证据确认目标安装结果，但不补成缺失的 11:20 实时下载、写入和自动重启日志。
+
+[安装核对记录](evidence/2026-11-12-p4-ota-server/installation-reconciliation.json)明确来源为用户转述的硬件报告；原始 Flash/UART 不进入 Git。服务器 11:33:09 的[安装后快照](evidence/2026-11-12-p4-ota-server/post-installation-state.json)与下发前 11:19:54 快照一致，包括两台设备的归属、凭据、许可、补发记录和硬件映射。另存安装核对记录，原 `reserved_result_unknown` 传输记录保留，没有删除预留或重试。
 
 本轮另补真正经过 Unix socket 的异常重放测试：修正前可重复得到“已预留发送失败却返回 denied”；修正为 `result_unknown_do_not_retry` 后 13 项通过，0 失败/错误/跳过，见[测试摘要](evidence/2026-11-12-p4-ota-server/maintenance-tests.json)。这项返回分类修正已在分支准备，**当前部署仍为 `4976888` 的版本**，尚未重启语音部署修正；操作未知状态及防重试预留本来就已生效。测试没有再次向 B 下发。
 
-## 下一步与恢复
+## OTA 后功能与独立解绑/重新绑定
 
-1. 先由硬件方确认本次是否真正下载/写入/重启、当前 ELF/应用槽及身份/凭据保持。服务器不再执行 queue-upgrade，已有 dispatch-private.json 和预留记录必须保留，不因返回 denied 就删除它们重试。
-2. 若已安装目标，补服务器前后即时状态、现场扫码及完整语音，再开始恢复出厂的取消/确认/重新配网。若未安装，先定位实际失败阶段，再安排新的显式尝试。
-3. 后续新尝试须重新协调硬件就绪、检查当前镜像和会话、更新并验证短时下载能力。`/home/jt/issue42-p4-ota-queue-upgrade.sh` 已要求就绪记录新鲜、当前真实工具存在和相同到期时间的公网校验成功；不得绕过已有操作保护。
+用户确认“扫码账号正常，完整语音正常”，见[功能确认](evidence/2026-11-12-p4-ota-server/post-ota-functional-confirmation.json)。11:33–11:35 之间 B 的许可从 17 变为 19、归属版本从 5 变为 7，最终归属账号和凭据相同，A 不变，见[独立版本比较](evidence/2026-11-12-p4-ota-server/post-qr-version-comparison.json)。用户进一步确认这期间执行过“退出并解除绑定”并重新绑定；因此不能声称 OTA 后扫码/语音全程保持 17/5，也不把这次独立操作记为 OTA 导致归属变化。
 
-语音回退使用部署摘要中备份的 Compose 作为字段参考，仅恢复本次语音 image/environment，保留其他后续配置；仅重建语音服务。下载维护块用上述撤销脚本单独移除。回退语音不会回退已安装固件或已执行的恢复出厂；私有原档案、密钥及备份必须保留。此次未刷新/补发设备凭据、解绑/换绑或执行恢复出厂，不关闭 #42 / #13。
+## 恢复出厂前基线及待验项目
+
+11:38:20 [服务器即时快照](evidence/2026-11-12-p4-ota-server/pre-factory-reset-state.json)确认 B ready / admitted=1 / local_enabled=1 / 许可 19 / 归属 7，原归属和补发凭据一致，A 不变。私有 `factory-reset-before-snapshot` 指针固定为 `/home/jt/issue42-p4-ota-20261112/20261112T033820Z`，不随后续 latest-snapshot 更新；[基线摘要](evidence/2026-11-12-p4-ota-server/factory-reset-baseline.json)记录硬件备份和实际操作尚待确认。API/语音镜像分别仍为 `1b50709` / `p4-maintenance-20261112`，本轮没有为分类修正重启服务。
+
+已请求用户转达硬件方按以下顺序执行，当前均待回传：
+
+1. 私有备份当前应用/NVS，记录目标 ELF、`ota_1` 及受保护的 `device_ctrl`。
+2. 设置 → 恢复出厂 → 取消；确认没有重启、Wi-Fi 仍可用。
+3. 再进入恢复出厂 → 恢复并重启；记录清理/重启，确认需重新配网并完成 Wi-Fi 配置。本轮不使用会改变归属的“退出并解除绑定”。
+4. 核对仍运行目标 ELF、`ota_1`，身份、接入凭据和整个 `device_ctrl` 与当前备份一致；扫码仍为原账号，完整语音正常。
+5. 服务器再次取快照，与固定的 19/7 基线比对，核对 B 归属、凭据、准入、本地许可及 A 隔离。
+
+这次基线是 ready 状态；未验证的后台停用保持、实际停播和其他中断/恢复场景继续单列，不能由正常恢复出厂代替。
+
+## 恢复边界
+
+服务器不再执行 queue-upgrade；已有 dispatch-private.json、预留和安装核对记录均保留。语音回退使用部署摘要中备份的 Compose 作为字段参考，仅恢复本次语音 image/environment，保留其他后续配置；仅重建语音服务。下载维护块已单独撤销。回退语音不会回退已安装固件或已执行的恢复出厂；私有原档案、密钥及备份必须保留。本轮服务器没有补发/轮换凭据或主动解绑；硬件侧独立解绑/重新绑定如上记录。#42 / #13 保持打开。

@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-11-12T03:34:13.442135+00:00",
+  "controlled_download_route_removed": true,
+  "previous_capability_http_local_tls": 404,
+  "discovery_http_local_tls": 200,
+  "private_canonical_artifact_retained": true,
+  "upgrade_resent": false,
+  "note": "TLS certificate validation against bridge.hncig.cn, connection to Ubuntu local 443; not a fresh public 18443 probe"
+}
