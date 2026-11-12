@@ -1,0 +1,14 @@
+{
+  "executed": false,
+  "reason": "No existing unexpired login for original recovery operator",
+  "state_change_performed": false,
+  "observed_at": "2026-11-12T05:42:50.757910+00:00",
+  "device_alias": "B",
+  "private_run": "/home/jt/issue42-acceptance-20261112/20261112T053805Z",
+  "transport": "Ubuntu local443 with verified official-domain TLS and public-origin Host; no new external18443 probe",
+  "administrator_device_disabled_test": false,
+  "firmware_write_performed_by_server": false,
+  "new_recovery_created": false,
+  "ota_sent": false,
+  "service_restart_performed": false
+}

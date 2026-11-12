@@ -1,0 +1,62 @@
+{
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "0",
+    "reason": "user_signed_out",
+    "permission_version": "20",
+    "ownership_version": "7"
+  },
+  "checks": [
+    {
+      "name": "exact sign-out retry is idempotent",
+      "http_status": 200,
+      "code": "OK",
+      "passed": true
+    },
+    {
+      "name": "older sign-out is rejected",
+      "http_status": 409,
+      "code": "STATE_CHANGED",
+      "passed": true
+    },
+    {
+      "name": "late unbind cannot release original owner",
+      "http_status": 409,
+      "code": "STATE_CHANGED",
+      "passed": true
+    },
+    {
+      "name": "late QR request cannot use old permission",
+      "http_status": 409,
+      "code": "STATE_CHANGED",
+      "passed": true
+    },
+    {
+      "name": "old credential cannot sign out",
+      "http_status": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "old credential still rejected while disabled",
+      "http_status": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    }
+  ],
+  "all_checks_passed": true,
+  "b_identity_credential_owner_and_permission_unchanged": true,
+  "a_business_state_unchanged": true,
+  "delivery_and_recovery_records_unchanged": true,
+  "new_registration_or_recovery_performed": false,
+  "full_recovery_concurrency_and_physical_interruption_test": false,
+  "observed_at": "2026-11-12T05:41:19.798425+00:00",
+  "device_alias": "B",
+  "private_run": "/home/jt/issue42-acceptance-20261112/20261112T053805Z",
+  "transport": "Ubuntu local443 with verified official-domain TLS and public-origin Host; no new external18443 probe",
+  "administrator_device_disabled_test": false,
+  "firmware_write_performed_by_server": false,
+  "new_recovery_created": false,
+  "ota_sent": false,
+  "service_restart_performed": false
+}

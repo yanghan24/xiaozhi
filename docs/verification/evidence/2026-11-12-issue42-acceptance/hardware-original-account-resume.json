@@ -1,0 +1,11 @@
+{
+  "device_alias": "B",
+  "source": "hardware party results relayed directly by the user in this conversation after the server verified signed-out state",
+  "physical_operation_time": null,
+  "independent_uart_or_audio_capture_by_server": false,
+  "original_owning_account_explicit_resume_succeeded": true,
+  "original_account_display_normal": true,
+  "one_complete_physical_voice_question_and_answer_normal": true,
+  "server_post_resume_state": "verified separately in restored-check.json",
+  "new_flash_readback_provided_in_this_confirmation": false
+}

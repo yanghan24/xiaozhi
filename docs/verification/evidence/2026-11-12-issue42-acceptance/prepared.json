@@ -1,0 +1,59 @@
+{
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "19",
+    "ownership_version": "7"
+  },
+  "services": {
+    "xiaozhi-pr26-api": {
+      "container_id": "2b7917abbcd20aacabc2053424e697c8674cc8ed9c099189b5a907000845e27e",
+      "image": "xiaozhi-product-api:1b50709",
+      "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+      "started_at": "2026-11-12T03:13:39.656388819Z"
+    },
+    "xiaozhi-pr26-voice": {
+      "container_id": "81dbb44d181328b7605364cae7a0f929a3c34eb41283c5032428b083fe00d3a7",
+      "image": "xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c",
+      "image_id": "sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d",
+      "started_at": "2026-11-12T05:19:43.66168329Z"
+    },
+    "issue29-db": {
+      "container_id": "489e52d23068d2669693a83b99718c5f3ec267b6467686e0d1866cb07fd1968b",
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "started_at": "2026-11-12T02:51:28.32525526Z"
+    },
+    "issue29-redis": {
+      "container_id": "bdd151b2eaefbd50a48fd8e8cab016b4a1fccc17a4e86e70f5a7340e6b1ad28d",
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "started_at": "2026-11-12T02:51:27.984403759Z"
+    },
+    "xiaozhi-ubuntu-test-public-entry-public-entry-1": {
+      "container_id": "808acf20d1d0c95b6ea647d3572a34a834edca3742d8f1484c69f06ba527a693",
+      "image": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "image_id": "sha256:1ff4bb4faebcfb1f7e01144fa9904a570ab9bab88694457855feb6c6bba3fa07",
+      "started_at": "2026-11-12T02:51:28.817270192Z"
+    }
+  },
+  "backup_completed": true,
+  "backup_directory": "/home/jt/pr26-deployment-885918d/private/backups/20261112T053805Z",
+  "backup_restore_tested": false,
+  "baseline_immutable": true,
+  "hardware_backup_and_readiness_confirmed_by_user": true,
+  "b_located_by_unique_delivered_recovery_and_original_hardware_mapping": true,
+  "device_count": 2,
+  "state_change_performed": false,
+  "isolated_a_baseline_saved": true,
+  "observed_at": "2026-11-12T05:39:46.291418+00:00",
+  "device_alias": "B",
+  "private_run": "/home/jt/issue42-acceptance-20261112/20261112T053805Z",
+  "transport": "Ubuntu local443 with verified official-domain TLS and public-origin Host; no new external18443 probe",
+  "administrator_device_disabled_test": false,
+  "firmware_write_performed_by_server": false,
+  "new_recovery_created": false,
+  "ota_sent": false,
+  "service_restart_performed": false
+}
