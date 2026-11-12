@@ -1,0 +1,40 @@
+{
+  "stage": "after-loss",
+  "observed_at": "2026-11-12T09:41:35.411162+00:00",
+  "passed": true,
+  "before_b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "21",
+    "ownership_version": "7"
+  },
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "21",
+    "ownership_version": "7"
+  },
+  "same_device_owner_hardware_mapping": true,
+  "a_business_state_unchanged": true,
+  "original_delivery_records_unchanged": true,
+  "protected_config_keys_and_ota_reservation_unchanged": true,
+  "services": {
+    "xiaozhi-pr26-api": {
+      "StartedAt": "2026-11-12T03:13:39.656388819Z",
+      "Running": true,
+      "image": "xiaozhi-product-api:1b50709",
+      "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63"
+    },
+    "xiaozhi-pr26-voice": {
+      "StartedAt": "2026-11-12T06:50:32.021169588Z",
+      "Running": true,
+      "image": "xiaozhi-product-voice:pr79-f830a8c",
+      "image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca"
+    }
+  },
+  "service_versions_and_start_times_unchanged": true,
+  "checks": [],
+  "new_recoveries": 0
+}
