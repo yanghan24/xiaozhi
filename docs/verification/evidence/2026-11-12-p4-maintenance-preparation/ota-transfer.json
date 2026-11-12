@@ -1,0 +1,29 @@
+{
+  "filename": "issue42-p4-a30f6a8-ota.tar.gz",
+  "bytes": 2253945,
+  "sha256": "b1b5509c0727e0c25c8346e517904ed0e3d45c674bf4657f8ab8811468a30760",
+  "contents": [
+    "product.bin",
+    "candidate.json",
+    "README.txt",
+    "SHA256SUMS"
+  ],
+  "contains_credentials": false,
+  "uploaded_to_server": false,
+  "artifact_manifest": {
+    "firmware_source": "a30f6a8d3e47068004af0685d5c229cb7648cdae",
+    "source_base": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+    "board_type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+    "app_version": "2.2.6",
+    "product_sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+    "product_elf_sha256": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+    "image_bytes": 4003072,
+    "partition_table_sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5",
+    "device_alias": "B",
+    "purpose": "controlled_real_ota_acceptance",
+    "device_identity_included": false,
+    "credentials_included": false,
+    "download_url": null,
+    "server_dispatch_configured": false
+  }
+}
