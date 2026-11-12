@@ -1,0 +1,24 @@
+{
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "21",
+    "ownership_version": "7"
+  },
+  "use_permission": "allowed",
+  "b_identity_credential_owner_and_admission_preserved": true,
+  "a_business_state_unchanged": true,
+  "delivery_and_recovery_records_unchanged": true,
+  "original_ota_reservation_and_private_config_unchanged": true,
+  "physical_actions_source": "hardware party through user; separate confirmation required",
+  "observed_at": "2026-11-12T06:05:14.151005+00:00",
+  "device_alias": "B",
+  "private_run": "/home/jt/issue42-acceptance-20261112/20261112T053805Z",
+  "transport": "Ubuntu local443 with verified official-domain TLS and public-origin Host; no new external18443 probe",
+  "administrator_device_disabled_test": false,
+  "firmware_write_performed_by_server": false,
+  "new_recovery_created": false,
+  "ota_sent": false,
+  "service_restart_performed": false
+}

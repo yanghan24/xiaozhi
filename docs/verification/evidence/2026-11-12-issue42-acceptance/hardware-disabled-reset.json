@@ -1,0 +1,18 @@
+{
+  "device_alias": "B",
+  "source": "hardware party results relayed directly by the user in this conversation",
+  "physical_operation_time": null,
+  "independent_uart_or_audio_capture_by_server": false,
+  "current_application_nvs_and_device_ctrl_privately_backed_up": true,
+  "factory_reset_reboot_and_wifi_reprovision_passed": true,
+  "reported_target_elf_prefix": "364a1d6f",
+  "reported_active_slot": "ota_1",
+  "identity_and_access_credential_unchanged": true,
+  "all_surviving_device_ctrl_records_unchanged": true,
+  "device_ctrl_persists_disable_reason": false,
+  "device_ctrl_persists_permission_version": false,
+  "hardware_display_still_disabled_and_bound_to_original_account": true,
+  "physical_voice_attempt_could_not_enter_normal_conversation": true,
+  "server_reason_permission_and_ownership_versions": "verified separately in verify-reset.json",
+  "original_account_resume_and_complete_voice_answer": "confirmed later in hardware-original-account-resume.json"
+}

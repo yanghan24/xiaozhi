@@ -1,0 +1,112 @@
+{
+  "observed_at": "2026-11-12T09:43:18.131673+00:00",
+  "device_alias": "B",
+  "status": "stopped_before_new_recovery_at_user_departure",
+  "physical_device": {
+    "model": "Waveshare ESP32-P4 WiFi6 Touch LCD 4.3",
+    "revision": "3.2",
+    "flash_bytes": 33554432,
+    "layout_bytes": 16777216,
+    "active_slot": "ota_1",
+    "ota_state": "VALID"
+  },
+  "backup": {
+    "full_flash_bytes": 33554432,
+    "full_flash_sha256": "ed75c1af3b5c8286ddc8529518f0bd498697b372c324edbef2819cbfbfb524a5",
+    "segments_verified_against_device_md5": 32,
+    "second_private_copy_on_ubuntu_verified": true
+  },
+  "tool": {
+    "source_commit": "7450e9a",
+    "source_file_sha256": "2dcca81040561cfb65e804130bddc44ee01fb75dd91f8d2f5fc46a9d5cc3ea7b",
+    "esp_idf": "v5.5.5",
+    "esp_idf_source_commit": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
+    "compiler": "esp-14.2.0_20260121",
+    "ctest_executables_passed": 1,
+    "host_guard_scenarios_passed": 17,
+    "image_sha256": "a69a502ea24c0b57c354256398c3a3c32682ed37fa0bf01bd92aa6e28ca97c69",
+    "elf_sha256": "5eebc711e820427ce08cae6f4b68783c5881c1c9a228a05fc7185ca0a0997877"
+  },
+  "transport": {
+    "controller": "Ubuntu via SSH RFC2217 to Windows COM3",
+    "esptool": "4.13.0",
+    "flash_baud": 460800,
+    "rfc2217_forwarding_closed_after_device_stage": true
+  },
+  "real_device_negative_guards": [
+    "bad_confirmation",
+    "unknown_field",
+    "wrong_credential"
+  ],
+  "negative_guard_nvs_independent_readback_unchanged": true,
+  "deletion": {
+    "namespace": "device_ctrl",
+    "key": "identity_v1",
+    "native_erase_key_and_commit": true,
+    "identity_missing": true,
+    "device_id_anchor_preserved": true,
+    "other_live_nvs_records_preserved": 9,
+    "independent_nvs_parser_comparison_passed": true,
+    "environment_cache_updated_by_online_product_before_offline_baseline": true
+  },
+  "restored_product": {
+    "source_commit": "a30f6a8d3e47068004af0685d5c229cb7648cdae",
+    "image_sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+    "elf_sha256": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+    "product_bytes": 4003072,
+    "exact_accepted_binary_restored": true,
+    "full_application_readback_passed": true,
+    "boot_report_matches_original_hardware": true,
+    "boot_report_device_id_is_null": true,
+    "wifi_connected": true,
+    "boot_report_at": "2026-11-12T09:40:54.872139+00:00",
+    "reconstructed_product_elf": false
+  },
+  "preservation": {
+    "partition_table_bootloader_otadata_and_assets_unchanged": true,
+    "whole_flash_or_nvs_image_written": false
+  },
+  "predecessor": {
+    "original_private_journal_recovered": false,
+    "fresh_authenticated_current_predecessor_attestation_saved": true,
+    "attestation_matches_current_nvs_backend_hash_and_physical_hardware": true,
+    "historical_local_checkpoints_fabricated": false,
+    "exact_released_product_used_in_bench_adapter": true,
+    "standard_recovery_engine_changed": false,
+    "general_missing_journal_recovery_feature_delivered": false
+  },
+  "server": {
+    "b_state": {
+      "admitted": "1",
+      "local_enabled": "1",
+      "reason": "ready",
+      "permission_version": "21",
+      "ownership_version": "7"
+    },
+    "original_device_owner_credential_and_hardware_mapping_unchanged": true,
+    "a_business_state_unchanged": true,
+    "delivery_and_recovery_records_unchanged": true,
+    "new_recoveries_created": 0,
+    "new_credentials_issued": 0,
+    "service_versions_and_start_times_unchanged": true,
+    "protected_config_keys_and_ota_reservation_unchanged": true
+  },
+  "wrapper": {
+    "exit_code": 1,
+    "reason": "runner shell file was updated while its existing process was executing; trailing command not found after the persisted successful device stage",
+    "device_stage_success_persisted_before_wrapper_error": true,
+    "flash_not_repeated": true
+  },
+  "pending": [
+    "missing-identity physical voice-denial attempt and observation",
+    "new administrator recovery and physical credential writeback",
+    "new-versus-old credential checks and same-round owner/permission comparison",
+    "applicable durable-checkpoint interruption and stale-request checks",
+    "post-recovery physical reboot, original-account scan and complete voice reply",
+    "administrator device_disabled maintenance path",
+    "historical first-recovery owner/permission evidence remains unavailable"
+  ],
+  "secrets_in_public_evidence": false,
+  "issue42_complete": false,
+  "issue13_complete": false
+}

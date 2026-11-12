@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-12 13:20（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近观察：2026-11-12 17:43（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及历史新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)。[本轮单键身份丢失记录](../verification/2026-11-12-controlled-identity-loss.md)确认当前语音为 `pr79-f830a8c`，14:50:32启动；16:44至17:41镜像和启动时间保持，本任务未部署或重启服务。此前PR81候选及临时trace镜像的历史观察保留在[#42停用续验报告](../verification/2026-11-12-issue42-acceptance.md)，其完整实机通过范围仍为13:38–14:05。B当前已受控删除身份键并还原原目标产品，尚未补发；服务器ready不等于物理B可正常对话。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -28,7 +28,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:pr79-f830a8c`，PR #79 合并提交 `7864e25` 与受测 head `f830a8c` 文件树一致；在原维护镜像基础上同时更新 `product_maintenance.py` 与 `product_voice.py`，2026-11-12 12:58 单独重建，原配置和系统提示词保留 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:pr79-f830a8c`，镜像 ID `sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca`，2026-11-12 14:50:32 启动；[17:41只读核对](../verification/evidence/2026-11-12-controlled-identity-loss/server-after-loss.json)确认与16:44基线一致，当前镜像未因本轮维护重建；完整语音复验待设备方接续 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
@@ -65,6 +65,10 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 2026-11-12 12:58 已部署 [PR #79 修复](../verification/2026-11-12-pr79-deployment.md)：维护通道的异常／取消结果分类及最终会话检查在 [15 项 Ubuntu 隔离回归](../verification/evidence/2026-11-12-p4-ota-server/maintenance-review-fixes.json)与[候选镜像内 15 项回归](../verification/evidence/2026-11-12-pr79-deployment/candidate-preparation.json)通过后，配套更新两个模块，仅重建语音。13:00 [只读核验](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-audit.json)确认受测镜像 ID 与实际一致，B 仍为 ready／许可19／归属7，设备状态、补发、硬件映射及原 OTA 预留不变；API、数据库、Redis 与 TLS 入口未重建。API 内部健康与本机正常 TLS 发现均为 200；当时维护 status 返回 `no_unique_session`。随后用户[确认 B 已唤醒、原账号及一次完整回答正常](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-functional-confirmation.json)，13:08 [只读核对](../verification/evidence/2026-11-12-pr79-deployment/post-functional-server-state.json)确认 status=`current`、MCP 就绪、上述设备状态和原预留保持，服务没有再次重建。本轮没有重启 API／Ubuntu 主机，没有公网 18443 新探测或再次下发 OTA；#42／#13 的其他验收继续保持打开。
 
 13:20 的[新旧凭据独立复查](../verification/evidence/2026-11-12-api-restart-audit/current-credential-check.json)通过本机正常 TLS 设备状态入口确认旧凭据401／`INVALID_DEVICE_CREDENTIAL`、当前凭据200／`OK`，B仍为ready／许可19／归属7，记录快照保持。本次只读请求晚于当前 API 11:13启动，不是昨晚重启的即时检查；没有再次重启服务、补发或轮换凭据，也没有新的公网18443探测。
+
+13:39 的 [#42 停用保持续验](../verification/2026-11-12-issue42-acceptance.md)已通过真实 `sign-out` 将 B 从 ready／许可19／归属7停用为 user_signed_out／许可20／归属7，保留身份、凭据、准入及原归属；A、交付／补发记录及原OTA预留保持。13:41 六项重试／迟到请求通过。硬件方随后确认恢复出厂／重启／重新配网、目标ELF／ota_1／身份／凭据及device_ctrl存活记录保持，现场仍停用且无法正常语音；14:01服务器确认仍为user_signed_out／许可20／归属7和blocked。该固件未在device_ctrl持久化停用原因或许可版本，本轮验证联网后的服务器停用保持。用户随后确认原账号明确恢复成功、显示正常并完成一次完整语音；14:05服务器确认B已为ready／许可21／归属7和allowed，身份／凭据／原归属、A、交付／补发记录、所记录的Compose／身份与交付密钥及原OTA预留均保持，当时服务版本／启动时间不变。本轮闭环通过；14:06后的语音变化另见上表与报告，不计入本轮通过结果。管理员device_disabled和异常身份丢失恢复等仍未验，本任务没有重启服务、再发OTA或新增补发，#42／#13继续打开。
+
+17:40完成[单键身份丢失及原产品还原](../verification/2026-11-12-controlled-identity-loss.md)：真实B经原生NVS API仅删除 `device_ctrl/identity_v1`，独立读回确认锚点和其余9条存活记录保持；原bin全量读回一致，原ELF／ota_1和联网报告核对通过，`device_id=null`。17:41／17:43服务器确认原档案／凭据／归属及B许可21／归属7、A、交付／补发记录和原OTA预留保持，未创建新补发。用户离场后已关闭串口转发，现场语音拒绝、管理员补发写回及恢复后扫码／完整语音交由设备方按[交接说明](../handoff/2026-11-12-issue42-identity-loss.md)接续并提交报告；#42／#13保持打开。
 
 ## 本地资料缺失或过时
 
