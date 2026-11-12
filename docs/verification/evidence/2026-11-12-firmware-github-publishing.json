@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-12",
+  "repository": "yanghan24/xiaozhi",
+  "source_branch": "firmware/p4",
+  "remote_branch_commit": "a30f6a8d3e47068004af0685d5c229cb7648cdae",
+  "releases": [
+    {
+      "tag": "firmware/p4-2.2.6-860e045",
+      "annotated_tag_object": "73a5c84fbe99fed2ffaa95438771788941f087e1",
+      "source_commit": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+      "url": "https://github.com/yanghan24/xiaozhi/releases/tag/firmware/p4-2.2.6-860e045",
+      "published_at": "2026-11-12T02:58:29Z",
+      "draft": false,
+      "prerelease": true,
+      "application_file": "xiaozhi-p4-2.2.6-860e045.bin",
+      "application_bytes": 3998640,
+      "application_sha256": "0947b2a879a5ed3e5390796f55997706b189707a8593383049957fbc3514db4f",
+      "installed_on_device_b": true,
+      "attachment_count": 6,
+      "all_attachments_downloaded": true,
+      "downloaded_files_match_local_package_byte_for_byte": true,
+      "sha256sum_check_passed": true,
+      "manifest_source_size_and_digest_match": true,
+      "product_checks_passed": 10
+    },
+    {
+      "tag": "firmware/p4-2.2.6-a30f6a8-rc1",
+      "annotated_tag_object": "4d9029cb6289593a6233f8b77f38f6ff3b47b7b5",
+      "source_commit": "a30f6a8d3e47068004af0685d5c229cb7648cdae",
+      "url": "https://github.com/yanghan24/xiaozhi/releases/tag/firmware/p4-2.2.6-a30f6a8-rc1",
+      "published_at": "2026-11-12T02:58:55Z",
+      "draft": false,
+      "prerelease": true,
+      "application_file": "xiaozhi-p4-2.2.6-a30f6a8.bin",
+      "application_bytes": 4003072,
+      "application_sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+      "installed_on_device_b": false,
+      "attachment_count": 6,
+      "all_attachments_downloaded": true,
+      "downloaded_files_match_local_package_byte_for_byte": true,
+      "sha256sum_check_passed": true,
+      "manifest_source_size_and_digest_match": true,
+      "product_checks_passed": 10
+    }
+  ],
+  "source_new_objects_scanned": 284,
+  "large_new_blobs_over_50_mib": 0,
+  "credential_pattern_findings_in_new_source_objects": 0,
+  "authorized_embedded_fields": [
+    "CONFIG_XIAOZHI_AMAP_API_KEY",
+    "CONFIG_IOT_PLATFORM_HTTP_TOKEN"
+  ],
+  "device_identity_and_nvs_backups_included": false,
+  "runtime_source_changed": false,
+  "images_rebuilt": false,
+  "hardware_accessed": false,
+  "backend_tests_run": false,
+  "server_deployment_changed": false,
+  "ota_rollout_changed": false,
+  "main_updated": false
+}
