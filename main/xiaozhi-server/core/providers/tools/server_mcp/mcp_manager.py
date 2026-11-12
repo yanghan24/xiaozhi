@@ -3,16 +3,33 @@
 import asyncio
 import os
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Set
 
 from mcp.types import LoggingMessageNotificationParams
 
 from config.config_loader import get_project_dir
 from config.logger import setup_logging
 from .mcp_client import ServerMCPClient
+from .errors import (
+    MCPToolExecutionError,
+    ToolNotFoundError,
+    MCP_EXECUTION_FAILED_MESSAGE,
+    MCP_TOOL_NOT_FOUND_MESSAGE,
+)
 
 TAG = __name__
 logger = setup_logging()
+
+_INIT_TIMEOUT_SECONDS = 10
+_CLEANUP_TIMEOUT_SECONDS = 20
+
+
+class _ToolRegistrationRejected(Exception):
+    """工具注册被拒绝，仅用于管理器内部控制流。"""
+
+
+class _ManagerClosed(Exception):
+    """管理器已关闭，不再接受初始化或注册。"""
 
 
 class ServerMCPManager:
@@ -24,12 +41,12 @@ class ServerMCPManager:
         self.config_path = get_project_dir() + "data/.mcp_server_settings.json"
         if not os.path.exists(self.config_path):
             self.config_path = ""
-            logger.bind(tag=TAG).debug(
-                f"请检查mcp服务配置文件：data/.mcp_server_settings.json"
-            )
+            logger.bind(tag=TAG).debug("MCP服务配置文件不存在")
         self.clients: Dict[str, ServerMCPClient] = {}
         self.tools = []
         self._init_lock = asyncio.Lock()
+        self._closed = False
+        self._pending_clients: Set[ServerMCPClient] = set()
 
     def load_config(self) -> Dict[str, Any]:
         """加载MCP服务配置"""
@@ -39,55 +56,112 @@ class ServerMCPManager:
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
-            return config.get("mcpServers", {})
-        except Exception as e:
-            logger.bind(tag=TAG).error(
-                f"Error loading MCP config from {self.config_path}: {e}"
-            )
+            servers = config.get("mcpServers", {})
+            return servers if isinstance(servers, dict) else {}
+        except Exception:
+            logger.bind(tag=TAG).error("MCP服务配置加载失败")
             return {}
 
-    async def _init_server(self, name: str, srv_config: Dict[str, Any]):
-        """初始化单个MCP服务"""
-        client = None
-        try:
-            # 初始化服务端MCP客户端
-            logger.bind(tag=TAG).info(f"初始化服务端MCP客户端: {name}")
-            client = ServerMCPClient(srv_config)
-            # 设置超时时间10秒
-            await asyncio.wait_for(client.initialize(logging_callback=self.logging_callback), timeout=10)
+    @staticmethod
+    def _tool_names(tools: List[Dict[str, Any]]) -> Set[str]:
+        names: Set[str] = set()
+        for tool in tools:
+            if not isinstance(tool, dict):
+                continue
+            function = tool.get("function")
+            if not isinstance(function, dict):
+                continue
+            name = function.get("name")
+            if isinstance(name, str) and name:
+                names.add(name)
+        return names
 
-            # 使用锁保护共享状态的修改
+    async def _init_server(self, name: str, srv_config: Dict[str, Any]):
+        """初始化单个MCP服务；关闭、失败或冲突时不注册任何工具。"""
+        client = ServerMCPClient(srv_config)
+        registered = False
+        cleaned = False
+        try:
             async with self._init_lock:
+                if self._closed:
+                    raise _ManagerClosed()
+                self._pending_clients.add(client)
+
+            logger.bind(tag=TAG).info("开始初始化服务端MCP客户端")
+
+            await asyncio.wait_for(
+                client.initialize(logging_callback=self.logging_callback),
+                timeout=_INIT_TIMEOUT_SECONDS,
+            )
+            client_tools = client.get_available_tools()
+
+            async with self._init_lock:
+                if self._closed:
+                    raise _ManagerClosed()
+                if name in self.clients:
+                    raise _ToolRegistrationRejected()
+
+                existing_names = self._tool_names(self.tools)
+                new_names: Set[str] = set()
+                for tool in client_tools:
+                    if not isinstance(tool, dict):
+                        raise _ToolRegistrationRejected()
+                    function = tool.get("function")
+                    if not isinstance(function, dict):
+                        raise _ToolRegistrationRejected()
+                    tool_name = function.get("name")
+                    if not isinstance(tool_name, str) or not tool_name:
+                        raise _ToolRegistrationRejected()
+                    if tool_name in existing_names or tool_name in new_names:
+                        raise _ToolRegistrationRejected()
+                    new_names.add(tool_name)
+
+                # 只有完整校验通过才一次性提交，失败不会留下半套客户端或工具。
                 self.clients[name] = client
-                client_tools = client.get_available_tools()
-                self.tools.extend(client_tools)
+                self.tools = self.tools + client_tools
+                registered = True
+
+            logger.bind(tag=TAG).info(
+                f"服务端MCP客户端初始化成功，工具数量: {len(client_tools)}"
+            )
 
         except asyncio.TimeoutError:
-            logger.bind(tag=TAG).error(
-                f"Failed to initialize MCP server {name}: Timeout"
-            )
-            if client:
-                await client.cleanup()
-        except Exception as e:
-            logger.bind(tag=TAG).error(
-                f"Failed to initialize MCP server {name}: {e}"
-            )
-            if client:
-                await client.cleanup()
+            logger.bind(tag=TAG).error("服务端MCP客户端初始化超时")
+        except asyncio.CancelledError:
+            raise
+        except _ManagerClosed:
+            logger.bind(tag=TAG).warning("服务端MCP管理器已关闭，拒绝初始化")
+        except _ToolRegistrationRejected:
+            logger.bind(tag=TAG).warning("服务端MCP工具名称冲突，已拒绝注册")
+        except Exception:
+            logger.bind(tag=TAG).error("服务端MCP客户端初始化失败")
+        finally:
+            if not registered:
+                cleaned = await self._cleanup_client(client)
+            if registered or cleaned:
+                async with self._init_lock:
+                    self._pending_clients.discard(client)
 
     async def initialize_servers(self) -> None:
         """初始化所有MCP服务"""
         config = self.load_config()
         tasks = []
+        skipped = 0
         for name, srv_config in config.items():
-            if not srv_config.get("command") and not srv_config.get("url"):
-                logger.bind(tag=TAG).warning(
-                    f"Skipping server {name}: neither command nor url specified"
-                )
+            if not isinstance(srv_config, dict):
+                skipped += 1
                 continue
-            
+            if not srv_config.get("command") and not srv_config.get("url"):
+                skipped += 1
+                continue
+
             tasks.append(self._init_server(name, srv_config))
-        
+
+        if skipped:
+            logger.bind(tag=TAG).warning(
+                f"跳过 {skipped} 个配置不完整或无效的MCP服务"
+            )
+
         if tasks:
             await asyncio.gather(*tasks)
 
@@ -105,90 +179,112 @@ class ServerMCPManager:
     def is_mcp_tool(self, tool_name: str) -> bool:
         """检查是否是MCP工具"""
         for tool in self.tools:
-            if (
-                tool.get("function") is not None
-                and tool["function"].get("name") == tool_name
-            ):
+            if not isinstance(tool, dict):
+                continue
+            function = tool.get("function")
+            if isinstance(function, dict) and function.get("name") == tool_name:
                 return True
         return False
 
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """执行工具调用，失败时会尝试重新连接"""
-        logger.bind(tag=TAG).info(f"执行服务端MCP工具 {tool_name}，参数: {arguments}")
+        """执行工具调用。单次提交，不自动重放结果未知的调用。"""
+        logger.bind(tag=TAG).info("开始执行服务端MCP工具")
+        if self._closed:
+            raise MCPToolExecutionError(MCP_EXECUTION_FAILED_MESSAGE)
 
-        max_retries = 3  # 最大重试次数
-        retry_interval = 2  # 重试间隔(秒)
-
-        # 找到对应的客户端
-        client_name = None
         target_client = None
-        for name, client in self.clients.items():
+        for client in list(self.clients.values()):
             if client.has_tool(tool_name):
-                client_name = name
                 target_client = client
                 break
 
-        if not target_client:
-            raise ValueError(f"工具 {tool_name} 在任意MCP服务中未找到")
+        if target_client is None:
+            raise ToolNotFoundError(MCP_TOOL_NOT_FOUND_MESSAGE)
 
-        # 带重试机制的工具调用
-        for attempt in range(max_retries):
+        try:
+            return await target_client.call_tool(
+                tool_name, arguments, progress_callback=self.progress_callback
+            )
+        except asyncio.CancelledError:
+            raise
+        except ToolNotFoundError:
+            raise
+        except Exception:
+            logger.bind(tag=TAG).error(MCP_EXECUTION_FAILED_MESSAGE)
+            raise MCPToolExecutionError(MCP_EXECUTION_FAILED_MESSAGE) from None
+
+    async def _cleanup_client(self, client: ServerMCPClient) -> bool:
+        """清理单个客户端；自身超时按失败返回，调用方取消继续传播。"""
+        try:
+            await asyncio.wait_for(
+                client.cleanup(), timeout=_CLEANUP_TIMEOUT_SECONDS
+            )
+            return True
+        except asyncio.TimeoutError:
+            logger.bind(tag=TAG).error("服务端MCP客户端关闭超时")
+            return False
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.bind(tag=TAG).error("服务端MCP客户端关闭失败")
+            return False
+
+    def _refresh_tools_from_clients(self) -> None:
+        """只保留仍留在管理器中的客户端工具，避免清理后残留。"""
+        tools = []
+        for client in self.clients.values():
             try:
-                return await target_client.call_tool(tool_name, arguments, progress_callback=self.progress_callback)
-            except Exception as e:
-                # 最后一次尝试失败时直接抛出异常
-                if attempt == max_retries - 1:
-                    raise
-
-                logger.bind(tag=TAG).warning(
-                    f"执行工具 {tool_name} 失败 (尝试 {attempt+1}/{max_retries}): {e}"
-                )
-
-                # 尝试重新连接
-                logger.bind(tag=TAG).info(
-                    f"重试前尝试重新连接 MCP 客户端 {client_name}"
-                )
-                try:
-                    # 关闭旧的连接
-                    await target_client.cleanup()
-
-                    # 重新初始化客户端
-                    config = self.load_config()
-                    if client_name in config:
-                        client = ServerMCPClient(config[client_name])
-                        await client.initialize(logging_callback=self.logging_callback)
-                        self.clients[client_name] = client
-                        target_client = client
-                        logger.bind(tag=TAG).info(
-                            f"成功重新连接 MCP 客户端: {client_name}"
-                        )
-                    else:
-                        logger.bind(tag=TAG).error(
-                            f"Cannot reconnect MCP client {client_name}: config not found"
-                        )
-                except Exception as reconnect_error:
-                    logger.bind(tag=TAG).error(
-                        f"Failed to reconnect MCP client {client_name}: {reconnect_error}"
-                    )
-
-                # 等待一段时间再重试
-                await asyncio.sleep(retry_interval)
+                tools.extend(client.get_available_tools())
+            except Exception:
+                logger.bind(tag=TAG).error("服务端MCP工具列表刷新失败")
+        self.tools = tools
 
     async def cleanup_all(self) -> None:
-        """关闭所有 MCP客户端"""
-        for name, client in list(self.clients.items()):
-            try:
-                if hasattr(client, "cleanup"):
-                    await asyncio.wait_for(client.cleanup(), timeout=20)
-                logger.bind(tag=TAG).info(f"服务端MCP客户端已关闭: {name}")
-            except (asyncio.TimeoutError, Exception) as e:
-                logger.bind(tag=TAG).error(f"关闭服务端MCP客户端 {name} 时出错: {e}")
-        self.clients.clear()
+        """关闭所有 MCP客户端；取消时保留未完成client便于重试。"""
+        self._closed = True
+        async with self._init_lock:
+            registered = list(self.clients.items())
+            pending = list(self._pending_clients)
+
+        cleaned = 0
+        seen: Set[int] = set()
+        try:
+            for name, client in registered:
+                if id(client) in seen:
+                    continue
+                seen.add(id(client))
+                if await self._cleanup_client(client):
+                    cleaned += 1
+                    async with self._init_lock:
+                        if self.clients.get(name) is client:
+                            del self.clients[name]
+                        self._pending_clients = {
+                            pending_client for pending_client in self._pending_clients
+                            if pending_client is not client
+                        }
+
+            for client in pending:
+                if id(client) in seen:
+                    continue
+                seen.add(id(client))
+                if await self._cleanup_client(client):
+                    cleaned += 1
+                    async with self._init_lock:
+                        self._pending_clients.discard(client)
+        finally:
+            self._refresh_tools_from_clients()
+
+        if cleaned:
+            logger.bind(tag=TAG).info(
+                f"服务端MCP客户端已清理，数量: {cleaned}"
+            )
 
     # 可选回调方法
 
     async def logging_callback(self, params: LoggingMessageNotificationParams):
-        logger.bind(tag=TAG).info(f"[Server Log - {params.level.upper()}] {params.data}")
+        # 服务端通知内容不进入日志。
+        logger.bind(tag=TAG).info("收到服务端MCP日志通知")
 
     async def progress_callback(self, progress: float, total: float | None, message: str | None) -> None:
-        logger.bind(tag=TAG).info(f"[Progress {progress}/{total}]: {message}")
+        # 进度文本可能包含外部数据，不进入日志。
+        logger.bind(tag=TAG).info("收到服务端MCP进度通知")
