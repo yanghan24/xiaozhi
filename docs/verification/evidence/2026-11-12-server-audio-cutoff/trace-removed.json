@@ -1,0 +1,7 @@
+{
+  "removed_at": "2026-11-12T06:12:30.267220+00:00",
+  "restored_image": "xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c",
+  "image_id": "sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d",
+  "trace_module_absent": true,
+  "voice_listening": true
+}
