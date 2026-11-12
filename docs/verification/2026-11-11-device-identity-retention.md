@@ -87,3 +87,7 @@ python3 scripts/check-recovery-writeback.py \
 ```
 
 脚本要求 Ubuntu、输入 0600、输出目录 0700，保持正常 HTTPS 证书验证并拒绝重定向；可沿用 PR #68 的已验证代理通道。只在物理设备验证及后台完成之后，分别检查旧凭据 401 / `INVALID_DEVICE_CREDENTIAL`、新凭据 200 / `delivered`，原始响应留在私有目录。仅分享脱敏 `summary.json`。本机只做语法及非 Ubuntu 拒绝检查，没有执行这两项 HTTP 检查；原账号/许可状态和服务重启还需另外核对。
+
+## 后续接续
+
+[PR #74](https://github.com/yanghan24/xiaozhi/pull/74) 已补充 Ubuntu 的旧/新凭据独立检查、拒绝检查和补发后 API 容器重启证据；补发瞬间的历史归属/许可比对仍缺紧邻快照，不能用后来的换绑状态补证。2026-11-12 再次接回 B 的[硬件接续记录](2026-11-12-pr74-hardware-followup.md)确认当前应用、复位联网和 NVS 身份保持，手机扫码身份确认失败仍在排查，完整语音播放未记为通过。前文保留各阶段当时的执行边界，#42 继续打开。
