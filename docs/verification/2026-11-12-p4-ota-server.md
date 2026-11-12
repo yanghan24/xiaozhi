@@ -56,6 +56,15 @@ Ubuntu 已使用私有 URL 完整下载并核对固定 SHA-256；公网 `bridge.
 
 本轮另补真正经过 Unix socket 的异常重放测试：修正前可重复得到“已预留发送失败却返回 denied”；修正为 `result_unknown_do_not_retry` 后 13 项通过，0 失败/错误/跳过，见[测试摘要](evidence/2026-11-12-p4-ota-server/maintenance-tests.json)。这项返回分类修正已在分支准备，**当前部署仍为 `4976888` 的版本**，尚未重启语音部署修正；操作未知状态及防重试预留本来就已生效。测试没有再次向 B 下发。
 
+## 审查后修复：取消与最终会话检查
+
+针对 PR #79 head `677d69f` 相对 main `b448aa0` 的审查，修复两个 P2，见[失败回归及修复证据](evidence/2026-11-12-p4-ota-server/maintenance-review-fixes.json)：
+
+- 升级已发送、等待结果时任务取消，原 `except Exception` 不处理 `CancelledError`，Unix socket 会返回默认 `denied`。新增真实 Unix socket 回归先失败，再把取消纳入未知结果分类并继续传播取消信号；已有预留保留且同一操作不能重发。
+- 最后一次会话检查后，异步许可检查期间可能注册第二个 B 会话。维护 RPC 现在向 `GuardedSocket.send` 传入同步会话校验，完成权威许可检查后、提交消息前再次核对唯一连接、同一 handler/session 和许可版本。新回归在实际 GuardedSocket 的最后一次许可检查中注入新连接，修复前错误发送，修复后阻止发送并清理 RPC future。普通调用仍沿用原发送接口。
+
+两项逐一先红后绿；Ubuntu 无网络隔离容器最终 15 项通过，0 失败/错误/跳过，语法及受测源码 hash 核对通过。现有维护测试也改用真实 GuardedSocket。当前分支修复涉及 `product_maintenance.py` 和 `product_voice.py`，后续部署须同时更新这两个模块；现网仍为上述旧维护版本，本次没有重启服务或重新向 B 下发，原 11:20 操作及硬件验收证据保留。
+
 ## OTA 后功能与独立解绑/重新绑定
 
 用户确认“扫码账号正常，完整语音正常”，见[功能确认](evidence/2026-11-12-p4-ota-server/post-ota-functional-confirmation.json)。11:33–11:35 之间 B 的许可从 17 变为 19、归属版本从 5 变为 7，最终归属账号和凭据相同，A 不变，见[独立版本比较](evidence/2026-11-12-p4-ota-server/post-qr-version-comparison.json)。用户进一步确认这期间执行过“退出并解除绑定”并重新绑定；因此不能声称 OTA 后扫码/语音全程保持 17/5，也不把这次独立操作记为 OTA 导致归属变化。

@@ -4,11 +4,13 @@ import os
 from pathlib import Path
 import socket
 import tempfile
+import threading
 import time
 from types import SimpleNamespace
 import unittest
 
 from core.product_maintenance import MaintenanceControl, MaintenanceDenied
+from core.product_voice import GuardedSocket
 
 
 class Client:
@@ -36,6 +38,9 @@ class Gate:
     version = 17
     denied = False
 
+    def __init__(self):
+        self.ended = threading.Event()
+
     async def check_async(self):
         if self.denied:
             raise MaintenanceDenied()
@@ -50,10 +55,11 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
         self.gate = Gate()
         self.tool_exists = True
         self.lose_result = False
+        self.wait_for_upgrade_result = False
+        self.upgrade_sent = asyncio.Event()
         self.page = False
 
         async def send(raw):
-            await self.gate.check_async()  # Exercise the same transport boundary as GuardedSocket.
             frame = json.loads(raw)['payload']
             self.frames.append(frame)
             if frame['method'] == 'tools/list':
@@ -64,12 +70,16 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
             else:
                 if self.lose_result:
                     raise ConnectionError('private_url_must_not_be_returned')
+                if self.wait_for_upgrade_result:
+                    self.upgrade_task = asyncio.current_task()
+                    self.upgrade_sent.set()
+                    return
                 result = {'content': [{'type': 'text', 'text': 'true'}]}
             self.client.call_results[frame['id']].set_result(result)
 
         self.handler = SimpleNamespace(device_id='device-B', session_id='current-session',
             product_voice_gate=self.gate, mcp_client=self.client,
-            websocket=SimpleNamespace(send=send))
+            websocket=GuardedSocket(SimpleNamespace(send=send), self.gate))
         self.control = MaintenanceControl({'one': self.handler}, self.temp.name, 'device-B')
 
     def request(self, action='probe', **changes):
@@ -109,8 +119,8 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
     async def test_permission_revoked_after_probe_blocks_upgrade_at_send_boundary(self):
         original_send = self.handler.websocket.send
 
-        async def send(raw):
-            await original_send(raw)
+        async def send(raw, **kwargs):
+            await original_send(raw, **kwargs)
             if json.loads(raw)['payload']['method'] == 'tools/list':
                 self.gate.denied = True
 
@@ -118,6 +128,27 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(MaintenanceDenied):
             await self.control.execute(self.request('upgrade'))
         self.assertFalse(any(f['method'] == 'tools/call' for f in self.frames))
+
+    async def test_new_session_during_final_permission_check_prevents_upgrade(self):
+        original_send = self.handler.websocket.send
+        original_check = self.gate.check_async
+
+        async def new_session_during_check():
+            self.control.sessions['two'] = SimpleNamespace(device_id='device-B',
+                session_id='new-session', product_voice_gate=Gate(), mcp_client=Client())
+            await asyncio.sleep(0)
+            await original_check()
+
+        async def send(raw, **kwargs):
+            if json.loads(raw)['payload']['method'] == 'tools/call':
+                self.gate.check_async = new_session_during_check
+            return await original_send(raw, **kwargs)
+
+        self.handler.websocket.send = send
+        with self.assertRaises(MaintenanceDenied):
+            await self.control.execute(self.request('upgrade'))
+        self.assertFalse(any(f['method'] == 'tools/call' for f in self.frames))
+        self.assertFalse(self.client.call_results)
 
     async def test_missing_user_tool_never_calls_upgrade(self):
         self.tool_exists = False
@@ -184,6 +215,29 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
             writer.close()
             await writer.wait_closed()
         finally:
+            await self.control.close()
+
+    @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Requires Linux root Unix credentials')
+    async def test_cancelled_upgrade_returns_unknown_and_cannot_be_replayed(self):
+        self.wait_for_upgrade_result = True
+        await self.control.start()
+        reader, writer = await asyncio.open_unix_connection(str(Path(self.temp.name) / 'control.sock'))
+        try:
+            writer.write(json.dumps(self.request('upgrade')).encode() + b'\n')
+            await writer.drain()
+            await asyncio.wait_for(self.upgrade_sent.wait(), 3)
+            self.upgrade_task.cancel()
+            result = json.loads(await asyncio.wait_for(reader.readline(), 3))
+            await asyncio.gather(self.upgrade_task, return_exceptions=True)
+            self.assertTrue(self.upgrade_task.cancelled())
+            self.assertEqual({'status': 'result_unknown_do_not_retry'}, result)
+            self.wait_for_upgrade_result = False
+            with self.assertRaises(FileExistsError):
+                await self.control.execute(self.request('upgrade'))
+            self.assertEqual(1, sum(f['method'] == 'tools/call' for f in self.frames))
+        finally:
+            writer.close()
+            await writer.wait_closed()
             await self.control.close()
 
     @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Requires Linux root Unix credentials')

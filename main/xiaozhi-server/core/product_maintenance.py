@@ -69,13 +69,15 @@ class MaintenanceControl:
             request = json.loads(raw)
             async with self.lock:
                 result = await self.execute(request)
-        except Exception:
+        except (Exception, asyncio.CancelledError) as error:
             # URLs, credentials, device responses, and exception text never enter logs/output.
             if isinstance(request, dict) and request.get('action') == 'upgrade':
                 operation = request.get('operation_id')
                 if (isinstance(operation, str) and re.fullmatch(r'[a-f0-9]{32}', operation)
                         and (self.directory / (operation + '.json')).exists()):
                     result = {'status': 'result_unknown_do_not_retry'}
+            if isinstance(error, asyncio.CancelledError):
+                raise  # Preserve shutdown cancellation after classifying the socket response.
         finally:
             writer.write(json.dumps(result).encode() + b'\n')
             try:
@@ -98,7 +100,7 @@ class MaintenanceControl:
             raise MaintenanceDenied()
         return handler
 
-    async def rpc(self, handler, method, params):
+    async def rpc(self, handler, request, method, params):
         client = handler.mcp_client
         if not await client.is_ready():
             raise MaintenanceDenied()
@@ -106,11 +108,15 @@ class MaintenanceControl:
         call_id = await client.get_next_id()
         future = asyncio.get_running_loop().create_future()
         await client.register_call_result_future(call_id, future)
+        def validate_session():
+            if self.current(request) is not handler:
+                raise MaintenanceDenied()
         try:
             # Deliberately bypass the generic helper, which logs tool arguments.
             # GuardedSocket rechecks current authority at the actual send boundary.
             await handler.websocket.send(json.dumps({'type': 'mcp', 'payload': {
-                'jsonrpc': '2.0', 'id': call_id, 'method': method, 'params': params}}))
+                'jsonrpc': '2.0', 'id': call_id, 'method': method, 'params': params}}),
+                before_send=validate_session)
             return await asyncio.wait_for(future, 10)
         finally:
             await client.cleanup_call_result(call_id)
@@ -134,7 +140,7 @@ class MaintenanceControl:
         if action not in ('probe', 'upgrade') or set(request) != (base if action == 'probe' else base | {'url', 'operation_id'}):
             raise MaintenanceDenied()
         handler = self.current(request)
-        result = await self.rpc(handler, 'tools/list', {'withUserTools': True})
+        result = await self.rpc(handler, request, 'tools/list', {'withUserTools': True})
         names = set()
         for _ in range(32):
             if not isinstance(result, dict) or result.get('isError'):
@@ -143,7 +149,7 @@ class MaintenanceControl:
             cursor = result.get('nextCursor')
             if not cursor:
                 break
-            result = await self.rpc(handler, 'tools/list', {'withUserTools': True, 'cursor': cursor})
+            result = await self.rpc(handler, request, 'tools/list', {'withUserTools': True, 'cursor': cursor})
         else:
             raise MaintenanceDenied()
         # The user-only response is resolved as an RPC future, never added to model tools.
@@ -179,7 +185,7 @@ class MaintenanceControl:
             os.fsync(directory_fd)
         finally:
             os.close(directory_fd)
-        result = await self.rpc(handler, 'tools/call', {
+        result = await self.rpc(handler, request, 'tools/call', {
             'name': 'self.upgrade_firmware', 'arguments': {'url': url}})
         accepted = (isinstance(result, dict) and not result.get('isError')
                     and any(isinstance(c, dict) and c.get('text', '').strip() == 'true'
