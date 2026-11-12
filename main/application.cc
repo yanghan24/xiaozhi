@@ -2,6 +2,7 @@
 #include "assets.h"
 #include "assets/lang_config.h"
 #include "audio_codec.h"
+#include "audio/speaking_input_policy.h"
 #include "board.h"
 #include "device_control/delivery_bootstrap.h"
 #include "device_control/device_identity.h"
@@ -975,6 +976,14 @@ void Application::HandleWakeWordDetectedEvent() {
     auto wake_word = audio_service_.GetLastWakeWord();
     ESP_LOGI(TAG, "Wake word detected: %s (state: %d)", wake_word.c_str(), (int)state);
 
+#if CONFIG_WAKE_WORD_ONLY_INTERRUPT
+    if (state == kDeviceStateSpeaking && wake_word != "你好小智") {
+        // The detector stops itself on every match, including other keywords.
+        audio_service_.EnableWakeWordDetection(VoiceAllowed());
+        return;
+    }
+#endif
+
     if (state == kDeviceStateIdle) {
         audio_service_.EncodeWakeWord();
         auto wake_word = audio_service_.GetLastWakeWord();
@@ -1000,7 +1009,12 @@ void Application::HandleWakeWordDetectedEvent() {
             audio_service_.EnableWakeWordDetection(true);
         } else {
             // Play popup sound and start listening again
+#if CONFIG_WAKE_WORD_ONLY_INTERRUPT
+            audio_service_.ResetDecoder();
+            play_popup_on_listening_ = false;
+#else
             play_popup_on_listening_ = true;
+#endif
             SetListeningMode(GetDefaultListeningMode());
         }
     } else if (state == kDeviceStateActivating) {
@@ -1127,10 +1141,18 @@ void Application::HandleStateChangedEvent() {
             audio_service_.NotifyVoiceInteractionStarted();
             display->SetStatus(Lang::Strings::SPEAKING);
 
-            if (listening_mode_ != kListeningModeRealtime) {
-                audio_service_.EnableVoiceProcessing(false);
-                // Only AFE wake word can be detected in speaking mode
-                audio_service_.EnableWakeWordDetection(audio_service_.IsAfeWakeWord());
+            {
+                auto input = GetSpeakingInputPolicy(listening_mode_ == kListeningModeRealtime,
+                                                   audio_service_.IsAfeWakeWord(),
+#if CONFIG_WAKE_WORD_ONLY_INTERRUPT
+                                                   true);
+#else
+                                                   false);
+#endif
+                if (!input.process_voice) {
+                    audio_service_.EnableVoiceProcessing(false);
+                    audio_service_.EnableWakeWordDetection(input.detect_wake_word);
+                }
             }
             audio_service_.ResetDecoder();
             break;
@@ -1233,7 +1255,13 @@ void Application::SetListeningMode(ListeningMode mode) {
 }
 
 ListeningMode Application::GetDefaultListeningMode() const {
+#if CONFIG_WAKE_WORD_ONLY_INTERRUPT
+    // AEC is still available for input cleanup. It must not select realtime
+    // listening, whose playback path keeps ordinary microphone audio flowing.
+    return kListeningModeAutoStop;
+#else
     return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
+#endif
 }
 
 void Application::Reboot() {

@@ -936,6 +936,17 @@ config WAKE_WORD_DETECTION_IN_LISTENING
         which allows interrupting the current conversation.
         When disabled (default), wake word detection is turned off during listening.
 
+config WAKE_WORD_ONLY_INTERRUPT
+    bool "Only interrupt speech with Ni Hao Xiao Zhi"
+    depends on USE_AFE_WAKE_WORD
+    default y if XIAOZHI_DEVICE_CONTROL
+    default n
+    help
+        Keep the AFE keyword detector running during speech, even with AEC.
+        Ordinary speech does not interrupt. Ni Hao Xiao Zhi cancels playback
+        and resumes listening without a greeting or popup sound. Requires the
+        voice server's matching wake_word interruption policy.
+
 config USE_AUDIO_PROCESSOR
     bool "Enable Audio Noise Reduction"
     default y

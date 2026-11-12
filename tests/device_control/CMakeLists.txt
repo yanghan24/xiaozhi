@@ -14,6 +14,10 @@ add_executable(device_control_tests control_test.cc
 target_include_directories(device_control_tests PRIVATE "${CONTROL_DIR}" "${IDF_PATH}/components/json/cJSON" "${IDF_PATH}/components/http_parser")
 target_compile_options(device_control_tests PRIVATE -Wall -Wextra -Werror)
 enable_testing()
+add_executable(speaking_input_policy_tests ../audio_access/speaking_input_policy_test.cc)
+target_include_directories(speaking_input_policy_tests PRIVATE ../../main/audio)
+target_compile_options(speaking_input_policy_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME speaking_input_policy_tests COMMAND speaking_input_policy_tests)
 add_test(NAME device_control_tests COMMAND device_control_tests)
 
 add_executable(control_worker_tests control_worker_test.cc
