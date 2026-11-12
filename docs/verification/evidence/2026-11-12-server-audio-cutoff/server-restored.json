@@ -1,0 +1,19 @@
+{
+  "observed_at": "20261112T065029Z",
+  "reviewed_head": "f830a8c34393d4befd13263d2ca7b809ac24252f",
+  "voice_image": "xiaozhi-product-voice:pr79-f830a8c",
+  "voice_image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+  "only_voice_recreated": true,
+  "deployed_module_hashes_verified": true,
+  "api_internal_readiness": 200,
+  "local_tls_discovery": 200,
+  "external_18443_probe_performed": false,
+  "maintenance_status_ready": true,
+  "recorded_device_state_unchanged": true,
+  "original_operation_unchanged": true,
+  "ota_sent": false,
+  "physical_voice_acceptance_performed": false,
+  "private_deployment_directory": "/home/jt/wake81-rollback/deployment-20261112T065029Z",
+  "rollback_image": "xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c",
+  "rollback_image_id": "sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d"
+}
