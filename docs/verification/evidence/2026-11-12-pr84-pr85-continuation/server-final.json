@@ -1,0 +1,58 @@
+{
+  "mode": "final",
+  "observed_at": "2026-11-12T21:33:37.47017+08:00",
+  "device_alias": "B",
+  "checks": {
+    "same_device_hardware_owner_admission_and_local_use_state": true,
+    "other_device_business_state_unchanged": true,
+    "one_new_recovery_original_delivery_and_predecessor_unchanged": true,
+    "new_credential_matches_journal_and_server": true,
+    "credential_rotated_once": true,
+    "permission_incremented_once_ownership_preserved": true,
+    "protected_configuration_keys_and_ota_reservation_preserved": true,
+    "service_versions_and_start_times_preserved": true,
+    "new_state_ready_and_allowed": true,
+    "receipt_omits_identity": true,
+    "actual_product_device_verified_and_recovery_delivered": true,
+    "checks_did_not_change_credentials_or_recovery_and_delivery_records": true
+  },
+  "protocol": [
+    {
+      "name": "predecessor credential rejected",
+      "http_status": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "passed": true
+    },
+    {
+      "name": "new credential state accepted",
+      "http_status": 200,
+      "code": "OK",
+      "passed": true
+    },
+    {
+      "name": "current recovery receipt",
+      "http_status": 200,
+      "code": "OK",
+      "passed": true
+    }
+  ],
+  "device_check_called_by_test": false,
+  "passed": true,
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "22",
+    "ownership_version": "7"
+  },
+  "before_b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "21",
+    "ownership_version": "7"
+  },
+  "journal_phase": "delivered",
+  "recovery_status": "delivered",
+  "finished_at": "2026-11-12T21:33:37.937537+08:00"
+}

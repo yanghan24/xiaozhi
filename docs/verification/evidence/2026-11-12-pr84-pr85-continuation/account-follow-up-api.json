@@ -1,0 +1,52 @@
+{
+  "observed_at": "2026-11-12T22:24:09.859444+08:00",
+  "completed_at": "2026-11-12T22:24:09.997917+08:00",
+  "flash_written": false,
+  "credential_rotated": false,
+  "fresh_nvs_readback_verified": true,
+  "identity_present_and_parsed": true,
+  "identity_origin_matches_expected": true,
+  "control_origin_uses_allowed_ota_origin_fallback": true,
+  "protocol": [
+    {
+      "transport": "ubuntu_lan_443",
+      "endpoint": "state",
+      "http_status": 200,
+      "code": "OK",
+      "reason": "ready",
+      "use_permission": "allowed",
+      "permission_version": 22,
+      "lease_expires_in_ms": 60000
+    },
+    {
+      "transport": "ubuntu_lan_443",
+      "endpoint": "account",
+      "http_status": 200,
+      "code": "OK",
+      "username_present": true,
+      "balance_present": true
+    },
+    {
+      "transport": "ubuntu_public_18443",
+      "endpoint": "state",
+      "http_status": 200,
+      "code": "OK",
+      "reason": "ready",
+      "use_permission": "allowed",
+      "permission_version": 22,
+      "lease_expires_in_ms": 60000
+    },
+    {
+      "transport": "ubuntu_public_18443",
+      "endpoint": "account",
+      "http_status": 200,
+      "code": "OK",
+      "username_present": true,
+      "balance_present": true
+    }
+  ],
+  "completed": true,
+  "lease_expiry_transition_directly_timed": false,
+  "exact_network_or_firmware_root_cause_confirmed": false,
+  "scope": "Fresh identity read from B is accepted by the backend. Ubuntu protocol success does not establish B's continuing control connection or voice usability."
+}

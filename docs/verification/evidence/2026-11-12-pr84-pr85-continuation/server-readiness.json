@@ -1,0 +1,97 @@
+{
+  "observed_at": "2026-11-12T19:55:56.00016+08:00",
+  "host": "jt@192.168.168.114",
+  "device_alias": "B",
+  "private_run": "/home/jt/pr84-pr85-continue-20261112/20261112T115556Z",
+  "checks": {
+    "identity_owner_hardware_other_device_and_operation_records_match_handoff": true,
+    "permission_state_matches_handoff": true,
+    "protected_configuration_keys_and_ota_reservation_match_handoff": true,
+    "all_required_services_running": true,
+    "api_and_voice_version_and_start_time_match_handoff": true,
+    "fixed_artifacts_and_backup_match": true,
+    "no_new_recovery_journal": true,
+    "bench_still_at_missing_identity_handoff": true,
+    "normal_operator_login_enabled_admin": true,
+    "same_operator_as_predecessor": true,
+    "operator_permission_get_passed": true,
+    "current_delivered_receipt_matches_predecessor": true,
+    "current_server_credential_accepted": true,
+    "business_state_unchanged_by_checks": true,
+    "protected_files_unchanged_by_checks": true
+  },
+  "new_recovery_created": false,
+  "firmware_written": false,
+  "physical_device_revalidated": false,
+  "service_restarted": false,
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "21",
+    "ownership_version": "7"
+  },
+  "services": {
+    "xiaozhi-pr26-api": {
+      "image": "xiaozhi-product-api:1b50709",
+      "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+      "started_at": "2026-11-12T03:13:39.656388819Z",
+      "running": true
+    },
+    "xiaozhi-pr26-voice": {
+      "image": "xiaozhi-product-voice:pr79-f830a8c",
+      "image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+      "started_at": "2026-11-12T06:50:32.021169588Z",
+      "running": true
+    },
+    "issue29-db": {
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "started_at": "2026-11-12T02:51:28.32525526Z",
+      "running": true
+    },
+    "issue29-redis": {
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "started_at": "2026-11-12T02:51:27.984403759Z",
+      "running": true
+    },
+    "xiaozhi-ubuntu-test-public-entry-public-entry-1": {
+      "image": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "image_id": "sha256:1ff4bb4faebcfb1f7e01144fa9904a570ab9bab88694457855feb6c6bba3fa07",
+      "started_at": "2026-11-12T02:51:28.817270192Z",
+      "running": true
+    }
+  },
+  "artifacts": {
+    "full_flash_backup": {
+      "bytes": 33554432,
+      "sha256": "ed75c1af3b5c8286ddc8529518f0bd498697b372c324edbef2819cbfbfb524a5",
+      "matches": true
+    },
+    "product": {
+      "bytes": 4003072,
+      "sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+      "matches": true
+    },
+    "maintenance": {
+      "bytes": 250624,
+      "sha256": "18dbe4c1df33e03f613cbf7e815e97439e7300d62781e8a8dfb1163c76c37b07",
+      "matches": true
+    },
+    "handoff_package": {
+      "bytes": 2408439,
+      "sha256": "3623123c44e83085c9324b345be1b4e7731dfb434f4ba58fd8027341d52cb6c2",
+      "matches": true
+    }
+  },
+  "bench_phase": "product_identity_missing_verified",
+  "protocol": {
+    "transport": "Ubuntu local 443 with verified official-domain TLS and public-origin Host",
+    "http_status": 200,
+    "code": "OK",
+    "reason": "ready",
+    "use_permission": "allowed"
+  },
+  "passed": true
+}

@@ -1,0 +1,66 @@
+{
+  "observed_at": "2026-11-12T21:22:46.955278+08:00",
+  "functional_acceptance_passed": false,
+  "user_report": {
+    "screen": "Synchronizing login status",
+    "wake": "No response",
+    "original_account_scan": "Not completed",
+    "network_type": "Other Wi-Fi",
+    "hotspot_comparison": "Not completed: after turning off the phone hotspot, the same phone still could not connect to the Xiaozhi provisioning AP"
+  },
+  "identity_recovery_delivered": true,
+  "state_transitions": {
+    "missing-identity-product-private.log": {
+      "transitions": [
+        {
+          "previous": "unknown",
+          "current": "starting"
+        },
+        {
+          "previous": "starting",
+          "current": "activating"
+        },
+        {
+          "previous": "activating",
+          "current": "idle"
+        }
+      ],
+      "entered_idle": 1,
+      "entered_listening": 0,
+      "entered_speaking": 0
+    },
+    "continuation-final-use-private.log": {
+      "transitions": [
+        {
+          "previous": "unknown",
+          "current": "starting"
+        },
+        {
+          "previous": "starting",
+          "current": "activating"
+        },
+        {
+          "previous": "activating",
+          "current": "idle"
+        }
+      ],
+      "entered_idle": 1,
+      "entered_listening": 0,
+      "entered_speaking": 0
+    }
+  },
+  "control_connection_failure_observed": true,
+  "additional_credential_rotation": false,
+  "control_connection_diagnostics": {
+    "public_discovery_control_base": "https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/",
+    "root_cause_confirmed": false,
+    "nginx_access_logging_enabled": false,
+    "stage": "connect",
+    "http_status": 0,
+    "observed_failure_classes": [
+      "Network",
+      "Cancelled"
+    ],
+    "normal_https_seen_in_device_log": true
+  }
+}

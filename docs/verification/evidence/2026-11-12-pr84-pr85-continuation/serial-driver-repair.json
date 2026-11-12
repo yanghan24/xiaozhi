@@ -1,0 +1,31 @@
+{
+  "observed_at": "2026-11-12T20:27:08+08:00",
+  "device_alias": "B",
+  "serial_port": "COM3",
+  "usb_vid_pid": "1A86:55D3",
+  "previous_driver": {
+    "version": "10.0.22000.1098",
+    "provider": "Microsoft",
+    "inf": "usbser.inf"
+  },
+  "installed_driver": {
+    "inf": "oem4.inf",
+    "download": "https://file.wch.cn/download/file?id=314",
+    "catalog_signature": "Valid: Microsoft Windows Hardware Compatibility Publisher",
+    "source": "https://www.wch.cn/downloads/CH343SER_ZIP.html",
+    "version": "2.2.2026.5",
+    "package_sha256": "6084fd47cc2a6bf27eb3df3a6f57430ec8a3fa69d8f32dc9c6f6807816a15e57",
+    "provider": "wch.cn"
+  },
+  "diagnosis": {
+    "larger_windows_rx_buffer": "same corruption",
+    "baud_115200": "same corruption",
+    "original_8192_byte_read": "failed: corrupt frame",
+    "synthetic_ssh_rfc2217_loopback": "4097/4097 exact",
+    "single_frame_window": "same corruption",
+    "actual_256_byte_read": "exact",
+    "official_driver_8192_byte_read": "passed with device MD5"
+  },
+  "firmware_written": false,
+  "credential_rotated": false
+}

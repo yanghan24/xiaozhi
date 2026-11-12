@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-12 13:20（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近服务器核验：2026-11-12 21:33（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，此前补发后的 API 重启依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；B 当前新旧凭据、许可22／归属7及实际使用失败见[PR #84/#85 接续记录](../verification/2026-11-12-pr84-pr85-continuation.md)。语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -65,6 +65,12 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 2026-11-12 12:58 已部署 [PR #79 修复](../verification/2026-11-12-pr79-deployment.md)：维护通道的异常／取消结果分类及最终会话检查在 [15 项 Ubuntu 隔离回归](../verification/evidence/2026-11-12-p4-ota-server/maintenance-review-fixes.json)与[候选镜像内 15 项回归](../verification/evidence/2026-11-12-pr79-deployment/candidate-preparation.json)通过后，配套更新两个模块，仅重建语音。13:00 [只读核验](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-audit.json)确认受测镜像 ID 与实际一致，B 仍为 ready／许可19／归属7，设备状态、补发、硬件映射及原 OTA 预留不变；API、数据库、Redis 与 TLS 入口未重建。API 内部健康与本机正常 TLS 发现均为 200；当时维护 status 返回 `no_unique_session`。随后用户[确认 B 已唤醒、原账号及一次完整回答正常](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-functional-confirmation.json)，13:08 [只读核对](../verification/evidence/2026-11-12-pr79-deployment/post-functional-server-state.json)确认 status=`current`、MCP 就绪、上述设备状态和原预留保持，服务没有再次重建。本轮没有重启 API／Ubuntu 主机，没有公网 18443 新探测或再次下发 OTA；#42／#13 的其他验收继续保持打开。
 
 13:20 的[新旧凭据独立复查](../verification/evidence/2026-11-12-api-restart-audit/current-credential-check.json)通过本机正常 TLS 设备状态入口确认旧凭据401／`INVALID_DEVICE_CREDENTIAL`、当前凭据200／`OK`，B仍为ready／许可19／归属7，记录快照保持。本次只读请求晚于当前 API 11:13启动，不是昨晚重启的即时检查；没有再次重启服务、补发或轮换凭据，也没有新的公网18443探测。
+
+2026-11-12 19:55–21:33 接续 [PR #84/#85 的身份异常恢复](../verification/2026-11-12-pr84-pr85-continuation.md)：修复当前Windows串口驱动后，在Ubuntu复核B并完成唯一一次新补发、writing/written两处持久检查点中断续作、原产品还原及真实设备device-check，后台为delivered。旧凭据401、新凭据200；同恢复重放保持新身份，旧补发和原交付迟到complete均409，B许可`21 → 22`、归属仍7，A、原配置/密钥、OTA预留及服务镜像/启动时间保持。
+
+**B当前实际使用尚未验收通过。** 独立重启后的身份、固件与NVS核验通过，但用户看到“正在同步登录状态”、无法取得正常回答。普通重启复测捕获唤醒词后，语音连接仍超时（`0x8006`），控制连接也反复失败；手机热点对照因手机无法接入B配网热点未完成。最终后台ready／许可22／归属7不能代替扫码和完整语音结果。当前应保留Ubuntu私有目录`/home/jt/issue42-idf-inputs/private-b-20261112/recovery/journal.json`及其新凭据；不得再次补发或写旧身份来回退。原管理员停用维护路径和历史证据缺口仍保持待验，#42/#13不关闭。
+
+22:02–22:24的[追加排查](../verification/2026-11-12-pr84-pr85-continuation.md)再次确认启动时能加载身份、原产品ELF一致；从B只读NVS取得的当前身份经Ubuntu LAN443和公网18443查询许可与账号，四项均200／OK，许可22、账号信息可用。用户仍确认同步中且不能完整回答，B的持续连接／状态刷新及第二网络对照仍待解决；本次没有补发或写回身份，也未重新取得完整后台快照。
 
 ## 本地资料缺失或过时
 

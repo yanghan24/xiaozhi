@@ -1,0 +1,36 @@
+{
+  "uart": {
+    "summary": {
+      "observed_at": "2026-11-12T20:35:42.799409+08:00",
+      "product_report_matched": true,
+      "missing_identity_reported": true,
+      "provisioned_origin_denials": 1
+    },
+    "line_count": 350,
+    "signals": {
+      "boot_reports": 1,
+      "missing_origin_denial": 1,
+      "panic": 0,
+      "watchdog": 0,
+      "wifi_connected": 1,
+      "wake_events": 0,
+      "state_listening": 0,
+      "state_idle": 1,
+      "state_activating": 1
+    },
+    "signal_correction": "Recomputed from State: previous -> current transition timeline"
+  },
+  "display_text": "账号信息暂不可用",
+  "human_confirmation": {
+    "saved": true,
+    "observed_at": "2026-11-12T20:39:12.541596+08:00",
+    "wifi_change_confirmed": true,
+    "wifi_confirmation": "User confirms configuring a new network after the earlier handoff",
+    "missing_identity_voice_denied": true,
+    "voice_confirmation": "User attempted wake; no response; display says account information temporarily unavailable",
+    "source": "Direct user confirmation in this continuation chat",
+    "panic_or_watchdog_observed": false
+  },
+  "actual_voice_attempt": "用户尝试唤醒，无反应",
+  "normal_conversation_entered": false
+}

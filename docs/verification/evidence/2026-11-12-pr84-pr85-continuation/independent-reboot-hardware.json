@@ -1,0 +1,26 @@
+{
+  "stage": "final-device-check",
+  "observed_at": "2026-11-12T20:57:03.409184+08:00",
+  "device_alias": "B",
+  "flash_written": false,
+  "independent_reset": true,
+  "checks": {
+    "same_device_partition_slot_and_protected_regions": true,
+    "fixed_product_device_md5_matches": true,
+    "new_identity_exactly_matches_journal": true,
+    "original_anchor_and_current_wifi_and_other_records_preserved": true,
+    "independent_reset_boot_device_identity_and_fixed_elf_match": true
+  },
+  "signals": {
+    "boot_reports": 1,
+    "idle": 1,
+    "listening": 0,
+    "speaking": 0,
+    "wake_events": 0,
+    "panic": 0
+  },
+  "passed": true,
+  "completed_at": "2026-11-12T21:01:58.93795+08:00",
+  "user_confirmation_required": true,
+  "signal_correction": "Recomputed from actual State: previous -> current transition format; initial capture counters expected a different format"
+}
