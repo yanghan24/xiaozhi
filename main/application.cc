@@ -1254,7 +1254,7 @@ bool Application::CanRestoreFactorySettings() const {
     const auto state = GetDeviceState();
     return (state == kDeviceStateIdle || state == kDeviceStateConnecting ||
             state == kDeviceStateListening || state == kDeviceStateSpeaking) &&
-           DeviceControl::GetInstance().GetAccountView().sign_out != DeviceSignOutStatus::Pending;
+           !DeviceControl::GetInstance().GetView().sign_out_pending;
 #else
     return false;
 #endif
