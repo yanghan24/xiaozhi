@@ -62,6 +62,10 @@ async def get_config_from_api_async(config):
     if config_data is None:
         raise Exception("Failed to fetch server config from API")
 
+    # Honor the deployment system prompt in product voice mode.
+    if isinstance(config.get("prompt"), str) and config["prompt"].strip():
+        config_data["prompt"] = config["prompt"]
+
     config_data["read_config_from_api"] = True
     config_data["product-voice"] = config.get("product-voice", {})
     # This transport policy is local even when agent/model settings come from API.
