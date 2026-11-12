@@ -1,6 +1,26 @@
-# 仅唤醒词打断：实现与验证（未部署）
+# 仅唤醒词打断：实现、服务器部署与验证
 
-关联 [Issue #80](https://github.com/yanghan24/xiaozhi/issues/80)。本记录交付候选源码和自动化验证，不代表真实 P4 已完成验收。
+关联 [Issue #80](https://github.com/yanghan24/xiaozhi/issues/80)、[服务端 PR #81](https://github.com/yanghan24/xiaozhi/pull/81) 和 [固件 PR #82](https://github.com/yanghan24/xiaozhi/pull/82)。13:19 已部署服务器配套版本，13:20 复核通过；用户报告设备端正在编译或烧录，真实 P4 听音验收尚待完成。以下时间均为 2026-11-12 Asia/Hong_Kong，标有 UTC 的除外。
+
+## 13:19 服务器部署及 13:20 复核
+
+用户明确授权继续部署验证后，在 Ubuntu `192.168.168.114` 以当前 `xiaozhi-product-voice:pr79-f830a8c` 为基础派生，保留 #79 维护修复、现网配置及系统提示词。逐文件基线核对发现 `config_loader.py` 有现网提示词补丁，已在 `75290c4` 保留并定向审查通过；没有直接覆盖为旧版本。
+
+| 标识 | 实际值 |
+| --- | --- |
+| 本次源码 | `75290c44b2b6116d58674b94d6ef5e4f03eb131e`（包含原 #81 `c0d4ee6`，增加保留现网提示词） |
+| 组合镜像 | `xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c` |
+| 镜像 ID | `sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d` |
+| 运行容器 / 启动时间 | `xiaozhi-pr26-voice` / 13:19:43 |
+| 回退镜像 | `xiaozhi-product-voice:pr79-f830a8c`，ID `sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca` |
+
+部署前在**实际候选镜像**中完成真实 WebSocket 回归和 15 项维护 unittest，均通过。网络关闭、无生产配置挂载；仅外部模型/Edge 传输受控。镜像中五个变更 Python 文件逐项校验 hash；`product_voice.py`、`product_maintenance.py`、`websocket_server.py` 及 `config.yaml` 与现网原镜像逐字一致。
+
+部署前完成既有 `backup.py` 备份及私有 Compose/设备状态快照，仅重建语音容器。部署后校验运行文件 hash、实际加载 `wake_word`、产品授权仍启用、唤醒词列表含“你好小智”、API 内部就绪 200、本机 TLS 发现 200、经正常证书验证的本机 TLS WSS 无效令牌以 1008 拒绝。API、数据库、Redis 和 TLS 入口容器及启动时间未变；设备归属/许可/凭据、补发与硬件映射快照及原维护操作记录未变。语音重启计数 0。
+
+[部署摘要](evidence/2026-11-12-wake-word-interrupt-v2/deployment.json)与[复核结果](evidence/2026-11-12-wake-word-interrupt-v2/audit.json)仅含脱敏结果。私有备份、完整日志和回退 Compose 参考保存在 `/home/jt/wake81-deploy-75290c4/deployment-20261112T051940Z`；候选回归在同父目录 `20261112T051825Z`。失败时部署脚本可恢复原语音镜像，本次没有触发回退。后续手动恢复只改语音 image 字段，保留其他任务后续配置、持久数据与维护操作，不覆盖整个旧 Compose。
+
+本轮未执行公网 18443 外部链路探测、未向设备下发 OTA、未烧录设备、未合并 #81。13:20 维护状态为 `no_unique_session`，不能据此确认目标新固件已连接。设备端报告正在编译或烧录；待其提供源码/ELF/文件校验值，再完成普通插话不打断、指定唤醒词停止后立即听新问题、无问候/提示音/旧回答续播和正常结束后连续提问的现场核验。自动化协议验证不能代替此项。
 
 ## 行为约定
 
@@ -41,7 +61,7 @@ TDD 红灯：原逻辑收到普通 detect 会发送停止并启动新回答；�
 
 固件主机检查使用 CMake Debug 构建 `tests/device_control`，随后执行 CTest；另执行 Python unittest discovery。Ubuntu 日志保留于 `/home/jt/wake-v2-test/{test,pytest}.log`、`/home/jt/wake-v2-baseline/pytest.log`、`/home/jt/wake-v2-firmware/{host-suite,python-host}.log`。
 
-## 审查与未完成项
+## 初次源码交付时的审查与未完成项（部署前历史）
 
 Standards 审查未发现硬性规范违规；一项非阻断建议是集中三处打断配置判断。Spec 审查发现的工具续答和历史写入竞态、固件转换覆盖不足均已修复；最终定向静态复核无新增阻断问题。
 

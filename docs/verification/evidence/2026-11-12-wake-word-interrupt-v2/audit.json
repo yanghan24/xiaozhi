@@ -1,0 +1,45 @@
+{
+  "verified_at": "2026-11-12T05:20:29.923916+00:00",
+  "services": {
+    "xiaozhi-pr26-api": {
+      "image": "xiaozhi-product-api:1b50709",
+      "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+      "started_at": "2026-11-12T03:13:39.656388819Z",
+      "restarts": 0
+    },
+    "xiaozhi-pr26-voice": {
+      "image": "xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c",
+      "image_id": "sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d",
+      "started_at": "2026-11-12T05:19:43.66168329Z",
+      "restarts": 0
+    },
+    "issue29-db": {
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "started_at": "2026-11-12T02:51:28.32525526Z",
+      "restarts": 0
+    },
+    "issue29-redis": {
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "started_at": "2026-11-12T02:51:27.984403759Z",
+      "restarts": 0
+    },
+    "xiaozhi-ubuntu-test-public-entry-public-entry-1": {
+      "image": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "image_id": "sha256:1ff4bb4faebcfb1f7e01144fa9904a570ab9bab88694457855feb6c6bba3fa07",
+      "started_at": "2026-11-12T02:51:28.817270192Z",
+      "restarts": 0
+    }
+  },
+  "checks": {
+    "effective_mode": "wake_word",
+    "product_authorization_enabled": true,
+    "local_tls_wss_invalid_token": 1008,
+    "device_session": {
+      "status": "no_unique_session"
+    }
+  },
+  "physical_audio_acceptance": "pending_device_build_and_user_test",
+  "external_18443_probe_performed": false
+}
