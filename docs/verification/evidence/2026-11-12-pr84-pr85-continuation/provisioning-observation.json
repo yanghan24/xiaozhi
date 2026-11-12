@@ -1,0 +1,14 @@
+{
+  "observed_at": "2026-11-12T21:28:00.640236+08:00",
+  "passive_capture": true,
+  "completed": true,
+  "signals": {
+    "boot_reports": 0,
+    "station_connected": 0,
+    "station_disconnected": 0,
+    "ap_events": 0
+  },
+  "sanitized_messages": [],
+  "limitation": "2174 bytes of UART were received, but no relevant Wi-Fi association or configuration events matched; this does not identify the phone/AP failure cause",
+  "received_uart_bytes": 2174
+}

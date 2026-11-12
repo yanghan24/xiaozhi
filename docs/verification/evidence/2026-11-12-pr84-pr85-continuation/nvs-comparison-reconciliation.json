@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-11-12T20:48:57.252593+08:00",
+  "passed": true,
+  "journal_phase": "written",
+  "new_identity_matches_journal": true,
+  "native_stored_receipt": true,
+  "other_records_including_current_wifi_preserved": true,
+  "comparison_failure_cause": "Compared sorted parser return against unsorted saved parser output; corrected comparison order",
+  "additional_flash_write": false,
+  "additional_recovery_created": false
+}

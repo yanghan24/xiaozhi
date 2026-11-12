@@ -1,0 +1,98 @@
+{
+  "stage": "diagnostic-normal-reboot",
+  "started_at": "2026-11-12T21:30:23.582155+08:00",
+  "flash_written": false,
+  "credential_rotated": false,
+  "boot_verified": true,
+  "transitions": [
+    {
+      "previous": "unknown",
+      "current": "starting"
+    },
+    {
+      "previous": "starting",
+      "current": "activating"
+    },
+    {
+      "previous": "activating",
+      "current": "idle"
+    },
+    {
+      "previous": "idle",
+      "current": "connecting"
+    },
+    {
+      "previous": "connecting",
+      "current": "idle"
+    },
+    {
+      "previous": "idle",
+      "current": "connecting"
+    },
+    {
+      "previous": "connecting",
+      "current": "idle"
+    },
+    {
+      "previous": "idle",
+      "current": "connecting"
+    },
+    {
+      "previous": "connecting",
+      "current": "idle"
+    }
+  ],
+  "control_failures": [
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "read",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 2,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 3,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    },
+    {
+      "stage": "connect",
+      "failure": 1,
+      "status": 0
+    }
+  ],
+  "wifi_connected": true,
+  "panic": 0,
+  "time_unset_warnings": 88,
+  "boot_at": "2026-11-12T21:30:35.243956+08:00",
+  "completed": true,
+  "completed_at": "2026-11-12T21:32:55.036727+08:00"
+}

@@ -1,0 +1,18 @@
+{
+  "device_configuration_changed_by_diagnostic": false,
+  "second_network_comparison_completed": false,
+  "same_connected_network_as_failed_reboot": true,
+  "error_codes": [
+    "0x8006",
+    "32774"
+  ],
+  "websocket_connection_timeouts": 2,
+  "observed_at": "2026-11-12T21:35:19+08:00",
+  "user_retest": {
+    "voice": "No normal wake response or complete answer",
+    "passed": false,
+    "account_page": "Still synchronizing or unavailable"
+  },
+  "wake_word_detections": 2,
+  "failure_layer": "B-to-service connection; exact network or firmware root cause not established"
+}

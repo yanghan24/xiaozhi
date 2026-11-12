@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-11-12T20:31:19.092523+08:00",
+  "device_alias": "B",
+  "transport": "Ubuntu -> SSH loopback RFC2217 -> Windows COM3",
+  "flash_written": false,
+  "new_recovery_created": false,
+  "passed": true,
+  "checks": {
+    "same_physical_p4_c6_and_revision": true,
+    "same_partition_table_active_slot_boot_regions_and_assets": true,
+    "device_application_md5_matches_fixed_product": true,
+    "nvs_readback_matches_device_md5": true,
+    "identity_key_absent": true,
+    "device_id_anchor_and_records_outside_wifi_and_environment_cache_preserved": true,
+    "original_product_boot_report_and_elf_match": true,
+    "product_reports_missing_device_identity": true
+  },
+  "active_slot": "ota_1",
+  "flash_bytes": 33554432,
+  "revision": 302,
+  "product_sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+  "product_elf_sha256": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+  "wifi_configuration_changed": true,
+  "wifi_change_user_confirmation": "User confirmed reconfiguring Wi-Fi",
+  "physical_voice_denial_attempt_observed": false,
+  "completed_at": "2026-11-12T20:32:31.201791+08:00"
+}
