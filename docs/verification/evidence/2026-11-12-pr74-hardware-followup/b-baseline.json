@@ -31,5 +31,8 @@
   "mobile_identity_confirmation": "user_reported_failure",
   "mobile_failure_page_route": null,
   "mobile_failure_http_status": null,
-  "mobile_failure_root_cause": "not_yet_determined"
+  "mobile_failure_root_cause": "user_confirmed_server_disconnection",
+  "mobile_failure_root_cause_source": "user_report",
+  "server_connection_restored": false,
+  "server_side_diagnosis_independently_verified": false
 }

@@ -1,6 +1,6 @@
 # PR #74 后的 B 硬件接续
 
-2026-11-12 08:56–08:58（Asia/Shanghai）。接续 [PR #74](https://github.com/yanghan24/xiaozhi/pull/74) 的服务器凭据与 API 重启证据，关联 #42 / #13。本轮完成真实 B 的只读备份、复位启动和 NVS 身份比对；手机扫码身份确认失败，完整语音播放尚未验收。
+2026-11-12 08:56–08:58（Asia/Shanghai）。接续 [PR #74](https://github.com/yanghan24/xiaozhi/pull/74) 的服务器凭据与 API 重启证据，关联 #42 / #13。本轮完成真实 B 的只读备份、复位启动和 NVS 身份比对；手机扫码身份确认失败，用户随后确认服务器连接中断且尚未恢复，完整语音播放尚未验收。
 
 ## 现场版本与实测
 
@@ -21,9 +21,9 @@
 
 ## 手机扫码阻塞
 
-用户报告手机小智设备绑定页显示「身份认证未完成」，使用 B 当前屏幕二维码。尚未取得失败页路径、HTTP 状态或该次服务器 flow 状态，不把错误归因为凭据丢失、二维码过期或集市故障。
+用户报告手机小智设备绑定页显示「身份认证未完成」，使用 B 当前屏幕二维码。用户随后明确已确认原因是服务器断开，并要求在尚未恢复期间先完成本机准备。这是现场确认，未取得失败页 HTTP 状态、该次 flow 状态或服务器侧独立诊断结果。
 
-已部署源码 `1b50709` 的 `CustomerIdentityController` 使用「身份确认未完成」作为通用错误标题：`identity-error/{status}` 覆盖多个流程校验失败，`customer/results/{id}` 也会对未成功身份流程显示相似文案。仅凭标题无法区分具体原因。下一步取失败页路径类别及状态码，在 Ubuntu 用[身份只读检查工具](../development/customer-identity-check.md)关联本次请求的全部 flow；真实句柄、Cookie、授权码及 Token 保留在私有记录中。
+已部署源码 `1b50709` 的 `CustomerIdentityController` 使用「身份确认未完成」作为通用错误标题：`identity-error/{status}` 覆盖多个流程校验失败，`customer/results/{id}` 也会对未成功身份流程显示相似文案。该标题本身不定位故障。服务器恢复后重新进行真实扫码和完整语音验收；如仍失败，再用[身份只读检查工具](../development/customer-identity-check.md)关联该次请求的全部 flow，真实句柄、Cookie、授权码及 Token 留在私有记录中。
 
 ## 剩余硬件条件
 
