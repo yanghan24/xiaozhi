@@ -1192,6 +1192,17 @@ void StandbyDashboard::CreateSettingsView() {
     lv_obj_set_pos(icon, 18, 8);
     label(settings_view_, SettingsText("设置", "Setup"), 54, 6, kColorText);
     StyleRule(CreateObject(settings_view_, 0, 47, 800, 1), kColorBlue, LV_OPA_80);
+    settings_factory_reset_button_ =
+        CreateTechButton(settings_view_, text_font_, SettingsText("恢复出厂", "Factory reset"), 496,
+                         5, 184, 38, lv_color_hex(kColorAmber));
+    lv_obj_add_event_cb(
+        settings_factory_reset_button_,
+        [](lv_event_t* e) {
+            static_cast<StandbyDashboard*>(lv_event_get_user_data(e))
+                ->ShowFactoryResetConfirmation();
+        },
+        LV_EVENT_CLICKED, this);
+    SetHidden(settings_factory_reset_button_, !DeviceControl::GetInstance().Enabled());
     auto* close = CreateTechButton(settings_view_, text_font_, SettingsText("关闭", "Back"), 698, 5,
                                    84, 38, lv_color_hex(kColorAmber));
     lv_obj_add_event_cb(
@@ -1300,6 +1311,7 @@ void StandbyDashboard::CreateSettingsView() {
 }
 
 void StandbyDashboard::DestroySettingsView() {
+    CloseFactoryResetConfirmation();
     if (settings_timer_ != nullptr) {
         lv_timer_delete(settings_timer_);
         settings_timer_ = nullptr;
@@ -1324,6 +1336,7 @@ void StandbyDashboard::ShowSettingsView() {
     if (settings_view_ == nullptr)
         CreateSettingsView();
     sign_out_confirmation_ = 0;
+    CloseFactoryResetConfirmation();
     lv_obj_remove_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
     SetSettingsShortcutVisible(settings_shortcut_needed_);
     DeviceControl::GetInstance().ShowAccountDetails(true);
@@ -1337,11 +1350,16 @@ void StandbyDashboard::CloseSettingsView() {
     lv_timer_pause(settings_timer_);
     lv_obj_add_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
     sign_out_confirmation_ = 0;
+    CloseFactoryResetConfirmation();
     DeviceControl::GetInstance().ShowAccountDetails(false);
     SetSettingsShortcutVisible(settings_shortcut_needed_);
 }
 
 void StandbyDashboard::UpdateSettingsView() {
+    const bool can_reset = Application::GetInstance().CanRestoreFactorySettings();
+    SetButtonEnabled(settings_factory_reset_button_, can_reset);
+    if (!can_reset)
+        CloseFactoryResetConfirmation();
     const auto wifi = Board::GetInstance().GetWifiLinkView();
     auto account = DeviceControl::GetInstance().GetAccountView();
     if (wifi.state != WifiLinkState::Connected && wifi.state != WifiLinkState::Unsupported) {
@@ -1442,6 +1460,60 @@ void StandbyDashboard::UpdateSettingsView() {
                                                   : SettingsText("断开 Wi-Fi", "Disconnect Wi-Fi"));
     SetButtonEnabled(settings_wifi_button_, can_change);
     SetButtonEnabled(settings_wifi_setup_button_, can_change && !provisioning);
+}
+
+void StandbyDashboard::ShowFactoryResetConfirmation() {
+    if (!Application::GetInstance().CanRestoreFactorySettings() || settings_factory_reset_dialog_)
+        return;
+    sign_out_confirmation_ = 0;
+    settings_factory_reset_dialog_ = CreateObject(settings_view_, 0, 0, 800, 480);
+    lv_obj_add_flag(settings_factory_reset_dialog_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(settings_factory_reset_dialog_, lv_color_hex(kColorBackground), 0);
+    lv_obj_set_style_bg_opa(settings_factory_reset_dialog_, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(settings_factory_reset_dialog_, 0, 0);
+    lv_obj_set_style_pad_all(settings_factory_reset_dialog_, 0, 0);
+    auto* panel = CreateObject(settings_factory_reset_dialog_, 140, 100, 520, 280);
+    StylePanel(panel, kColorPanel);
+    auto* title = CreateLabel(panel, text_font_, lv_color_hex(kColorAmber),
+                              SettingsText("恢复出厂设置？", "Restore factory settings?"));
+    lv_obj_set_pos(title, 24, 24);
+    auto* detail =
+        CreateLabel(panel, text_font_, lv_color_hex(kColorText),
+                    SettingsText("将清除 Wi-Fi 和本机设置。\n设备身份、账号归属和停用状态保留。",
+                                 "Clear Wi-Fi and local settings.\nKeep device identity, account "
+                                 "ownership and usage state."));
+    lv_obj_set_pos(detail, 24, 80);
+    lv_obj_set_width(detail, 472);
+    lv_label_set_long_mode(detail, LV_LABEL_LONG_WRAP);
+    auto* cancel = CreateTechButton(panel, text_font_, SettingsText("取消", "Cancel"), 24, 204, 224,
+                                    50, lv_color_hex(kColorBlue));
+    lv_obj_add_event_cb(
+        cancel,
+        [](lv_event_t* e) {
+            static_cast<StandbyDashboard*>(lv_event_get_user_data(e))
+                ->CloseFactoryResetConfirmation();
+        },
+        LV_EVENT_CLICKED, this);
+    auto* confirm =
+        CreateTechButton(panel, text_font_, SettingsText("恢复并重启", "Reset and reboot"), 272,
+                         204, 224, 50, lv_color_hex(kColorAmber));
+    lv_obj_add_event_cb(
+        confirm,
+        [](lv_event_t* e) {
+            lv_obj_add_state(static_cast<lv_obj_t*>(lv_event_get_target(e)), LV_STATE_DISABLED);
+            auto* self = static_cast<StandbyDashboard*>(lv_event_get_user_data(e));
+            self->CloseSettingsView();
+            Application::GetInstance().Schedule(
+                []() { Application::GetInstance().RestoreFactorySettings(); });
+        },
+        LV_EVENT_CLICKED, this);
+    lv_obj_move_foreground(settings_factory_reset_dialog_);
+}
+
+void StandbyDashboard::CloseFactoryResetConfirmation() {
+    if (settings_factory_reset_dialog_ && lv_obj_is_valid(settings_factory_reset_dialog_))
+        lv_obj_delete(settings_factory_reset_dialog_);
+    settings_factory_reset_dialog_ = nullptr;
 }
 
 void StandbyDashboard::HandleSettingsSignOut() {

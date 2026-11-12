@@ -4,6 +4,7 @@
 #include "audio_codec.h"
 #include "board.h"
 #include "device_control/delivery_bootstrap.h"
+#include "device_control/device_identity.h"
 #include "display.h"
 #include "features/audio_recorder.h"
 #include "features/music_player.h"
@@ -1246,6 +1247,47 @@ void Application::Reboot() {
 
     vTaskDelay(pdMS_TO_TICKS(1000));
     esp_restart();
+}
+
+bool Application::CanRestoreFactorySettings() const {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    const auto state = GetDeviceState();
+    return (state == kDeviceStateIdle || state == kDeviceStateConnecting ||
+            state == kDeviceStateListening || state == kDeviceStateSpeaking) &&
+           DeviceControl::GetInstance().GetAccountView().sign_out != DeviceSignOutStatus::Pending;
+#else
+    return false;
+#endif
+}
+
+bool Application::RestoreFactorySettings() {
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    // The settings dialog schedules this on the main task and confirms locally.
+    if (!CanRestoreFactorySettings()) {
+        Alert("暂时无法恢复", "请等待当前操作完成后重试", "circle_xmark");
+        return false;
+    }
+    MusicPlayer::GetInstance().Stop();
+    AudioRecorder::GetInstance().Stop();
+    PomodoroTimer::GetInstance().Cancel();
+    EndVoiceInteraction();
+    if (protocol_ && protocol_->IsAudioChannelOpened())
+        protocol_->CloseAudioChannel();
+    audio_service_.EnableVoiceProcessing(false);
+    audio_service_.EnableWakeWordDetection(false);
+    const auto result = device_control::ResetUserSettings();
+    if (result != ESP_OK) {
+        ESP_LOGE(TAG, "Local settings reset failed: %s", esp_err_to_name(result));
+        audio_service_.EnableWakeWordDetection(VoiceAllowed());
+        Alert("恢复失败", "本机设置恢复失败，请重试", "circle_xmark");
+        return false;
+    }
+    // Keep the installed application and all cloud ownership/permission state.
+    Reboot();
+    return true;
+#else
+    return false;
+#endif
 }
 
 bool Application::UpgradeFirmware(const std::string& url, const std::string& version) {

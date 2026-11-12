@@ -107,6 +107,8 @@ public:
     void StopListening();
 
     void Reboot();
+    bool CanRestoreFactorySettings() const;
+    bool RestoreFactorySettings();
     void WakeWordInvoke(const std::string& wake_word);
     bool UpgradeFirmware(const std::string& url, const std::string& version = "");
     bool CanEnterSleepMode();

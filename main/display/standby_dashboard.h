@@ -84,6 +84,8 @@ private:
     lv_obj_t* settings_wifi_button_ = nullptr;
     lv_obj_t* settings_wifi_button_label_ = nullptr;
     lv_obj_t* settings_wifi_setup_button_ = nullptr;
+    lv_obj_t* settings_factory_reset_button_ = nullptr;
+    lv_obj_t* settings_factory_reset_dialog_ = nullptr;
     lv_timer_t* settings_timer_ = nullptr;
     uint64_t sign_out_confirmation_ = 0;
     bool settings_shortcut_needed_ = false;
@@ -165,6 +167,8 @@ private:
     void CloseSettingsView();
     void UpdateSettingsView();
     void HandleSettingsSignOut();
+    void ShowFactoryResetConfirmation();
+    void CloseFactoryResetConfirmation();
     const char* SettingsText(const char* chinese, const char* fallback) const {
         return settings_chinese_ ? chinese : fallback;
     }
