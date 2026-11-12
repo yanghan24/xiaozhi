@@ -281,6 +281,8 @@ bool AudioService::ReadAudioData(std::vector<int16_t>& data, int sample_rate, in
 }
 
 void AudioService::AudioInputTask() {
+    int64_t trace_at = 0;
+    uint32_t trace_reads = 0;
     while (true) {
         EventBits_t bits = xEventGroupWaitBits(event_group_, AS_EVENT_AUDIO_TESTING_RUNNING |
             AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING,
@@ -324,6 +326,27 @@ void AudioService::AudioInputTask() {
             std::vector<int16_t> data;
             const auto generation = voice_processing_generation_.load();
             if (ReadAudioData(data, 16000, samples)) {
+                ++trace_reads;
+                auto trace_now = esp_timer_get_time();
+                if (trace_now - trace_at >= 1000000) {
+                    int mic_peak = 0;
+                    int ref_peak = 0;
+                    const int channels = codec_->input_channels();
+                    for (size_t i = 0; i < data.size(); ++i) {
+                        int sample = data[i];
+                        int peak = sample < 0 ? -sample : sample;
+                        if (codec_->input_reference() && i % channels == channels - 1) {
+                            ref_peak = std::max(ref_peak, peak);
+                        } else {
+                            mic_peak = std::max(mic_peak, peak);
+                        }
+                    }
+                    ESP_LOGI(TAG, "[DEBUG-wake82] mic reads=%lu wake=%d voice=%d ch=%d ref=%d mic_peak=%d ref_peak=%d",
+                             (unsigned long)trace_reads, !!(bits & AS_EVENT_WAKE_WORD_RUNNING),
+                             !!(bits & AS_EVENT_AUDIO_PROCESSOR_RUNNING), channels, codec_->input_reference(),
+                             mic_peak, ref_peak);
+                    trace_at = trace_now;
+                }
                 if (bits & AS_EVENT_WAKE_WORD_RUNNING) {
                     wake_word_->Feed(data);
                 }
@@ -342,6 +365,8 @@ void AudioService::AudioInputTask() {
 }
 
 void AudioService::AudioOutputTask() {
+    int64_t trace_at = 0;
+    uint32_t trace_played = 0;
     while (true) {
         std::unique_lock<std::mutex> lock(audio_queue_mutex_);
         audio_queue_cv_.wait(lock, [this]() { return !audio_playback_queue_.empty() || service_stopped_; });
@@ -376,6 +401,17 @@ void AudioService::AudioOutputTask() {
                                                     task->connection_id);
                     }
                     codec_->OutputData(task->pcm);
+                    ++trace_played;
+                    auto trace_now = esp_timer_get_time();
+                    if (trace_now - trace_at >= 1000000) {
+                        int peak = 0;
+                        for (int sample : task->pcm) {
+                            peak = std::max(peak, sample < 0 ? -sample : sample);
+                        }
+                        ESP_LOGI(TAG, "[DEBUG-wake82] speaker frames=%lu pcm_peak=%d",
+                                 (unsigned long)trace_played, peak);
+                        trace_at = trace_now;
+                    }
                 }
             }
         }
@@ -752,7 +788,7 @@ void AudioService::EnableWakeWordDetection(bool enable) {
         enable = false;
     }
 
-    ESP_LOGD(TAG, "%s wake word detection", enable ? "Enabling" : "Disabling");
+    ESP_LOGI(TAG, "[DEBUG-wake82] wake enable=%d", enable);
     if (enable) {
         if (!wake_word_initialized_) {
             if (!wake_word_->Initialize(codec_, models_list_)) {
@@ -778,7 +814,7 @@ void AudioService::EnableWakeWordDetection(bool enable) {
 }
 
 void AudioService::EnableVoiceProcessing(bool enable) {
-    ESP_LOGD(TAG, "%s voice processing", enable ? "Enabling" : "Disabling");
+    ESP_LOGI(TAG, "[DEBUG-wake82] voice enable=%d before", enable);
     if (enable && DeviceControl::GetInstance().Enabled() &&
         !DeviceControl::GetInstance().IsVoiceAllowed()) {
         return;
@@ -813,6 +849,7 @@ void AudioService::EnableVoiceProcessing(bool enable) {
         audio_queue_cv_.notify_all();
         audio_processor_->Stop();
     }
+    ESP_LOGI(TAG, "[DEBUG-wake82] voice enable=%d complete", enable);
 }
 
 void AudioService::EnableAudioTesting(bool enable) {

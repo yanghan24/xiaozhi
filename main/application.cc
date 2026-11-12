@@ -105,6 +105,7 @@ void Application::Initialize() {
         xEventGroupSetBits(event_group_, MAIN_EVENT_SEND_AUDIO);
     };
     callbacks.on_wake_word_detected = [this](const std::string& wake_word) {
+        ESP_LOGI(TAG, "[DEBUG-wake82] wake callback state=%d", (int)GetDeviceState());
         xEventGroupSetBits(event_group_, MAIN_EVENT_WAKE_WORD_DETECTED);
     };
     callbacks.on_vad_change = [this](bool speaking) {
@@ -639,6 +640,11 @@ void Application::InitializeProtocol() {
             if (!cJSON_IsString(state)) {
                 return;
             }
+            if (strcmp(state->valuestring, "start") == 0 ||
+                strcmp(state->valuestring, "stop") == 0) {
+                ESP_LOGI(TAG, "[DEBUG-wake82] wire tts=%s device_state=%d", state->valuestring,
+                         (int)GetDeviceState());
+            }
             auto tts_text = cJSON_GetObjectItem(root, "text");
             const std::string session_id = protocol_ != nullptr ? protocol_->session_id() : "";
             IotTelemetryService::GetInstance().ReportTtsState(
@@ -1149,8 +1155,12 @@ void Application::HandleStateChangedEvent() {
                                                    false);
 #endif
                 if (!input.process_voice) {
+                    ESP_LOGI(TAG, "[DEBUG-wake82] speaking policy voice=%d wake=%d before",
+                             input.process_voice, input.detect_wake_word);
                     audio_service_.EnableVoiceProcessing(false);
                     audio_service_.EnableWakeWordDetection(input.detect_wake_word);
+                    ESP_LOGI(TAG, "[DEBUG-wake82] speaking policy applied voice=%d wake=%d",
+                             audio_service_.IsAudioProcessorRunning(), audio_service_.IsWakeWordRunning());
                 }
             }
             audio_service_.ResetDecoder();

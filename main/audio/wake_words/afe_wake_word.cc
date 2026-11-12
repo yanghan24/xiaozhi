@@ -133,6 +133,8 @@ size_t AfeWakeWord::GetFeedSize() {
 }
 
 void AfeWakeWord::AudioDetectionTask() {
+    int64_t trace_at = 0;
+    uint32_t trace_fetches = 0;
     auto fetch_size = afe_iface_->get_fetch_chunksize(afe_data_);
     auto feed_size = afe_iface_->get_feed_chunksize(afe_data_);
     ESP_LOGI(TAG, "Audio detection task started, feed size: %d fetch size: %d",
@@ -145,12 +147,21 @@ void AfeWakeWord::AudioDetectionTask() {
         if (res == nullptr || res->ret_value == ESP_FAIL) {
             continue;;
         }
+        ++trace_fetches;
+        const auto trace_now = esp_timer_get_time();
+        if (trace_now - trace_at >= 1000000) {
+            ESP_LOGI(TAG, "[DEBUG-wake82] afe fetches=%lu wake_state=%d",
+                     (unsigned long)trace_fetches, (int)res->wakeup_state);
+            trace_at = trace_now;
+        }
 
         // Store the wake word data for voice recognition, like who is speaking
         StoreWakeWordData(res->data, res->data_size / sizeof(int16_t));
 
         if (res->wakeup_state == WAKENET_DETECTED) {
+            ESP_LOGI(TAG, "[DEBUG-wake82] afe detected before stop");
             Stop();
+            ESP_LOGI(TAG, "[DEBUG-wake82] afe detected stop complete");
             last_detected_wake_word_ = wake_words_[res->wakenet_model_index - 1];
 
             if (wake_word_detected_callback_) {
