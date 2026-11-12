@@ -1232,7 +1232,9 @@ void Application::SetListeningMode(ListeningMode mode) {
 }
 
 ListeningMode Application::GetDefaultListeningMode() const {
-    return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
+    // Keep echo cancellation independent of turn-taking. Auto-stop uses the
+    // existing AFE wake-word path while ordinary voice processing is off during playback.
+    return kListeningModeAutoStop;
 }
 
 void Application::Reboot() {
