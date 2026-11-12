@@ -1,0 +1,30 @@
+{
+  "prepared_at": "20261112T045312Z",
+  "reviewed_head": "f830a8c34393d4befd13263d2ca7b809ac24252f",
+  "candidate_image": "xiaozhi-product-voice:pr79-f830a8c",
+  "candidate_image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+  "base_image": "xiaozhi-product-voice:p4-maintenance-20261112",
+  "base_image_id": "sha256:3e347b8397c4bf8a19d62cd29fb169a0dd4eeb6afdb9395a15c66833cdc974b9",
+  "private_directory": "/home/jt/issue42-pr79-deploy-f830a8c/20261112T045312Z",
+  "candidate_image_modules_verified": {
+    "core/product_maintenance.py": "d5544dc41dbc62047b3da581ccb74b038a7b2c16ae4a82e598e598d414a91277",
+    "core/product_voice.py": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c"
+  },
+  "candidate_regression": {
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "network": "none",
+    "imports_from_candidate_image": true
+  },
+  "live_services_unchanged": true,
+  "recorded_device_state_unchanged": true,
+  "original_operation_unchanged": true,
+  "live_compose_unchanged": true,
+  "deployment_performed": false,
+  "ota_sent": false,
+  "candidate_compose": "/home/jt/issue42-pr79-deploy-f830a8c/20261112T045312Z/compose-candidate.json",
+  "rollback_compose_reference": "/home/jt/issue42-pr79-deploy-f830a8c/20261112T045312Z/compose-before.json",
+  "requires_fresh_baseline_and_compose_comparison_before_deploy": true
+}
