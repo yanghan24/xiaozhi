@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-12 14:05（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音实际已为 [PR #81 候选](https://github.com/yanghan24/xiaozhi/blob/6dc375c6acef1a04aa83e7bba3284776447703ea/docs/verification/2026-11-12-wake-word-interrupt-v2.md)，保留 [PR #79 维护修复](../verification/2026-11-12-pr79-deployment.md)、原系统提示词和私有配置。本轮 [#42 续验](../verification/2026-11-12-issue42-acceptance.md)实查镜像及两个维护模块 hash，未重新部署。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近观察：2026-11-12 14:11（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)。本轮 [#42 续验](../verification/2026-11-12-issue42-acceptance.md)于14:05完成时，语音为保留 [PR #79 维护修复](../verification/2026-11-12-pr79-deployment.md)的 [PR #81 候选](https://github.com/yanghan24/xiaozhi/blob/6dc375c6acef1a04aa83e7bba3284776447703ea/docs/verification/2026-11-12-wake-word-interrupt-v2.md)；之后14:06切换为下表trace镜像，14:11只读观察到该变化，尚未对新镜像完成源码或功能验收。本任务没有重新部署或回退该环境。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -28,7 +28,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c`，镜像 ID `sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d`，2026-11-12 13:19:43 启动；PR #81 候选保留已部署的 #79 两个维护模块、原配置及系统提示词；PR #81 的实机听音验收独立记录 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:cutoff81-trace-20261112`，镜像 ID `sha256:3dde4f523ed217a3fc97cfeafc11ba54c4575b861ddd398ce516a0189500a36a`，2026-11-12 14:06:54 启动；[14:11只读观察](../verification/evidence/2026-11-12-issue42-acceptance/environment-change.json)，新镜像源码／功能未在本轮验收；13:38–14:05的#42通过结果使用此前`pr81-75290c4-pr79-f830a8c`镜像 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
@@ -66,7 +66,7 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 
 13:20 的[新旧凭据独立复查](../verification/evidence/2026-11-12-api-restart-audit/current-credential-check.json)通过本机正常 TLS 设备状态入口确认旧凭据401／`INVALID_DEVICE_CREDENTIAL`、当前凭据200／`OK`，B仍为ready／许可19／归属7，记录快照保持。本次只读请求晚于当前 API 11:13启动，不是昨晚重启的即时检查；没有再次重启服务、补发或轮换凭据，也没有新的公网18443探测。
 
-13:39 的 [#42 停用保持续验](../verification/2026-11-12-issue42-acceptance.md)已通过真实 `sign-out` 将 B 从 ready／许可19／归属7停用为 user_signed_out／许可20／归属7，保留身份、凭据、准入及原归属；A、交付／补发记录及原OTA预留保持。13:41 六项重试／迟到请求通过。硬件方随后确认恢复出厂／重启／重新配网、目标ELF／ota_1／身份／凭据及device_ctrl存活记录保持，现场仍停用且无法正常语音；14:01服务器确认仍为user_signed_out／许可20／归属7和blocked。该固件未在device_ctrl持久化停用原因或许可版本，本轮验证联网后的服务器停用保持。用户随后确认原账号明确恢复成功、显示正常并完成一次完整语音；14:05服务器确认B已为ready／许可21／归属7和allowed，身份／凭据／原归属、A、交付／补发记录、所记录的Compose／身份与交付密钥及原OTA预留均保持，服务版本／启动时间不变。本轮闭环通过；管理员device_disabled和异常身份丢失恢复等仍未验，没有重启服务、再发OTA或新增补发，#42／#13继续打开。
+13:39 的 [#42 停用保持续验](../verification/2026-11-12-issue42-acceptance.md)已通过真实 `sign-out` 将 B 从 ready／许可19／归属7停用为 user_signed_out／许可20／归属7，保留身份、凭据、准入及原归属；A、交付／补发记录及原OTA预留保持。13:41 六项重试／迟到请求通过。硬件方随后确认恢复出厂／重启／重新配网、目标ELF／ota_1／身份／凭据及device_ctrl存活记录保持，现场仍停用且无法正常语音；14:01服务器确认仍为user_signed_out／许可20／归属7和blocked。该固件未在device_ctrl持久化停用原因或许可版本，本轮验证联网后的服务器停用保持。用户随后确认原账号明确恢复成功、显示正常并完成一次完整语音；14:05服务器确认B已为ready／许可21／归属7和allowed，身份／凭据／原归属、A、交付／补发记录、所记录的Compose／身份与交付密钥及原OTA预留均保持，当时服务版本／启动时间不变。本轮闭环通过；14:06后的语音变化另见上表与报告，不计入本轮通过结果。管理员device_disabled和异常身份丢失恢复等仍未验，本任务没有重启服务、再发OTA或新增补发，#42／#13继续打开。
 
 ## 本地资料缺失或过时
 
