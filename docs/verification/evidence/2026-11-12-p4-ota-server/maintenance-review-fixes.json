@@ -1,0 +1,37 @@
+{
+  "reviewed_head_before_fix": "677d69f735349a7ab73b5340cd043040b7edf811",
+  "main_baseline": "b448aa080ba057f8e48383adf6501daa4df32011",
+  "environment": "Ubuntu jt@192.168.168.114, isolated root Python container, --network none, read-only source mount",
+  "runtime_base_image": "xiaozhi-product-voice:prompt-7f10cbd",
+  "command": "python -m unittest discover -s tests -p test_product_maintenance.py -v",
+  "regressions": [
+    {
+      "test": "test_cancelled_upgrade_returns_unknown_and_cannot_be_replayed",
+      "before_fix": "FAIL: expected result_unknown_do_not_retry, actual denied after tools/call was sent",
+      "after_fix": "PASS: socket response remains unknown, cancellation propagates, same operation cannot send again",
+      "interface": "real root Unix socket with fixture device transport"
+    },
+    {
+      "test": "test_new_session_during_final_permission_check_prevents_upgrade",
+      "before_fix": "FAIL: expected MaintenanceDenied, but a second device-B session was present and tools/call was sent",
+      "after_fix": "PASS: second session appears during actual GuardedSocket permission check; no tools/call reaches device transport and RPC future is cleaned up",
+      "interface": "actual GuardedSocket wrapping fixture device transport and authority"
+    }
+  ],
+  "tests": 15,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "syntax_check_passed": true,
+  "source_hash_format": "SHA-256 of UTF-8 source with LF line endings",
+  "source_sha256": {
+    "main/xiaozhi-server/core/product_maintenance.py": "d5544dc41dbc62047b3da581ccb74b038a7b2c16ae4a82e598e598d414a91277",
+    "main/xiaozhi-server/core/product_voice.py": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c",
+    "main/xiaozhi-server/tests/test_product_maintenance.py": "1e94b97e9824759c064b77a056f508a6822a3490023b1b46529694e10a366757"
+  },
+  "existing_maintenance_tests_now_use_actual_guarded_socket": true,
+  "physical_device_or_private_backend_service_used": false,
+  "fix_deployed": false,
+  "runtime_restart_performed": false,
+  "ota_resent": false
+}

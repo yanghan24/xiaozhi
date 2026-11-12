@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-11 16:35（Asia/Hong_Kong），API 依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，语音镜像已由[PR #26 同步复验的只读实查](../verification/2026-11-11-pr26-main-sync.md)更新。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-12 12:21（Asia/Hong_Kong），API 依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，语音已按[B OTA 服务器记录](../verification/2026-11-12-p4-ota-server.md)增加本机维护通道，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -28,7 +28,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:prompt-7f10cbd`，单实例；本轮仅只读核对，未重新部署 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:p4-maintenance-20261112`，基于 `prompt-7f10cbd` 增加 B 的 root Unix 维护通道；2026-11-12 11:14 单独重建，原配置和系统提示词保留 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
@@ -57,6 +57,10 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 2026-11-11 继续完成 [#42 真实 B 维护与补发写回](../verification/2026-11-11-device-identity-retention.md)：先验证 `f03d98d` 的应用更新、USB 复位及重新配网保留身份，再由管理员补发原档案的新凭据，P4 提交/读回、新凭据设备验证和后台完成回执均通过。后续另一任务将 B 应用更新为 `860e045`（ELF `a04fda6d…`），该构建已合入相同身份保护；只读备份及复位核对通过，用户确认原账号和完整语音回答正常。A 本轮未更新。旧凭据独立拒绝、后台归属/许可状态比对、服务重启及其余恢复场景仍待 Ubuntu 接续，#42 保持打开。
 
 后续 Ubuntu 已独立验证旧凭据拒绝、新凭据 delivered 及当前状态，见 [PR #74 接续核验](https://github.com/yanghan24/xiaozhi/pull/74)。B 后来的解绑/换绑不能倒推补发瞬间归属保持；历史比对、补发后服务重启及其余硬件恢复关卡仍未完成。
+
+2026-11-12 B 的 [OTA 与正常恢复出厂记录](../verification/2026-11-12-p4-ota-server.md)记录 r2 包校验、短时签名 HTTPS 和仅限 B 当前会话的本机维护通道。11:20 只下发一次；硬件方报告目标 ELF `364a1d6f…`、产品 bin 全量读回一致、`ota_0 → ota_1` VALID，身份/凭据及 `device_ctrl` 保持；用户确认扫码账号和完整语音正常。实时下载/写入/自动重启日志缺失，原未知传输记录保留且未重发。11:34 已撤销下载路由，旧链接本机 TLS 核验 404、发现仍为 200，私有产物保留。用户确认后续另做解绑/重新绑定，B 从许可17/归属5变为19/7；11:38 以19/7保存恢复出厂前基线。
+
+随后硬件方确认备份、取消无重启、确认恢复并重新配网、目标固件/身份/凭据及整个 `device_ctrl` 保持、原账号及完整语音五项通过。12:21 Ubuntu [恢复后比对](../verification/evidence/2026-11-12-p4-ota-server/factory-reset-reconciliation.json)确认 B 仍为 ready / admitted=1 / local_enabled=1 / 许可19 / 归属7，归属/凭据、补发与硬件映射及 A 均不变；服务镜像/启动时间不变。本次 ready 状态正常恢复出厂通过，其余异常恢复和停用保持继续待验，#42/#13 保持打开。API 仍为 `1b50709`。维护通道的异常/取消结果分类及最终会话检查修复已通过 [15 项 Ubuntu 隔离回归](../verification/evidence/2026-11-12-p4-ota-server/maintenance-review-fixes.json)，尚未部署；后续部署须配套更新 `product_maintenance.py` 与 `product_voice.py`，现网没有为此次修复重启。bin 含原构建 IoT token，不提供匿名或永久下载链接。
 
 ## 本地资料缺失或过时
 
