@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近观察：2026-11-12 14:11（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)。本轮 [#42 续验](../verification/2026-11-12-issue42-acceptance.md)于14:05完成时，语音为保留 [PR #79 维护修复](../verification/2026-11-12-pr79-deployment.md)的 [PR #81 候选](https://github.com/yanghan24/xiaozhi/blob/6dc375c6acef1a04aa83e7bba3284776447703ea/docs/verification/2026-11-12-wake-word-interrupt-v2.md)；之后14:06切换为下表trace镜像，14:11只读观察到该变化，尚未对新镜像完成源码或功能验收。本任务没有重新部署或回退该环境。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近观察：2026-11-12 14:17（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)。语音当前已于14:12恢复为保留 [PR #79 维护修复](../verification/2026-11-12-pr79-deployment.md)的 [PR #81 候选](https://github.com/yanghan24/xiaozhi/blob/6dc375c6acef1a04aa83e7bba3284776447703ea/docs/verification/2026-11-12-wake-word-interrupt-v2.md)，14:17只读核对镜像ID及两个维护模块hash与本轮受测版本一致；此前14:06临时trace镜像的变化保留在 [#42续验报告](../verification/2026-11-12-issue42-acceptance.md)。本轮完整实机通过结果对应13:38–14:05；14:17观察未新增协议／实机验收，Compose仍与原基线有差异。本任务没有执行上述部署或回退。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -28,7 +28,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:cutoff81-trace-20261112`，镜像 ID `sha256:3dde4f523ed217a3fc97cfeafc11ba54c4575b861ddd398ce516a0189500a36a`，2026-11-12 14:06:54 启动；[14:11只读观察](../verification/evidence/2026-11-12-issue42-acceptance/environment-change.json)，新镜像源码／功能未在本轮验收；13:38–14:05的#42通过结果使用此前`pr81-75290c4-pr79-f830a8c`镜像 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c`，镜像 ID `sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d`，2026-11-12 14:12:27 启动；[14:17只读核对](../verification/evidence/2026-11-12-issue42-acceptance/restored-runtime.json)确认镜像及两个维护模块hash与本轮受测版本相同，容器／启动时间已变，未补做实机语音；13:38–14:05的#42通过结果属于之前的容器 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
