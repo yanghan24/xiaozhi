@@ -81,18 +81,32 @@ class WebSocketServer:
         self.auth = AuthManager(secret_key=secret_key, expire_seconds=expire_seconds)
 
     async def start(self):
+        import os
+        maintenance = None
+        maintenance_dir = os.environ.get('PRODUCT_MAINTENANCE_DIRECTORY')
+        if maintenance_dir:
+            if not self.product_required:
+                raise ValueError('Maintenance requires product voice authority')
+            from core.product_maintenance import MaintenanceControl
+            maintenance = MaintenanceControl(self.sessions, maintenance_dir,
+                                             os.environ.get('PRODUCT_MAINTENANCE_DEVICE_ID'))
+            await maintenance.start()
         server_config = self.config["server"]
         host = server_config.get("ip", "0.0.0.0")
         port = int(server_config.get("port", 8000))
 
-        async with websockets.serve(
-            self._handle_connection,
-            host,
-            port,
-            process_request=self._http_response,
-            ping_interval=None,
-        ):
-            await asyncio.Future()
+        try:
+            async with websockets.serve(
+                self._handle_connection,
+                host,
+                port,
+                process_request=self._http_response,
+                ping_interval=None,
+            ):
+                await asyncio.Future()
+        finally:
+            if maintenance is not None:
+                await maintenance.close()
 
     async def _handle_connection(self, websocket: websockets.ServerConnection):
         if self.product_required:

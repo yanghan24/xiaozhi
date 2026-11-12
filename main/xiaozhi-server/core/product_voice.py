@@ -156,10 +156,12 @@ class GuardedSocket:
     def __getattr__(self, name):
         return getattr(self._socket, name)
 
-    async def send(self, message, *args, **kwargs):
+    async def send(self, message, *args, before_send=None, **kwargs):
         await self._gate.check_async()
         if self._gate.ended.is_set():
             raise VoiceDenied()
+        if before_send is not None:
+            before_send()  # Synchronous: no suspension before handing the frame to the transport.
         return await self._socket.send(message, *args, **kwargs)
 
     async def __aiter__(self):
