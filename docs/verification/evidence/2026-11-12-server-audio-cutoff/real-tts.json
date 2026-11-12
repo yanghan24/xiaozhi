@@ -1,0 +1,34 @@
+{
+  "probe": "real_external_edge_transport_only",
+  "sent_to_device": false,
+  "audio_saved": false,
+  "runs": [
+    {
+      "attempt": 1,
+      "provider": "edge",
+      "success": true,
+      "mp3_bytes": 61056,
+      "encoded_opus_packets": 170,
+      "nominal_audio_ms": 10200,
+      "request_elapsed_s": 2.077
+    },
+    {
+      "attempt": 2,
+      "provider": "edge",
+      "success": true,
+      "mp3_bytes": 61056,
+      "encoded_opus_packets": 170,
+      "nominal_audio_ms": 10200,
+      "request_elapsed_s": 1.885
+    },
+    {
+      "attempt": 3,
+      "provider": "edge",
+      "success": true,
+      "mp3_bytes": 61056,
+      "encoded_opus_packets": 170,
+      "nominal_audio_ms": 10200,
+      "request_elapsed_s": 2.111
+    }
+  ]
+}

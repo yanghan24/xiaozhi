@@ -1,0 +1,29 @@
+{
+  "database_session_creations": [],
+  "classification": [
+    {
+      "time": "2026-11-12T05:30:25.455741636Z",
+      "event": "client_abort",
+      "reason": "absent"
+    },
+    {
+      "time": "2026-11-12T05:30:38.738239078Z",
+      "event": "error_classification",
+      "matched_fixed_categories": [
+        "\u5904\u7406\u8bed\u97f3\u505c\u6b62\u5931\u8d25"
+      ]
+    },
+    {
+      "time": "2026-11-12T05:31:26.281166592Z",
+      "event": "client_abort",
+      "reason": "absent"
+    },
+    {
+      "time": "2026-11-12T05:45:18.689218604Z",
+      "event": "client_abort",
+      "reason": "absent"
+    }
+  ],
+  "historical_opus_packet_counts": null,
+  "reason": "Existing logs do not persist per-round successful binary send counts or last-packet timestamps."
+}

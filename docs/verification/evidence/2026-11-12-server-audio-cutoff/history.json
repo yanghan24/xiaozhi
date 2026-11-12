@@ -1,0 +1,588 @@
+{
+  "runtime": {
+    "observed_at": "2026-11-12T06:01:20.803958+00:00",
+    "image": "xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c",
+    "image_id": "sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d",
+    "started_at": "2026-11-12T05:19:43.66168329Z",
+    "restarts": 0,
+    "interrupt_mode": "wake_word",
+    "product_voice_enabled": true,
+    "source_hashes": {
+      "config/config_loader.py": "9143c54cc3e9a7ecd07b8b31ea623ac90bcfacfacc85a23e47e32a047caa913d",
+      "core/connection.py": "cefd11c39439d8a1b0fe7407183c73440733f1d0d0790ca84c2426890fd6b687",
+      "core/handle/receiveAudioHandle.py": "a3159c2949c7864a50eadd84dd422c6a4214d39007970c3d2c3e32bf33e7c0db",
+      "core/handle/sendAudioHandle.py": "e17894d169d31cdb3f1cd7ee7eec97cfa94c50016e938d1a296cc9bb7b958f63",
+      "core/handle/abortHandle.py": "428e290a57406d6dba9c915d3a637201246e33e854917cda391ab23e30e2a512",
+      "core/providers/tts/edge.py": "1e66b5797c50ef4de83b3ec6b2878f6504e5345b13b662db116b8bae4afbf66c",
+      "core/providers/tts/base.py": "094a74074b6ea5703d9c25f16de0357c5f9282ab148aa8408e01ea302756e2db"
+    }
+  },
+  "windows": [
+    {
+      "window": "first",
+      "since": "2026-11-12T05:29:45Z",
+      "until": "2026-11-12T05:31:45Z",
+      "lines": 97,
+      "events": [
+        {
+          "time": "2026-11-12T05:30:16.253631446Z",
+          "event": "connection_accepted"
+        },
+        {
+          "time": "2026-11-12T05:30:16.319685182Z",
+          "event": "received_hello",
+          "audio_params": {
+            "format": "opus",
+            "sample_rate": 16000,
+            "channels": 1,
+            "frame_duration": 60
+          }
+        },
+        {
+          "time": "2026-11-12T05:30:16.390004629Z",
+          "event": "received_listen",
+          "state": "detect"
+        },
+        {
+          "time": "2026-11-12T05:30:16.407506158Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:30:16.444936793Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:30:16.445683063Z",
+          "event": "tts_audio_last"
+        },
+        {
+          "time": "2026-11-12T05:30:16.466268124Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:30:19.259930447Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:30:23.078553148Z",
+          "event": "connection_accepted"
+        },
+        {
+          "time": "2026-11-12T05:30:23.112392352Z",
+          "event": "received_hello",
+          "audio_params": {
+            "format": "opus",
+            "sample_rate": 16000,
+            "channels": 1,
+            "frame_duration": 60
+          }
+        },
+        {
+          "time": "2026-11-12T05:30:23.215608918Z",
+          "event": "received_listen",
+          "state": "detect"
+        },
+        {
+          "time": "2026-11-12T05:30:23.233913044Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:30:23.271310449Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:30:23.271834222Z",
+          "event": "tts_audio_last"
+        },
+        {
+          "time": "2026-11-12T05:30:23.285616867Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "realtime"
+        },
+        {
+          "time": "2026-11-12T05:30:25.241852728Z",
+          "event": "model_request"
+        },
+        {
+          "time": "2026-11-12T05:30:25.455741636Z",
+          "event": "received_abort"
+        },
+        {
+          "time": "2026-11-12T05:30:25.456260945Z",
+          "event": "abort_handler_begin"
+        },
+        {
+          "time": "2026-11-12T05:30:25.467622200Z",
+          "event": "abort_handler_complete"
+        },
+        {
+          "time": "2026-11-12T05:30:29.254575980Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:30:29.269906655Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:30:29.478832372Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:30:30.790516208Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:30:31.011067066Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:30:31.012338358Z",
+          "event": "tts_audio_last"
+        },
+        {
+          "time": "2026-11-12T05:30:33.745730744Z",
+          "event": "received_listen",
+          "state": "detect"
+        },
+        {
+          "time": "2026-11-12T05:30:33.808653160Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "realtime"
+        },
+        {
+          "time": "2026-11-12T05:30:34.035193939Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:30:36.889130598Z",
+          "event": "received_listen",
+          "state": "stop"
+        },
+        {
+          "time": "2026-11-12T05:30:38.738239078Z",
+          "event": "warning_or_error",
+          "error_classes": [],
+          "module": "core.providers.asr.base"
+        },
+        {
+          "time": "2026-11-12T05:30:45.119788614Z",
+          "event": "model_request"
+        },
+        {
+          "time": "2026-11-12T05:30:55.814570398Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:30:55.829500124Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:30:56.073123783Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:30:56.074336187Z",
+          "event": "tts_audio_last"
+        },
+        {
+          "time": "2026-11-12T05:30:59.603226311Z",
+          "event": "received_listen",
+          "state": "detect"
+        },
+        {
+          "time": "2026-11-12T05:30:59.611423166Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "realtime"
+        },
+        {
+          "time": "2026-11-12T05:31:00.316665150Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:31:09.313916564Z",
+          "event": "model_request"
+        },
+        {
+          "time": "2026-11-12T05:31:09.817357324Z",
+          "event": "model_request"
+        },
+        {
+          "time": "2026-11-12T05:31:15.961585656Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:31:15.974788258Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:31:16.216768313Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:31:18.065923769Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:31:18.079815080Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:31:18.355915151Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:31:18.384544313Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:31:18.392834205Z",
+          "event": "tts_audio_last"
+        },
+        {
+          "time": "2026-11-12T05:31:18.990550568Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:31:20.870370520Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:31:21.148668996Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:31:22.728624102Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:31:22.862271491Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:31:23.380240779Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:31:25.134364763Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:31:25.506148219Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:31:26.281166592Z",
+          "event": "received_abort"
+        },
+        {
+          "time": "2026-11-12T05:31:26.281357255Z",
+          "event": "abort_handler_begin"
+        },
+        {
+          "time": "2026-11-12T05:31:26.294146806Z",
+          "event": "abort_handler_complete"
+        },
+        {
+          "time": "2026-11-12T05:31:29.346058762Z",
+          "event": "tts_synthesis_success"
+        }
+      ],
+      "module_levels": [
+        {
+          "module": "core.connection",
+          "level": "INFO",
+          "count": 12
+        },
+        {
+          "module": "core.utils.prompt_manager",
+          "level": "INFO",
+          "count": 2
+        },
+        {
+          "module": "core.handle.textMessageProcessor",
+          "level": "INFO",
+          "count": 21
+        },
+        {
+          "module": "core.handle.helloHandle",
+          "level": "INFO",
+          "count": 2
+        },
+        {
+          "module": "core.handle.sendAudioHandle",
+          "level": "INFO",
+          "count": 22
+        },
+        {
+          "module": "core.providers.tools.device_mcp.mcp_handler",
+          "level": "INFO",
+          "count": 2
+        },
+        {
+          "module": "core.providers.asr.base",
+          "level": "INFO",
+          "count": 4
+        },
+        {
+          "module": "core.handle.abortHandle",
+          "level": "INFO",
+          "count": 4
+        },
+        {
+          "module": "core.providers.tts.base",
+          "level": "INFO",
+          "count": 10
+        },
+        {
+          "module": "core.providers.asr.base",
+          "level": "ERROR",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "window": "diagnostic",
+      "since": "2026-11-12T05:43:40Z",
+      "until": "2026-11-12T05:45:40Z",
+      "lines": 62,
+      "events": [
+        {
+          "time": "2026-11-12T05:44:04.318100109Z",
+          "event": "connection_accepted"
+        },
+        {
+          "time": "2026-11-12T05:44:04.332596135Z",
+          "event": "received_hello",
+          "audio_params": {
+            "format": "opus",
+            "sample_rate": 16000,
+            "channels": 1,
+            "frame_duration": 60
+          }
+        },
+        {
+          "time": "2026-11-12T05:44:04.416099910Z",
+          "event": "received_listen",
+          "state": "detect"
+        },
+        {
+          "time": "2026-11-12T05:44:04.521820656Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:44:04.549479919Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:04.550180488Z",
+          "event": "tts_audio_last"
+        },
+        {
+          "time": "2026-11-12T05:44:04.578936222Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:44:07.324429564Z",
+          "event": "received_listen",
+          "state": "start",
+          "mode": "auto"
+        },
+        {
+          "time": "2026-11-12T05:44:21.879872709Z",
+          "event": "model_request"
+        },
+        {
+          "time": "2026-11-12T05:44:34.187625480Z",
+          "event": "tts_first_audio"
+        },
+        {
+          "time": "2026-11-12T05:44:34.203131743Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:34.483695969Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:37.628539600Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:37.887627162Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:40.799974877Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:41.145726911Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:43.510664515Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:43.741123143Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:47.191526753Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:47.599250034Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:49.385967549Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:49.688979201Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:51.447846653Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:51.711528723Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:54.777234866Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:55.144925874Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:56.966952792Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:57.258059535Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:44:59.178842407Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:44:59.391842010Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:45:01.085132053Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:45:01.334161701Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:45:03.568318457Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:45:03.964959206Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:45:06.739958221Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:45:07.012257452Z",
+          "event": "tts_synthesis_success"
+        },
+        {
+          "time": "2026-11-12T05:45:18.413127308Z",
+          "event": "tts_audio_first"
+        },
+        {
+          "time": "2026-11-12T05:45:18.689218604Z",
+          "event": "received_abort"
+        },
+        {
+          "time": "2026-11-12T05:45:18.690351866Z",
+          "event": "abort_handler_begin"
+        },
+        {
+          "time": "2026-11-12T05:45:18.708710112Z",
+          "event": "abort_handler_complete"
+        },
+        {
+          "time": "2026-11-12T05:45:18.733067913Z",
+          "event": "tts_synthesis_success"
+        }
+      ],
+      "module_levels": [
+        {
+          "module": "core.connection",
+          "level": "INFO",
+          "count": 5
+        },
+        {
+          "module": "core.utils.prompt_manager",
+          "level": "INFO",
+          "count": 1
+        },
+        {
+          "module": "core.handle.textMessageProcessor",
+          "level": "INFO",
+          "count": 7
+        },
+        {
+          "module": "core.handle.helloHandle",
+          "level": "INFO",
+          "count": 1
+        },
+        {
+          "module": "core.handle.sendAudioHandle",
+          "level": "INFO",
+          "count": 18
+        },
+        {
+          "module": "core.providers.tools.device_mcp.mcp_handler",
+          "level": "INFO",
+          "count": 1
+        },
+        {
+          "module": "core.providers.asr.base",
+          "level": "INFO",
+          "count": 1
+        },
+        {
+          "module": "core.providers.tts.base",
+          "level": "INFO",
+          "count": 14
+        },
+        {
+          "module": "core.handle.abortHandle",
+          "level": "INFO",
+          "count": 2
+        }
+      ]
+    }
+  ],
+  "raw_logs": "retained privately on Ubuntu; not exported"
+}

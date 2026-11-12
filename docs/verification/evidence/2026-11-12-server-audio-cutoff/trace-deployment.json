@@ -1,0 +1,19 @@
+{
+  "observed_at": "20261112T060641Z",
+  "reviewed_head": "temporary-cutoff-trace",
+  "voice_image": "xiaozhi-product-voice:cutoff81-trace-20261112",
+  "voice_image_id": "sha256:3dde4f523ed217a3fc97cfeafc11ba54c4575b861ddd398ce516a0189500a36a",
+  "only_voice_recreated": true,
+  "deployed_module_hashes_verified": true,
+  "api_internal_readiness": 200,
+  "local_tls_discovery": 200,
+  "external_18443_probe_performed": false,
+  "maintenance_status_ready": true,
+  "recorded_device_state_unchanged": true,
+  "original_operation_unchanged": true,
+  "ota_sent": false,
+  "physical_voice_acceptance_performed": false,
+  "private_deployment_directory": "/home/jt/wake81-trace/deployment-20261112T060641Z",
+  "rollback_image": "xiaozhi-product-voice:pr81-75290c4-pr79-f830a8c",
+  "rollback_image_id": "sha256:b19fcbf3f44aafeead93bf4e7e9cf670165bc19b03439253f3340bdfbd225a8d"
+}

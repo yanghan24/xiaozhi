@@ -4,6 +4,8 @@
 
 ## 手机与音箱访问
 
+**14:06 临时诊断更新：** 用户报告“新回答半途失声”并确认可配合复测后，语音临时运行 `xiaozhi-product-voice:cutoff81-trace-20261112`（ID `sha256:3dde4f523ed217a3fc97cfeafc11ba54c4575b861ddd398ce516a0189500a36a`），基于下表 #81/#79 镜像增加匿名轮次/音频包计数观察器，有效模式仍为 `wake_word`，仅重建语音。历史日志无法回填每轮包数；真实 Edge 独立请求 3/3 成功。正在等待设备端两条路径的受控复测，完成后移除观察器并恢复下表镜像。详情与边界见[失声服务器取证](../verification/2026-11-12-server-audio-cutoff-evidence.md)。
+
 | 用途 | 当前地址 |
 | --- | --- |
 | 公网 HTTPS origin | https://bridge.hncig.cn:18443 |
