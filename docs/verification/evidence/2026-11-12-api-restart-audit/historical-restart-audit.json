@@ -1,0 +1,28 @@
+{
+  "audited_at": "2026-11-12T05:19:12.778478+00:00",
+  "original_restart_observed_at": "2026-11-11T12:31:35.197351+00:00",
+  "source": "existing private restart summary and byte-identical historical pre/post state snapshots",
+  "api_image": "xiaozhi-product-api:1b50709",
+  "api_started_before": "2026-11-11T08:34:45.277858624Z",
+  "api_started_after": "2026-11-11T12:31:25.043266835Z",
+  "api_readiness_after_original_restart": true,
+  "historical_snapshots_byte_identical": true,
+  "historical_device_count": 2,
+  "historical_b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "14",
+    "ownership_version": "3",
+    "has_owner": true
+  },
+  "historical_recovery_and_hardware_mapping_unchanged": true,
+  "original_configuration_and_keys_check_passed": true,
+  "backup_includes_device_and_recovery_records": true,
+  "backup_excludes_conversation_content_and_audio": true,
+  "original_backup_delivery_key_matches_current_key": true,
+  "other_services_not_restarted_in_original_run": true,
+  "restart_performed_during_this_audit": false,
+  "historical_physical_voice_confirmation_available": false,
+  "does_not_establish_state_at_original_credential_recovery_instant": true
+}

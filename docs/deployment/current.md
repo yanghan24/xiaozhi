@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近部署核验：2026-11-12 13:08（Asia/Hong_Kong），API 依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-12 13:20（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -56,13 +56,15 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 
 2026-11-11 继续完成 [#42 真实 B 维护与补发写回](../verification/2026-11-11-device-identity-retention.md)：先验证 `f03d98d` 的应用更新、USB 复位及重新配网保留身份，再由管理员补发原档案的新凭据，P4 提交/读回、新凭据设备验证和后台完成回执均通过。后续另一任务将 B 应用更新为 `860e045`（ELF `a04fda6d…`），该构建已合入相同身份保护；只读备份及复位核对通过，用户确认原账号和完整语音回答正常。A 本轮未更新。旧凭据独立拒绝、后台归属/许可状态比对、服务重启及其余恢复场景仍待 Ubuntu 接续，#42 保持打开。
 
-后续 Ubuntu 已独立验证旧凭据拒绝、新凭据 delivered 及当前状态，见 [PR #74 接续核验](https://github.com/yanghan24/xiaozhi/pull/74)。B 后来的解绑/换绑不能倒推补发瞬间归属保持；历史比对、补发后服务重启及其余硬件恢复关卡仍未完成。
+后续 Ubuntu 已独立验证旧凭据拒绝、新凭据 delivered 及当前状态，见 [PR #74 接续核验](https://github.com/yanghan24/xiaozhi/pull/74)。B 后来的解绑/换绑不能倒推补发瞬间归属保持。2026-11-12 已[核实并补档](../verification/2026-11-12-api-restart-audit.md)昨晚20:31的 API 重启成功证据：当时 B 许可14／归属3及两台设备、补发和硬件映射前后快照完全一致，原配置／密钥检查通过。原归档遗漏不应继续视为“没有 API 重启证据”；最初补发瞬间的历史比对、原重启后紧接实机确认及其他硬件恢复关卡仍未补齐。
 
 2026-11-12 B 的 [OTA 与正常恢复出厂记录](../verification/2026-11-12-p4-ota-server.md)记录 r2 包校验、短时签名 HTTPS 和仅限 B 当前会话的本机维护通道。11:20 只下发一次；硬件方报告目标 ELF `364a1d6f…`、产品 bin 全量读回一致、`ota_0 → ota_1` VALID，身份/凭据及 `device_ctrl` 保持；用户确认扫码账号和完整语音正常。实时下载/写入/自动重启日志缺失，原未知传输记录保留且未重发。11:34 已撤销下载路由，旧链接本机 TLS 核验 404、发现仍为 200，私有产物保留。用户确认后续另做解绑/重新绑定，B 从许可17/归属5变为19/7；11:38 以19/7保存恢复出厂前基线。
 
 随后硬件方确认备份、取消无重启、确认恢复并重新配网、目标固件/身份/凭据及整个 `device_ctrl` 保持、原账号及完整语音五项通过。12:21 Ubuntu [恢复后比对](../verification/evidence/2026-11-12-p4-ota-server/factory-reset-reconciliation.json)确认 B 仍为 ready / admitted=1 / local_enabled=1 / 许可19 / 归属7，归属/凭据、补发与硬件映射及 A 均不变；当时服务镜像/启动时间不变。本次 ready 状态正常恢复出厂通过，其余异常恢复和停用保持继续待验，#42/#13 保持打开。API 仍为 `1b50709`。bin 含原构建 IoT token，不提供匿名或永久下载链接。
 
 2026-11-12 12:58 已部署 [PR #79 修复](../verification/2026-11-12-pr79-deployment.md)：维护通道的异常／取消结果分类及最终会话检查在 [15 项 Ubuntu 隔离回归](../verification/evidence/2026-11-12-p4-ota-server/maintenance-review-fixes.json)与[候选镜像内 15 项回归](../verification/evidence/2026-11-12-pr79-deployment/candidate-preparation.json)通过后，配套更新两个模块，仅重建语音。13:00 [只读核验](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-audit.json)确认受测镜像 ID 与实际一致，B 仍为 ready／许可19／归属7，设备状态、补发、硬件映射及原 OTA 预留不变；API、数据库、Redis 与 TLS 入口未重建。API 内部健康与本机正常 TLS 发现均为 200；当时维护 status 返回 `no_unique_session`。随后用户[确认 B 已唤醒、原账号及一次完整回答正常](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-functional-confirmation.json)，13:08 [只读核对](../verification/evidence/2026-11-12-pr79-deployment/post-functional-server-state.json)确认 status=`current`、MCP 就绪、上述设备状态和原预留保持，服务没有再次重建。本轮没有重启 API／Ubuntu 主机，没有公网 18443 新探测或再次下发 OTA；#42／#13 的其他验收继续保持打开。
+
+13:20 的[新旧凭据独立复查](../verification/evidence/2026-11-12-api-restart-audit/current-credential-check.json)通过本机正常 TLS 设备状态入口确认旧凭据401／`INVALID_DEVICE_CREDENTIAL`、当前凭据200／`OK`，B仍为ready／许可19／归属7，记录快照保持。本次只读请求晚于当前 API 11:13启动，不是昨晚重启的即时检查；没有再次重启服务、补发或轮换凭据，也没有新的公网18443探测。
 
 ## 本地资料缺失或过时
 
