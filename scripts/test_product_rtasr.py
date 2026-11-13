@@ -129,7 +129,9 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
 
     async def test_permission_latency_does_not_accumulate_on_top_of_audio_duration(self):
         self.authority_latency = .04
-        self.provider.TIMEOUT = 3
+        # Allow scheduler/SQLite overhead in the real gate as well as 2 s audio;
+        # the old extra 40 ms sleep per frame alone pushes this above 4 s.
+        self.provider.TIMEOUT = 3.6
         self.assertEqual(await self.provider.speech_to_text([b'\0'*64000], 'test'), ('你好，世界。', None))
 
     async def test_business_failures_do_not_revoke_or_retry(self):
