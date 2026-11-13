@@ -10,6 +10,7 @@ from core.handle.abortHandle import handleAbortMessage
 from core.handle.intentHandler import handle_user_intent
 from core.utils.output_counter import check_device_output_limit
 from core.handle.sendAudioHandle import send_stt_message, SentenceType
+from core.product_wakeup import play_product_wakeup
 
 TAG = __name__
 
@@ -85,6 +86,9 @@ async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
         _, command_text = remove_punctuation_and_length(command_text.strip())
         if command_text in conn.cmd_exit:
             await conn.close()
+            return
+        if wakeup:
+            asyncio.create_task(play_product_wakeup(conn, turn_id))
             return
         conn.executor.submit(conn.chat, actual_text, turn_id=turn_id)
         return
