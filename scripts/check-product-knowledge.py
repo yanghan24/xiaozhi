@@ -524,7 +524,7 @@ async def run(fixture):
                 assert spoken_text == ['我在，请说'] and heard_audio and not spoken, (
                     'Paired wake listen/start lost cached greeting audio', spoken_text, heard_audio)
             elif fixture.scenario in ('listen-start','abort-new-turn','ordinary','init-failed','wake-start-twice','wake-abort-start','startup-abort','startup-listen'):
-                assert '我是语音助手' in spoken and '根据知识库资料' not in spoken and heard_audio
+                assert normalized_speech(spoken) == normalized_speech(ORDINARY_ANSWER) and heard_audio
                 assert normalized_speech(WAKE_ANSWER) not in normalized_speech(spoken), (
                     'Obsolete wake answer contaminated a new turn', spoken)
             elif fixture.scenario in ('tool-error','other-owner'):
