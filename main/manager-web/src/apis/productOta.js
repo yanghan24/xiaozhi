@@ -18,3 +18,16 @@ export async function requestProductOta(token, path, body, signal) {
   if (!response.ok || result.code !== 0) throw new ProductOtaError(response.status, result.code);
   return result.data;
 }
+
+export async function uploadProductOta(token, image, manifest, signal) {
+  const form = new FormData();
+  form.append('image', image);
+  form.append('manifest', manifest);
+  const response = await fetch(`${getServiceUrl()}/admin/product-ota/firmware/upload`, {
+    method: 'POST', cache: 'no-store', signal,
+    headers: { Authorization: `Bearer ${token || ''}` }, body: form
+  });
+  const result = await response.json();
+  if (!response.ok || result.code !== 0) throw new ProductOtaError(response.status, result.code);
+  return result.data;
+}

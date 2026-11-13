@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import xiaozhi.modules.security.user.SecurityUser;
 import xiaozhi.common.utils.Result;
 
@@ -38,6 +39,13 @@ public class ProductOtaCatalogController {
                 || !body.path("asset_id").isIntegralNumber() || !body.path("release_id").canConvertToLong()
                 || !body.path("asset_id").canConvertToLong()) throw new ControlFailure(400,"INVALID_REQUEST");
         return ok(catalog.importFirmware(SecurityUser.getUserId(),body.path("release_id").asLong(),body.path("asset_id").asLong()));
+    }
+    @PostMapping(value = "/firmware/upload", consumes = "multipart/form-data")
+    @RequiresPermissions("sys:role:superAdmin")
+    public ResponseEntity<?> uploadFirmware(@RequestPart("image") MultipartFile image,
+                                             @RequestPart("manifest") MultipartFile manifest) {
+        operator();
+        return ok(catalog.uploadFirmware(SecurityUser.getUserId(), image, manifest));
     }
     private ResponseEntity<?> ok(Object data) {
         return ResponseEntity.ok().header("Cache-Control", "no-store").body(new Result<>().ok(data));

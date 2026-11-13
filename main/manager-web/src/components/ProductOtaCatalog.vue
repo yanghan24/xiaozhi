@@ -1,16 +1,14 @@
-<template>
+﻿<template>
   <section class="product-ota" aria-label="产品设备固件目录">
     <h2>产品设备 OTA · 固件目录</h2>
-    <p>从本项目 GitHub Release 选择固定固件。导入会校验应用、构建和 P4 兼容条件；不会向设备下发。</p>
+    <p>可从 GitHub Release 导入，或从小智后台上传固件。导入只做校验，不会向设备下发。</p>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     <fieldset :disabled="loading">
       <legend>导入 GitHub Release</legend>
       <label>Release
         <select data-test="release" v-model="releaseId" @change="assetId = ''">
           <option value="">请选择明确版本</option>
-          <option v-for="release in releases" :key="release.id" :value="String(release.id)">
-            {{ release.tag }}{{ release.prerelease ? ' · 预发布' : '' }}
-          </option>
+          <option v-for="release in releases" :key="release.id" :value="String(release.id)">{{ release.tag }}{{ release.prerelease ? ' 预发布' : '' }}</option>
         </select>
       </label>
       <label>应用镜像
@@ -24,9 +22,19 @@
       <span>第 {{ page }} 页</span>
       <button :disabled="releases.length < 20" @click="changePage(1)">下一页 Release</button>
     </fieldset>
+    <fieldset :disabled="loading">
+      <legend>从小智后台上传固件</legend>
+      <label>应用镜像（.bin）
+        <input data-test="upload-image" type="file" accept=".bin,application/octet-stream" @change="uploadImage = $event.target.files[0] || null" />
+      </label>
+      <label>校验清单（manifest.json）
+        <input data-test="upload-manifest" type="file" accept=".json,application/json" @change="uploadManifest = $event.target.files[0] || null" />
+      </label>
+      <button data-test="upload" :disabled="!uploadImage || !uploadManifest" @click="uploadFirmware">校验并上传</button>
+    </fieldset>
     <h3>已校验固件</h3>
     <button :disabled="loading" @click="load">刷新目录</button>
-    <p v-if="!loading && !firmware.length">尚未导入固件。</p>
+    <p v-if="!loading && !firmware.length">尚未上传固件。</p>
     <div class="table-scroll" v-if="firmware.length">
       <table>
         <thead><tr><th>选择</th><th>版本 / Release</th><th>板型与容量</th><th>构建与校验</th></tr></thead>
@@ -38,14 +46,14 @@
         </tr></tbody>
       </table>
     </div>
-    <p v-if="selectedId" role="status">已选择固定固件。选择本身不会升级设备。</p>
+    <p v-if="selectedId" role="status">已选择固件。选择本身不会升级设备。</p>
   </section>
 </template>
 
 <script>
-import { requestProductOta, ProductOtaError } from '@/apis/productOta';
+import { requestProductOta, uploadProductOta, ProductOtaError } from '@/apis/productOta';
 export default {
-  data() { return { releases: [], firmware: [], releaseId: '', assetId: '', selectedId: '', page: 1, loading: false, error: '' }; },
+  data() { return { releases: [], firmware: [], releaseId: '', assetId: '', uploadImage: null, uploadManifest: null, selectedId: '', page: 1, loading: false, error: '' }; },
   computed: {
     assets() { const release = this.releases.find(item => String(item.id) === this.releaseId); return release ? release.assets : []; }
   },
@@ -56,14 +64,27 @@ export default {
       try { return await requestProductOta(token, path, body, undefined); }
       catch (error) {
         if (!(error instanceof ProductOtaError)) throw error;
-        if ([401, 403].includes(error.status)) throw new Error('需要有效的运营管理员登录权限。');
-        if (error.status === 409) throw new Error('该资产已经导入，请刷新目录。');
-        if (error.code === 'GITHUB_RATE_LIMITED') throw new Error('GitHub 请求额度暂时用尽，请稍后再试。');
-        if (error.status === 400) throw new Error('导入被拒绝：资产或兼容元数据不完整、已变化或校验失败。请核对 Release。');
-        throw new Error('暂时无法读取或导入固件，请稍后重试。');
+        if ([401, 403].includes(error.status)) throw new Error('闇€瑕佹湁鏁堢殑杩愯惀绠＄悊管理员权限。');
+        if (error.status === 409) throw new Error('璇ヨ祫浜у凡缁忓鍏ワ紝请刷新目录。');
+        if (error.code === 'GITHUB_RATE_LIMITED') throw new Error('GitHub 璇锋眰棰濆害鏆傛椂鐢ㄥ敖锛岃稍后再试。');
+        if (error.status === 400) throw new Error('瀵煎叆琚嫆缁濓細璧勪骇鎴栧吋瀹瑰厓鏁版嵁涓嶅畬鏁淬€佸凡鍙樺寲鎴栨牎楠屽け璐ャ€傝鏍稿 Release。');
+        throw new Error('鏆傛椂鏃犳硶璇诲彇鎴栧鍏ュ浐浠讹紝璇风◢后重试。');
       }
     },
-    async load() {
+    async uploadFirmware() {
+      if (this.loading || !this.uploadImage || !this.uploadManifest) return;
+      this.loading = true; this.error = '';
+      try {
+        const token = JSON.parse(this.$store.getters.getToken || '{}').token;
+        await uploadProductOta(token, this.uploadImage, this.uploadManifest);
+        this.uploadImage = null; this.uploadManifest = null;
+        this.firmware = await this.request('firmware');
+      } catch (error) {
+        if (error instanceof ProductOtaError && error.status === 409) this.error = '该固件已上传，请刷新目录。';
+        else if (error instanceof ProductOtaError && error.status === 400) this.error = '上传被拒绝：镜像或 manifest 校验失败。';
+        else this.error = error.message || '暂时无法上传固件，请稍后重试。';
+      } finally { this.loading = false; }
+    },    async load() {
       if (this.loading) return;
       this.loading = true; this.error = '';
       try {

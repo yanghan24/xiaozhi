@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.concurrent.Semaphore;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 /** Fixed project Release artifacts. Firmware bytes never appear in management responses. */
 @Service
@@ -25,7 +26,7 @@ public class ProductOtaCatalog {
             throw new ControlFailure(403,"OPERATOR_REQUIRED");
     }
     public List<Map<String,Object>> list() {
-        return db.queryForList("SELECT " + FIELDS + " FROM dc_ota_firmware ORDER BY created_at_ms DESC,firmware_id");
+        return db.queryForList("SELECT " + FIELDS + ",source_kind,source_name FROM dc_ota_firmware ORDER BY created_at_ms DESC,firmware_id");
     }
     public List<Map<String,Object>> releases(int page) {
         require(page>=1 && page<=100,"INVALID_PAGE");
@@ -86,6 +87,49 @@ public class ProductOtaCatalog {
                         inspected.flashSize(),inspected.minRevision(),inspected.maxRevision(),layout,partitionHash,capacity,image.length,"verified",operator,System.currentTimeMillis(),image);
             } catch(org.springframework.dao.DuplicateKeyException duplicate) { throw new ControlFailure(409,"FIRMWARE_ALREADY_IMPORTED"); }
             return db.queryForMap("SELECT "+FIELDS+" FROM dc_ota_firmware WHERE firmware_id=?",id);
+        } finally { importing.release(); }
+    }
+    public Map<String,Object> uploadFirmware(long operator, MultipartFile imageFile, MultipartFile manifestFile) {
+        operator(operator);
+        if (!importing.tryAcquire()) throw new ControlFailure(429,"IMPORT_IN_PROGRESS");
+        try {
+            require(imageFile != null && manifestFile != null, "UPLOAD_FILES_REQUIRED");
+            require(imageFile.getSize() > 0 && imageFile.getSize() <= GithubReleaseSource.MAX_IMAGE, "ASSET_SIZE_INVALID");
+            require(manifestFile.getSize() > 0 && manifestFile.getSize() <= 65536, "ASSET_SIZE_INVALID");
+            String filename = Optional.ofNullable(imageFile.getOriginalFilename()).orElse("");
+            String manifestFilename = Optional.ofNullable(manifestFile.getOriginalFilename()).orElse("");
+            require(filename.matches("[A-Za-z0-9_.-]+\\.bin"), "INVALID_APPLICATION_ASSET");
+            require(manifestFilename.equals("manifest.json"), "INVALID_MANIFEST");
+            byte[] image, manifestBytes;
+            try { image=imageFile.getBytes(); manifestBytes=manifestFile.getBytes(); }
+            catch (Exception e) { throw new ControlFailure(400,"UPLOAD_READ_FAILED"); }
+            JsonNode manifest;
+            try { manifest=json.readTree(manifestBytes); }
+            catch(Exception bad) { throw new ControlFailure(400,"INVALID_MANIFEST"); }
+            require(manifest != null && manifest.isObject() && manifest.path("schema_version").asInt()==1, "INVALID_MANIFEST");
+            String tag=manifest.path("release_tag").asText();
+            require(tag.matches("[A-Za-z0-9_.\\-/]{1,255}"), "INVALID_MANIFEST");
+            var app=manifest.path("application");
+            require(filename.equals(app.path("file").asText()), "MANIFEST_ASSET_MISMATCH");
+            var inspected=OtaApplicationImage.inspect(image,app.path("sha256").asText());
+            require(image.length==app.path("bytes").asLong() && inspected.version().equals(manifest.path("app_version").asText())
+                    && inspected.elfSha256().equals(app.path("elf_sha256").asText()),"MANIFEST_IMAGE_MISMATCH");
+            String board=manifest.path("board_type").asText(), commit=manifest.path("source_commit").asText();
+            String layout=manifest.path("partition_layout").asText(), partitionHash=manifest.path("partition_table_sha256").asText();
+            int capacity=manifest.path("app_partition_bytes").asInt();
+            require(board.equals("waveshare-esp32-p4-wifi6-touch-lcd-4.3") && commit.matches("[a-f0-9]{40}")
+                    && layout.equals("partitions/v2/16m.csv") && partitionHash.matches("[a-f0-9]{64}")
+                    && capacity==4128768 && image.length<=capacity,"INCOMPATIBLE_LAYOUT");
+            if (db.queryForObject("SELECT COUNT(*) FROM dc_ota_firmware WHERE sha256=?", Integer.class, inspected.sha256()) > 0)
+                throw new ControlFailure(409,"FIRMWARE_ALREADY_IMPORTED");
+            String id=UUID.randomUUID().toString().replace("-","");
+            try {
+                db.update("INSERT INTO dc_ota_firmware("+FIELDS+",source_kind,source_name,image) VALUES ("+"?,".repeat(24)+"?)",
+                        id,null,null,tag,manifest.path("prerelease").asBoolean(false),commit,"backend://upload/"+id,
+                        digest(manifestBytes),inspected.sha256(),inspected.elfSha256(),inspected.version(),board,
+                        inspected.flashSize(),inspected.minRevision(),inspected.maxRevision(),layout,partitionHash,capacity,image.length,"verified",operator,System.currentTimeMillis(),"backend_upload",filename,image);
+            } catch(org.springframework.dao.DuplicateKeyException duplicate) { throw new ControlFailure(409,"FIRMWARE_ALREADY_IMPORTED"); }
+            return db.queryForMap("SELECT "+FIELDS+",source_kind,source_name FROM dc_ota_firmware WHERE firmware_id=?",id);
         } finally { importing.release(); }
     }
     private JsonNode find(JsonNode release,long id,String name) {
