@@ -1,5 +1,7 @@
 # 当前部署与公网入口
 
+2026-11-13 15:57（Asia/Hong_Kong）完成[唤醒与首音延迟诊断](../verification/2026-11-13-voice-latency.md)：短时启用元数据计时后已恢复原语音镜像 `sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2`，临时计时关闭；Compose 与诊断前逐字节一致，API／管理页／入口容器未重建，TLS 发现 200、无授权 WSS 1008。两轮实测定位到模型与首段语音合成等待；本次没有部署延迟优化。
+
 2026-11-13 14:43（Asia/Hong_Kong）只读核对确认服务器已运行合并 PR #93 后的语音镜像 `xiaozhi-product-voice:ota99-26b1703`，digest 为 `sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2`；API digest 为 `sha256:292846c40a6279bf720ccc75eed08796eb042b287350b0b13e048d04a9fa500d`，管理页 digest 为 `sha256:6f36cacdb1ab2d8eb7234eb8cf07e2f8996be29179e3ea6a7c1f34ac70aaa9c5`。部署目录仍为 `/home/jt/pr26-deployment-885918d`，本次没有覆盖后续维护/ASR 变更或重复重启。PR #93 合并后部署和 B 现场复验证据见 [#14 合并后部署与复验](../verification/2026-11-13-issue14-postdeploy.md) 及其 [deployment.json](../verification/evidence/2026-11-13-issue14-postdeploy/deployment.json)。
 
 2026-11-13 12:32（Asia/Hong_Kong）已部署 [#14 唤醒后无声修复](../verification/2026-11-13-issue14-wake-start.md)：源码 `69398b3`，镜像 `xiaozhi-product-voice:issue14-wake-69398b3` / `sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585`。旧镜像复现配套监听误取消问候，修复后66项测试及13个WebSocket场景通过。仅重建语音、平滑重载Nginx，knowledge配置及B许可24／归属7、ASR market／revision5等状态保持。用户已确认完整问候；随后两道知识题与普通介绍补测均完成真实麦克风输入和完整播放，三题功能验收通过。实际转写采用人工语义对应，本轮工具正文未留存，内容依据审查边界详见报告。PR #93尚未合并，#14在合并前保持打开。此次独立回退仅恢复9ff语音镜像，保留knowledge。
