@@ -45,16 +45,18 @@ def _is_valid_call_tool_result(result: Any) -> bool:
 class ServerMCPExecutor(ToolExecutor):
     """服务端MCP工具执行器"""
 
-    def __init__(self, conn, *, servers=None):
+    def __init__(self, conn, *, servers=None, allowed_tools=None):
         self.conn = conn
         self._servers = servers
+        self._allowed_tools = allowed_tools
         self.mcp_manager: Optional[ServerMCPManager] = None
         self._initialized = False
 
     async def initialize(self):
         """初始化MCP管理器"""
         if not self._initialized:
-            self.mcp_manager = ServerMCPManager(self.conn, servers=self._servers)
+            self.mcp_manager = ServerMCPManager(
+                self.conn, servers=self._servers, allowed_tools=self._allowed_tools)
             self._initialized = True
             await self.mcp_manager.initialize_servers()
 

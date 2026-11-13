@@ -33,7 +33,8 @@ class UnifiedToolHandler:
         self.finish_init = False
         self._closed = False
         if self.product_scope is not None:
-            self.server_mcp_executor = ServerMCPExecutor(conn, servers=self.product_scope.servers())
+            self.server_mcp_executor = ServerMCPExecutor(
+                conn, servers=self.product_scope.servers(), allowed_tools={"ask_knowledge"})
             return
 
         # 创建工具管理器

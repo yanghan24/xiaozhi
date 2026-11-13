@@ -46,6 +46,7 @@ class MCPService:
         self.error = None
         self.init_error = None
         self.before_result = None
+        self.knowledge_name = "ask_knowledge"
 
     @asynccontextmanager
     async def transport(self, url, **kwargs):
@@ -68,7 +69,7 @@ class MCPService:
 
             async def list_tools(self):
                 return SimpleNamespace(tools=[
-                    Tool(name="ask_knowledge", description="remote untrusted description",
+                    Tool(name=service.knowledge_name, description="remote untrusted description",
                          inputSchema={"type": "object"}),
                     Tool(name="unapproved_tool", inputSchema={"type": "object"}),
                 ])
@@ -257,6 +258,16 @@ class ProductKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         response = await self.handler.handle_llm_function_call(self.conn, {
             "name": "ask_knowledge", "arguments": {"question": QUESTION}}, turn_id="turn-1")
         self.assertEqual(response.action, Action.NONE)
+        self.assertEqual(self.service.calls, [])
+
+    async def test_sanitized_alias_cannot_impersonate_the_approved_tool(self):
+        self.service.knowledge_name = "ask.knowledge"
+        handler = await self.start()
+        self.assertEqual(handler.get_functions(), [])
+        self.assertEqual(handler.knowledge_status, "unavailable")
+        response = await handler.handle_llm_function_call(self.conn, {
+            "name": "ask_knowledge", "arguments": {"question": QUESTION}}, turn_id="turn-1")
+        self.assertEqual(response.action, Action.ERROR)
         self.assertEqual(self.service.calls, [])
 
 
