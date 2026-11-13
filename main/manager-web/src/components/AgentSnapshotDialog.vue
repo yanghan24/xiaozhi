@@ -511,7 +511,7 @@
 import Api from "@/apis/api";
 import correctWord from "@/apis/module/correctWord";
 import { formatDate } from "@/utils/date";
-import { CodeDiff, hljs } from "v-code-diff";
+import { CodeDiff, hljs } from "v-code-diff/vue2.7";
 import markdown from "highlight.js/lib/languages/markdown";
 import {
   hasValidCurrentStateToken,
