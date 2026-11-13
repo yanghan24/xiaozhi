@@ -349,7 +349,9 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None, sentence
         conn.clearSpeakStatus()
 
     # 发送消息到客户端
-    sent_audio_frames = getattr(conn, "audio_flow_control", {}).get("packet_count", 0)
+    flow_control = getattr(conn, "audio_flow_control", {})
+    sent_audio_frames = (flow_control.get("packet_count", 0)
+                         if flow_control.get("sentence_id") == sentence_id else 0)
     await _send_output(conn, json.dumps(message), sentence_id)
     if getattr(conn, "product_voice_gate", None) is not None:
         conn.logger.bind(tag=TAG).info('Product turn {} session {} tts {} sent frames {}: {}',
