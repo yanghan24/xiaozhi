@@ -1,0 +1,19 @@
+{
+  "firmware": {
+    "firmware_id": "1761d154409f4214b66bd605d70428b7",
+    "app_version": "2.2.6",
+    "board_type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+    "sha256": "f343d890a30ede6ad045ddd4eaf629e7c455e2b24af367c121cb53e35041103d",
+    "elf_sha256": "de97cbaa11ef327a9b986516f779eb4243924012d58e3dc335583d597cc902d0",
+    "image_size": 4022608,
+    "source_kind": "backend_upload",
+    "verification_status": "verified",
+    "prerelease": true,
+    "source_commit": "b471c1019566d204839e80c3ac2026caf1b16739",
+    "manifest_sha256": "133a071017c9a550130cca795879588c71256afa85ed67f14551eb4e868f1c96"
+  },
+  "source_commit": "b471c1019566d204839e80c3ac2026caf1b16739",
+  "ota_sent": false,
+  "physical_acceptance": "pending",
+  "operations_unchanged": true
+}
