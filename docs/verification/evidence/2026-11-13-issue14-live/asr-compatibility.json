@@ -1,0 +1,72 @@
+{
+  "source_head": "f0ef28a1c3cd137241a1f05e2d668859fb361cf5",
+  "archive_sha256": "53679d5fcf567c598008ab9dc16ccdc6829a89af9a53ea53c82a78d5305739ab",
+  "voice_image": "sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897",
+  "java_image": "sha256:895415c78d202ec601f716f4a7ea7544a652c08a7464a6ec3982a96f77f10ebd",
+  "cases": [
+    {
+      "case": "market",
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "device Opus -> rtasr-llm WebSocket -> model -> TTS audio",
+            "PCM has correct format and no queued audio lost",
+            "cancelled and disconnected ASR sockets close",
+            "pending ASR cannot call model/TTS after signout"
+          ]
+        }
+      ],
+      "log_sha256": "fb2660e484e2907301eb73b802e4aeecc81ac654278dc1f5541fa09eb6908eb2"
+    },
+    {
+      "case": "xfyun",
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "device Opus -> rtasr-llm WebSocket -> model -> TTS audio",
+            "PCM has correct format and no queued audio lost",
+            "cancelled and disconnected ASR sockets close",
+            "pending ASR cannot call model/TTS after signout"
+          ]
+        }
+      ],
+      "log_sha256": "1ca51fc03e3baaadba38cbe4cba8a1a971d746acc89aa755649642bbf6618cf3"
+    },
+    {
+      "case": "voice",
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "real authority handshake",
+            "late output blocked",
+            "other device unaffected",
+            "old and cross-device tokens rejected",
+            "query fallback rejected"
+          ]
+        },
+        {
+          "result": "pass",
+          "checks": [
+            "actual WebSocketServer and ConnectionHandler",
+            "model response through Edge adapter to binary audio",
+            "late external TTS output blocked",
+            "multiple connections closed",
+            "legacy auth disabled and whitelist cannot bypass",
+            "direct qwen SSE content only",
+            "balance failure preserves grant",
+            "signout blocks new model requests"
+          ]
+        }
+      ],
+      "log_sha256": "ebb09a51440300de5143e5849b95789b1e766a087fd361964d86ec9705c94cdc"
+    }
+  ],
+  "scope": "Isolated Java authority and production Python modules; synthetic identities and controlled external ASR/model/TTS transports; no B or production state accessed.",
+  "time_utc": "2026-11-13T03:41:14.564257+00:00"
+}

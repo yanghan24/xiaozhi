@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "run": "live-20261113T035058Z",
+  "candidate_source_commit": "8afb015ca4a7a0ab814fdc7a107b727be56885c3",
+  "reviewer": "independent issue14_asr_compatibility agent",
+  "complete": true,
+  "scope": "对两道固定公开问题的实际返回片段与实际回答作独立只读语义审查。未发起新模型或知识库请求；不评价原汇编现行性、全量法规完整性或物理音频验收。",
+  "overall": "material_grounding_findings",
+  "deployment_decision": "not_made_by_this_review",
+  "cases": [
+    {
+      "name": "knowledge1",
+      "question": "怎么申请成立社会团体",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          42,
+          36
+        ],
+        "indirectly_relevant_ordinals": [
+          424
+        ],
+        "peripheral_ordinals": [
+          425,
+          77
+        ],
+        "explanation": "42支持主管单位审查同意、发起人申请登记和筹备活动限制；36支持法人条件及登记例外；424为登记文件归档范围。425为分支/变更，77为年检，与本次成立申请不是同一办理事项。"
+      },
+      "answer_grounding": {
+        "status": "material_findings",
+        "supported": [
+          "先经业务主管单位审查同意，再由发起人向登记管理机关申请登记，以及筹备期间活动限制，均对应42。",
+          "本次未返回43时，回答没有填入旧答案中的会员人数和资金数额。",
+          "旧版从归档目录推导强制两阶段筹备审批的表述已消失，且未把登记机关已颁发的批准文件列作必须提交的申请材料。"
+        ],
+        "findings": [
+          {
+            "id": "K1-omitted-joint-exemption-condition",
+            "severity": "material",
+            "answer_claim": "经国务院批准免于登记的团体不属于该规定登记范围。",
+            "source_ordinal": 36,
+            "source_text": "由国务院机构编制管理机关核定，并经国务院批准免于登记的团体。",
+            "assessment": "省略了与国务院批准并列要求的机构编制管理机关核定条件，扩大了被陈述为免登记的类别。"
+          },
+          {
+            "id": "K1-omitted-internal-approval-condition",
+            "severity": "material",
+            "answer_claim": "机关、团体、企业事业单位内部在本单位内部活动的团体不属于该规定登记范围。",
+            "source_ordinal": 36,
+            "source_text": "机关、团体、企业事业单位内部经本单位批准成立、在本单位内部活动的团体。",
+            "assessment": "省略经本单位批准成立这一必要条件，只剩内部活动，扩大了例外范围。末尾让用户向当地机关确认不能恢复已作出的错误类别断言。"
+          }
+        ],
+        "advisory": "所列文件现表述为资料提到的常见文件，并提示当地确认，已弱于旧版的必须提交义务；仍建议直接说明424属于归档范围，避免让听者误认为现行办理清单。"
+      },
+      "source_evidence": {
+        "filename": "knowledge1-dialogue-private.json",
+        "sha256": "febc54e4324169d226da0a42d5d60f4cc394e923c61ff15cc6deee0603a421c7",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          42,
+          425,
+          424,
+          77,
+          36
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    },
+    {
+      "name": "knowledge2",
+      "question": "境外非政府组织的登记和备案",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          305,
+          331,
+          312
+        ],
+        "supporting_ordinals": [
+          328,
+          318
+        ],
+        "explanation": "305提供代表机构登记与临时活动备案路径；312提供临时活动中方合作主体；331提供程序公开；328提供境内代理限制；318提供账户和资金管理要求。"
+      },
+      "answer_grounding": {
+        "status": "material_findings",
+        "supported": [
+          "开头分别描述登记代表机构和未设代表机构时临时活动备案，符合305。",
+          "临时活动与中方合作单位合作、资金通过规定账户管理及单独记账专款专用、统一网站公开程序，分别有312、318和331支持。",
+          "本次未返回308时，没有编入旧检索才出现的30日/60日期限或七类登记申请材料。"
+        ],
+        "findings": [
+          {
+            "id": "K2-alternative-paths-collapsed-into-or-ban",
+            "severity": "material",
+            "answer_claim": "境外非政府组织未登记设立代表机构，或开展临时活动未经备案的，不得在中国境内开展或者变相开展活动……",
+            "source_ordinal": 305,
+            "source_text": "未登记设立代表机构需要在中国境内开展临时活动的，应当依法备案。",
+            "assessment": "新增无条件的或，把两条各有条件的合规路径压成了更宽的禁止条件，并与回答自身前文允许的备案路径矛盾。",
+            "counterexample": "一个未设代表机构、但临时活动已经依法备案的组织，符合片段明确给出的临时活动路径；回答的未登记代表机构或未备案禁令仍会命中它。"
+          }
+        ]
+      },
+      "source_evidence": {
+        "filename": "knowledge2-dialogue-private.json",
+        "sha256": "5253a47092ea84eb0bd74e2f29041621be03f477494c0cbb3ac0cd93753a8933",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          305,
+          328,
+          331,
+          318,
+          312
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    }
+  ],
+  "generic_followup_recommendations": [
+    "例外、豁免和禁止条款中的联合条件必须全部保留，不把A且B概括成B；无法准确概括时保留关键原句或不附加该例外。",
+    "不同许可或办理路径分别按其条件叙述，不把替代路径的缺项合并为无条件或禁令；保留原文逻辑连接和限定范围。",
+    "仅回答当前问题必要内容，避免主动附加不必要的例外清单；材料类型仍需明确，归档目录不能包装成现行申请指南。"
+  ],
+  "comparison_to_prior_run": "通用提示词已改善旧版的归档到强制流程推导，且两个新检索均未沿用缺失片段中的固定数值或材料。然而新输出仍存在可由原始片段直接验证的条件遗漏和分支逻辑变化。",
+  "reviewed_utc": "2026-11-13T03:55:38.545823+00:00",
+  "transport_acceptance": "Not assessed. Complete saved dialogue supports this semantic review and does not imply successful TTS stop receipt or physical playback."
+}
