@@ -1,6 +1,12 @@
 {
   "measured_at": "2026-11-13",
   "timezone": "Asia/Hong_Kong",
+  "device_environment": {
+    "board": "esp32-p4-wifi6-touch-lcd",
+    "firmware_version": "2.2.6",
+    "source": "Read-only session correlation with MCP metadata in the same server log window",
+    "limit": "Device alias, hardware revision and firmware source commit not independently established; no new flash readback or physical playback-clock measurement."
+  },
   "scope": "User-triggered physical-device interaction; service-side timings from model invocation to first audio frame send. No external microphone-to-speaker clock.",
   "baseline_image": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
   "diagnostic_image": "sha256:b728245d1b89ce6933e2e554f22ce2ba14e6ca4798aabba313a725b6937a1eb3",
