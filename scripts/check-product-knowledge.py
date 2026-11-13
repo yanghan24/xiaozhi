@@ -11,6 +11,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import unicodedata
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -28,8 +29,17 @@ EVIDENCE = '申请成立社会团体应提交成立申请书和章程草案。'
 ANSWER = '根据知识库资料，申请成立社会团体应提交成立申请书和章程草案。'
 ORDINARY_QUESTION = '你好，介绍一下你自己'
 ORDINARY_ANSWER = '你好，我是语音助手。'
+WAKE_WORD = '你好小智'
+WAKE_GREETING = '嘿，你好呀'
+WAKE_ANSWER = '你好，我准备好了。'
+WAKE_SCENARIOS = ('wake-start', 'wake-start-twice', 'wake-abort-start')
 SCHEMA = {'type':'object','properties':{'question':{'type':'string','minLength':1,'maxLength':300}},
           'required':['question'],'additionalProperties':False}
+
+
+def normalized_speech(text):
+    return ''.join(char for char in text
+                   if not char.isspace() and not unicodedata.category(char).startswith('P'))
 
 
 class BoundaryFixture:
@@ -44,6 +54,10 @@ class BoundaryFixture:
         self.origin = ''
         self.tool_started = threading.Event()
         self.tool_release = threading.Event()
+        self.model_started = threading.Event()
+        self.model_release = threading.Event()
+        if scenario not in WAKE_SCENARIOS:
+            self.model_release.set()
         if scenario not in ('listen-start', 'abort-new-turn', 'revoked'):
             self.tool_release.set()
 
@@ -146,7 +160,11 @@ class BoundaryFixture:
                 tools={t['function']['name'] for t in body.get('tools',[])}
                 results=[m for m in body['messages'] if m['role']=='tool']
                 last_user = [m['content'] for m in body['messages'] if m['role']=='user'][-1]
-                if last_user == ORDINARY_QUESTION:
+                if last_user == WAKE_GREETING:
+                    fixture.model_started.set()
+                    assert fixture.model_release.wait(8), 'Fixture wake model was not released'
+                    deltas=[{'content':WAKE_ANSWER}]
+                elif last_user == ORDINARY_QUESTION:
                     assert not results, 'Obsolete knowledge result contaminated a new turn'
                     deltas=[{'content':ORDINARY_ANSWER}]
                 elif results:
@@ -207,6 +225,8 @@ async def run(fixture):
     config['context_providers']=[]
     config['save_audio']=False
     config['enable_stop_tts_notify']=False
+    config['enable_greeting']=True
+    config['wakeup_words']=[WAKE_WORD]
     config['selected_module']['VAD']='SileroVAD'
     config['VAD']['SileroVAD']['model_dir']='/app/models/snakers4_silero-vad'
     audio=subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','anullsrc=r=24000:cl=mono','-t','0.2','-f','mp3','pipe:1'],check=True,stdout=subprocess.PIPE).stdout
@@ -253,7 +273,27 @@ async def run(fixture):
                         await socket.send(json.dumps({'type':'mcp','payload':{
                             'jsonrpc':'2.0','id':request['id'],'result':result}}))
             question = ORDINARY_QUESTION if fixture.scenario in ('ordinary','init-failed') else QUESTION
+            if fixture.scenario in WAKE_SCENARIOS:
+                question = WAKE_WORD
             await socket.send(json.dumps({'type':'listen','state':'detect','text':question}))
+            if fixture.scenario in WAKE_SCENARIOS:
+                assert await asyncio.to_thread(fixture.model_started.wait, 5), 'Wake model did not start'
+                if fixture.scenario == 'wake-abort-start':
+                    await socket.send(json.dumps({'type':'abort'}))
+                await socket.send(json.dumps({'type':'listen','state':'start','mode':'auto'}))
+                if fixture.scenario == 'wake-start-twice':
+                    await socket.send(json.dumps({'type':'listen','state':'start','mode':'auto'}))
+                # Observe completion of the start handler before releasing the answer.
+                await socket.send(json.dumps({'type':'hello','version':1}))
+                while True:
+                    message = await asyncio.wait_for(socket.recv(),5)
+                    if isinstance(message,str) and json.loads(message).get('type')=='hello':
+                        break
+                fixture.model_release.set()
+                if fixture.scenario != 'wake-start':
+                    await asyncio.sleep(.4)
+                    assert not fixture.synthesis, 'New listen/start or abort allowed obsolete wake synthesis'
+                    await socket.send(json.dumps({'type':'listen','state':'detect','text':ORDINARY_QUESTION}))
             if fixture.scenario in ('listen-start', 'abort-new-turn', 'revoked'):
                 assert await asyncio.to_thread(fixture.tool_started.wait, 5)
                 if fixture.scenario == 'revoked':
@@ -282,19 +322,32 @@ async def run(fixture):
                 await socket.send(json.dumps({'type':'listen','state':'detect','text':ORDINARY_QUESTION}))
                 fixture.tool_release.set()
             heard_audio=False
+            heard_stop=False
             for _ in range(100):
-                message=await asyncio.wait_for(socket.recv(),20)
+                try:
+                    message=await asyncio.wait_for(socket.recv(),5 if fixture.scenario=='wake-start' else 20)
+                except asyncio.TimeoutError:
+                    if fixture.scenario == 'wake-start':
+                        raise AssertionError('Paired wake listen/start cancelled greeting: no complete audio/stop') from None
+                    raise
                 if isinstance(message,bytes):
                     heard_audio=True
                 elif json.loads(message).get('state')=='stop':
+                    heard_stop=True
                     break
-            expected_tools = 0 if fixture.scenario in ('ordinary','other-owner','init-failed') else 1
-            expected_models = 1 if fixture.scenario in ('ordinary','other-owner','tool-error','init-failed') else 2
+            assert heard_stop, 'Answer did not send TTS stop'
+            expected_tools = 0 if fixture.scenario in ('ordinary','other-owner','init-failed') + WAKE_SCENARIOS else 1
+            expected_models = 1 if fixture.scenario in ('ordinary','other-owner','tool-error','init-failed','wake-start') else 2
             assert len(fixture.tool_requests)==expected_tools, 'Unexpected MCP request count'
             assert len(fixture.model_requests)==expected_models, 'Unexpected model request count'
             spoken = ''.join(fixture.synthesis)
-            if fixture.scenario in ('listen-start','abort-new-turn','ordinary','init-failed'):
+            if fixture.scenario == 'wake-start':
+                assert normalized_speech(spoken) == normalized_speech(WAKE_ANSWER) and heard_audio, (
+                    'Paired wake listen/start lost greeting audio', spoken, heard_audio)
+            elif fixture.scenario in ('listen-start','abort-new-turn','ordinary','init-failed','wake-start-twice','wake-abort-start'):
                 assert '我是语音助手' in spoken and '根据知识库资料' not in spoken and heard_audio
+                assert normalized_speech(WAKE_ANSWER) not in normalized_speech(spoken), (
+                    'Obsolete wake answer contaminated a new turn', spoken)
             elif fixture.scenario in ('tool-error','other-owner'):
                 assert ('知识库查询失败' in spoken or '知识库暂时不可用' in spoken) and heard_audio
                 assert 'synthetic-private-error' not in spoken and '根据知识库资料' not in spoken

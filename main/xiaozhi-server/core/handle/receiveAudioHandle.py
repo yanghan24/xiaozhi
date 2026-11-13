@@ -43,7 +43,7 @@ async def resume_vad_detection(conn: "ConnectionHandler"):
     conn.just_woken_up = False
 
 
-async def startToChat(conn: "ConnectionHandler", text):
+async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
     # 检查输入是否是JSON格式（包含说话人信息）
     speaker_name = None
     actual_text = text
@@ -79,7 +79,7 @@ async def startToChat(conn: "ConnectionHandler", text):
         conn.current_speaker = None
 
     if getattr(conn, 'product_voice_gate', None) is not None:
-        turn_id = conn.product_conversation.begin()
+        turn_id = conn.product_conversation.begin(wakeup=wakeup)
         await send_stt_message(conn, actual_text)
         if actual_text.strip() in conn.cmd_exit:
             await conn.close()

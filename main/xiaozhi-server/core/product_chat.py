@@ -21,6 +21,7 @@ class ProductConversation:
         self.conn = conn
         self.lock = threading.RLock()
         self.pending = set()
+        self.wakeup_turn = None
 
     def current(self, turn_id):
         conn = self.conn
@@ -34,19 +35,31 @@ class ProductConversation:
 
     def invalidate(self):
         with self.lock:
+            self.wakeup_turn = None
             self.conn.client_abort = True
             self.conn.sentence_id = None
             for future in self.pending:
                 future.cancel()
             self.pending.clear()
 
-    def begin(self):
+    def begin(self, *, wakeup=False):
         with self.lock:
             self.invalidate()
             self.conn.clear_queues()
             self.conn.sentence_id = uuid.uuid4().hex
             self.conn.client_abort = False
+            self.wakeup_turn = self.conn.sentence_id if wakeup else None
             return self.conn.sentence_id
+
+    def listen_started(self):
+        with self.lock:
+            # Firmware pairs wake detection with one start for microphone capture.
+            # That start belongs to the greeting; later starts cancel old output.
+            paired_wakeup = self.current(self.wakeup_turn)
+            self.wakeup_turn = None
+            if not paired_wakeup:
+                self.invalidate()
+                self.conn.clear_queues()
 
     def _speech(self, turn_id, kind, text=None):
         with self.lock:
