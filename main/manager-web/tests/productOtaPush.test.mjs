@@ -11,7 +11,7 @@ const response = data => ({ ok: true, json: async () => ({ code: 0, data }) });
 const settle = async () => { for (let i = 0; i < 15; i++) await Vue.nextTick(); };
 const firmware = { firmware_id: 'fixed-build', app_version: '2.2.6', elf_sha256: 'target-elf', verification_status: 'verified' };
 let wrapper;
-beforeEach(() => vi.stubGlobal('fetch', vi.fn()));
+beforeEach(() => vi.stubGlobal('fetch', vi.fn(async () => response([]))));
 afterEach(() => { wrapper?.destroy(); vi.unstubAllGlobals(); });
 const open = async () => {
   fetch.mockResolvedValueOnce(response({ items: [
@@ -35,7 +35,7 @@ it('shows current availability and previews only the selected device and importe
   await wrapper.find('[data-test=device-online-A]').setChecked();
   fetch.mockResolvedValueOnce(response({ preview_id: 'preview-1', eligible: true, device_id: 'online-A', firmware_id: 'fixed-build', current_version: '2.2.5', current_elf_sha256: 'old-elf', target_version: '2.2.6', target_elf_sha256: 'target-elf', expires_at_ms: Date.now() + 60000 }));
   await wrapper.find('[data-test=preview]').trigger('click'); await settle();
-  expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ device_id: 'online-A', firmware_id: 'fixed-build' });
+  expect(JSON.parse(fetch.mock.calls.find(([path]) => path.endsWith('/preview'))[1].body)).toEqual({ device_id: 'online-A', firmware_id: 'fixed-build' });
   expect(wrapper.text()).toContain('old-elf');
   expect(wrapper.text()).toContain('立即');
   expect(wrapper.text()).toContain('重启');
@@ -75,7 +75,7 @@ it('keeps a lost confirmation response unknown and only reads results when refre
   await wrapper.find('[data-test=confirm]').trigger('click'); await settle();
   expect(wrapper.text()).toContain('请求响应丢失，结果未知');
   expect(wrapper.find('[data-test=preview]').attributes('disabled')).toBeDefined();
-  const requestKey = JSON.parse(fetch.mock.calls[3][1].body).request_key;
+  const requestKey = JSON.parse(fetch.mock.calls.find(([path, options]) => path.endsWith('/operations') && options.method === 'POST')[1].body).request_key;
   fetch.mockResolvedValueOnce(response({ items: [{ device_id: 'online-A', status: 'current' }], total: 1 }))
     .mockResolvedValueOnce(response([{ operation_id: 'operation-1', device_id: 'online-A', request_key: requestKey, status: 'result_unknown', firmware_id: 'fixed-build' }]));
   await wrapper.find('button').trigger('click'); await settle();
@@ -92,9 +92,9 @@ it('shows exclusions without confirmation and requests the next device page from
   expect(wrapper.find('[data-test=confirm]').exists()).toBe(false);
   fetch.mockResolvedValueOnce(response({ items: [{ device_id: 'online-C', status: 'current' }], total: 51 })).mockResolvedValueOnce(response([]));
   await wrapper.find('[data-test=next-page]').trigger('click'); await settle();
-  expect(fetch.mock.calls[3][0]).toBe('/xiaozhi/admin/product-ota/devices?page=2&limit=50');
+  expect(fetch.mock.calls.some(([path]) => path === '/xiaozhi/admin/product-ota/devices?page=2&limit=50')).toBe(true);
   expect(wrapper.text()).toContain('online-C');
-  expect(wrapper.find('[data-test=preview]').attributes('disabled')).toBeDefined();
+  expect(wrapper.find('[data-test=preview]').attributes('disabled')).toBeUndefined();
 });
 it('does not submit an expired confirmation and reports lost operator access', async () => {
   await open();

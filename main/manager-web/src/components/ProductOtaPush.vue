@@ -1,6 +1,6 @@
 <template>
   <section class="ota-push" aria-label="在线设备 OTA 推送">
-    <h2>在线设备 · 单台推送</h2>
+    <h2>在线设备 · 固件推送</h2>
     <p>在线状态以当前有效产品会话为准。选择设备后检查升级工具与硬件兼容性；离线设备不会等待上线补发。</p>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     <button :disabled="busy" @click="load">刷新设备与结果</button>
@@ -9,9 +9,9 @@
       <table>
         <thead><tr><th>选择</th><th>设备</th><th>当前可用状态</th><th>检查时间</th></tr></thead>
         <tbody><tr v-for="device in devices" :key="device.device_id">
-          <td><input type="radio" name="ota-device" :data-test="'device-' + device.device_id" :aria-label="'选择设备 ' + device.device_id" :value="device.device_id" v-model="deviceId" :disabled="busy || !selectable(device)" @change="clearPreview" /></td>
-          <td>{{ device.display_name || device.device_id }}<br><code>{{ device.device_id }}</code></td>
-          <td>{{ label(device.status) }}<br>{{ device.reason ? label(device.reason) : '' }}</td>
+          <td><input type="checkbox" :data-test="'device-' + device.device_id" :aria-label="'选择设备 ' + device.device_id" :value="device.device_id" v-model="deviceIds" :disabled="busy || !selectable(device)" @change="clearPreview" /></td>
+          <td><template v-if="device.display_name && device.display_name !== device.device_id">{{ device.display_name }}<br></template><code>{{ device.device_id }}</code></td>
+          <td>{{ label(device.status) }}<template v-if="device.reason && device.reason !== device.status"><br>{{ label(device.reason) }}</template></td>
           <td>{{ time(device.checked_at_ms) }}</td>
         </tr></tbody>
       </table>
@@ -22,14 +22,23 @@
       <button data-test="next-page" :disabled="busy || page * limit >= total" @click="changePage(1)">下一页设备</button>
     </div>
     <p>目标固件：<strong>{{ firmware ? firmware.app_version : '请先在上方目录选择已校验固件' }}</strong><span v-if="firmware"> · ELF <code>{{ firmware.elf_sha256 }}</code></span></p>
-    <button data-test="preview" :disabled="busy || !deviceId || !firmware || blocked(deviceId)" @click="previewDevice">检查单台兼容性</button>
+    <p>已选择 {{ deviceIds.length }} 台（跨页保留）。</p>
+    <button data-test="preview" :disabled="busy || !deviceIds.length || !firmware || selectionUncertain || (deviceIds.length === 1 && blocked(deviceId))" @click="previewDevice">检查所选设备兼容性</button>
+    <button data-test="preview-all" :disabled="busy || !firmware || !!uncertain" @click="previewDevice('all_online')">检查全部在线兼容设备（所有分页）</button>
+    <button :disabled="busy || !deviceIds.length" @click="deviceIds = []; clearPreview()">清空选择</button>
     <p v-if="deviceId && blocked(deviceId)">本台已有待核对的操作。请查看结果，不要重复推送。</p>
     <div v-if="preview" class="preview" role="status">
-      <h3>推送预览 · {{ preview.device_id }}</h3>
-      <p>当前：{{ preview.current_version || '未知' }} · ELF <code>{{ preview.current_elf_sha256 || '未知' }}</code></p>
-      <p>目标：{{ preview.target_version || firmware.app_version }} · ELF <code>{{ preview.target_elf_sha256 || firmware.elf_sha256 }}</code></p>
-      <p v-if="!preview.eligible" class="error">不可推送：{{ label(preview.reason) }}</p>
+      <h3>推送预览 · {{ preview.items ? '批量设备' : preview.device_id }}</h3>
+      <template v-if="preview.items">
+        <p>可推送 {{ preview.eligible_count }} 台；排除 {{ preview.items.length - preview.eligible_count }} 台。确认后仅处理以下可推送设备，后来上线或登记的设备不会加入。</p>
+        <ul><li v-for="item in preview.items" :key="item.device_id">{{ item.device_id }}：{{ item.eligible ? '可推送' : '排除' }} · {{ label(item.reason) }} · 当前 {{ item.current_version || '未知' }} / ELF {{ item.current_elf_sha256 || '未知' }}</li></ul>
+      </template>
       <template v-else>
+        <p>当前：{{ preview.current_version || '未知' }} · ELF <code>{{ preview.current_elf_sha256 || '未知' }}</code></p>
+        <p v-if="!preview.eligible" class="error">不可推送：{{ label(preview.reason) }}</p>
+      </template>
+      <p>目标：{{ preview.target_version || firmware.app_version }} · ELF <code>{{ preview.target_elf_sha256 || firmware.elf_sha256 }}</code></p>
+      <template v-if="preview.items ? preview.eligible_count > 0 : preview.eligible">
         <p class="warning">本次会立即升级并重启，可能中断正在进行的语音或播放，不会自动等待空闲。设备接受命令不等于安装成功。</p>
         <p>预览有效至 {{ time(preview.expires_at_ms) }}，发送前服务器会再次检查当前会话与许可。</p>
         <label><input data-test="acknowledge" type="checkbox" v-model="acknowledged" :disabled="busy" /> 我确认只向上述设备推送所选固件，并接受立即中断与重启。</label>
@@ -39,6 +48,12 @@
     <h3>逐台结果</h3>
     <p>命令传输结果与实际运行固件证据分别记录。结果未知时请核对设备，不会自动重发。</p>
     <p v-if="uncertain" role="alert" class="warning">{{ uncertain.device_id }}：请求响应丢失，结果未知。请刷新结果核对，切勿重新推送。请求号：<code>{{ uncertain.request_key }}</code></p>
+    <article v-for="batch in batches" :key="batch.batch_id" class="preview">
+      <h4>批次 <code>{{ batch.batch_id }}</code></h4>
+      <p>固定固件：<code>{{ batch.firmware_id }}</code> · {{ label(batch.status) }}</p>
+      <button :data-test="'refresh-batch-' + batch.batch_id" :disabled="busy" @click="refreshBatch(batch.batch_id)">刷新批次结果</button>
+      <ul class="batch-items"><li v-for="item in batch.items" :key="item.device_id">{{ item.device_id }}：{{ label(item.status) }}<template v-if="item.reason && item.reason !== item.status"> · {{ label(item.reason) }}</template> <code>{{ item.operation_id || '' }}</code><template v-if="item.observation_status"> · {{ observation(item.observation_status) }}</template></li></ul>
+    </article>
     <p v-if="!operations.length">暂无推送记录。</p>
     <div class="table-scroll" v-else>
       <table aria-label="OTA 操作结果">
@@ -46,7 +61,7 @@
         <tbody><tr v-for="operation in operations" :key="operation.operation_id">
           <td>{{ operation.device_id }}<br><code>{{ operation.operation_id }}</code></td>
           <td><code>{{ operation.firmware_id }}</code></td>
-          <td>{{ label(operation.status) }}<br>{{ operation.reason ? label(operation.reason) : '' }}</td>
+          <td>{{ label(operation.status) }}<template v-if="operation.reason && operation.reason !== operation.status"><br>{{ label(operation.reason) }}</template></td>
           <td>{{ observation(operation.observation_status) }}</td>
           <td>{{ time(operation.updated_at_ms || operation.created_at_ms) }}</td>
           <td><button :disabled="busy" @click="refreshOperation(operation.operation_id)">刷新结果</button></td>
@@ -60,8 +75,12 @@
 import { getServiceUrl } from '@/apis/api';
 export default {
   props: { firmware: { type: Object, default: null } },
-  data() { return { devices: [], operations: [], deviceId: '', page: 1, limit: 50, total: 0, loading: false, previewing: false, sending: false, error: '', preview: null, acknowledged: false, requestKey: '', uncertain: null }; },
-  computed: { busy() { return this.loading || this.previewing || this.sending; } },
+  data() { return { devices: [], operations: [], batches: [], deviceIds: [], page: 1, limit: 50, total: 0, loading: false, previewing: false, sending: false, error: '', preview: null, acknowledged: false, requestKey: '', uncertain: null }; },
+  computed: {
+    busy() { return this.loading || this.previewing || this.sending; },
+    deviceId() { return this.deviceIds[0] || ''; },
+    selectionUncertain() { return this.uncertain && this.deviceIds.some(id => (this.uncertain.device_ids || []).includes(id)); }
+  },
   watch: { firmware() { this.clearPreview(); } },
   mounted() { this.load(); },
   methods: {
@@ -77,13 +96,16 @@ export default {
         missing_system_info: '缺少可信硬件信息', incompatible_board: '设备板型不兼容',
         incompatible_revision: '芯片修订版本不兼容', incompatible_layout: '分区布局或容量不兼容',
         operation_pending: '本台已有待核对操作', session_changed: '设备会话已变化，请重新检查',
+        not_started_or_conflict: '本批次未发送，可能已有其他操作占用', batch_result_pending_no_retry: '批次结果待核对，不会自动重试',
+        bridge_response_unavailable: '未收到下发回执', awaiting_result: '等待结果核对',
         validating: '检查中', dispatch_reserved: '下发已预留 · 待核对',
         accepted_unconfirmed: '已接受 · 安装待核验', result_unknown: '结果未知 · 禁止重发',
-        not_sent: '未发送', failed: '失败', result_requires_verification: '结果待核对'
+        not_sent: '未发送', failed: '失败', result_requires_verification: '结果待核对',
+        completed: '批次处理结束 · 安装仍需逐台核验', finished: '批次处理结束 · 安装仍需逐台核验', executing: '批次处理中', started: '批次已预留 · 待核对', excluded: '已排除'
       })[value] || (value ? '状态待核对（' + value + '）' : '原因待核对');
     },
     observation(value) { return value === 'target_running' ? '已观察到目标固件运行（新会话证据，不改变传输记录）' : '尚无目标运行证据'; },
-    blocked(id) { return (this.uncertain && this.uncertain.device_id === id) || this.operations.some(item => item.device_id === id && item.observation_status !== 'target_running' && !['not_sent', 'failed'].includes(item.status)); },
+    blocked(id) { return (this.uncertain && (this.uncertain.device_ids || [this.uncertain.device_id]).includes(id)) || this.operations.some(item => item.device_id === id && item.observation_status !== 'target_running' && !['not_sent', 'failed'].includes(item.status)) || this.batches.some(batch => (batch.items || []).some(item => item.device_id === id && item.observation_status !== 'target_running' && !['not_sent', 'failed', 'excluded'].includes(item.status) && !this.operations.some(operation => operation.operation_id === item.operation_id && operation.observation_status === 'target_running'))); },
     time(value) { return value ? new Date(Number(value)).toLocaleString() : '尚未检查'; },
     selectable(device) { return ['current', 'ready', 'eligible'].includes(device.status); },
     clearPreview() { this.preview = null; this.acknowledged = false; this.requestKey = ''; },
@@ -103,8 +125,8 @@ export default {
     },
     async load() {
       if (this.busy) return;
-      this.loading = true; this.error = ''; this.clearPreview(); this.deviceId = '';
-      const results = await Promise.allSettled([this.request(`devices?page=${this.page}&limit=${this.limit}`), this.request('operations')]);
+      this.loading = true; this.error = ''; this.clearPreview();
+      const results = await Promise.allSettled([this.request(`devices?page=${this.page}&limit=${this.limit}`), this.request('operations'), this.request('batches')]);
       if (results[0].status === 'fulfilled') { this.devices = results[0].value.items; this.total = Number(results[0].value.total); }
       else { this.devices = []; this.error = results[0].reason.message; }
       if (results[1].status === 'fulfilled') {
@@ -112,35 +134,55 @@ export default {
         if (this.uncertain && this.operations.some(item => item.request_key === this.uncertain.request_key && item.device_id === this.uncertain.device_id)) this.uncertain = null;
       }
       else this.error = results[1].reason.message;
+      if (results[2].status === 'fulfilled') {
+        this.batches = results[2].value;
+        if (this.uncertain && this.batches.some(item => item.request_key === this.uncertain.request_key)) this.uncertain = null;
+      } else this.error = results[2].reason.message;
       this.loading = false;
     },
     async changePage(delta) { this.page += delta; await this.load(); },
-    async previewDevice() {
-      if (this.busy || !this.deviceId || !this.firmware || this.blocked(this.deviceId)) return;
+    async previewDevice(mode) {
+      const all = mode === 'all_online';
+      if (this.busy || !this.firmware || (all ? !!this.uncertain : this.selectionUncertain || !this.deviceIds.length || (this.deviceIds.length === 1 && this.blocked(this.deviceId)))) return;
       this.previewing = true; this.error = ''; this.clearPreview();
       const deviceId = this.deviceId, firmwareId = this.firmware.firmware_id;
       try {
-        const preview = await this.request('preview', { device_id: deviceId, firmware_id: firmwareId });
+        const preview = all || this.deviceIds.length > 1
+          ? await this.request('batch-preview', { mode: all ? 'all_online' : 'selected', device_ids: all ? [] : [...this.deviceIds], firmware_id: firmwareId })
+          : await this.request('preview', { device_id: deviceId, firmware_id: firmwareId });
         if (this.deviceId === deviceId && this.firmware && this.firmware.firmware_id === firmwareId) this.preview = preview;
       }
       catch (error) { this.error = error.message; }
       finally { this.previewing = false; }
     },
     async confirmPush() {
-      if (this.busy || !this.preview || !this.preview.eligible || !this.acknowledged || this.blocked(this.deviceId)) return;
+      if (this.busy || !this.preview || !(this.preview.items ? this.preview.eligible_count > 0 : this.preview.eligible) || !this.acknowledged || (!this.preview.items && this.blocked(this.deviceId))) return;
       if (Number(this.preview.expires_at_ms) <= Date.now()) { this.clearPreview(); this.error = '预览已过期，请重新检查设备。'; return; }
       this.sending = true; this.error = '';
       const deviceId = this.deviceId;
+      const batch = !!this.preview.items;
+      const targets = batch ? this.preview.items.filter(item => item.eligible).map(item => item.device_id) : [deviceId];
       let requestKey = '';
       try {
         if (!this.requestKey) this.requestKey = Array.from(crypto.getRandomValues(new Uint8Array(16)), value => value.toString(16).padStart(2, '0')).join('');
         requestKey = this.requestKey;
-        const operation = await this.request('operations', { preview_id: this.preview.preview_id, request_key: requestKey });
-        this.operations = [operation, ...this.operations.filter(item => item.operation_id !== operation.operation_id)];
+        const operation = await this.request(batch ? 'batches' : 'operations', { preview_id: this.preview.preview_id, request_key: requestKey });
+        if (batch) this.batches = [operation, ...this.batches.filter(item => item.batch_id !== operation.batch_id)];
+        else this.operations = [operation, ...this.operations.filter(item => item.operation_id !== operation.operation_id)];
       } catch (error) {
-        this.uncertain = { device_id: deviceId, request_key: requestKey };
+        this.uncertain = { device_id: targets.join('、'), device_ids: targets, request_key: requestKey };
         this.error = '未能确认推送结果。请刷新结果核对；不会自动重发。';
       } finally { this.clearPreview(); this.sending = false; }
+    },
+    async refreshBatch(id) {
+      if (this.busy) return;
+      this.loading = true; this.error = '';
+      try {
+        const batch = await this.request(`batches/${encodeURIComponent(id)}`);
+        this.batches = this.batches.map(item => item.batch_id === id ? batch : item);
+        this.operations = await this.request('operations');
+      } catch (error) { this.error = error.message; }
+      finally { this.loading = false; }
     },
     async refreshOperation(id) {
       if (this.busy) return;
@@ -158,7 +200,10 @@ export default {
 p, label { line-height: 1.6; }
 button { padding: 8px 14px; margin: 8px 8px 8px 0; cursor: pointer; }
 button:disabled { cursor: default; }
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow: auto; max-height: 480px; }
+.table-scroll th { position: sticky; top: 0; background: white; z-index: 1; }
+.preview ul { max-height: 320px; overflow: auto; padding-left: 24px; }
+.preview li { padding: 8px 0; overflow-wrap: anywhere; }
 table { border-collapse: collapse; width: 100%; text-align: left; }
 td, th { padding: 12px; border-bottom: 1px solid #ebeef5; vertical-align: top; line-height: 1.6; }
 code { overflow-wrap: anywhere; font-size: 12px; }
