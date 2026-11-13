@@ -1,5 +1,7 @@
 # 当前部署与公网入口
 
+2026-11-13 11:10（Asia/Hong_Kong）[#18单次下发记录](../verification/2026-11-13-issue18-ota-preparation.md)：已修复后端重建后Nginx缓存旧语音地址导致的502（仅平滑重载，配置不变），B重新建立会话后单次下发12f2ff1 OTA。回执未知，操作号`198bf4223d1740cb95fd1ea9dbf314c7`，未重发；当前凭据200/OK、许可24/归属7保持，安装结果待硬件日志。新签名下载有效至11:24:30，完成后须撤销。API和语音当前均为后续任务的`asr-switch`镜像。
+
 2026-11-13 11:05（Asia/Hong_Kong）[#18下发前只读复查](../verification/2026-11-13-issue18-ota-preparation.md)发现现网已由后续任务切换为 `xiaozhi-product-voice:asr-switch`，实际镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897`。该镜像保留 #18 维护路径更新，16项隔离维护回归通过；本任务没有执行这次镜像切换。B许可24/归属7，尚未下发OTA。
 
 2026-11-13 10:49（Asia/Hong_Kong）最新维护更新：[#18准备与部署记录](../verification/2026-11-13-issue18-ota-preparation.md)确认现网语音更新为 `xiaozhi-product-voice:issue18-12f2ff1`，基于现场实际 `rtasr-3739aad` 镜像，仅增加新固件精确维护路径。API与身份数据不变；新路径短时HTTPS下载验证后已撤销，尚未向B下发OTA。下方更早的签收及部署说明保留历史范围。
@@ -32,10 +34,10 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `1b50709fd1cadfad966b12d4afedf78b1f279aa6`，PR #67 `71130c1` 与现网 PR #63 `7738647` 的组合版本；运行产物固定于该组合提交 |
+| API 源码 | 11:02后运行`asr-switch`派生镜像，本轮未独立核对其完整源码提交；此前基线为`1b50709fd1cadfad966b12d4afedf78b1f279aa6`，历史源码/产物证据不能冒充新镜像验证 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
+| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:asr-switch`，11:02:36由后续任务重建，本轮只读核对 |
 | 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:asr-switch`，镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897`；11:05只读复查，保留 #18 的维护路径更新；此前10:47的 `issue18-12f2ff1` 镜像已被后续任务替代，详见上方证据 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
