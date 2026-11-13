@@ -61,4 +61,4 @@ TLS Nginx 模板只新增精确格式的 `/xiaozhi/ota-artifacts/{operation}/{sh
 
 ### 空库迁移顺序
 
-Ubuntu 空库回归发现五个 OTA changeSet 曾倒序插在 master changelog 顶部：`202611131600` 的 `ALTER TABLE` 先于 `202611131200` 建表，且 OTA 建表先于依赖的 `dc_device` / `sys_user`，导致应用上下文在 Liquibase 初始化阶段失败。修复将这五个 changeSet 移到现有 `202611131100` 之后，依次执行 `202611131200`、`202611131300`、`202611131310`、`202611131500`、`202611131600`。其他历史顺序不调整，changeSet 的 ID、author、SQL 路径与内容不变，不清除已有校验和或重新执行已记录迁移。空库及既有库的实际启动结果由后续 Ubuntu 回归核验。
+Ubuntu 空库回归发现五个 OTA changeSet 曾倒序插在 master changelog 顶部：`202611131600` 的 `ALTER TABLE` 先于 `202611131200` 建表，导致应用上下文在 Liquibase 初始化阶段失败。修复将这五个 changeSet 移到现有 `202611131100` 之后，依次执行 `202611131200`、`202611131300`、`202611131310`、`202611131500`、`202611131600`。其他历史顺序不调整，changeSet 的 ID、author、SQL 路径与内容不变，不清除已有校验和或重新执行已记录迁移。空库及既有库的实际启动结果由后续 Ubuntu 回归核验。
