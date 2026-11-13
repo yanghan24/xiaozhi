@@ -28,7 +28,7 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `7a935aba50c0e177e79badcb17a45e6a7ae43308`，从最新 main 加入集市/讯飞识别切换；受测任务分支产物，未合并 main |
+| API 源码 | `7a935aba50c0e177e79badcb17a45e6a7ae43308`，从 main 基线加入集市/讯飞识别切换；运行产物固定于该实现提交，代码审阅入口为 [PR #94](https://github.com/yanghan24/xiaozhi/pull/94) |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:asr-switch` |
