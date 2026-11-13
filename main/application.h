@@ -15,6 +15,7 @@
 
 #include "audio_service.h"
 #include "device_control/device_control.h"
+#include "device_control/maintenance_model.h"
 #include "device_state.h"
 #include "device_state_machine.h"
 #include "ota.h"
@@ -110,7 +111,12 @@ public:
     bool CanRestoreFactorySettings() const;
     bool RestoreFactorySettings();
     void WakeWordInvoke(const std::string& wake_word);
-    bool UpgradeFirmware(const std::string& url, const std::string& version = "");
+    bool UpgradeFirmware(const std::string& url, const std::string& version = "",
+                         const Ota::Validation* validation = nullptr);
+    bool MaintenanceIdle();
+    bool ReserveMaintenance();
+    void ReleaseMaintenance();
+    bool UpgradeMaintenance(const device_control::MaintenanceCommand& command);
     bool CanEnterSleepMode();
     void SendMcpMessage(const std::string& payload, uint64_t generation, uint64_t connection_id);
     void RegisterMcpBroadcastCallback(std::function<void(const std::string&)> callback);
@@ -134,6 +140,10 @@ private:
     ~Application();
 
     std::mutex mutex_;
+    std::mutex maintenance_gate_;
+    bool maintenance_reserved_ = false;
+    bool upgrade_active_ = false;
+    DeviceState maintenance_previous_state_ = kDeviceStateIdle;
     std::deque<std::function<void()>> main_tasks_;
     std::unique_ptr<Protocol> protocol_;
     EventGroupHandle_t event_group_ = nullptr;

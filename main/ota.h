@@ -9,6 +9,12 @@
 
 class Ota {
 public:
+    struct Validation {
+        std::string artifact_sha256;
+        std::string target_elf_sha256;
+        size_t image_size = 0;
+        int64_t start_deadline_ms = 0;
+    };
     Ota();
     ~Ota();
 
@@ -21,7 +27,9 @@ public:
     bool HasActivationCode() { return has_activation_code_; }
     bool HasServerTime() { return has_server_time_; }
     bool StartUpgrade(std::function<void(int progress, size_t speed)> callback);
-    static bool Upgrade(const std::string& firmware_url, std::function<void(int progress, size_t speed)> callback);
+    static bool Upgrade(const std::string& firmware_url,
+                        std::function<void(int progress, size_t speed)> callback,
+                        const Validation* validation = nullptr);
     void MarkCurrentVersionValid();
 
     const std::string& GetFirmwareVersion() const { return firmware_version_; }

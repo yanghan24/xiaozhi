@@ -152,9 +152,12 @@ int main() {
           "an old delivery record cannot overwrite the recovered credential");
     flash["wifi"]["ssid"] = "test-network";
     flash["websocket"]["token"] = "obsolete-legacy-token";
+    flash["ota_maint"]["operation"] = "accepted-operation-pending-reboot-report";
     Check(device_control::ResetUserSettings() == ESP_OK && flash["wifi"].empty() &&
               flash["websocket"].empty() && device_control::LoadDeviceIdentity(identity),
           "normal reset erases user settings and retains independent device identity");
+    Check(flash["ota_maint"]["operation"] == "accepted-operation-pending-reboot-report",
+          "normal reset must retain the OTA ledger needed to reconcile the original operation");
     for (const auto& ns : erased)
         Check(ns != "device_ctrl", "identity namespace must never be erased");
     flash["device_ctrl"]["identity_v1"] = "damaged record";

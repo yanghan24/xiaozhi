@@ -62,6 +62,10 @@ struct DeviceControl::Impl {
     std::string account_balance;
     device_control::SignOutRequest sign_out;
     int64_t sign_out_retry_at = 0;
+    std::function<std::string()> maintenance_request;
+    std::function<void(const device_control::HttpResult&)> maintenance_response;
+    int64_t maintenance_at = 0;
+    bool maintenance_active = false;
 
     Impl() {
         esp_timer_create_args_t args{};
@@ -284,6 +288,9 @@ struct DeviceControl::Impl {
             std::string endpoint, method = "GET", body, key, id, secret, origin;
             bool create = false, ack = false, can_run = false, sent_ack_audio = false;
             bool immediate_state = false;
+            bool maintenance = false;
+            std::function<std::string()> maintenance_build;
+            std::function<void(const device_control::HttpResult&)> maintenance_reply;
             uint64_t sent_account_ticket = 0, sent_account_permission = 0, sent_sign_out = 0;
             uint64_t sent_ack_revision = 0, sent_ack_permission = 0;
             const auto epoch = interrupt.load();
@@ -330,6 +337,14 @@ struct DeviceControl::Impl {
                         endpoint = "account";
                         sent_account_ticket = account_ticket;
                         sent_account_permission = view.permission_version;
+                    } else if (!refresh && !need_lease && maintenance_request &&
+                               Now() >= maintenance_at) {
+                        endpoint = "maintenance";
+                        method = "POST";
+                        maintenance = true;
+                        maintenance_build = maintenance_request;
+                        maintenance_reply = maintenance_response;
+                        maintenance_at = Now() + 20000;
                     } else {
                         immediate_state = refresh;
                         int64_t wait = refresh ? 0 : 20000;
@@ -355,15 +370,38 @@ struct DeviceControl::Impl {
                 ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
                 continue;
             }
+            if (maintenance) {
+                body = maintenance_build();
+                if (body.empty())
+                    continue;
+            }
             auto result = device_control::ControlRequest(
                 origin + endpoint, method, id, secret, body, key,
                 [this, epoch]() { return interrupt.load() != epoch; });
             if (result.failure == device_control::HttpFailure::Cancelled ||
                 interrupt.load() != epoch) {
+                if (maintenance && maintenance_reply) {
+                    result.failure = device_control::HttpFailure::Cancelled;
+                    maintenance_reply(result);
+                }
                 if (immediate_state) {
                     std::lock_guard<std::mutex> lock(mutex);
                     refresh = true;
                 }
+                continue;
+            }
+            if (maintenance) {
+                // An older API may not implement maintenance. Its absence
+                // must not break binding, lease renewal or ordinary voice.
+                if (maintenance_reply)
+                    maintenance_reply(result);
+                if (result.status == 401 || result.status == 403)
+                    FailClosed("device_auth_required");
+                else if (result.failure == device_control::HttpFailure::Tls ||
+                         result.failure == device_control::HttpFailure::Invalid)
+                    FailClosed(result.failure == device_control::HttpFailure::Tls
+                                   ? "tls_error"
+                                   : "invalid_response");
                 continue;
             }
             // Menu endpoints share device authentication and the trusted TLS
@@ -503,6 +541,25 @@ struct DeviceControl::Impl {
 DeviceControl::DeviceControl() : impl_(std::make_unique<Impl>()) {}
 DeviceControl::~DeviceControl() = default;
 bool DeviceControl::Enabled() const { return true; }
+void DeviceControl::SetMaintenanceCallbacks(
+    std::function<std::string()> request,
+    std::function<void(const device_control::HttpResult&)> response) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    impl_->maintenance_request = std::move(request);
+    impl_->maintenance_response = std::move(response);
+}
+bool DeviceControl::IsNetworkConnected() const {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->configured && impl_->connected;
+}
+void DeviceControl::SetMaintenanceActive(bool active) {
+    {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        impl_->maintenance_active = active;
+        impl_->dirty = true;
+    }
+    impl_->Wake(false);
+}
 void DeviceControl::SetCallbacks(std::function<void(const DeviceControlView&)> changed,
                                  std::function<void(uint64_t)> revoked) {
     {
@@ -568,6 +625,7 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
 }
 void DeviceControl::NotifyNetwork(bool connected) {
     std::function<void(uint64_t)> revoked;
+    std::function<void(const device_control::HttpResult&)> maintenance_reply;
     uint64_t generation = 0;
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
@@ -580,22 +638,30 @@ void DeviceControl::NotifyNetwork(bool connected) {
             generation = impl_->model.View().generation;
         }
         impl_->connected = connected;
+        if (!connected)
+            maintenance_reply = impl_->maintenance_response;
         impl_->refresh = true;
         impl_->dirty = true;
         impl_->ResetAccount();
     }
     if (revoked)
         revoked(generation);
+    if (maintenance_reply) {
+        device_control::HttpResult disconnected;
+        disconnected.failure = device_control::HttpFailure::Cancelled;
+        maintenance_reply(disconnected);
+    }
     impl_->Wake(true);
 }
 bool DeviceControl::IsVoiceAllowed() const {
     std::lock_guard<std::mutex> lock(impl_->mutex);
-    return impl_->configured && !impl_->sign_out.Pending() && impl_->model.Allowed(Now());
+    return impl_->configured && !impl_->maintenance_active && !impl_->sign_out.Pending() &&
+           impl_->model.Allowed(Now());
 }
 bool DeviceControl::IsCurrentGeneration(uint64_t generation) const {
     std::lock_guard<std::mutex> lock(impl_->mutex);
-    return impl_->configured && !impl_->sign_out.Pending() && impl_->model.Allowed(Now()) &&
-           impl_->model.View().generation == generation;
+    return impl_->configured && !impl_->maintenance_active && !impl_->sign_out.Pending() &&
+           impl_->model.Allowed(Now()) && impl_->model.View().generation == generation;
 }
 uint64_t DeviceControl::GetGeneration() const {
     std::lock_guard<std::mutex> lock(impl_->mutex);
@@ -605,7 +671,8 @@ bool DeviceControl::GetVoiceConfig(DeviceVoiceConfig& out) {
     bool allowed;
     {
         std::lock_guard<std::mutex> lock(impl_->mutex);
-        allowed = impl_->configured && !impl_->sign_out.Pending() && impl_->model.Voice(Now(), out);
+        allowed = impl_->configured && !impl_->maintenance_active && !impl_->sign_out.Pending() &&
+                  impl_->model.Voice(Now(), out);
     }
     if (!allowed)
         Refresh();
@@ -720,6 +787,10 @@ struct DeviceControl::Impl {};
 DeviceControl::DeviceControl() : impl_(std::make_unique<Impl>()) {}
 DeviceControl::~DeviceControl() = default;
 bool DeviceControl::Enabled() const { return false; }
+bool DeviceControl::IsNetworkConnected() const { return false; }
+void DeviceControl::SetMaintenanceActive(bool) {}
+void DeviceControl::SetMaintenanceCallbacks(
+    std::function<std::string()>, std::function<void(const device_control::HttpResult&)>) {}
 void DeviceControl::SetCallbacks(std::function<void(const DeviceControlView&)>,
                                  std::function<void(uint64_t)>) {}
 void DeviceControl::Start(const std::string&, const std::string&) {}
