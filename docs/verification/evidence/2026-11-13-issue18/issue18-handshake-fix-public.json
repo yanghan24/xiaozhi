@@ -1,0 +1,12 @@
+{
+  "observed_at": "2026-11-13T03:08:39.738534+00:00",
+  "before_public_handshake_http": 502,
+  "after_public_handshake_http": 101,
+  "old_upstream": "172.26.0.3:8000",
+  "current_upstream": "172.26.0.4:8000",
+  "nginx_graceful_reload": true,
+  "nginx_configuration_unchanged": true,
+  "device_credentials_used": false,
+  "ota_sent": false,
+  "note": "HTTP upgrade is restored; unauthenticated probe does not prove B authentication or playback."
+}

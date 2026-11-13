@@ -164,7 +164,9 @@ class MaintenanceControl:
         parsed = urlsplit(url)
         query = parse_qs(parsed.query, strict_parsing=True)
         if (parsed.scheme != 'https' or parsed.netloc != 'bridge.hncig.cn:18443'
-                or parsed.path != '/xiaozhi/maintenance-ota/p4-a30f6a8/product.bin'
+                or parsed.path not in (
+                    '/xiaozhi/maintenance-ota/p4-a30f6a8/product.bin',
+                    '/xiaozhi/maintenance-ota/p4-12f2ff1/product.bin')
                 or parsed.fragment or set(query) != {'md5', 'expires'}
                 or any(len(v) != 1 for v in query.values())
                 or not re.fullmatch(r'[A-Za-z0-9_-]{22}', query['md5'][0])
