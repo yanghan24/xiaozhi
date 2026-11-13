@@ -1,0 +1,51 @@
+{
+  "deployed_at": "2026-11-13T08:34:42Z",
+  "server": "jt@192.168.168.114",
+  "deployment_root": "/home/jt/pr26-deployment-885918d",
+  "merged_fix": {
+    "pr": 106,
+    "commit": "1fedfd0144adb3a0abae3f074911db1f9666115d"
+  },
+  "images": {
+    "api": "sha256:2828d49aab09ae80489c27c1d3e388b68ad47fb67e2c865847740412c639dbbe",
+    "web": "sha256:4bd43d3269f1c6156fce2186d7cd3173b2f0d1291cc506787bbffc29b011b5df",
+    "voice": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2"
+  },
+  "backups": [
+    "/home/jt/pr26-deployment-885918d/private/backups/20261113T080439Z",
+    "/home/jt/pr26-deployment-885918d/private/backups/20261113T083401Z"
+  ],
+  "firmware_upload": {
+    "firmware_id": "447d6bea932a4803866ac18e78701ba4",
+    "source_kind": "backend_upload",
+    "verification_status": "verified",
+    "app_version": "2.2.6",
+    "source_commit": "12f2ff1b3e224ff012bdce95799ebf19740dcd11",
+    "sha256": "7cb0c36077d42d9b64f09727e176c83f6ca2f281abb04d988982dc82e30b8f8c",
+    "elf_sha256": "f242b5b68cc3c565335c7eb0b048156209531ebd6fb5e9c54bdf809b9cc58d6e",
+    "image_size": 4003072,
+    "board_type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+    "revision_range": [
+      301,
+      399
+    ],
+    "partition_layout": "partitions/v2/16m.csv",
+    "app_partition_bytes": 4128768
+  },
+  "preflight": {
+    "mode": "all_online",
+    "status": "ready",
+    "eligible_count": 0,
+    "devices": "A and B were offline",
+    "dispatch_started": false
+  },
+  "validation": {
+    "multipart_filter_test": "2 passed",
+    "api_started": true,
+    "web_health": "healthy",
+    "manager_pub_config_http": 200,
+    "unauthorized_product_ota_http": 401,
+    "public_ota_discovery_http": 200,
+    "unsigned_artifact_http": 404
+  }
+}
