@@ -147,6 +147,14 @@ class Fixture:
                 self.bridge = ProductOtaBridge(self.sessions, self.directory.name, KEY, ORIGIN)
                 await self.bridge.start('0.0.0.0', 8097)
             elif action == 'device': self.peers[body['device_id']].configure(body)
+            elif action == 'add':
+                name = body['device_id']
+                if not isinstance(name, str) or not name.startswith('ota97-') or name in self.peers or len(self.peers) >= 12:
+                    raise ValueError()
+                peer = DevicePeer(name, self.sessions)
+                self.peers[name] = peer
+                await peer.start()
+                peer.configure(body)
             elif action != 'state': raise ValueError()
             return web.json_response({name: {'upgrades': p.upgrades, 'calls': p.calls, 'mode': p.mode} for name, p in self.peers.items()})
         except (KeyError, ValueError): return web.json_response({'error': 'invalid fixture command'}, status=400)

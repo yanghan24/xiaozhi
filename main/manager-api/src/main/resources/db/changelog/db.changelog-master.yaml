@@ -3,6 +3,13 @@
 # 每次对数据表进行改动时，只允许新建新对changeSet，不允许对上一个changeSet配置及文件进行修改
 databaseChangeLog:
   - changeSet:
+      id: 202611131500
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611131500.sql
+  - changeSet:
       id: 202611131310
       author: xiaozhi
       changes:

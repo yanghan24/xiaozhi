@@ -30,14 +30,17 @@ class ProductOtaPushHttpTest {
  static volatile boolean inspectUnavailable;
  static volatile String session="session-97";
  static volatile String hardwareCase="normal";
+ static volatile long statusDelay;
+ static final Set<String> offlineDevices=java.util.concurrent.ConcurrentHashMap.newKeySet();
  static final String FIRMWARE="9".repeat(32);
  static final AtomicInteger sent=new AtomicInteger();
  @DynamicPropertySource static void properties(DynamicPropertyRegistry registry) throws Exception {
   voice=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
   voice.createContext("/internal/product-ota/v1/control",exchange->{
    var request=JSON.readTree(exchange.getRequestBody());
+   if(request.path("action").asText().equals("status") && statusDelay>0) try { Thread.sleep(statusDelay); } catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); }
    Object result=Map.of("status","bridge_unavailable");
-   if(connected) {
+   if(connected && request.path("device_id").asText().startsWith("ota97-") && !offlineDevices.contains(request.path("device_id").asText())) {
     String action=request.path("action").asText();
     if(action.equals("inspect") && inspectUnavailable) { exchange.sendResponseHeaders(503,-1); exchange.close(); return; }
     if(action.equals("status")) result=Map.of("status","current","session_id",session,"permission_version",1);
@@ -63,6 +66,8 @@ class ProductOtaPushHttpTest {
     if(action.equals("reconcile")) result=elf.equals("c".repeat(64)) && !session.equals("session-97")
       ? Map.of("status","result_unknown","observation_status","target_running","observed_at_ms",System.currentTimeMillis()) : Map.of("status","result_unknown");
    }
+   if(offlineDevices.contains(request.path("device_id").asText())) result=Map.of("status","offline");
+   if(connected && !request.path("device_id").asText().startsWith("ota97-")) result=Map.of("status","offline");
    byte[] body=JSON.writeValueAsBytes(result); exchange.sendResponseHeaders(200,body.length);
    exchange.getResponseBody().write(body); exchange.close();
   }); voice.start();
@@ -80,7 +85,7 @@ class ProductOtaPushHttpTest {
  final HttpClient http=HttpClient.newHttpClient();
  @BeforeEach void setup() {
   cleanup();
-  connected=false; sent.set(0); elf="a".repeat(64); downloadUrl=null; loseReply=false; inspectUnavailable=false; session="session-97"; hardwareCase="normal";
+  connected=false; sent.set(0); elf="a".repeat(64); downloadUrl=null; loseReply=false; inspectUnavailable=false; session="session-97"; hardwareCase="normal"; statusDelay=0; offlineDevices.clear();
   db.update("INSERT INTO sys_user(id,username,super_admin,status) VALUES (?, 'ota97-admin',1,1)",ADMIN);
   db.update("INSERT INTO sys_user_token(id,user_id,token,expire_date) VALUES (?,?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))",ADMIN,ADMIN,TOKEN);
   db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-device')");
@@ -88,6 +93,7 @@ class ProductOtaPushHttpTest {
    FIRMWARE,9701,97010,"test",false,"a".repeat(40),"https://example.test","b".repeat(64),ProductOtaCatalog.digest(new byte[]{1,2,3}),"c".repeat(64),"2.2.6","waveshare-esp32-p4-wifi6-touch-lcd-4.3",16777216,100,399,"partitions/v2/16m.csv","d".repeat(64),4128768,3,new byte[]{1,2,3},"verified",ADMIN,1);
  }
  @AfterEach void cleanup() {
+  db.update("DELETE FROM dc_ota_batch WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_ota_operation WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_ota_preview WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_ota_firmware WHERE operator_id=?",ADMIN);
@@ -96,6 +102,19 @@ class ProductOtaPushHttpTest {
   db.update("DELETE FROM sys_user WHERE id=?",ADMIN);
  }
  HttpResponse<String> post(String path,Object body) throws Exception {
+  var response=postNow(path,body);
+  if(response.statusCode()==200 && Set.of("batch-preview","batches").contains(path)) {
+   var value=JSON.readTree(response.body()).path("data");
+   String lookup=path.equals("batch-preview") ? "batch-previews/"+value.path("preview_id").asText() : "batches/"+value.path("batch_id").asText();
+   long deadline=System.nanoTime()+java.time.Duration.ofSeconds(100).toNanos();
+   while(Set.of("preparing","started").contains(value.path("status").asText())) {
+    if(System.nanoTime()>deadline) fail("Async OTA request did not settle");
+    Thread.sleep(50); response=get(lookup,TOKEN); value=JSON.readTree(response.body()).path("data");
+   }
+  }
+  return response;
+ }
+ HttpResponse<String> postNow(String path,Object body) throws Exception {
   return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/admin/product-ota/"+path))
    .header("Authorization","Bearer "+TOKEN).header("Content-Type","application/json")
    .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(),HttpResponse.BodyHandlers.ofString());
@@ -112,6 +131,110 @@ class ProductOtaPushHttpTest {
   var same=JSON.readTree(post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE)).body()).path("data");
   assertFalse(same.path("eligible").asBoolean()); assertEquals("already_running",same.path("reason").asText());
   assertEquals(0,sent.get());
+ }
+ @Test void selectedBatchPreviewsOnlyChosenDevicesAndConfirmNeverReplays() throws Exception {
+  connected=true;
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-second'),('ota97-unselected')");
+  var response=post("batch-preview",Map.of("mode","selected","device_ids",List.of("ota97-device","ota97-second"),"firmware_id",FIRMWARE));
+  assertEquals(200,response.statusCode(),response.body());
+  var preview=JSON.readTree(response.body()).path("data");
+  assertEquals(2,preview.path("eligible_count").asInt());
+  assertEquals(2,preview.path("items").size());
+  assertEquals(0,sent.get());
+  var request=Map.of("preview_id",preview.path("preview_id").asText(),"request_key","b".repeat(32));
+  var confirmed=post("batches",request);
+  assertEquals(200,confirmed.statusCode(),confirmed.body());
+  var batch=JSON.readTree(confirmed.body()).path("data");
+  assertEquals(2,batch.path("items").size());
+  for(var item:batch.path("items")) assertEquals("accepted_unconfirmed",item.path("status").asText());
+  assertEquals(2,sent.get());
+  assertEquals(batch.path("batch_id"),JSON.readTree(post("batches",request).body()).path("data").path("batch_id"));
+  assertEquals(2,sent.get());
+  assertEquals(200,get("batches/"+batch.path("batch_id").asText(),TOKEN).statusCode());
+ }
+ @Test void batchPreparationAndConfirmationReturnPollableReceiptsWithoutHoldingTheHttpConnection() throws Exception {
+  connected=true;
+  var response=postNow("batch-preview",Map.of("mode","selected","device_ids",List.of("ota97-device"),"firmware_id",FIRMWARE));
+  assertEquals(200,response.statusCode(),response.body());
+  var pending=JSON.readTree(response.body()).path("data");
+  assertEquals("preparing",pending.path("status").asText());
+  String preview=pending.path("preview_id").asText();
+  JsonNode ready=pending;
+  for(int attempt=0;attempt<100 && ready.path("status").asText().equals("preparing");attempt++) {
+   Thread.sleep(50); ready=JSON.readTree(get("batch-previews/"+preview,TOKEN).body()).path("data");
+  }
+  assertEquals("ready",ready.path("status").asText());
+  var request=Map.of("preview_id",preview,"request_key","a".repeat(32));
+  var receipt=JSON.readTree(postNow("batches",request).body()).path("data");
+  assertEquals("started",receipt.path("status").asText());
+  var settled=JSON.readTree(post("batches",request).body()).path("data");
+  assertEquals("finished",settled.path("status").asText()); assertEquals(1,sent.get());
+ }
+ @Test void selectedIdsAcrossPagesUseTheBoundedBatchBodyRatherThanTheSingleDeviceBodyLimit() throws Exception {
+  var selected=new ArrayList<String>();
+  for(int i=0;i<40;i++) {
+   String device="ota97-"+"x".repeat(110)+i; selected.add(device);
+   db.update("INSERT INTO dc_device(device_id) VALUES (?)",device);
+  }
+  var response=post("batch-preview",Map.of("mode","selected","device_ids",selected,"firmware_id",FIRMWARE));
+  assertEquals(200,response.statusCode(),response.body());
+  var preview=JSON.readTree(response.body()).path("data");
+  assertEquals("ready",preview.path("status").asText()); assertEquals(40,preview.path("items").size());
+  assertEquals(0,sent.get());
+ }
+ @Test void unavailableInventoryHasAShortBoundInsteadOfOneLongTimeoutPerDevice() throws Exception {
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-second'),('ota97-third'),('ota97-fourth')");
+  statusDelay=3000;
+  long start=System.nanoTime();
+  var response=get("devices?limit=100",TOKEN);
+  assertEquals(200,response.statusCode(),response.body());
+  assertTrue((System.nanoTime()-start)/1_000_000<5000,"Unavailable status must fail closed within five seconds for this page");
+  for(var device:JSON.readTree(response.body()).path("data").path("items")) assertEquals("bridge_unavailable",device.path("status").asText());
+ }
+ @Test void allOnlineSpansPagesButFreezesExclusionsAndDoesNotAddLaterRegistrationsOrReconnects() throws Exception {
+  connected=true;
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-second'),('ota97-offline')");
+  offlineDevices.add("ota97-offline");
+  assertEquals(1,JSON.readTree(get("devices?limit=1",TOKEN).body()).path("data").path("items").size());
+  var preview=JSON.readTree(post("batch-preview",Map.of("mode","all_online","device_ids",List.of(),"firmware_id",FIRMWARE)).body()).path("data");
+  assertEquals(2,preview.path("eligible_count").asInt(),preview.toString());
+  assertEquals("offline",batchItem(preview,"ota97-offline").path("reason").asText());
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-later')");
+  offlineDevices.remove("ota97-offline"); offlineDevices.add("ota97-second");
+  var request=Map.of("preview_id",preview.path("preview_id").asText(),"request_key","c".repeat(32));
+  var batch=JSON.readTree(post("batches",request).body()).path("data");
+  assertEquals("accepted_unconfirmed",batchItem(batch,"ota97-device").path("status").asText(),batch.toString());
+  assertEquals("not_sent",batchItem(batch,"ota97-second").path("status").asText());
+  assertEquals("not_sent",batchItem(batch,"ota97-offline").path("status").asText());
+  assertTrue(batchItem(batch,"ota97-later").isMissingNode()); assertEquals(1,sent.get());
+  offlineDevices.clear();
+  post("batches",request); assertEquals(1,sent.get());
+ }
+ static JsonNode batchItem(JsonNode batch,String device) {
+  for(var item:batch.path("items")) if(device.equals(item.path("device_id").asText())) return item;
+  return com.fasterxml.jackson.databind.node.MissingNode.getInstance();
+ }
+ @Test void overlappingBatchesAndUnknownRepliesNeverResendADevice() throws Exception {
+  connected=true; loseReply=true;
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-second')");
+  var selection=Map.of("mode","selected","device_ids",List.of("ota97-device","ota97-second"),"firmware_id",FIRMWARE);
+  String one=JSON.readTree(post("batch-preview",selection).body()).path("data").path("preview_id").asText();
+  String two=JSON.readTree(post("batch-preview",selection).body()).path("data").path("preview_id").asText();
+  var gate=new java.util.concurrent.CountDownLatch(1);
+  var left=java.util.concurrent.CompletableFuture.supplyAsync(()->batchRace(gate,one,"d".repeat(32)));
+  var right=java.util.concurrent.CompletableFuture.supplyAsync(()->batchRace(gate,two,"e".repeat(32)));
+  gate.countDown();
+  assertEquals(200,left.get().statusCode()); assertEquals(200,right.get().statusCode());
+  assertEquals(2,sent.get());
+  for(var operation:JSON.readTree(get("operations",TOKEN).body()).path("data")) assertEquals("result_unknown",operation.path("status").asText());
+  post("batches",Map.of("preview_id",one,"request_key","d".repeat(32)));
+  post("batches",Map.of("preview_id",two,"request_key","e".repeat(32)));
+  assertEquals(2,sent.get());
+  assertEquals(409,post("batches",Map.of("preview_id",two,"request_key","d".repeat(32))).statusCode());
+ }
+ HttpResponse<String> batchRace(java.util.concurrent.CountDownLatch gate,String preview,String key) {
+  try { gate.await(); return post("batches",Map.of("preview_id",preview,"request_key",key)); }
+  catch(Exception failed) { throw new RuntimeException(failed); }
  }
  @Test void explicitConfirmationReservesOneDurableOperationAndDuplicateClicksNeverResend() throws Exception {
   connected=true;

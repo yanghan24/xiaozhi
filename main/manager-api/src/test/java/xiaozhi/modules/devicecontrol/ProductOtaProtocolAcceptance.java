@@ -86,4 +86,70 @@ class ProductOtaProtocolAcceptance {
             } finally { client.cleanup(); }
         }
     }
+    @Test void batchKeepsIndependentWireResultsAcrossJavaAndBridgeRestarts() throws Exception {
+        fixture(Map.of("action","reset")); Map<String,String> request; String batchId;
+        try(var first=start()) {
+            var client=client(first); client.setup();
+            client.db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-unselected')");
+            var preview=data(client.post("batch-preview",Map.of("mode","all_online","device_ids",List.of(),"firmware_id",ProductOtaPushHttpTest.FIRMWARE)));
+            assertEquals(2,preview.path("eligible_count").asInt());
+            fixture(Map.of("action","device","device_id","ota97-device","mode","lost"));
+            request=Map.of("preview_id",preview.path("preview_id").asText(),"request_key","f".repeat(32));
+            var batch=data(client.post("batches",request)); batchId=batch.path("batch_id").asText();
+            assertEquals("result_unknown",ProductOtaPushHttpTest.batchItem(batch,"ota97-device").path("status").asText(),batch.toString());
+            assertEquals("accepted_unconfirmed",ProductOtaPushHttpTest.batchItem(batch,"ota97-unselected").path("status").asText(),batch.toString());
+        }
+        fixture(Map.of("action","restart"));
+        try(var restarted=start()) {
+            var client=client(restarted);
+            try {
+                assertEquals(batchId,data(client.post("batches",request)).path("batch_id").asText());
+                var saved=data(client.get("batches/"+batchId,ProductOtaPushHttpTest.TOKEN));
+                assertEquals("result_unknown",ProductOtaPushHttpTest.batchItem(saved,"ota97-device").path("status").asText());
+                assertEquals("accepted_unconfirmed",ProductOtaPushHttpTest.batchItem(saved,"ota97-unselected").path("status").asText());
+                var state=fixture(Map.of("action","state"));
+                assertEquals(1,state.path("ota97-device").path("upgrades").asInt());
+                assertEquals(1,state.path("ota97-unselected").path("upgrades").asInt());
+                var next=data(client.post("batch-preview",Map.of("mode","all_online","device_ids",List.of(),"firmware_id",ProductOtaPushHttpTest.FIRMWARE)));
+                assertEquals(0,next.path("eligible_count").asInt());
+            } finally { client.cleanup(); }
+        }
+    }
+    @Test void interruptionNeverResumesQueuedDevicesAndKeepsReservedDevicesUnknown() throws Exception {
+        fixture(Map.of("action","reset"));
+        for(String device:List.of("ota97-device","ota97-unselected")) fixture(Map.of("action","device","device_id",device,"mode","lost"));
+        for(int i=0;i<4;i++) fixture(Map.of("action","add","device_id","ota97-extra-"+i,"mode","lost"));
+        Map<String,String> request; String batchId;
+        try(var first=start()) {
+            var client=client(first); client.setup();
+            client.db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-unselected'),('ota97-extra-0'),('ota97-extra-1'),('ota97-extra-2'),('ota97-extra-3')");
+            var preview=data(client.post("batch-preview",Map.of("mode","all_online","device_ids",List.of(),"firmware_id",ProductOtaPushHttpTest.FIRMWARE)));
+            assertEquals(6,preview.path("eligible_count").asInt());
+            request=Map.of("preview_id",preview.path("preview_id").asText(),"request_key","0".repeat(32));
+            batchId=data(client.postNow("batches",request)).path("batch_id").asText();
+            int sends=0;
+            for(int attempt=0;attempt<100 && sends<4;attempt++) {
+                Thread.sleep(50); sends=0;
+                for(var device:fixture(Map.of("action","state"))) sends+=device.path("upgrades").asInt();
+            }
+            assertEquals(4,sends,"Four bounded workers reserve/send; other targets remain unstarted");
+        }
+        fixture(Map.of("action","restart"));
+        try(var restarted=start()) {
+            var client=client(restarted);
+            try {
+                var batch=data(client.post("batches",request));
+                assertEquals(batchId,batch.path("batch_id").asText());
+                assertEquals("interrupted",batch.path("status").asText(),batch.toString());
+                int unknown=0,notSent=0;
+                for(var item:batch.path("items")) {
+                    if(item.path("status").asText().equals("result_unknown")) unknown++;
+                    if(item.path("status").asText().equals("not_sent")) notSent++;
+                }
+                assertEquals(4,unknown,batch.toString()); assertEquals(2,notSent,batch.toString());
+                int sends=0; for(var device:fixture(Map.of("action","state"))) sends+=device.path("upgrades").asInt();
+                assertEquals(4,sends);
+            } finally { client.cleanup(); }
+        }
+    }
 }

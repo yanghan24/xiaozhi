@@ -24,12 +24,13 @@ final class DeviceControlBodyFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        if (request.getContentLengthLong() > MAX_BYTES) {
+        int maxBytes = "/admin/product-ota/batch-preview".equals(request.getServletPath()) ? 256 * 1024 : MAX_BYTES;
+        if (request.getContentLengthLong() > maxBytes) {
             reject(response);
             return;
         }
-        byte[] body = request.getInputStream().readNBytes(MAX_BYTES + 1);
-        if (body.length > MAX_BYTES) {
+        byte[] body = request.getInputStream().readNBytes(maxBytes + 1);
+        if (body.length > maxBytes) {
             reject(response);
             return;
         }

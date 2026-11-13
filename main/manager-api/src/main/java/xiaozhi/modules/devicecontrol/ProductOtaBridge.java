@@ -5,6 +5,7 @@ import java.net.*;
 import java.net.http.*;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -27,12 +28,20 @@ public class ProductOtaBridge {
             if(!Set.of("http","https").contains(uri.getScheme()) || uri.getUserInfo()!=null
                     || uri.getQuery()!=null || uri.getFragment()!=null
                     || !uri.getPath().equals("/internal/product-ota/v1/control")) throw new IllegalArgumentException();
-            var response=http.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(45))
+            var timeout=Duration.ofSeconds("status".equals(request.get("action")) ? 2 : 45);
+            long deadline=System.nanoTime()+timeout.toNanos();
+            var response=http.send(HttpRequest.newBuilder(uri).timeout(timeout)
                     .header("X-OTA-Service-Key",key).header("Content-Type","application/json")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(json.writeValueAsBytes(request))).build(),
                     HttpResponse.BodyHandlers.ofInputStream());
             try(var body=response.body()) {
-                byte[] bytes=body.readNBytes(65537);
+                var read=CompletableFuture.supplyAsync(()->{
+                    try { return body.readNBytes(65537); }
+                    catch(java.io.IOException failed) { throw new CompletionException(failed); }
+                });
+                byte[] bytes;
+                try { bytes=read.get(Math.max(1,deadline-System.nanoTime()),TimeUnit.NANOSECONDS); }
+                finally { read.cancel(true); }
                 if(response.statusCode()!=200 || bytes.length>65536) throw new IllegalArgumentException();
                 var result=json.readTree(bytes);
                 if(result==null || !result.isObject() || !result.path("status").isTextual()) throw new IllegalArgumentException();

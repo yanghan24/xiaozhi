@@ -14,9 +14,40 @@ import java.util.*;
 public class ProductOtaPushController {
     private final ProductOtaCatalog catalog;
     private final ProductOtaPush push;
+    private final ProductOtaBatches batches;
     private final ObjectMapper json=new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-    public ProductOtaPushController(ProductOtaCatalog catalog,ProductOtaPush push) { this.catalog=catalog; this.push=push; }
+    public ProductOtaPushController(ProductOtaCatalog catalog,ProductOtaPush push,ProductOtaBatches batches) { this.catalog=catalog; this.push=push; this.batches=batches; }
+    @PostMapping(value="/batch-preview",consumes="application/json")
+    @RequiresPermissions("sys:role:superAdmin")
+    public ResponseEntity<?> batchPreview(@RequestBody String raw) {
+        long operator=SecurityUser.getUserId(); catalog.operator(operator);
+        try {
+            var body=json.readTree(raw); var fields=new HashSet<String>(); body.fieldNames().forEachRemaining(fields::add);
+            if(!body.isObject() || !fields.equals(Set.of("mode","device_ids","firmware_id"))
+                    || !body.path("mode").isTextual() || !body.path("firmware_id").isTextual() || !body.path("device_ids").isArray()) throw new IllegalArgumentException();
+            var devices=new ArrayList<String>();
+            for(var device:body.path("device_ids")) { if(!device.isTextual()) throw new IllegalArgumentException(); devices.add(device.asText()); }
+            return ok(batches.preview(operator,body.path("mode").asText(),devices,body.path("firmware_id").asText()));
+        } catch(ControlFailure failure) { throw failure; }
+        catch(Exception invalid) { throw new ControlFailure(400,"INVALID_REQUEST"); }
+    }
+    @PostMapping(value="/batches",consumes="application/json")
+    @RequiresPermissions("sys:role:superAdmin")
+    public ResponseEntity<?> batchConfirm(@RequestBody String raw) {
+        long operator=SecurityUser.getUserId(); catalog.operator(operator);
+        var body=parse(raw,Set.of("preview_id","request_key"));
+        return ok(batches.confirm(operator,body.path("preview_id").asText(),body.path("request_key").asText()));
+    }
+    @GetMapping("/batch-previews/{id}")
+    @RequiresPermissions("sys:role:superAdmin")
+    public ResponseEntity<?> batchPreviewStatus(@PathVariable String id) { long operator=SecurityUser.getUserId(); catalog.operator(operator); return ok(batches.preview(operator,id)); }
+    @GetMapping("/batches")
+    @RequiresPermissions("sys:role:superAdmin")
+    public ResponseEntity<?> batches() { long operator=SecurityUser.getUserId(); catalog.operator(operator); return ok(batches.batches(operator)); }
+    @GetMapping("/batches/{id}")
+    @RequiresPermissions("sys:role:superAdmin")
+    public ResponseEntity<?> batch(@PathVariable String id) { long operator=SecurityUser.getUserId(); catalog.operator(operator); return ok(batches.batch(operator,id)); }
     @GetMapping("/devices")
     @RequiresPermissions("sys:role:superAdmin")
     public ResponseEntity<?> devices(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="50") int limit) {

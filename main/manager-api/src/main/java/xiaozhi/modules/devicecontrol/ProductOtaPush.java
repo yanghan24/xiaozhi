@@ -1,6 +1,8 @@
 package xiaozhi.modules.devicecontrol;
 
 import java.util.*;
+import java.util.concurrent.*;
+import jakarta.annotation.PreDestroy;
 import com.fasterxml.jackson.databind.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ public class ProductOtaPush {
     private final ProductOtaDownloads downloads;
     private final ProductOtaCatalog catalog;
     private final TransactionTemplate transactions;
+    private final ExecutorService statusWorkers=Executors.newFixedThreadPool(8);
+    @PreDestroy public void close() { statusWorkers.shutdownNow(); }
     private static final String PUBLIC_FIELDS="operation_id,preview_id,request_key,device_id,firmware_id,artifact_sha256,target_version,target_elf_sha256,status,reason,observation_status,observed_at_ms,created_at_ms,updated_at_ms";
     public ProductOtaPush(JdbcTemplate db, ProductOtaBridge bridge,ProductOtaDownloads downloads,
             ProductOtaCatalog catalog,PlatformTransactionManager tx) {
@@ -196,13 +200,32 @@ public class ProductOtaPush {
     public Map<String,Object> devices(int page,int limit) {
         if(page<1 || page>100000 || limit<1 || limit>100) throw new ControlFailure(400,"INVALID_PAGE");
         var rows=db.queryForList("SELECT device_id FROM dc_device ORDER BY device_id LIMIT ? OFFSET ?",limit,(page-1)*limit);
+        var statuses=statuses(rows.stream().map(row->(String)row.get("device_id")).toList());
         for(var row:rows) {
-            String status="bridge_unavailable";
-            try { status=bridge.call(Map.of("action","status","device_id",row.get("device_id"))).path("status").asText(); }
-            catch(ControlFailure unavailable) { }
+            String status=statuses.get((String)row.get("device_id"));
             row.put("display_name",row.get("device_id")); row.put("status",status);
             row.put("reason",status); row.put("checked_at_ms",System.currentTimeMillis());
         }
         return Map.of("items",rows,"total",db.queryForObject("SELECT COUNT(*) FROM dc_device",Long.class),"page",page,"limit",limit);
+    }
+    public Map<String,String> statuses(List<String> devices) {
+        var result=new LinkedHashMap<String,String>();
+        if(devices.isEmpty()) return result;
+        String first=status(devices.getFirst());
+        // A failed bridge probe fails this inventory closed without N network timeouts.
+        if(first.equals("bridge_unavailable")) { for(String device:devices) result.put(device,first); return result; }
+        result.put(devices.getFirst(),first);
+        var pending=new LinkedHashMap<String,CompletableFuture<String>>();
+        for(String device:devices.subList(1,devices.size())) pending.put(device,CompletableFuture.supplyAsync(()->status(device),statusWorkers));
+        for(var entry:pending.entrySet()) {
+            try { result.put(entry.getKey(),entry.getValue().get()); }
+            catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new ControlFailure(503,"BRIDGE_UNAVAILABLE"); }
+            catch(ExecutionException unavailable) { result.put(entry.getKey(),"bridge_unavailable"); }
+        }
+        return result;
+    }
+    private String status(String device) {
+        try { return bridge.call(Map.of("action","status","device_id",device)).path("status").asText(); }
+        catch(ControlFailure unavailable) { return "bridge_unavailable"; }
     }
 }
