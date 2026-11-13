@@ -75,10 +75,12 @@ it('keeps a lost confirmation response unknown and only reads results when refre
   await wrapper.find('[data-test=confirm]').trigger('click'); await settle();
   expect(wrapper.text()).toContain('请求响应丢失，结果未知');
   expect(wrapper.find('[data-test=preview]').attributes('disabled')).toBeDefined();
+  const requestKey = JSON.parse(fetch.mock.calls[3][1].body).request_key;
   fetch.mockResolvedValueOnce(response({ items: [{ device_id: 'online-A', status: 'current' }], total: 1 }))
-    .mockResolvedValueOnce(response([{ operation_id: 'operation-1', device_id: 'online-A', status: 'result_unknown', firmware_id: 'fixed-build' }]));
+    .mockResolvedValueOnce(response([{ operation_id: 'operation-1', device_id: 'online-A', request_key: requestKey, status: 'result_unknown', firmware_id: 'fixed-build' }]));
   await wrapper.find('button').trigger('click'); await settle();
   expect(wrapper.text()).toContain('结果未知 · 禁止重发');
+  expect(wrapper.text()).not.toContain('请求响应丢失，结果未知');
   expect(fetch.mock.calls.filter(([path, options]) => path.endsWith('/operations') && options.method === 'POST')).toHaveLength(1);
 });
 it('shows exclusions without confirmation and requests the next device page from the server', async () => {

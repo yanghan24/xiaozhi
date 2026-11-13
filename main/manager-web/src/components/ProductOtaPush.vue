@@ -105,7 +105,10 @@ export default {
       const results = await Promise.allSettled([this.request(`devices?page=${this.page}&limit=${this.limit}`), this.request('operations')]);
       if (results[0].status === 'fulfilled') { this.devices = results[0].value.items; this.total = Number(results[0].value.total); }
       else { this.devices = []; this.error = results[0].reason.message; }
-      if (results[1].status === 'fulfilled') this.operations = results[1].value;
+      if (results[1].status === 'fulfilled') {
+        this.operations = results[1].value;
+        if (this.uncertain && this.operations.some(item => item.request_key === this.uncertain.request_key && item.device_id === this.uncertain.device_id)) this.uncertain = null;
+      }
       else this.error = results[1].reason.message;
       this.loading = false;
     },
