@@ -1,0 +1,36 @@
+diff --git a/main/xiaozhi-server/core/websocket_server.py b/main/xiaozhi-server/core/websocket_server.py
+index 7e0e1b8..20fd02c 100644
+--- a/main/xiaozhi-server/core/websocket_server.py
++++ b/main/xiaozhi-server/core/websocket_server.py
+@@ -83,6 +83,7 @@ class WebSocketServer:
+     async def start(self):
+         import os
+         maintenance = None
++        ota_bridge = None
+         maintenance_dir = os.environ.get('PRODUCT_MAINTENANCE_DIRECTORY')
+         if maintenance_dir:
+             if not self.product_required:
+@@ -96,6 +97,14 @@ class WebSocketServer:
+         port = int(server_config.get("port", 8000))
+ 
+         try:
++            if os.environ.get('PRODUCT_OTA_BRIDGE_PORT'):
++                if not self.product_required:
++                    raise ValueError('OTA bridge requires product voice authority')
++                from core.product_ota_bridge import ProductOtaBridge
++                ota_bridge = ProductOtaBridge(self.sessions, os.environ['PRODUCT_OTA_BRIDGE_DIRECTORY'],
++                    os.environ['PRODUCT_OTA_BRIDGE_KEY'], os.environ['PRODUCT_OTA_BRIDGE_DOWNLOAD_ORIGIN'])
++                await ota_bridge.start(os.environ.get('PRODUCT_OTA_BRIDGE_HOST', '127.0.0.1'),
++                                       int(os.environ['PRODUCT_OTA_BRIDGE_PORT']))
+             async with websockets.serve(
+                 self._handle_connection,
+                 host,
+@@ -105,6 +114,8 @@ class WebSocketServer:
+             ):
+                 await asyncio.Future()
+         finally:
++            if ota_bridge is not None:
++                await ota_bridge.close()
+             if maintenance is not None:
+                 await maintenance.close()
+ 
