@@ -48,7 +48,7 @@ public class ProductOtaPush {
             var info=inspected.path("system_info");
             result.put("current_version",info.path("application").path("version").asText());
             result.put("current_elf_sha256",info.path("application").path("elf_sha256").asText());
-            String reason=compatibility(image,info);
+            String reason=compatibility(device,image,info);
             result.put("reason",reason);
             if(!reason.equals("eligible")) return result;
             String id=id(); long expires=clock.millis()+120000;
@@ -148,7 +148,7 @@ public class ProductOtaPush {
             } else {
                 var inspect=sessionRequest("inspect",device,snapshot);
                 var checked=bridge.call(inspect);
-                String compatible=checked.path("status").asText().equals("ready") ? compatibility(image,checked.path("system_info")) : checked.path("status").asText();
+                String compatible=checked.path("status").asText().equals("ready") ? compatibility(device,image,checked.path("system_info")) : checked.path("status").asText();
                 if(!compatible.equals("eligible") || !snapshot.path("current_elf_sha256").asText().equals(checked.path("system_info").path("application").path("elf_sha256").asText())) {
                     status="not_sent"; reason=compatible.equals("eligible") ? "session_changed" : compatible;
                 } else {
@@ -177,12 +177,18 @@ public class ProductOtaPush {
         var rows=db.queryForList("SELECT firmware_id,sha256,elf_sha256,app_version,board_type,flash_size,min_revision,max_revision,partition_layout,app_partition_bytes,image_size FROM dc_ota_firmware WHERE firmware_id=? AND verification_status='verified'",id);
         if(rows.size()!=1) throw new ControlFailure(404,"FIRMWARE_NOT_FOUND"); return rows.getFirst();
     }
-    private String compatibility(Map<String,Object> image,JsonNode info) {
+    private String compatibility(String device,Map<String,Object> image,JsonNode info) {
         var app=info.path("application"); var chip=info.path("chip_info");
         if(!app.path("elf_sha256").asText().matches("[a-f0-9]{64}") || app.path("version").asText().isEmpty()
                 || !chip.path("revision").isIntegralNumber() || !info.path("flash_size").isIntegralNumber()
                 || !info.path("board").path("type").isTextual()) return "hardware_unknown";
-        if(!image.get("board_type").equals(info.path("board").path("type").asText()) || chip.path("model").asInt(-1)!=18) return "incompatible_board";
+        var deliveries=db.queryForList("SELECT board_type,status,device_verified_at_ms,completed_at_ms FROM dc_delivery_operation WHERE device_id=?",device);
+        if(deliveries.size()>1) return "incompatible_board";
+        Map<String,Object> delivery=deliveries.isEmpty() ? Map.of() : deliveries.getFirst();
+        boolean delivered="delivered".equals(delivery.get("status")) && delivery.get("device_verified_at_ms")!=null
+                && delivery.get("completed_at_ms")!=null;
+        if(!ProductOtaBoardTypes.matches((String)image.get("board_type"),info.path("board").path("type").asText(),
+                (String)delivery.get("board_type"),delivered) || chip.path("model").asInt(-1)!=18) return "incompatible_board";
         if(chip.path("revision").asInt()<number(image,"min_revision") || chip.path("revision").asInt()>number(image,"max_revision")) return "incompatible_revision";
         if(info.path("flash_size").asLong()<number(image,"flash_size") || !"partitions/v2/16m.csv".equals(image.get("partition_layout"))) return "incompatible_layout";
         Object[][] layout={{"nvs",1,2,0x9000,0x4000},{"otadata",1,0,0xd000,0x2000},{"phy_init",1,1,0xf000,0x1000},
