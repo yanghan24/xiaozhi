@@ -20,6 +20,10 @@ public final class CustomerVoiceHarness {
                 "--device-control.model-base-url=http://127.0.0.1:18085/v1/",
                 "--device-control.voice-service-secret=isolated-voice-test-service-secret-123456");
         var client=new BindingTestClient(new TestRestTemplate(new RestTemplateBuilder().rootUri("http://127.0.0.1:8002/xiaozhi")),app.getBean(JdbcTemplate.class),market);
+        var asr=app.getBean(ProductAsrSettings.class);
+        String provider="xfyun".equals(System.getenv("ASR_TEST_PROVIDER"))?"xfyun":"market";
+        asr.save(new ProductAsrSettings.Update(provider,((Number)asr.get().get("revision")).longValue(),
+                "synthetic-app","synthetic-key","synthetic-secret"));
         List<Map<String,Object>> devices=new ArrayList<>();
         List<Map<String,Object>> peers=new ArrayList<>();
         for(int i=0;i<3;i++) {

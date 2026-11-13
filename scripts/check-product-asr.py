@@ -7,52 +7,52 @@ from config.settings import check_config_file
 check_config_file()
 from config.config_loader import load_config
 from core.websocket_server import WebSocketServer
-from core.product_asr import TranscriptionUnavailable
+from core.product_asr import ProductASR, TranscriptionUnavailable
 import websockets,opuslib_next,edge_tts
 BASE='http://127.0.0.1:8002/xiaozhi/'
 SERVICE='isolated-voice-test-service-secret-123456'
 asr_urls=[];models=[];synthesis=[];asr_started=threading.Event()
 scenario='success'
-class Market(BaseHTTPRequestHandler):
-    def log_message(self,*args):pass
-    def reply(self,body):
-        self.send_response(200);self.end_headers();self.wfile.write(json.dumps(body,ensure_ascii=False).encode())
-    def do_POST(self):
-        assert self.headers.get('Authorization')=='Bearer test-business-key'
-        body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        if self.path=='/v1/services/audio/asr/transcription':
-            assert body['model']=='qwen-audio-3.0-asr-flash-filetrans'
-            assert self.headers['X-DashScope-Async']=='enable'
-            url=body['input']['file_urls'][0]
-            with urllib.request.urlopen(url,timeout=5) as r:
-                assert r.headers['Content-Type']=='audio/wav'
-                with wave.open(io.BytesIO(r.read())) as wav:
-                    assert wav.getframerate()==16000 and wav.getnchannels()==1 and wav.getnframes()>1000
-                    if not asr_urls:assert wav.getnframes()==19200,'listen.stop lost queued audio'
-            asr_urls.append(url);asr_started.set()
-            self.reply({'output':{'task_id':'task-'+str(len(asr_urls)),'task_status':'PENDING'}})
-        elif self.path=='/v1/chat/completions':
-            models.append(body)
-            self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
-            self.wfile.write(b'data: {"choices":[{"delta":{"content":"OK."}}]}\n\ndata: [DONE]\n\n')
-        else:self.send_error(404)
-    def do_GET(self):
-        if self.path.startswith('/v1/tasks/'):
-            assert self.headers.get('Authorization')=='Bearer test-business-key'
-            output={'task_status':'RUNNING'} if scenario=='pending' else {'task_status':'SUCCEEDED','results':[{'subtask_status':'FAILED' if scenario=='failed' else 'SUCCEEDED','transcription_url':'http://127.0.0.1:18085/result'}]}
-            self.reply({'output':output})
-        elif self.path=='/result':
-            assert self.headers.get('Authorization') is None
-            if scenario=='redirect':
-                self.send_response(302);self.send_header('Location','http://127.0.0.1:18085/forbidden');self.end_headers()
-            elif scenario=='slow':
-                self.send_response(200);self.end_headers()
-                try:
-                    for _ in range(30):
-                        self.wfile.write(b' ');self.wfile.flush();time.sleep(.3)
-                except (BrokenPipeError,ConnectionResetError):pass
-            else:self.reply({'transcripts':[] if scenario=='empty' else [{'channel_id':0,'text':'音频识别完成，请回答。'}]})
-        else:self.send_error(404)
+from aiohttp import web, WSMsgType
+asr_closed=set()
+async def market_asr(request):
+    if os.environ.get('ASR_TEST_PROVIDER')=='xfyun':
+        import base64,hashlib,hmac
+        from urllib.parse import urlencode
+        assert 'Authorization' not in request.headers
+        params=dict(request.query);signature=params.pop('signature')
+        assert params['appId']=='synthetic-app' and params['accessKeyId']=='synthetic-key'
+        assert signature==base64.b64encode(hmac.new(b'synthetic-secret',urlencode(sorted(params.items())).encode(),hashlib.sha1).digest()).decode()
+    else:
+        assert request.headers.get('Authorization')=='Bearer test-business-key'
+        assert request.query['model']=='rtasr-llm'
+    ws=web.WebSocketResponse()
+    await ws.prepare(request)
+    ticket=len(asr_urls)
+    asr_urls.append(ticket)
+    asr_started.set()
+    pcm=bytearray()
+    try:
+        await ws.send_json({'msg_type':'action','data':{'sessionId':'test-session'}})
+        async for frame in ws:
+            if frame.type==WSMsgType.BINARY: pcm.extend(frame.data)
+            elif frame.type==WSMsgType.TEXT:
+                assert json.loads(frame.data)=={'end':True,'sessionId':'test-session'}
+                if ticket==0: assert len(pcm)==38400,'listen.stop lost queued audio'
+                if scenario=='pending': continue
+                if scenario=='failed':
+                    await ws.send_json({'action':'error','code':'35002'})
+                elif scenario=='disconnect': await ws.close()
+                else:
+                    text='' if scenario=='empty' else '音频识别完成，请回答。'
+                    await ws.send_json({'msg_type':'result','res_type':'asr','data':{'seg_id':0,'ls':True,
+                        'cn':{'st':{'type':'0','rt':[{'ws':[{'cw':[{'w':text}]}]}]}}}})
+    finally: asr_closed.add(ticket)
+    return ws
+async def market_model(request):
+    assert request.headers.get('Authorization')=='Bearer test-business-key'
+    models.append(await request.json())
+    return web.Response(text='data: {"choices":[{"delta":{"content":"OK."}}]}\n\ndata: [DONE]\n\n',content_type='text/event-stream')
 mp3=subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','anullsrc=r=24000:cl=mono','-t','2','-f','mp3','pipe:1'],check=True,stdout=subprocess.PIPE).stdout
 class Edge:
     def __init__(self,text,**kwargs):synthesis.append(text)
@@ -68,8 +68,14 @@ def unavailable(url):
     return False
 async def main():
     global scenario
-    market=ThreadingHTTPServer(('127.0.0.1',18085),Market)
-    threading.Thread(target=market.serve_forever,daemon=True).start()
+    app=web.Application()
+    app.router.add_get('/v1/asr/xfyun/rtasr-llm',market_asr)
+    app.router.add_get('/ast/communicate/v1',market_asr)
+    ProductASR.XFYUN_ENDPOINT='ws://127.0.0.1:18085/ast/communicate/v1'
+    app.router.add_post('/v1/chat/completions',market_model)
+    market=web.AppRunner(app)
+    await market.setup()
+    await web.TCPSite(market,'127.0.0.1',18085).start()
     d=json.loads(Path(os.environ['FIXTURE_FILE']).read_text())['devices'][0]
     headers={'Device-Id':d['device_id'],'Client-Id':d['device_id'],'Authorization':'Bearer '+d['voice_token']}
     config=await load_config()
@@ -107,17 +113,17 @@ async def main():
                 elif json.loads(message).get('state')=='stop':break
             assert heard and len(asr_urls)==1 and len(models)==1,'No ASR-to-audio round trip'
             assert models[0]['messages'][-1]['content']=='音频识别完成，请回答。'
-            assert await asyncio.to_thread(unavailable,asr_urls[0]),'Completed audio URL still readable'
+            assert not server.product_audio.files, 'ASR published a recording URL'
             handler=server.sessions[hello['session_id']]
             provider=handler.asr
-            for scenario in ('failed','empty','redirect','slow','pending'):
+            for scenario in ('failed','empty','disconnect','pending'):
                 provider.TIMEOUT=.3 if scenario=='pending' else 10
                 before=len(asr_urls)
                 try:await provider.speech_to_text([b'\0'*38400],'regression')
                 except TranscriptionUnavailable:pass
                 else:raise AssertionError('ASR failure accepted: '+scenario)
                 assert len(asr_urls)==before+1,'ASR submission retried'
-                assert await asyncio.to_thread(unavailable,asr_urls[-1])
+                assert not server.product_audio.files
                 assert len(models)==1,'Failed ASR called model'
             provider.TIMEOUT=60
             store=server.product_audio
@@ -161,13 +167,13 @@ async def main():
                 while True:
                     response=await asyncio.wait_for(other.recv(),3)
                     if isinstance(response,str) and json.loads(response).get('state')=='stop':break
-                assert await asyncio.to_thread(unavailable,disconnected_url),'Aborted audio readable'
+                assert disconnected_url in asr_closed,'Aborted audio readable'
                 asr_started.clear();await send_audio(other)
                 assert await asyncio.to_thread(asr_started.wait,10)
                 disconnected_url=asr_urls[-1]
                 await other.close()
                 await asyncio.sleep(.3)
-                assert await asyncio.to_thread(unavailable,disconnected_url),'Disconnected audio readable'
+                assert disconnected_url in asr_closed,'Disconnected audio readable'
             asr_started.clear();await send_audio()
             assert await asyncio.to_thread(asr_started.wait,10)
             await asyncio.to_thread(sign_out,d)
@@ -176,9 +182,9 @@ async def main():
                     message=await asyncio.wait_for(socket.recv(),4)
                     assert not isinstance(message,bytes),'Late audio after signout'
             except websockets.exceptions.ConnectionClosed:pass
-            assert await asyncio.to_thread(unavailable,asr_urls[-1]),'Revoked audio readable'
+            assert not server.product_audio.files,'Revoked audio readable'
             await asyncio.sleep(1.2)
             assert len(models)==baseline_models and len(synthesis)==baseline_synthesis,'Pending ASR escaped revocation'
-    market.shutdown()
-    print(json.dumps({'result':'pass','checks':['device Opus -> asynchronous ASR -> model -> TTS audio','temporary WAV fetched with correct format','completed and revoked URLs unavailable','pending ASR cannot call model/TTS after signout']}))
+    await market.cleanup()
+    print(json.dumps({'result':'pass','checks':['device Opus -> rtasr-llm WebSocket -> model -> TTS audio','PCM has correct format and no queued audio lost','cancelled and disconnected ASR sockets close','pending ASR cannot call model/TTS after signout']}))
 asyncio.run(main())

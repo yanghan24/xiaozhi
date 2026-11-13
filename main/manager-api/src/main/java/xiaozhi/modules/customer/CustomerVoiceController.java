@@ -16,9 +16,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 final class CustomerVoiceController {
     private final CustomerVoicePermissions permissions;
     private final String serviceKey;
+    private final ProductAsrSettings asr;
     private final ObjectMapper json=new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-    CustomerVoiceController(CustomerVoicePermissions permissions,@Value("${device-control.voice-service-secret:}") String serviceKey) {
-        this.permissions=permissions;this.serviceKey=serviceKey;
+    CustomerVoiceController(CustomerVoicePermissions permissions,@Value("${device-control.voice-service-secret:}") String serviceKey,ProductAsrSettings asr) {
+        this.permissions=permissions;this.serviceKey=serviceKey;this.asr=asr;
     }
     @PostMapping("/{action}")
     ResponseEntity<?> unsupportedMedia(){return failure(new CustomerFailure(400,"INVALID_REQUEST"));}
@@ -32,7 +33,7 @@ final class CustomerVoiceController {
         try {body=json.readTree(raw);}catch(Exception invalid){throw new CustomerFailure(400,"INVALID_REQUEST");}
         boolean open="open".equals(action);
         boolean rejected="key-rejected".equals(action);
-        if(!java.util.Set.of("open","check","close","model-access","key-rejected").contains(action) || !body.isObject() || body.size()!=(open?2:1)) throw new CustomerFailure(400,"INVALID_REQUEST");
+        if(!java.util.Set.of("open","check","close","model-access","asr-access","key-rejected").contains(action) || !body.isObject() || body.size()!=(open?2:1)) throw new CustomerFailure(400,"INVALID_REQUEST");
         Map<String,Object> result;
         if(open) result=permissions.open(field(body,"device_id"),field(body,"token"));
         else if(rejected) {
@@ -43,6 +44,11 @@ final class CustomerVoiceController {
         else {
             String session=field(body,"session");
             if("close".equals(action)){permissions.close(session);result=Map.of("closed",true);}
+            else if("asr-access".equals(action)) {
+                permissions.check(session);
+                result=asr.access();
+                permissions.check(session);
+            }
             else result="model-access".equals(action)?permissions.modelAccess(session):permissions.check(session);
         }
         return ResponseEntity.ok().header("Cache-Control","no-store").body(json.valueToTree(result));

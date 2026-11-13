@@ -1,5 +1,9 @@
-"""Bounded, memory-only audio publication and AI-market asynchronous transcription."""
+"""Bounded, memory-only audio and AI-market rtasr-llm transcription."""
 import asyncio
+import base64
+import datetime
+import hashlib
+import hmac
 import io
 import json
 import re
@@ -7,7 +11,7 @@ import secrets
 import time
 import aiohttp
 import wave
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 
 from core.product_voice import VoiceDenied
 from core.providers.asr.base import ASRProviderBase
@@ -81,10 +85,10 @@ class AudioPublication:
 
 
 class MarketASR(ASRProviderBase):
-    """One connection's non-streaming ASR; never persists recordings or retries submit."""
-    MODEL = 'qwen-audio-3.0-asr-flash-filetrans'
+    """One recorded utterance over paced WebSocket PCM; no persistence or retries."""
+    MODEL = 'rtasr-llm'
     interface_type = InterfaceType.NON_STREAM
-    TIMEOUT = 60
+    TIMEOUT = 80
 
     def __init__(self, gate, publication):
         self.gate = gate
@@ -123,7 +127,7 @@ class MarketASR(ASRProviderBase):
         return await self.speech_to_text(pcm_data, session_id)
 
     async def speech_to_text(self, pcm_data, session_id, artifacts=None):
-        if self.busy or sum(map(len, pcm_data)) > self.publication.MAX_PCM:
+        if self.busy or not pcm_data or not 0 < sum(map(len, pcm_data)) <= self.publication.MAX_PCM or sum(map(len, pcm_data)) % 2:
             raise TranscriptionUnavailable()
         self.busy = True
         try:
@@ -138,71 +142,155 @@ class MarketASR(ASRProviderBase):
             self.task = None
 
     @staticmethod
-    async def _json_request(url, key=None, payload=None):
-        headers = {}
-        if key:
-            headers['Authorization'] = 'Bearer ' + key
-        if payload is not None:
-            headers.update({'Content-Type': 'application/json', 'X-DashScope-Async': 'enable'})
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5), trust_env=False) as session:
-            async with session.request('GET' if payload is None else 'POST', url,
-                    headers=headers, json=payload, allow_redirects=False) as response:
-                if response.status != 200:
-                    if response.status == 401 and key:
-                        raise KeyRejected()
-                    raise TranscriptionUnavailable()
-                raw = bytearray()
-                async for chunk in response.content.iter_chunked(16384):
-                    raw.extend(chunk)
-                    if len(raw) > 1024 * 1024:
-                        raise TranscriptionUnavailable()
-                return json.loads(raw)
+    def _message(raw):
+        message = json.loads(raw)
+        if not isinstance(message, dict):
+            raise TranscriptionUnavailable()
+        if (message.get('action') == 'error' or
+                str(message.get('code', 0)) != '0'):
+            raise TranscriptionUnavailable()
+        data = message.get('data', {})
+        if isinstance(data, str):
+            data = json.loads(data) if data else {}
+        if not isinstance(data, dict) or data.get('normal') is False:
+            raise TranscriptionUnavailable()
+        return message, data
+
+    async def _request(self):
+        access = await asyncio.to_thread(self.gate.model_access)
+        parsed = urlparse(access['base_url'])
+        if (parsed.username or parsed.password or parsed.query or parsed.fragment or
+                not parsed.hostname or (parsed.scheme != 'https' and not
+                (parsed.scheme == 'http' and parsed.hostname in ('127.0.0.1', 'localhost')))):
+            raise TranscriptionUnavailable()
+        scheme = 'wss' if parsed.scheme == 'https' else 'ws'
+        url = parsed._replace(scheme=scheme, path=parsed.path.rstrip('/') +
+            '/asr/xfyun/rtasr-llm', query='model=rtasr-llm&lang=autodialect&audio_encode=pcm_s16le&samplerate=16000').geturl()
+        return url, {'Authorization': 'Bearer ' + access['api_key']}, access
 
     async def _transcribe(self, pcm):
-        access = await asyncio.to_thread(self.gate.model_access)
-        base = access['base_url'].rstrip('/') + '/'
-        token, audio_url = self.publication.publish(pcm, self.gate)
+        url, headers, market_access = await self._request()
+        # aiohttp WebSocket handshakes otherwise follow HTTP redirects.
+        async def reject_redirect(*args):
+            raise TranscriptionUnavailable()
+        trace = aiohttp.TraceConfig()
+        trace.on_request_redirect.append(reject_redirect)
+        await self.gate.check_async()
         try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5),
+                    trust_env=False, trace_configs=[trace]) as session:
+                async with session.ws_connect(url, headers=headers,
+                        max_msg_size=1024 * 1024, autoclose=True) as socket:
+                    ready = await asyncio.wait_for(socket.receive(), 5)
+                    if ready.type != aiohttp.WSMsgType.TEXT:
+                        raise TranscriptionUnavailable()
+                    message, data = self._message(ready.data)
+                    session_id = data.get('sessionId') or message.get('sid')
+                    if (not isinstance(session_id, str) or not 0 < len(session_id) <= 256 or
+                            not (message.get('msg_type') == 'action' or message.get('action') == 'started')):
+                        raise TranscriptionUnavailable()
+                    ended = asyncio.Event()
+                    sender = asyncio.create_task(self._send_pcm(socket, pcm, session_id, ended))
+                    receiver = asyncio.create_task(self._receive_text(socket, ended))
+                    monitor = asyncio.create_task(self._watch_permission())
+                    tasks = (sender, receiver, monitor)
+                    try:
+                        # Sender errors and permission loss must also interrupt a silent receiver.
+                        pending = set(tasks)
+                        while True:
+                            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                            for task in done:
+                                task.result()
+                            if receiver in done:
+                                await sender
+                                await self.gate.check_async()
+                                return receiver.result(), None
+                    finally:
+                        for task in tasks:
+                            task.cancel()
+                        await asyncio.gather(*tasks, return_exceptions=True)
+        except aiohttp.WSServerHandshakeError as error:
+            if error.status == 401 and market_access is not None:
+                await asyncio.to_thread(self.gate.key_rejected, market_access)
+            raise TranscriptionUnavailable() from None
+
+    async def _watch_permission(self):
+        while True:
             await self.gate.check_async()
-            submitted = await self._json_request(
-                base + 'services/audio/asr/transcription', access['api_key'],
-                {'model': self.MODEL, 'input': {'file_urls': [audio_url]}, 'parameters': {}})
-            task = submitted.get('output', {}).get('task_id')
-            if not isinstance(task, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', task):
+            await asyncio.sleep(.2)
+
+    async def _send_pcm(self, socket, pcm, session_id, ended):
+        loop = asyncio.get_running_loop()
+        next_send = loop.time()
+        for offset in range(0, len(pcm), 1280):
+            # Overlap authority latency with pacing, but never burst to catch up
+            # after a delayed check. Every frame still requires a fresh permission.
+            await asyncio.gather(self.gate.check_async(),
+                asyncio.sleep(max(0, next_send - loop.time())))
+            chunk = pcm[offset:offset + 1280]
+            await socket.send_bytes(chunk)
+            next_send = loop.time() + len(chunk) / 32000
+        await asyncio.gather(self.gate.check_async(),
+            asyncio.sleep(max(0, next_send - loop.time())))
+        await socket.send_json({'end': True, 'sessionId': session_id})
+        ended.set()
+
+    async def _receive_text(self, socket, ended):
+        segments = {}
+        async for frame in socket:
+            await self.gate.check_async()
+            if frame.type != aiohttp.WSMsgType.TEXT:
                 raise TranscriptionUnavailable()
-            while True:
-                await self.gate.check_async()
-                result = await self._json_request(base + 'tasks/' + task, access['api_key'])
-                await self.gate.check_async()
-                output = result.get('output', {})
-                status = output.get('task_status')
-                if status == 'SUCCEEDED':
-                    break
-                if status not in ('PENDING', 'RUNNING'):
+            message, data = self._message(frame.data)
+            if message.get('msg_type', message.get('action')) != 'result':
+                raise TranscriptionUnavailable()
+            if message.get('res_type', 'asr') != 'asr':
+                continue
+            sentence = data.get('cn', {}).get('st')
+            if sentence is not None:
+                segment = data.get('seg_id')
+                if type(segment) is not int or not 0 <= segment < 4096:
                     raise TranscriptionUnavailable()
-                await asyncio.sleep(1)
-            results = output.get('results', [])
-            if len(results) != 1 or results[0].get('subtask_status') != 'SUCCEEDED':
-                raise TranscriptionUnavailable()
-            url = results[0].get('transcription_url', '')
-            parsed, origin = urlparse(url), urlparse(base)
-            same_origin = (parsed.scheme, parsed.netloc) == (origin.scheme, origin.netloc)
-            official_result = parsed.scheme == 'https' and parsed.hostname in (
-                'dashscope-result-bj.oss-cn-beijing.aliyuncs.com',
-                'dashscope-result-sg.oss-ap-southeast-1.aliyuncs.com')
-            if parsed.username or parsed.password or parsed.fragment or not (same_origin or official_result):
-                raise TranscriptionUnavailable()
-            # The result URL is a capability; never forward the business Key to it.
-            await self.gate.check_async()
-            transcript = await self._json_request(url)
-            await self.gate.check_async()
-            texts = [entry['text'] for entry in transcript.get('transcripts', [])
-                     if entry.get('channel_id', 0) == 0 and isinstance(entry.get('text'), str)]
-            text = ''.join(texts).strip()
-            if not text or len(text) > 16000:
-                raise TranscriptionUnavailable()
-            return text, None
-        except KeyRejected:
-            await asyncio.to_thread(self.gate.key_rejected, access)
-        finally:
-            self.publication.remove(token)
+                if str(sentence.get('type')) not in ('0', '1'):
+                    raise TranscriptionUnavailable()
+                text = ''.join(word['cw'][0]['w'] for entry in sentence['rt'] for word in entry['ws'] if word.get('cw'))
+                # seg_id numbers messages, including interim hypotheses. Only
+                # committed results contribute text; a final punctuation frame is additive.
+                if len(text) > 16000:
+                    raise TranscriptionUnavailable()
+                if str(sentence['type']) == '0':
+                    segments[segment] = text
+                elif data.get('ls') is True:
+                    raise TranscriptionUnavailable()
+                if sum(map(len, segments.values())) > 16000:
+                    raise TranscriptionUnavailable()
+            if data.get('ls') is True:
+                if not ended.is_set():
+                    raise TranscriptionUnavailable()
+                text = ''.join(segments[key] for key in sorted(segments)).strip()
+                if not text:
+                    raise TranscriptionUnavailable()
+                return text
+        raise TranscriptionUnavailable()
+
+
+class ProductASR(MarketASR):
+    """Resolve the admin selection once per utterance; never silently fail over."""
+    XFYUN_ENDPOINT = 'wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1'
+
+    async def _request(self):
+        access = await asyncio.to_thread(self.gate.asr_access)
+        if access.get('provider') == 'market':
+            return await super()._request()
+        if access.get('provider') != 'xfyun':
+            raise TranscriptionUnavailable()
+        params = {
+            'appId': access['app_id'], 'accessKeyId': access['api_key'],
+            'uuid': secrets.token_hex(16),
+            'utc': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S%z'),
+            'lang': 'autodialect', 'audio_encode': 'pcm_s16le', 'samplerate': '16000',
+        }
+        canonical = urlencode(sorted(params.items()))
+        params['signature'] = base64.b64encode(hmac.new(access['api_secret'].encode(),
+            canonical.encode(), hashlib.sha1).digest()).decode()
+        return self.XFYUN_ENDPOINT + '?' + urlencode(params), {}, None

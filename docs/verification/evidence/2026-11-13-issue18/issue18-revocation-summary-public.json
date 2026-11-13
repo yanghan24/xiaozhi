@@ -1,0 +1,7 @@
+{
+  "observed_at": "2026-11-13T02:49:23.620727+00:00",
+  "route_removed": true,
+  "target_http_local_tls": 404,
+  "discovery_http_local_tls": 200,
+  "upgrade_sent": false
+}

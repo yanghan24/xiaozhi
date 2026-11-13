@@ -164,6 +164,12 @@ class MaintenanceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, sum(f['method'] == 'tools/call' for f in self.frames))
         self.assertEqual(0o600, (Path(self.temp.name) / ('a' * 32 + '.json')).stat().st_mode & 0o777)
 
+    async def test_current_release_can_be_queued_without_reusing_historical_artifact_path(self):
+        url = self.request('upgrade')['url'].replace('p4-a30f6a8', 'p4-12f2ff1')
+        result = await self.control.execute(self.request('upgrade', url=url))
+        self.assertEqual({'status': 'queued_not_ota_confirmed'}, result)
+        self.assertEqual(url, self.frames[-1]['params']['arguments']['url'])
+
     async def test_unknown_result_durably_prevents_automatic_replay(self):
         self.lose_result = True
         with self.assertRaises(ConnectionError):

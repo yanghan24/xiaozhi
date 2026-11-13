@@ -34,7 +34,7 @@ _setup_websockets_logger()
 
 
 from core.connection import ConnectionHandler
-from core.product_asr import AudioPublication, MarketASR
+from core.product_asr import AudioPublication, ProductASR
 from config.config_loader import get_config_from_api_async
 from core.auth import AuthManager, AuthenticationError
 from core.utils.modules_initialize import initialize_modules
@@ -200,7 +200,7 @@ class WebSocketServer:
             handler.product_voice_gate = gate
             from core.product_chat import ProductConversation
             handler.product_conversation = ProductConversation(handler)
-            handler.asr = MarketASR(gate, self.product_audio)
+            handler.asr = ProductASR(gate, self.product_audio)
             def revoke():
                 handler.asr.cancel()
                 handler.product_conversation.invalidate()

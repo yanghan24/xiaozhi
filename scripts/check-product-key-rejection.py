@@ -20,15 +20,10 @@ class Market(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(body).encode())
     def do_POST(self):
         self.rfile.read(int(self.headers['Content-Length']))
-        if scenario in ('submit', 'model'):
+        if scenario in ('handshake', 'model'):
             self.reply(401, {})
         else: self.reply(200, {'output': {'task_id': 'test'}})
-    def do_GET(self):
-        if scenario == 'poll' or self.path == '/result':
-            self.reply(401, {})
-        else:
-            self.reply(200, {'output': {'task_status': 'SUCCEEDED', 'results': [
-                {'subtask_status': 'SUCCEEDED', 'transcription_url': 'http://127.0.0.1:18085/result'}]}})
+    def do_GET(self): self.reply(401, {})
 
 async def main():
     global scenario
@@ -36,19 +31,12 @@ async def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     authority = VoiceAuthority('http://127.0.0.1:8002/xiaozhi/', 'isolated-voice-test-service-secret-123456')
     devices = json.loads(Path(os.environ['FIXTURE_FILE']).read_text())['devices']
-    for index, scenario in enumerate(('submit', 'poll', 'model')):
+    for index, scenario in enumerate(('handshake', 'second-handshake', 'model')):
         device = devices[index]
         headers = {'Device-Id': device['device_id'], 'Authorization': 'Bearer '+device['voice_token']}
         gate = await authority.open(headers, '/xiaozhi/v1/')
         other = await authority.open(headers, '/xiaozhi/v1/')
         asr = MarketASR(gate, AudioPublication('http://127.0.0.1:18086'))
-        if scenario == 'poll':
-            scenario = 'result'
-            try: await asr.speech_to_text([b'\0'*38400], 'test')
-            except TranscriptionUnavailable: pass
-            else: raise AssertionError('Unsigned result failure accepted')
-            await other.check_async()  # Result capability failure is not a business Key failure.
-            scenario = 'poll'
         try:
             if scenario == 'model':
                 await asyncio.to_thread(lambda: list(MarketModel(gate).response('test', [{'role':'user','content':'test'}])))
@@ -61,6 +49,6 @@ async def main():
         assert not asr.publication.files
         await gate.close(); await other.close()
     server.shutdown()
-    print('PASS: model/ASR submit/ASR poll 401 revoke other connections; unsigned result 401 preserves grant')
+    print('PASS: model and ASR handshake 401 revoke other connections')
 
 asyncio.run(main())
