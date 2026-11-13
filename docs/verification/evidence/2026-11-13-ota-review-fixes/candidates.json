@@ -1,0 +1,13 @@
+{
+  "revision": "4beb8cf64091de7f5f4f9e8d52cf6b2bb1cd3163",
+  "api_jar_sha256": "d075b8867f3b6396f43527be3c11060cbd0904fb23c031ddfa5d38b0e72165e4",
+  "baseline_images": {
+    "xiaozhi-product-api:asr-switch": "sha256:e3453400512165dbf1be0ab6c4fcc2c579d94801dec614f1bbafdf40ed5b9add",
+    "xiaozhi-manager-web:asr-switch": "sha256:f65f2c801760610d31a8fdb6bb1f45182bcd9cf451690caf8b06dcbaadef1434"
+  },
+  "web_dist_tar_sha256": "f88fe3e33de41cede0df3e43d90f73429b83c85da71dddbfed0f6f17e0c44df2",
+  "images": {
+    "xiaozhi-product-api:ota-review-4beb8cf": "sha256:292846c40a6279bf720ccc75eed08796eb042b287350b0b13e048d04a9fa500d",
+    "xiaozhi-manager-web:ota-review-4beb8cf": "sha256:6f36cacdb1ab2d8eb7234eb8cf07e2f8996be29179e3ea6a7c1f34ac70aaa9c5"
+  }
+}
