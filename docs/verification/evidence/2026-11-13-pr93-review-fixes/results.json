@@ -1,0 +1,951 @@
+{
+  "source_commit": "10d726560af96958951e9b2f5b08d685259c6a71",
+  "base_commit": "c7aa89c3a38dc02e8f29a844a700161d5a523fd9",
+  "base_image": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+  "mode": "read-only source file overlays in network-none containers; not deployed",
+  "raw_directory": "/home/jt/pr93-fix-20261113",
+  "stages": {
+    "red-audio": {
+      "cases": [
+        {
+          "case": "units",
+          "exit": 1,
+          "seconds": 1.95
+        }
+      ],
+      "observations": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "success": false
+        }
+      ],
+      "log_sha256": {
+        "units.log": "e6f150d2564809dbbd854854e8d9e372492705f3ea5627bc70ac0b059df92dd3"
+      }
+    },
+    "green-audio": {
+      "cases": [
+        {
+          "case": "units",
+          "exit": 0,
+          "seconds": 3.05
+        }
+      ],
+      "observations": [
+        {
+          "tests": 13,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "success": true
+        }
+      ],
+      "log_sha256": {
+        "units.log": "272b2124f9188becad20160e19be5e284e41669d30d4e0f8b4f7518815a16956"
+      }
+    },
+    "red-exit": {
+      "cases": [
+        {
+          "case": "exit-period",
+          "exit": 1,
+          "seconds": 6.78
+        },
+        {
+          "case": "exit-exclamation",
+          "exit": 1,
+          "seconds": 6.87
+        }
+      ],
+      "observations": [],
+      "log_sha256": {
+        "exit-exclamation.log": "001b19e25a19e276dcb25ef255f2f2bd9a4907ea884c17f30569b293d3f087f6",
+        "exit-period.log": "c464d5660747b9157dcfd15c753519344eb4c137c07ea2de123ef5498b4bca69"
+      }
+    },
+    "green-exit": {
+      "cases": [
+        {
+          "case": "exit-period",
+          "exit": 0,
+          "seconds": 4.22
+        },
+        {
+          "case": "exit-exclamation",
+          "exit": 0,
+          "seconds": 3.59
+        }
+      ],
+      "observations": [
+        {
+          "result": "pass",
+          "scenario": "exit-exclamation",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-period",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        }
+      ],
+      "log_sha256": {
+        "exit-exclamation.log": "36a0f44ddfdf0d0b489caee103d24affc81bd6cfab0c1aad26b13c9b0402f7d6",
+        "exit-period.log": "68e8740b72d2add406e1ad34a1ec391e85c1fa9e5f86943bee48cb9a99e16878"
+      }
+    },
+    "red-startup": {
+      "cases": [
+        {
+          "case": "startup-wake",
+          "exit": 1,
+          "seconds": 23.78
+        }
+      ],
+      "observations": [],
+      "log_sha256": {
+        "startup-wake.log": "f54cb13d385aba7864f38bf8c9add933c6cd5b0e2b9421b8c343884211e12f2e"
+      }
+    },
+    "green-startup": {
+      "cases": [
+        {
+          "case": "startup-wake",
+          "exit": 0,
+          "seconds": 4.44
+        },
+        {
+          "case": "startup-paired",
+          "exit": 0,
+          "seconds": 4.42
+        },
+        {
+          "case": "startup-abort",
+          "exit": 0,
+          "seconds": 4.78
+        },
+        {
+          "case": "startup-listen",
+          "exit": 0,
+          "seconds": 4.6
+        },
+        {
+          "case": "startup-failed",
+          "exit": 0,
+          "seconds": 3.51
+        },
+        {
+          "case": "startup-timeout",
+          "exit": 0,
+          "seconds": 3.44
+        }
+      ],
+      "observations": [
+        {
+          "result": "pass",
+          "scenario": "startup-abort",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-failed",
+          "model_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-listen",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-paired",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-timeout",
+          "model_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-wake",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        }
+      ],
+      "log_sha256": {
+        "startup-abort.log": "406ca2cb2d845efeef49c4d383a955c2ff23800a209336a890496c8a0177f32a",
+        "startup-failed.log": "a27042c63ad8b4e68a8ef4162b93fc188fffb87090c14d6aa287ed2fab08772b",
+        "startup-listen.log": "9a0356e1a1b82e54c2451b603ffa0ae089e6b4e2abdc6dea410e113c0376f2de",
+        "startup-paired.log": "73752fdf6571b8c18dfcac8a91932e1d7f9014a8eeb095785cbe2bcf3e4d1d45",
+        "startup-timeout.log": "65b945f3c058d2d10f56d19ff8bdeff7930c1df46d52ffa7dbb0562c2490923c",
+        "startup-wake.log": "08f4be1b8e293a64896ff65f04f2a10e1ce7ed9b20902f92b6fadc77ab98fa6d"
+      }
+    },
+    "red-tts": {
+      "cases": [
+        {
+          "case": "units",
+          "exit": 1,
+          "seconds": 1.9
+        }
+      ],
+      "observations": [
+        {
+          "tests": 3,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "success": false
+        }
+      ],
+      "log_sha256": {
+        "units.log": "671cdf83149a7e81e8b13a4f1b92019cfab58441aef349095e988d1a9815036e"
+      }
+    },
+    "green-tts": {
+      "cases": [
+        {
+          "case": "units",
+          "exit": 0,
+          "seconds": 1.89
+        }
+      ],
+      "observations": [
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "success": true
+        }
+      ],
+      "log_sha256": {
+        "units.log": "d6c36593aa2389e5f7941e7ae1942fb19e258ce88e721d8bd4c711494f4cb5fd"
+      }
+    },
+    "full-regression": {
+      "cases": [
+        {
+          "case": "units",
+          "exit": 0,
+          "seconds": 14.72
+        },
+        {
+          "case": "abort-new-turn",
+          "exit": 0,
+          "seconds": 4.74
+        },
+        {
+          "case": "device-tools",
+          "exit": 0,
+          "seconds": 4.8
+        },
+        {
+          "case": "empty-answer",
+          "exit": 0,
+          "seconds": 4.83
+        },
+        {
+          "case": "happy",
+          "exit": 0,
+          "seconds": 4.7
+        },
+        {
+          "case": "ordinary",
+          "exit": 0,
+          "seconds": 4.2
+        },
+        {
+          "case": "other-owner",
+          "exit": 0,
+          "seconds": 4.25
+        },
+        {
+          "case": "revoked",
+          "exit": 0,
+          "seconds": 4.02
+        },
+        {
+          "case": "tool-error",
+          "exit": 0,
+          "seconds": 4.46
+        },
+        {
+          "case": "init-failed",
+          "exit": 0,
+          "seconds": 4.15
+        },
+        {
+          "case": "listen-start",
+          "exit": 0,
+          "seconds": 5.23
+        },
+        {
+          "case": "wake-abort-start",
+          "exit": 0,
+          "seconds": 4.69
+        },
+        {
+          "case": "wake-start-twice",
+          "exit": 0,
+          "seconds": 4.64
+        },
+        {
+          "case": "wake-start",
+          "exit": 0,
+          "seconds": 4.22
+        },
+        {
+          "case": "exit-period",
+          "exit": 0,
+          "seconds": 3.4
+        },
+        {
+          "case": "exit-exclamation",
+          "exit": 0,
+          "seconds": 3.43
+        },
+        {
+          "case": "startup-wake",
+          "exit": 0,
+          "seconds": 4.44
+        },
+        {
+          "case": "startup-paired",
+          "exit": 0,
+          "seconds": 4.53
+        },
+        {
+          "case": "startup-abort",
+          "exit": 0,
+          "seconds": 4.64
+        },
+        {
+          "case": "startup-listen",
+          "exit": 0,
+          "seconds": 4.7
+        },
+        {
+          "case": "startup-failed",
+          "exit": 0,
+          "seconds": 3.51
+        },
+        {
+          "case": "startup-timeout",
+          "exit": 0,
+          "seconds": 3.5
+        }
+      ],
+      "observations": [
+        {
+          "result": "pass",
+          "scenario": "abort-new-turn",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "device-tools",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "empty-answer",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-exclamation",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-period",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "happy",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "init-failed",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "listen-start",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "ordinary",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "other-owner",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "revoked",
+          "late_model_and_tts_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-abort",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-failed",
+          "model_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-listen",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-paired",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-timeout",
+          "model_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-wake",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "tool-error",
+          "model_requests": 1,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "tests": 70,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "success": true
+        },
+        {
+          "result": "pass",
+          "scenario": "wake-abort-start",
+          "model_requests": 2,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "wake-start-twice",
+          "model_requests": 2,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "wake-start",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        }
+      ],
+      "log_sha256": {
+        "abort-new-turn.log": "3559045a18e45ed2b102c2dccff449bade6aa437ea60f4a2dfd5e411a9179fe2",
+        "device-tools.log": "ebee1ef16da125c9ae67da55f06f3ce7fd6e3ab6f795ed7358167bbc893753e9",
+        "empty-answer.log": "ba88f6f3ad57cb02983a1dcdd0d7bf2def98b3e47f71fb36bb59b734a158dd24",
+        "exit-exclamation.log": "52c898934bfdb65218d28756eb29e3603d18f906018a7786e7a97fa7ef41e695",
+        "exit-period.log": "d4abde75f0cff018ecda0c74898188e335a7822e56a9adec1bbea5aa9dcd23d3",
+        "happy.log": "15f8b80d8d0ff1db4ec1a82214065dce24fad7200a80f25b2352b199e1445dc9",
+        "init-failed.log": "9214d5bde3ebef57cb4714ac0216ee1e33d9b99d712978697141e396c45d9114",
+        "listen-start.log": "3c5305512d276815c70ac9c0824060ba82a9f47f7b20325c969c044a63d17c78",
+        "ordinary.log": "9792362a6ec9bbc5725a0040da34a6c55bdeada1de000e7c0c03f560c2458951",
+        "other-owner.log": "79cca58408ab22b4d27b9f41315726b204f2b268351a4cb419b307b72f4711d0",
+        "revoked.log": "003ef71f8a6374e585e90b7a12c147a48846743e8606cdfb620f01f49d754ea1",
+        "startup-abort.log": "7a9d536bc81e99e90e58f96c1f981cefd7309a9c807513b8416d51c3db9fd59a",
+        "startup-failed.log": "8c260ca5a4bc92b0b189103cd9b7f0ccf7aefd6ad24bca934c94f72212695bd7",
+        "startup-listen.log": "e6dd6425e52c59c773161b0ef8fbaec0483f0ac072793c8f64e57347098a5755",
+        "startup-paired.log": "8fa37b91879da6532cb2b1f6e3a1aea686ad9323ed3fab5d75547f068a336487",
+        "startup-timeout.log": "b34f6ea7eaf6b55a6c15780d72a575b91e7f1eb431f19c1762fef9ccde801631",
+        "startup-wake.log": "0cbfad4be7b5b3a1aeeff89015b29236e17e9488f6fb6a75292e8a7a9d4300c2",
+        "tool-error.log": "8bbf6d74017d0d4dc60b84e885077956cc0a7a4c96915ad65f87b9bc1ac74d0e",
+        "units.log": "dfb08d6fc7473b8364ef91d76272b06d98106b197b4004bacdca3a114c44bc46",
+        "wake-abort-start.log": "1d2052002b5b4c7e2a0a781349ac608d3977784105a5de0f61e335ecb32050c5",
+        "wake-start-twice.log": "d67f3b8fd83af6756621407c3e9b2c6f147471f810ad65be8b71bbc095058e1b",
+        "wake-start.log": "b6691aa4665fa185887d959fba09e3f3ff95b92d51dde77730eec37b56c70fc9"
+      }
+    },
+    "red-exit-whitespace": {
+      "cases": [
+        {
+          "case": "exit-whitespace",
+          "exit": 1,
+          "seconds": 6.43
+        }
+      ],
+      "observations": [],
+      "log_sha256": {
+        "exit-whitespace.log": "0d66c0801a507354157a441c28d195b4a6654cdf7c938970a96cbd6d32f8b7f5"
+      }
+    },
+    "green-exit-whitespace": {
+      "cases": [
+        {
+          "case": "exit-period",
+          "exit": 0,
+          "seconds": 3.47
+        },
+        {
+          "case": "exit-exclamation",
+          "exit": 0,
+          "seconds": 3.38
+        },
+        {
+          "case": "exit-whitespace",
+          "exit": 0,
+          "seconds": 3.44
+        }
+      ],
+      "observations": [
+        {
+          "result": "pass",
+          "scenario": "exit-exclamation",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-period",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-whitespace",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        }
+      ],
+      "log_sha256": {
+        "exit-exclamation.log": "9dba3ab90eb2a476d55c27d501ad3fa6e59f59ec52adcb9b1fb0d4c1c5b7d1a0",
+        "exit-period.log": "75ce3c1815b6e68c389af13703b9d2062d1bc0d6c52b42f145686ca04421a5b3",
+        "exit-whitespace.log": "20f5eee0bc238bbd80605f8c9ffa585ef37aa97f27783ed6e5483688306e73f3"
+      }
+    },
+    "final-regression": {
+      "cases": [
+        {
+          "case": "units",
+          "exit": 0,
+          "seconds": 14.66
+        },
+        {
+          "case": "abort-new-turn",
+          "exit": 0,
+          "seconds": 4.72
+        },
+        {
+          "case": "device-tools",
+          "exit": 0,
+          "seconds": 4.7
+        },
+        {
+          "case": "empty-answer",
+          "exit": 0,
+          "seconds": 4.9
+        },
+        {
+          "case": "happy",
+          "exit": 0,
+          "seconds": 4.82
+        },
+        {
+          "case": "ordinary",
+          "exit": 0,
+          "seconds": 4.23
+        },
+        {
+          "case": "other-owner",
+          "exit": 0,
+          "seconds": 4.18
+        },
+        {
+          "case": "revoked",
+          "exit": 0,
+          "seconds": 4.16
+        },
+        {
+          "case": "tool-error",
+          "exit": 0,
+          "seconds": 4.68
+        },
+        {
+          "case": "init-failed",
+          "exit": 0,
+          "seconds": 4.14
+        },
+        {
+          "case": "listen-start",
+          "exit": 0,
+          "seconds": 5.17
+        },
+        {
+          "case": "wake-abort-start",
+          "exit": 0,
+          "seconds": 4.74
+        },
+        {
+          "case": "wake-start-twice",
+          "exit": 0,
+          "seconds": 4.68
+        },
+        {
+          "case": "wake-start",
+          "exit": 0,
+          "seconds": 4.29
+        },
+        {
+          "case": "exit-period",
+          "exit": 0,
+          "seconds": 3.84
+        },
+        {
+          "case": "exit-exclamation",
+          "exit": 0,
+          "seconds": 3.6
+        },
+        {
+          "case": "exit-whitespace",
+          "exit": 0,
+          "seconds": 3.58
+        },
+        {
+          "case": "startup-wake",
+          "exit": 0,
+          "seconds": 4.62
+        },
+        {
+          "case": "startup-paired",
+          "exit": 0,
+          "seconds": 4.54
+        },
+        {
+          "case": "startup-abort",
+          "exit": 0,
+          "seconds": 4.96
+        },
+        {
+          "case": "startup-listen",
+          "exit": 0,
+          "seconds": 4.94
+        },
+        {
+          "case": "startup-failed",
+          "exit": 0,
+          "seconds": 3.62
+        },
+        {
+          "case": "startup-timeout",
+          "exit": 0,
+          "seconds": 3.63
+        }
+      ],
+      "observations": [
+        {
+          "result": "pass",
+          "scenario": "abort-new-turn",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "device-tools",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "empty-answer",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-exclamation",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-period",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "exit-whitespace",
+          "model_requests": 0,
+          "tool_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "happy",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "init-failed",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "listen-start",
+          "model_requests": 2,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "ordinary",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "other-owner",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "revoked",
+          "late_model_and_tts_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-abort",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-failed",
+          "model_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-listen",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-paired",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-timeout",
+          "model_requests": 0,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "startup-wake",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "tool-error",
+          "model_requests": 1,
+          "tool_requests": 1,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "tests": 70,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "success": true
+        },
+        {
+          "result": "pass",
+          "scenario": "wake-abort-start",
+          "model_requests": 2,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "wake-start-twice",
+          "model_requests": 2,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        },
+        {
+          "result": "pass",
+          "scenario": "wake-start",
+          "model_requests": 1,
+          "tool_requests": 0,
+          "audio": true,
+          "real_external_requests": 0
+        }
+      ],
+      "log_sha256": {
+        "abort-new-turn.log": "e3199aab4fb7c40711907c2483c052e26f8d56d846a093218c998fb785e84c3c",
+        "device-tools.log": "4f79e20cea5108f67fecc01add7ca2c13b810ebffc1f61a5de888f5473943cd8",
+        "empty-answer.log": "2602e9467f70ac7b4057ebf5e5c5d1d1cda75f0fa6b546e48adbec3dc2a2631c",
+        "exit-exclamation.log": "5712ed9a6f9f2c86a9a1f2358ccc175d30c9ceb46ee2369fb591f818e1d8a2f6",
+        "exit-period.log": "45c1c225c9a31ca6e5452957200a78b72eeca44ee2740b6fd80153f896c9fab1",
+        "exit-whitespace.log": "d47989473f004c638c7f2d182d7ccdda37fc2e288a08d85274fb5d6291dc74a2",
+        "happy.log": "d46f942f05e087d778c8c54b26af8c37af264726a84ba8e4bd90bf5502f2aec4",
+        "init-failed.log": "97de51c2d3501da4f536c60eacbd4210feee61ffb3f67b7d53130fdbf463ad51",
+        "listen-start.log": "483170c4dd37400aa48ba8bb32f0995e50adc9958106dbebcbeae86175ab06dd",
+        "ordinary.log": "6129087fdca4e6b2d329695709405ab66b39f4c8dc1844c706457765db2217e9",
+        "other-owner.log": "01be0e64d7d9259bc30822081f57a156cacee7f7477c36ef8725fffa631859c4",
+        "revoked.log": "387d66f595448d92e9e935a5629bf99dc587a6496d9da7a6946a8dfa68846101",
+        "startup-abort.log": "f8a772a9525da0b9b57f7d0872ac30a74e8df1e445f9ef41fd425621dea62630",
+        "startup-failed.log": "e61b9a607e537479d1f1f58081dde81e8fe667166cf8748e8016c6cd23d485ff",
+        "startup-listen.log": "fd9a2ca26a39007424e7626b0c6240c54b5af7945933df6f8e0662d563609f57",
+        "startup-paired.log": "ae05e535e00b8505802e6e5bc99f7a5fa84fedf9d722af1e053a26dbe57bb955",
+        "startup-timeout.log": "236c9c7b284808401420c27e13ca63bafa1f89ab891242ba81bbdbdd936f619c",
+        "startup-wake.log": "86ad25286301d87ce501ffba3a938b4a5302de060fb7b113d40e7b7fad0f190d",
+        "tool-error.log": "b74a1b8f937432a726e1af6d76851866d1003b20395fa3ddcc5147d52eb3cdda",
+        "units.log": "fffe869d75b91e0b8bf77fe98731de930f52220f130d434b1212d684f463c86d",
+        "wake-abort-start.log": "d04ce3fe19701ff6774f0a50eda84addf7053979e8a9bb52b9857de0b6f317c1",
+        "wake-start-twice.log": "cde318c2a45b20f5bac3cfdbdfae0c5233599a5ae4db843c16c04f40b7fae3b3",
+        "wake-start.log": "fbfda0358a8d434a3f3bfa5dec24cc1803c0aeb3faa0c9222a41f488a68983cc"
+      }
+    }
+  },
+  "source_sha256": {
+    "core/connection.py": "ec1049c7bda5f7c819dd6e5e9271c051f064c194429263916726748f2566666d",
+    "core/handle/receiveAudioHandle.py": "4e407037131189dde2946890f7eddd5154e301bf6d8bcee7177e3a7c37dc6c6e",
+    "core/handle/sendAudioHandle.py": "47b427bb1347fe50e688ae98d56cd1c19154fa9eea036d04b339a9ecb2ab628c",
+    "core/product_chat.py": "115ceb68c5868d07600c520be6cb61d7481539555cd915cefef010302beae5a5",
+    "core/providers/tts/base.py": "bf09270be4810da47220f42565b81e4ff0a8a22b8903bcd2b12c54eb0ceb06d6"
+  },
+  "check_sha256": {
+    "check-product-knowledge.py": "4a8f5333d7797736716dc15e2a6cf657b2021edbada27dda40f127c63eb72306",
+    "run-units.py": "b76d7d716cf4b52bb383ad429c90aefb31941d6a209f61d0a20fe8075d3a829e",
+    "test_product_audio.py": "33070a608b53340b29ba32157deb9de8575b8cd231dd5d89d0935064a3b3c6a1",
+    "test_product_knowledge.py": "0da293ed9b7ccd2976a17ed428965b45dde310955fe74346397f7ac70c73e821",
+    "test_product_maintenance.py": "90b0c82762d2438eb6be2dac0948351f3443be562ea0a643d08a7c46a76a0720",
+    "test_product_model.py": "ff4ef457726736bb43692667ab6cf866925100737d819d105782d5c2e1bba01b",
+    "test_product_rtasr.py": "e553d8984569bcae06da2c626f666294eb65089464bb08e61262599d73da963b",
+    "test_product_tts_logging.py": "ebc03937cc8885263e173a87ddd94fbbda3a623fbad8a7aaf6d9793fa003f540"
+  }
+}
