@@ -1,0 +1,251 @@
+{
+  "metadata": {
+    "baseline": "sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff",
+    "candidate": "sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686",
+    "sample_sha256": "c0c9da21bca9d508755c728c789d169afa3ee1596d43006fd85fb8dc5952bdc8",
+    "source": "fixed synthetic counting text, no account or device",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "rate": "+0%",
+    "volume": "+50%",
+    "pitch": "+0Hz",
+    "network": "same network namespace as voice",
+    "continuity_metric": "simulated zero-prebuffer 60ms-per-Opus-frame playback from callback arrival; not physical playback",
+    "percentile": "nearest rank",
+    "rounds": 5
+  },
+  "samples": [
+    {
+      "characters": 20,
+      "first_opus_ms": 1271.41,
+      "synthesis_total_ms": 3623.55,
+      "max_simulated_underrun_ms": 959.94,
+      "opus_frames": 106,
+      "opus_bytes": 15362,
+      "decoded_pcm_bytes": 305280,
+      "network_requests": 2,
+      "segment_lengths": [
+        1,
+        17
+      ],
+      "error": null,
+      "version": "baseline",
+      "round": 1,
+      "order": 1
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1854.82,
+      "synthesis_total_ms": 2431.56,
+      "max_simulated_underrun_ms": 0.0,
+      "opus_frames": 97,
+      "opus_bytes": 14646,
+      "decoded_pcm_bytes": 279360,
+      "network_requests": 1,
+      "segment_lengths": [
+        19
+      ],
+      "error": null,
+      "version": "candidate",
+      "round": 1,
+      "order": 2
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1298.85,
+      "synthesis_total_ms": 1679.43,
+      "max_simulated_underrun_ms": 0.0,
+      "opus_frames": 97,
+      "opus_bytes": 14646,
+      "decoded_pcm_bytes": 279360,
+      "network_requests": 1,
+      "segment_lengths": [
+        19
+      ],
+      "error": null,
+      "version": "candidate",
+      "round": 2,
+      "order": 1
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1136.57,
+      "synthesis_total_ms": 2964.37,
+      "max_simulated_underrun_ms": 314.94,
+      "opus_frames": 106,
+      "opus_bytes": 15362,
+      "decoded_pcm_bytes": 305280,
+      "network_requests": 2,
+      "segment_lengths": [
+        1,
+        17
+      ],
+      "error": null,
+      "version": "baseline",
+      "round": 2,
+      "order": 2
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1245.99,
+      "synthesis_total_ms": 3135.54,
+      "max_simulated_underrun_ms": 395.28,
+      "opus_frames": 106,
+      "opus_bytes": 15362,
+      "decoded_pcm_bytes": 305280,
+      "network_requests": 2,
+      "segment_lengths": [
+        1,
+        17
+      ],
+      "error": null,
+      "version": "baseline",
+      "round": 3,
+      "order": 1
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1805.02,
+      "synthesis_total_ms": 2228.04,
+      "max_simulated_underrun_ms": 0.0,
+      "opus_frames": 97,
+      "opus_bytes": 14646,
+      "decoded_pcm_bytes": 279360,
+      "network_requests": 1,
+      "segment_lengths": [
+        19
+      ],
+      "error": null,
+      "version": "candidate",
+      "round": 3,
+      "order": 2
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1196.32,
+      "synthesis_total_ms": 1651.05,
+      "max_simulated_underrun_ms": 0.0,
+      "opus_frames": 97,
+      "opus_bytes": 14646,
+      "decoded_pcm_bytes": 279360,
+      "network_requests": 1,
+      "segment_lengths": [
+        19
+      ],
+      "error": null,
+      "version": "candidate",
+      "round": 4,
+      "order": 1
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1398.83,
+      "synthesis_total_ms": 4203.08,
+      "max_simulated_underrun_ms": 1280.69,
+      "opus_frames": 106,
+      "opus_bytes": 15362,
+      "decoded_pcm_bytes": 305280,
+      "network_requests": 2,
+      "segment_lengths": [
+        1,
+        17
+      ],
+      "error": null,
+      "version": "baseline",
+      "round": 4,
+      "order": 2
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1697.38,
+      "synthesis_total_ms": 3579.54,
+      "max_simulated_underrun_ms": 355.31,
+      "opus_frames": 106,
+      "opus_bytes": 15362,
+      "decoded_pcm_bytes": 305280,
+      "network_requests": 2,
+      "segment_lengths": [
+        1,
+        17
+      ],
+      "error": null,
+      "version": "baseline",
+      "round": 5,
+      "order": 1
+    },
+    {
+      "characters": 20,
+      "first_opus_ms": 1261.26,
+      "synthesis_total_ms": 11559.47,
+      "max_simulated_underrun_ms": 4707.81,
+      "opus_frames": 97,
+      "opus_bytes": 14646,
+      "decoded_pcm_bytes": 279360,
+      "network_requests": 1,
+      "segment_lengths": [
+        19
+      ],
+      "error": null,
+      "version": "candidate",
+      "round": 5,
+      "order": 2
+    }
+  ],
+  "summaries": [
+    {
+      "version": "baseline",
+      "attempts": 5,
+      "successes": 5,
+      "network_requests": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "errors": {},
+      "first_opus_ms": {
+        "p50": 1271.41,
+        "p95": 1697.38
+      },
+      "max_simulated_underrun_ms": {
+        "p50": 395.28,
+        "p95": 1280.69
+      },
+      "synthesis_total_ms": {
+        "p50": 3579.54,
+        "p95": 4203.08
+      }
+    },
+    {
+      "version": "candidate",
+      "attempts": 5,
+      "successes": 5,
+      "network_requests": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "errors": {},
+      "first_opus_ms": {
+        "p50": 1298.85,
+        "p95": 1854.82
+      },
+      "max_simulated_underrun_ms": {
+        "p50": 0.0,
+        "p95": 4707.81
+      },
+      "synthesis_total_ms": {
+        "p50": 2228.04,
+        "p95": 11559.47
+      }
+    }
+  ],
+  "limitations": [
+    "only 5 samples per version; nearest-rank p95 equals the maximum",
+    "simulated zero-prebuffer frame consumption is not physical speaker playback",
+    "a single request can still underrun if Edge delivery stalls",
+    "no real account, model, device session, or client content was used"
+  ]
+}
