@@ -35,13 +35,16 @@ class _ManagerClosed(Exception):
 class ServerMCPManager:
     """管理多个服务端MCP服务的集中管理器"""
 
-    def __init__(self, conn) -> None:
+    def __init__(self, conn, *, servers=None) -> None:
         """初始化MCP管理器"""
         self.conn = conn
-        self.config_path = get_project_dir() + "data/.mcp_server_settings.json"
-        if not os.path.exists(self.config_path):
-            self.config_path = ""
-            logger.bind(tag=TAG).debug("MCP服务配置文件不存在")
+        self._servers = servers
+        self.config_path = ""
+        if servers is None:
+            self.config_path = get_project_dir() + "data/.mcp_server_settings.json"
+            if not os.path.exists(self.config_path):
+                self.config_path = ""
+                logger.bind(tag=TAG).debug("MCP服务配置文件不存在")
         self.clients: Dict[str, ServerMCPClient] = {}
         self.tools = []
         self._init_lock = asyncio.Lock()
@@ -50,6 +53,8 @@ class ServerMCPManager:
 
     def load_config(self) -> Dict[str, Any]:
         """加载MCP服务配置"""
+        if self._servers is not None:
+            return self._servers
         if len(self.config_path) == 0:
             return {}
 
@@ -166,7 +171,7 @@ class ServerMCPManager:
             await asyncio.gather(*tasks)
 
         # 输出当前支持的服务端MCP工具列表
-        if hasattr(self.conn, "func_handler") and self.conn.func_handler:
+        if self._servers is None and hasattr(self.conn, "func_handler") and self.conn.func_handler:
             # 刷新工具缓存以确保服务端MCP工具被正确加载
             if hasattr(self.conn.func_handler, "tool_manager"):
                 self.conn.func_handler.tool_manager.refresh_tools()

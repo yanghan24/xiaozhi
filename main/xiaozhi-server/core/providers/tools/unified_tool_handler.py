@@ -14,6 +14,10 @@ from .device_iot import DeviceIoTExecutor
 from .device_mcp import DeviceMCPExecutor
 from .mcp_endpoint import MCPEndpointExecutor
 from core.handle.sendAudioHandle import send_display_message
+from core.product_knowledge import (
+    ProductKnowledgeScope, PRODUCT_KNOWLEDGE_PROMPT, KNOWLEDGE_UNAVAILABLE, KNOWLEDGE_FAILED,
+)
+from core.product_voice import VoiceDenied
 
 
 class UnifiedToolHandler:
@@ -23,6 +27,14 @@ class UnifiedToolHandler:
         self.conn = conn
         self.config = conn.config
         self.logger = setup_logging()
+
+        self.product_scope = (ProductKnowledgeScope(conn)
+                              if getattr(conn, "product_voice_gate", None) else None)
+        self.finish_init = False
+        self._closed = False
+        if self.product_scope is not None:
+            self.server_mcp_executor = ServerMCPExecutor(conn, servers=self.product_scope.servers())
+            return
 
         # 创建工具管理器
         self.tool_manager = ToolManager(conn)
@@ -56,6 +68,16 @@ class UnifiedToolHandler:
 
     async def _initialize(self):
         """异步初始化"""
+        if self.product_scope is not None:
+            try:
+                if not self._closed and self.product_scope.matches():
+                    await self.conn.product_voice_gate.check_async()
+                    if not self._closed and self.product_scope.matches():
+                        await self.server_mcp_executor.initialize()
+                        self.finish_init = not self._closed
+            except Exception:
+                self.logger.warning("产品知识库初始化不可用")
+            return
         try:
             # 自动导入插件模块
             auto_import_modules("plugins_func.functions")
@@ -117,29 +139,71 @@ class UnifiedToolHandler:
         except Exception as e:
             self.logger.error(f"初始化Home Assistant失败: {e}")
 
+    @property
+    def knowledge_status(self):
+        """Advisory readiness; exposure and execution still recheck live permission."""
+        if (self.product_scope is not None and self.finish_init and self.product_scope.matches()
+                and self.server_mcp_executor.has_tool("ask_knowledge")):
+            return "available"
+        return "unavailable"
+
+    @property
+    def knowledge_prompt(self):
+        return PRODUCT_KNOWLEDGE_PROMPT + (
+            "" if self.knowledge_status == "available" else KNOWLEDGE_UNAVAILABLE)
+
     def get_functions(self) -> List[Dict[str, Any]]:
         """获取所有工具的函数描述"""
+        if self.product_scope is not None:
+            if not self.finish_init or not self.product_scope.matches():
+                return []
+            try:
+                self.conn.product_voice_gate.check()
+            except VoiceDenied:
+                return []
+            if self.product_scope.matches() and self.server_mcp_executor.has_tool("ask_knowledge"):
+                return self.product_scope.functions()
+            return []
         return self.tool_manager.get_function_descriptions()
 
     def current_support_functions(self) -> List[str]:
         """获取当前支持的函数名称列表"""
+        if self.product_scope is not None:
+            return [item["function"]["name"] for item in self.get_functions()]
         func_names = self.tool_manager.get_supported_tool_names()
         self.logger.info(f"当前支持的函数列表: {func_names}")
         return func_names
 
     def upload_functions_desc(self):
         """刷新函数描述列表"""
+        if self.product_scope is not None:
+            return
         self.tool_manager.refresh_tools()
         self.logger.info("函数描述列表已刷新")
 
     def has_tool(self, tool_name: str) -> bool:
         """检查是否有指定工具"""
+        if self.product_scope is not None:
+            return tool_name == "ask_knowledge" and bool(self.get_functions())
         return self.tool_manager.has_tool(tool_name)
 
     async def handle_llm_function_call(
-        self, conn, function_call_data: Dict[str, Any]
+        self, conn, function_call_data: Dict[str, Any], *, turn_id=None
     ) -> Optional[ActionResponse]:
         """处理LLM函数调用"""
+        if self.product_scope is not None:
+            if conn is not self.conn or not await self._product_call_is_current(turn_id):
+                return ActionResponse(Action.NONE)
+            arguments = self.product_scope.arguments(function_call_data)
+            if arguments is None:
+                return ActionResponse(Action.ERROR, response=KNOWLEDGE_FAILED)
+            response = await self.server_mcp_executor.execute(
+                self.conn, "ask_knowledge", arguments)
+            if not await self._product_call_is_current(turn_id):
+                return ActionResponse(Action.NONE)
+            if response.action != Action.REQLLM:
+                return ActionResponse(Action.ERROR, response=KNOWLEDGE_FAILED)
+            return response
         try:
             # 处理多函数调用
             if "function_calls" in function_call_data:
@@ -182,6 +246,18 @@ class UnifiedToolHandler:
             self.logger.error(f"处理function call错误: {e}")
             return ActionResponse(action=Action.ERROR, response=str(e))
 
+    async def _product_call_is_current(self, turn_id):
+        def current():
+            return (turn_id is not None and self.finish_init and self.product_scope.matches()
+                    and self.conn.product_turn_is_current(turn_id))
+        if not current():
+            return False
+        try:
+            await self.conn.product_voice_gate.check_async()
+        except VoiceDenied:
+            return False
+        return current()
+
     def _combine_responses(self, responses: List[ActionResponse]) -> ActionResponse:
         """合并多个函数调用的响应"""
         if not responses:
@@ -217,16 +293,25 @@ class UnifiedToolHandler:
 
     async def register_iot_tools(self, descriptors: List[Dict[str, Any]]):
         """注册IoT设备工具"""
+        if self.product_scope is not None:
+            return
         self.device_iot_executor.register_iot_tools(descriptors)
         self.tool_manager.refresh_tools()
         self.logger.info(f"注册了{len(descriptors)}个IoT设备的工具")
 
     def get_tool_statistics(self) -> Dict[str, int]:
         """获取工具统计信息"""
+        if self.product_scope is not None:
+            return {"server_mcp": len(self.get_functions())}
         return self.tool_manager.get_tool_statistics()
 
     async def cleanup(self):
         """清理资源"""
+        if self.product_scope is not None:
+            self._closed = True
+            self.finish_init = False
+            await self.server_mcp_executor.cleanup()
+            return
         try:
             await self.server_mcp_executor.cleanup()
 
