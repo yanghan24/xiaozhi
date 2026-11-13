@@ -57,4 +57,36 @@ class DeviceMaintenanceRestartTest {
             } finally { client.cleanup(); }
         }
     }
+    @Test void restartReleasesAReservationWhoseCommandCouldNeverBeExposed() throws Exception {
+        String boot="1".repeat(32),id;
+        try(var first=start()) {
+            var client=client(first); client.setup(); client.admitManagement(boot);
+            var preview=client.managementPreview(); assertTrue(preview.path("eligible").asBoolean());
+            // This isolated test DB permits persistence fault injection. Fail the second
+            // transaction after reservation committed but before waiting_idle can be armed.
+            client.db.execute("CREATE TRIGGER maintenance_arm_failure BEFORE UPDATE ON dc_ota_operation FOR EACH ROW "
+                    +"BEGIN IF OLD.device_id='ota97-device' AND OLD.status='dispatch_reserved' AND NEW.status='waiting_idle' "
+                    +"THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='fixture arm interruption'; END IF; END");
+            try {
+                var response=client.post("operations",java.util.Map.of("preview_id",preview.path("preview_id").asText(),"request_key","4".repeat(32)));
+                assertEquals(503,response.statusCode(),response.body());
+                var operations=ProductOtaPushHttpTest.JSON.readTree(client.get("operations",ProductOtaPushHttpTest.TOKEN).body()).path("data");
+                assertEquals(1,operations.size());
+                id=operations.get(0).path("operation_id").asText();
+                assertEquals("dispatch_reserved",operations.get(0).path("status").asText());
+            } finally { client.db.execute("DROP TRIGGER maintenance_arm_failure"); }
+        }
+        try(var restarted=start()) {
+            var client=client(restarted);
+            try {
+                var operation=client.operationData(id);
+                assertEquals("not_sent",operation.path("status").asText());
+                assertEquals("interrupted_before_send",operation.path("reason").asText());
+                var contact=client.maintenance(ProductOtaPushHttpTest.maintenanceReport(boot,true,null));
+                assertEquals(200,contact.statusCode(),contact.body());
+                assertTrue(ProductOtaPushHttpTest.JSON.readTree(contact.body()).path("data").path("command").isNull());
+                assertTrue(client.managementPreview().path("eligible").asBoolean());
+            } finally { client.cleanup(); }
+        }
+    }
 }

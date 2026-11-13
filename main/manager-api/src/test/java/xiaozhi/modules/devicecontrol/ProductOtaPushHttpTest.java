@@ -761,4 +761,42 @@ class ProductOtaPushHttpTest {
   assertEquals("unobserved",operationData(old).path("observation_status").asText());
   assertEquals("operation_pending",managementPreview().path("reason").asText());
  }
+ @ParameterizedTest @ValueSource(booleans={false,true})
+ void durableFailedReceiptCanBeAcknowledgedAfterRebootWithoutHidingRunningEvidence(boolean running) throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  maintenance(maintenanceReport(boot,true,null));
+  maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted")));
+  if(running) elf="c".repeat(64);
+  var failed=maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"failed")));
+  assertEquals(200,failed.statusCode(),failed.body());
+  assertEquals("failed",JSON.readTree(failed.body()).path("data").path("operation_ack").path("status").asText());
+  assertEquals(running ? "target_running" : "unobserved",operationData(id).path("observation_status").asText());
+  if(!running) {
+   assertEquals("failed",operationData(id).path("status").asText());
+   assertTrue(managementPreview().path("eligible").asBoolean());
+   String next=managementOperation().path("operation_id").asText();
+   assertEquals(200,maintenance(maintenanceReport("2".repeat(32),false,receipt(id,boot,"failed"))).statusCode());
+   assertEquals("waiting_idle",operationData(next).path("status").asText());
+  } else assertEquals("already_running",managementPreview().path("reason").asText());
+ }
+ @ParameterizedTest @ValueSource(strings={"current","offline","bridge_unavailable"})
+ void inventoryShowsActualVoiceStateWithoutChangingManagementEligibility(String voiceState) throws Exception {
+  String boot="1".repeat(32); admitManagement(boot);
+  connected=!voiceState.equals("bridge_unavailable");
+  if(voiceState.equals("offline")) offlineDevices.add("ota97-device");
+  var device=batchItem(JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data"),"ota97-device");
+  assertEquals(voiceState,device.path("voice_status").asText(),device.toString());
+  assertTrue(device.path("online").asBoolean()); assertEquals("current",device.path("status").asText());
+  assertEquals("management",device.path("ota_transport").asText());
+  assertTrue(managementPreview().path("eligible").asBoolean());
+ }
+ @Test void hardwareReportMustRemainIdenticalEvenWhenBothVersionsWouldBeCompatible() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  var changed=JSON.valueToTree(maintenanceReport(boot,true,null));
+  ((com.fasterxml.jackson.databind.node.ObjectNode)changed.path("system_info")).put("flash_size",33554432);
+  var response=maintenance(changed); assertEquals(200,response.statusCode(),response.body());
+  assertTrue(JSON.readTree(response.body()).path("data").path("command").isNull());
+  assertEquals("not_sent",operationData(id).path("status").asText());
+  assertEquals("hardware_changed",operationData(id).path("reason").asText());
+ }
 }

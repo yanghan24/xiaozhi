@@ -31,7 +31,10 @@ public class ProductOtaBatches implements ApplicationRunner {
         // The deployed manager has one active process. Startup only classifies abandoned work; it never resumes it.
         db.update("UPDATE dc_ota_batch SET status='failed' WHERE status='preparing'");
         db.update("UPDATE dc_ota_batch SET status='interrupted' WHERE status='started'");
-        db.update("UPDATE dc_ota_operation SET status='result_unknown',reason='process_interrupted',updated_at_ms=? WHERE status='dispatch_reserved'",clock.millis());
+        db.update("UPDATE dc_ota_operation SET status='not_sent',reason='interrupted_before_send',active_device=NULL,updated_at_ms=? "
+                +"WHERE status='dispatch_reserved' AND ota_transport='management'",clock.millis());
+        db.update("UPDATE dc_ota_operation SET status='result_unknown',reason='process_interrupted',updated_at_ms=? "
+                +"WHERE status='dispatch_reserved' AND ota_transport='voice'",clock.millis());
     }
     public Map<String,Object> preview(long operator,String mode,List<String> devices,String firmware) {
         validateId(firmware);

@@ -31,7 +31,17 @@ public class DeviceMaintenance {
 
     Map<String,Object> snapshot(Map<String,Object> contact) {
         return new LinkedHashMap<>(Map.of("ota_transport","management","boot_id",contact.get("boot_id"),
-                "credential_hash",contact.get("credential_hash")));
+                "credential_hash",contact.get("credential_hash"),"hardware_fingerprint",fingerprint(info(contact))));
+    }
+
+    private String fingerprint(JsonNode system) {
+        var hardware=json.createObjectNode();
+        for(String field:List.of("flash_size","chip_info","board")) hardware.set(field,system.path(field));
+        var partitions=new ArrayList<JsonNode>(); system.path("partition_table").forEach(partitions::add);
+        partitions.sort(Comparator.comparing(item -> item.path("label").asText()));
+        hardware.set("partition_table",json.valueToTree(partitions));
+        hardware.put("active_slot",system.path("ota").path("label").asText());
+        return ProductOtaCatalog.digest(hardware.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     void arm(String operation) {
@@ -155,7 +165,14 @@ public class DeviceMaintenance {
                     +"device_status='installed',updated_at_ms=? WHERE operation_id=?",clock.millis(),clock.millis(),id);
         } else {
             if("interrupted".equals(status) && !newBoot) throw new ControlFailure(409,"OPERATION_CHANGED");
-            if("failed".equals(status) && newBoot) throw new ControlFailure(409,"OPERATION_CHANGED");
+            if("failed".equals(status) && newBoot && "valid".equals(report.path("ota").path("state").asText())
+                    && row.get("target_elf_sha256").equals(report.path("application").path("elf_sha256").asText())) {
+                // A durable failure receipt may outlive a reboot. Keep independently verified
+                // running-target evidence even when the local receipt still says failed.
+                db.update("UPDATE dc_ota_operation SET observation_status='target_running',observed_at_ms=?,active_device=NULL,"
+                        +"device_status='failed',updated_at_ms=? WHERE operation_id=?",clock.millis(),clock.millis(),id);
+                return ack(id,status,expires);
+            }
             db.update("UPDATE dc_ota_operation SET status=?,reason=?,device_status=?,active_device=?,updated_at_ms=? WHERE operation_id=?",
                     "failed".equals(status) ? "failed" : "result_requires_verification",
                     "failed".equals(status) ? "device_upgrade_failed" : "device_restart_interrupted",status,
@@ -174,6 +191,7 @@ public class DeviceMaintenance {
         if(!snapshot.path("boot_id").asText().equals(contact.get("boot_id"))
                 || !snapshot.path("credential_hash").asText().equals(contact.get("credential_hash"))) return "session_changed";
         var system=info(contact);
+        if(!snapshot.path("hardware_fingerprint").asText().equals(fingerprint(system))) return "hardware_changed";
         if(!snapshot.path("current_elf_sha256").asText().equals(system.path("application").path("elf_sha256").asText())) return "session_changed";
         if(!"valid".equals(system.path("ota").path("state").asText())) return "ota_not_valid";
         try {
@@ -205,6 +223,8 @@ public class DeviceMaintenance {
         var chip=system.putObject("chip_info");
         chip.set("model",integer(supplied.path("chip_info").path("model")));
         chip.set("revision",integer(supplied.path("chip_info").path("revision")));
+        for(String field:List.of("cores","features")) if(supplied.path("chip_info").has(field))
+            chip.set(field,integer(supplied.path("chip_info").path(field)));
         var app=system.putObject("application");
         app.put("version",text(supplied.path("application").path("version"),32));
         String elf=text(supplied.path("application").path("elf_sha256"),64);

@@ -207,6 +207,10 @@ public class ProductOtaPush {
         if(page<1 || page>100000 || limit<1 || limit>100) throw new ControlFailure(400,"INVALID_PAGE");
         var rows=db.queryForList("SELECT device_id FROM dc_device ORDER BY device_id LIMIT ? OFFSET ?",limit,(page-1)*limit);
         var statuses=statuses(rows.stream().map(row->(String)row.get("device_id")).toList());
+        var managementDevices=rows.stream().map(row->(String)row.get("device_id"))
+                .filter(device->presence.capable(presence.read(device))).toList();
+        // Voice is display-only for a management device; failure cannot change its OTA eligibility.
+        var managementVoice=voiceStatuses(managementDevices);
         for(var row:rows) {
             String status=statuses.get((String)row.get("device_id"));
             row.put("display_name",row.get("device_id")); row.put("status",status);
@@ -215,7 +219,8 @@ public class ProductOtaPush {
             row.put("online",presence.online(contact) || "current".equals(status));
             row.put("last_seen_at_ms",contact.get("last_seen_at_ms"));
             row.put("ota_transport",presence.capable(contact) ? "management" : "current".equals(status) ? "voice" : null);
-            row.put("voice_status",presence.capable(contact) ? "not_checked" : status.equals("online_requires_wake") ? "offline" : status);
+            row.put("voice_status",managementVoice.containsKey(row.get("device_id")) ? managementVoice.get(row.get("device_id"))
+                    : status.equals("online_requires_wake") ? "offline" : status);
         }
         return Map.of("items",rows,"total",db.queryForObject("SELECT COUNT(*) FROM dc_device",Long.class),"page",page,"limit",limit);
     }
@@ -228,23 +233,31 @@ public class ProductOtaPush {
             if(presence.capable(contact)) result.put(device,"current");
             else legacy.add(device);
         }
-        if(legacy.isEmpty()) return result;
-        String first=voiceStatus(legacy.getFirst());
-        // Bridge availability is independent of management presence. One failed probe must
-        // not fan out N timeouts merely because the first device still has a heartbeat.
+        var raw=voiceStatuses(legacy);
+        for(String device:legacy) result.put(device,displayStatus(raw.get(device),contacts.get(device)));
+        return result;
+    }
+    private Map<String,String> voiceStatuses(List<String> devices) {
+        var result=new LinkedHashMap<String,String>();
+        if(devices.isEmpty()) return result;
+        String first=voiceStatus(devices.getFirst());
         if(first.equals("bridge_unavailable")) {
-            for(String device:legacy) result.put(device,first);
+            for(String device:devices) result.put(device,first);
             return result;
         }
-        result.put(legacy.getFirst(),displayStatus(first,contacts.get(legacy.getFirst())));
-        var pending=new LinkedHashMap<String,CompletableFuture<String>>();
-        for(String device:legacy.subList(1,legacy.size()))
-            pending.put(device,CompletableFuture.supplyAsync(()->voiceStatus(device),statusWorkers));
-        for(var entry:pending.entrySet()) {
-            try { result.put(entry.getKey(),displayStatus(entry.getValue().get(),contacts.get(entry.getKey()))); }
-            catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new ControlFailure(503,"BRIDGE_UNAVAILABLE"); }
-            catch(ExecutionException unavailable) { result.put(entry.getKey(),"bridge_unavailable"); }
-        }
+        result.put(devices.getFirst(),first);
+        var pending=new LinkedHashMap<String,Future<String>>();
+        for(String device:devices.subList(1,devices.size()))
+            pending.put(device,statusWorkers.submit(()->voiceStatus(device)));
+        long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
+        try {
+            for(var entry:pending.entrySet()) {
+                try { result.put(entry.getKey(),entry.getValue().get(Math.max(1,deadline-System.nanoTime()),TimeUnit.NANOSECONDS)); }
+                catch(TimeoutException | ExecutionException unavailable) { result.put(entry.getKey(),"bridge_unavailable"); }
+            }
+        } catch(InterruptedException interrupted) {
+            Thread.currentThread().interrupt(); throw new ControlFailure(503,"BRIDGE_UNAVAILABLE");
+        } finally { for(var task:pending.values()) if(!task.isDone()) task.cancel(true); }
         return result;
     }
     private String displayStatus(String voice,Map<String,Object> contact) {
