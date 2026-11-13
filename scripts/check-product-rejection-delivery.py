@@ -40,8 +40,11 @@ class Market(BaseHTTPRequestHandler):
         global calls
         calls += 1
         self.rfile.read(int(self.headers['Content-Length']))
-        self.reply(200, {'output': {'task_id': 'test'}}) if scenario == 'poll' else self.reply(401, {})
-    def do_GET(self): self.reply(401, {})
+        self.reply(401, {})
+    def do_GET(self):
+        global calls
+        calls += 1
+        self.reply(401, {})
 
 class Proxy(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
@@ -125,7 +128,7 @@ async def main():
     try: VoiceAuthority(BASE, SERVICE)
     except RejectionStoreUnavailable: pass
     else: raise AssertionError('Authority URL change silently created empty rejection state')
-    for index, scenario in enumerate(('submit','poll','model')):
+    for index, scenario in enumerate(('handshake','second-handshake','model')):
         recover = False
         device = fixtures[index]
         gate = await authority.open(headers(device), '/xiaozhi/v1/')
