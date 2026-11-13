@@ -84,6 +84,9 @@ list(APPEND SOURCES
 if(CONFIG_XIAOZHI_USE_ETHERNET)
     list(APPEND SOURCES "boards/common/ethernet_board.cc")
 endif()
+if(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 AND CONFIG_XIAOZHI_DEVICE_CONTROL)
+    list(APPEND SOURCES "display/fonts/font_puhui_binding_30_4.c")
+endif()
 list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/boards/common)
 
 
