@@ -49,6 +49,14 @@ foreach(outcome success signed-out reauth auth-pending)
 endforeach()
 
 find_package(Threads REQUIRED)
+add_executable(audio_activity_gate_tests
+  "${CMAKE_CURRENT_LIST_DIR}/../audio_access/audio_activity_gate_test.cc")
+target_include_directories(audio_activity_gate_tests PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/../../main/audio")
+target_link_libraries(audio_activity_gate_tests PRIVATE Threads::Threads)
+target_compile_options(audio_activity_gate_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME audio_activity_gate_tests COMMAND audio_activity_gate_tests)
+
 add_executable(controlled_audio_access_tests
   "${CMAKE_CURRENT_LIST_DIR}/../audio_access/controlled_audio_access_test.cc")
 target_include_directories(controlled_audio_access_tests PRIVATE

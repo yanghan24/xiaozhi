@@ -22,6 +22,7 @@
 #include "esp_ae_rate_cvt.h"
 #include "esp_audio_types.h"
 
+#include "audio_activity_gate.h"
 #include "audio_codec.h"
 #include "audio_processor.h"
 #include "controlled_audio_access.h"
@@ -148,6 +149,10 @@ public:
     const std::string& GetLastWakeWord() const;
     bool IsVoiceDetected() const { return voice_detected_; }
     bool IsIdle();
+    AudioActivityGate::Lease TryBeginActivity() { return activity_gate_.TryBegin(); }
+    bool ReserveMaintenance();
+    void ReleaseMaintenance() { activity_gate_.Release(); }
+    bool MaintenanceIdle();
     void WaitForPlaybackQueueEmpty();
     bool IsWakeWordRunning() const { return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING; }
     bool IsAudioProcessorRunning() const { return xEventGroupGetBits(event_group_) & AS_EVENT_AUDIO_PROCESSOR_RUNNING; }
@@ -188,6 +193,7 @@ public:
 
 private:
     AudioCodec* codec_ = nullptr;
+    AudioActivityGate activity_gate_;
     ControlledAudioAccess controlled_access_;
     std::mutex audio_output_mutex_;
     std::atomic<uint64_t> voice_processing_generation_{0};

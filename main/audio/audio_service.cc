@@ -349,6 +349,14 @@ void AudioService::AudioOutputTask() {
             break;
         }
 
+        // Acquire before removing the last queued block: an empty queue must
+        // never hide PCM that is still about to reach the speaker driver.
+        auto activity = TryBeginActivity();
+        if (!activity) {
+            lock.unlock();
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
         auto task = std::move(audio_playback_queue_.front());
         audio_playback_queue_.pop_front();
         audio_queue_cv_.notify_all();
@@ -412,6 +420,12 @@ void AudioService::OpusCodecTask() {
         }
 
         /* Decode the audio from decode queue */
+        auto activity = TryBeginActivity();
+        if (!activity) {
+            lock.unlock();
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
         if (!audio_decode_queue_.empty() && audio_playback_queue_.size() < MAX_PLAYBACK_TASKS_IN_QUEUE) {
             auto packet = std::move(audio_decode_queue_.front());
             audio_decode_queue_.pop_front();
@@ -597,6 +611,9 @@ bool AudioService::IsProcessingAllowed(uint64_t generation) const {
 
 void AudioService::PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm,
                                          uint64_t generation) {
+    auto activity = TryBeginActivity();
+    if (!activity)
+        return;
     auto task = std::make_unique<AudioTask>();
     task->type = type;
     task->requires_voice_permission = type == kAudioTaskTypeEncodeToSendQueue;
@@ -631,6 +648,9 @@ void AudioService::PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t
 }
 
 bool AudioService::PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> packet, bool wait) {
+    auto activity = TryBeginActivity();
+    if (!activity)
+        return false;
     if (packet->requires_voice_permission && !IsControlledAllowed(packet->generation)) {
         return false;
     }
@@ -658,6 +678,9 @@ bool AudioService::PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> pa
 
 bool AudioService::PushPcmToPlaybackQueue(AudioFocusOwner owner, std::vector<int16_t>&& pcm,
                                           uint64_t generation, bool wait) {
+    auto activity = TryBeginActivity();
+    if (!activity)
+        return false;
     const bool controlled = owner != kAudioFocusOwnerPromptSound;
     if (pcm.empty() || (controlled && !IsControlledAllowed(generation)) ||
         !HasAudioFocus(owner, kAudioFocusResourceOutput)) {
@@ -743,6 +766,9 @@ std::unique_ptr<AudioStreamPacket> AudioService::PopWakeWordPacket() {
 }
 
 void AudioService::EnableWakeWordDetection(bool enable) {
+    auto activity = TryBeginActivity();
+    if (enable && !activity)
+        enable = false;
     if (!wake_word_) {
         return;
     }
@@ -778,6 +804,9 @@ void AudioService::EnableWakeWordDetection(bool enable) {
 }
 
 void AudioService::EnableVoiceProcessing(bool enable) {
+    auto activity = TryBeginActivity();
+    if (enable && !activity)
+        return;
     ESP_LOGD(TAG, "%s voice processing", enable ? "Enabling" : "Disabling");
     if (enable && DeviceControl::GetInstance().Enabled() &&
         !DeviceControl::GetInstance().IsVoiceAllowed()) {
@@ -816,6 +845,9 @@ void AudioService::EnableVoiceProcessing(bool enable) {
 }
 
 void AudioService::EnableAudioTesting(bool enable) {
+    auto activity = TryBeginActivity();
+    if (enable && !activity)
+        return;
     ESP_LOGI(TAG, "%s audio testing", enable ? "Enabling" : "Disabling");
     if (enable) {
         xEventGroupSetBits(event_group_, AS_EVENT_AUDIO_TESTING_RUNNING);
@@ -844,6 +876,9 @@ void AudioService::SetCallbacks(AudioServiceCallbacks& callbacks) {
 
 bool AudioService::RequestAudioFocus(AudioFocusOwner owner, uint8_t resources,
         AudioFocusLostCallback on_focus_lost) {
+    auto activity = TryBeginActivity();
+    if (!activity)
+        return false;
     if (owner <= kAudioFocusOwnerNone || owner >= kAudioFocusOwnerCount ||
             resources == kAudioFocusResourceNone) {
         return false;
@@ -973,6 +1008,9 @@ void AudioService::ClearInputPcmObserver(AudioFocusOwner owner) {
 }
 
 void AudioService::PlaySound(const std::string_view& ogg, bool requires_voice_permission) {
+    auto activity = TryBeginActivity();
+    if (!activity)
+        return;
     // Only the output task enables/writes the driver, serialized with revocation.
     const auto generation = DeviceControl::GetInstance().GetGeneration();
     if (requires_voice_permission && !IsControlledAllowed(generation)) {
@@ -1001,6 +1039,21 @@ void AudioService::PlaySound(const std::string_view& ogg, bool requires_voice_pe
 bool AudioService::IsIdle() {
     std::lock_guard<std::mutex> lock(audio_queue_mutex_);
     return audio_encode_queue_.empty() && audio_decode_queue_.empty() && audio_playback_queue_.empty() && audio_testing_queue_.empty();
+}
+
+bool AudioService::MaintenanceIdle() {
+    return activity_gate_.Quiescent() && IsIdle() &&
+           !(xEventGroupGetBits(event_group_) &
+             (AS_EVENT_AUDIO_PROCESSOR_RUNNING | AS_EVENT_AUDIO_TESTING_RUNNING));
+}
+
+bool AudioService::ReserveMaintenance() {
+    if (!activity_gate_.TryReserve())
+        return false;
+    if (MaintenanceIdle())
+        return true;
+    activity_gate_.Release();
+    return false;
 }
 
 void AudioService::WaitForPlaybackQueueEmpty() {

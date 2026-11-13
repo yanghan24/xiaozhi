@@ -268,6 +268,9 @@ esp_err_t MusicPlayer::Play(int index) {
 }
 
 esp_err_t MusicPlayer::PlayForGeneration(int index, uint64_t permission_generation) {
+    auto start = Application::GetInstance().GetAudioService().TryBeginActivity();
+    if (!start)
+        return ESP_ERR_INVALID_STATE;
     if (!IsMusicPermissionCurrent(permission_generation)) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -342,6 +345,9 @@ esp_err_t MusicPlayer::Resume() {
 }
 
 esp_err_t MusicPlayer::ResumeForGeneration(uint64_t permission_generation) {
+    auto start = Application::GetInstance().GetAudioService().TryBeginActivity();
+    if (!start)
+        return ESP_ERR_INVALID_STATE;
     if (!IsMusicPermissionCurrent(permission_generation)) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -406,6 +412,9 @@ esp_err_t MusicPlayer::Stop() {
 }
 
 esp_err_t MusicPlayer::Next() {
+    auto start = Application::GetInstance().GetAudioService().TryBeginActivity();
+    if (!start)
+        return ESP_ERR_INVALID_STATE;
     const auto permission_generation = DeviceControl::GetInstance().GetGeneration();
     if (!IsMusicPermissionCurrent(permission_generation)) {
         return ESP_ERR_INVALID_STATE;
@@ -452,6 +461,9 @@ esp_err_t MusicPlayer::Next() {
 }
 
 esp_err_t MusicPlayer::Previous() {
+    auto start = Application::GetInstance().GetAudioService().TryBeginActivity();
+    if (!start)
+        return ESP_ERR_INVALID_STATE;
     const auto permission_generation = DeviceControl::GetInstance().GetGeneration();
     if (!IsMusicPermissionCurrent(permission_generation)) {
         return ESP_ERR_INVALID_STATE;

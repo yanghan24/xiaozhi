@@ -48,6 +48,9 @@ AudioRecorder& AudioRecorder::GetInstance() {
 }
 
 esp_err_t AudioRecorder::Start() {
+    auto start = Application::GetInstance().GetAudioService().TryBeginActivity();
+    if (!start)
+        return ESP_ERR_INVALID_STATE;
     auto& control = DeviceControl::GetInstance();
     const auto permission_generation = control.GetGeneration();
     if (!control.IsCurrentGeneration(permission_generation)) {
@@ -160,6 +163,9 @@ esp_err_t AudioRecorder::Pause() {
 }
 
 esp_err_t AudioRecorder::Resume() {
+    auto start = Application::GetInstance().GetAudioService().TryBeginActivity();
+    if (!start)
+        return ESP_ERR_INVALID_STATE;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!DeviceControl::GetInstance().IsCurrentGeneration(permission_generation_)) {

@@ -114,6 +114,48 @@ void UnsafeOffersNeverExecute() {
             Check(releases == 1, "failed or interrupted acceptance must release the idle gate");
     }
 }
+void FailureSurvivesRestartUntilAcknowledged() {
+    std::string persisted;
+    int writes = 0;
+    auto save = [&](const std::string& value) {
+        persisted = value;
+        return true;
+    };
+    auto execute = [&](const device_control::MaintenanceCommand&) { ++writes; };
+    {
+        device_control::Maintenance before(
+            Boot, Origin, "", std::string(64, 'e'), true, save, [] { return true; }, [] {},
+            execute);
+        before.Request(true, "{}", 1000);
+        before.Apply(Offer(), 1100, 100);
+        before.Apply(Ack("accepted"), 1200, 100);
+        before.Failed();
+        Check(before.Request(true, "{}", 1300).find("\"status\":\"failed\"") != std::string::npos,
+              "failed flash attempt must be reportable before restart");
+    }
+    const auto failed = persisted;
+    const std::string new_boot(32, 'f');
+    device_control::Maintenance after(
+        new_boot, Origin, failed, std::string(64, 'e'), true, save, [] { return true; }, [] {},
+        execute);
+    auto report = after.Request(true, "{}", 1000);
+    Check(report.find("\"boot_id\":\"" + new_boot) != std::string::npos &&
+              report.find("\"origin_boot_id\":\"" + Boot) != std::string::npos &&
+              report.find("\"status\":\"failed\"") != std::string::npos,
+          "unacknowledged failure must retain its origin and status across a new boot");
+    after.Apply(Ack("accepted"), 1100, 100);
+    Check(writes == 1 &&
+              after.Request(true, "{}", 1200).find("\"status\":\"failed\"") != std::string::npos,
+          "old acceptance must neither reflash nor retire a durable failure");
+    after.Apply(Ack("failed"), 1300, 100);
+    Check(after.Request(true, "{}", 1400).find("\"operation\":null") != std::string::npos,
+          "matching failure acknowledgement clears the pending report after restart");
+    device_control::Maintenance again(
+        std::string(32, '0'), Origin, persisted, std::string(64, 'e'), true, save,
+        [] { return true; }, [] {}, execute);
+    Check(again.Request(true, "{}", 1000).find("\"operation\":null") != std::string::npos,
+          "acknowledged terminal report stays retired on a subsequent boot");
+}
 }  // namespace
 int main(int argc, char** argv) {
     if (argc == 4 && std::string(argv[1]) == "--accept-response") {
@@ -144,6 +186,7 @@ int main(int argc, char** argv) {
         ConfirmBeforeFlash();
         RecoveryDoesNotReflash();
         UnsafeOffersNeverExecute();
+        FailureSurvivesRestartUntilAcknowledged();
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';
         return 1;

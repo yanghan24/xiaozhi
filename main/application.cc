@@ -1305,7 +1305,7 @@ bool Application::MaintenanceIdle() {
     return !upgrade_active_ &&
            ((maintenance_reserved_ && state == kDeviceStateUpgrading) ||
             state == kDeviceStateIdle) &&
-           audio_service_.IsIdle() &&
+           audio_service_.MaintenanceIdle() &&
            MusicPlayer::GetInstance().GetStatus().state != MusicPlayerState::kPlaying &&
            AudioRecorder::GetInstance().GetStatus().state != AudioRecorderState::kRecording;
 }
@@ -1314,16 +1314,22 @@ bool Application::ReserveMaintenance() {
     std::lock_guard<std::mutex> gate(maintenance_gate_);
     auto state = GetDeviceState();
     if (maintenance_reserved_ || upgrade_active_ || state != kDeviceStateIdle ||
-        !audio_service_.IsIdle() ||
-        MusicPlayer::GetInstance().GetStatus().state == MusicPlayerState::kPlaying ||
-        AudioRecorder::GetInstance().GetStatus().state == AudioRecorderState::kRecording)
+        !audio_service_.ReserveMaintenance())
         return false;
+    // Admission is now frozen. A recorder/music start either published its
+    // active state before this reservation, or is rejected by the same gate.
+    if (MusicPlayer::GetInstance().GetStatus().state == MusicPlayerState::kPlaying ||
+        AudioRecorder::GetInstance().GetStatus().state == AudioRecorderState::kRecording) {
+        audio_service_.ReleaseMaintenance();
+        return false;
+    }
     maintenance_previous_state_ = state;
     maintenance_reserved_ = true;
     DeviceControl::GetInstance().SetMaintenanceActive(true);
     if (!state_machine_.TransitionTo(kDeviceStateUpgrading)) {
         maintenance_reserved_ = false;
         DeviceControl::GetInstance().SetMaintenanceActive(false);
+        audio_service_.ReleaseMaintenance();
         return false;
     }
     return true;
@@ -1335,6 +1341,7 @@ void Application::ReleaseMaintenance() {
         return;
     maintenance_reserved_ = false;
     DeviceControl::GetInstance().SetMaintenanceActive(false);
+    audio_service_.ReleaseMaintenance();
     state_machine_.TransitionTo(maintenance_previous_state_);
 }
 
@@ -1344,7 +1351,10 @@ bool Application::UpgradeMaintenance(const device_control::MaintenanceCommand& c
     {
         std::lock_guard<std::mutex> gate(maintenance_gate_);
         if (!maintenance_reserved_ || GetDeviceState() != kDeviceStateUpgrading ||
-            !audio_service_.IsIdle() || !DeviceControl::GetInstance().IsNetworkConnected() ||
+            !audio_service_.MaintenanceIdle() ||
+            MusicPlayer::GetInstance().GetStatus().state == MusicPlayerState::kPlaying ||
+            AudioRecorder::GetInstance().GetStatus().state == AudioRecorderState::kRecording ||
+            !DeviceControl::GetInstance().IsNetworkConnected() ||
             esp_timer_get_time() / 1000 >= command.deadline_ms)
             return false;
     }
