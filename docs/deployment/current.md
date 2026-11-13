@@ -1,6 +1,6 @@
 # 当前部署与公网入口
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-12 13:20（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 10:24（Asia/Hong_Kong），API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按 [rtasr-llm 切换记录](../verification/2026-11-13-rtasr-llm.md)更换集市语音转写模型，保留 PR #79 维护修复、原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 ## 手机与音箱访问
 
@@ -28,7 +28,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:pr79-f830a8c`，PR #79 合并提交 `7864e25` 与受测 head `f830a8c` 文件树一致；在原维护镜像基础上同时更新 `product_maintenance.py` 与 `product_voice.py`，2026-11-12 12:58 单独重建，原配置和系统提示词保留 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:rtasr-3739aad`，2026-11-13 10:24 从原 PR #79 镜像派生，仅替换 ASR 模块为集市 `rtasr-llm`；受测任务分支产物，原配置、提示词和维护能力保留 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
@@ -65,6 +65,8 @@ PR #67 本轮先在 Ubuntu 完成原候选 357 项及组合版本 362 项完整 
 2026-11-12 12:58 已部署 [PR #79 修复](../verification/2026-11-12-pr79-deployment.md)：维护通道的异常／取消结果分类及最终会话检查在 [15 项 Ubuntu 隔离回归](../verification/evidence/2026-11-12-p4-ota-server/maintenance-review-fixes.json)与[候选镜像内 15 项回归](../verification/evidence/2026-11-12-pr79-deployment/candidate-preparation.json)通过后，配套更新两个模块，仅重建语音。13:00 [只读核验](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-audit.json)确认受测镜像 ID 与实际一致，B 仍为 ready／许可19／归属7，设备状态、补发、硬件映射及原 OTA 预留不变；API、数据库、Redis 与 TLS 入口未重建。API 内部健康与本机正常 TLS 发现均为 200；当时维护 status 返回 `no_unique_session`。随后用户[确认 B 已唤醒、原账号及一次完整回答正常](../verification/evidence/2026-11-12-pr79-deployment/post-deployment-functional-confirmation.json)，13:08 [只读核对](../verification/evidence/2026-11-12-pr79-deployment/post-functional-server-state.json)确认 status=`current`、MCP 就绪、上述设备状态和原预留保持，服务没有再次重建。本轮没有重启 API／Ubuntu 主机，没有公网 18443 新探测或再次下发 OTA；#42／#13 的其他验收继续保持打开。
 
 13:20 的[新旧凭据独立复查](../verification/evidence/2026-11-12-api-restart-audit/current-credential-check.json)通过本机正常 TLS 设备状态入口确认旧凭据401／`INVALID_DEVICE_CREDENTIAL`、当前凭据200／`OK`，B仍为ready／许可19／归属7，记录快照保持。本次只读请求晚于当前 API 11:13启动，不是昨晚重启的即时检查；没有再次重启服务、补发或轮换凭据，也没有新的公网18443探测。
+
+2026-11-13 10:24 已完成 [rtasr-llm 切换与核验](../verification/2026-11-13-rtasr-llm.md)：候选镜像内 10 项接口测试、真实 Java 权限／失效上报及正式设备模拟语音链路通过；真实集市合成语音识别成功。仅重建语音，设备身份／归属／许可及原私有配置保持，其他现网容器未重建。本机网卡 443 的正常 TLS 发现 200、无授权 WSS 关闭码 1008；实机发问确认尚待用户执行。
 
 ## 本地资料缺失或过时
 

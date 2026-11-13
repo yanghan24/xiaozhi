@@ -1,0 +1,14 @@
+{
+  "result": "pass",
+  "utc": "2026-11-13T02:24:54.995388+00:00",
+  "image": "xiaozhi-product-voice:rtasr-3739aad",
+  "image_id": "sha256:2d4b2410383f23381a8b258b176feade93357aeb30fbfac1fa8b5020229b1010",
+  "asr_sha256": "5acf6a43975b50476a4590339a2df8eab849f5e8c280e344cf5983c74b903360",
+  "voice_started_utc": "2026-11-13T02:24:54.589944317Z",
+  "other_containers_unchanged": true,
+  "device_identity_ownership_permission_unchanged": true,
+  "private_configuration_unchanged": true,
+  "local_tls_ota_http": 200,
+  "backup_directory": "/home/jt/rtasr-llm-work/deployment-20261113T022452Z",
+  "physical_voice_test": false
+}
