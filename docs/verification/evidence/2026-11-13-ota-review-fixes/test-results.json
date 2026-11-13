@@ -1,0 +1,84 @@
+[
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/reports-1794547698",
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": [
+      "xiaozhi.modules.devicecontrol.ProductOtaPushHttpTest.slowPreparationLeavesAFullConfirmationWindow"
+    ]
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/reports-1794547777",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": []
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/reports-1794547868",
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": [
+      "xiaozhi.modules.devicecontrol.ProductOtaPushHttpTest.acceptedBatchDoesNotExpireWhileTargetsWaitForAWorker"
+    ]
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/reports-1794548045",
+    "tests": 387,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": [
+      "xiaozhi.modules.devicecontrol.ProductOtaPushHttpTest.acceptedBatchDoesNotExpireWhileTargetsWaitForAWorker"
+    ]
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/reports-1794548222",
+    "tests": 387,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": [
+      "xiaozhi.modules.customer.CustomerVoiceDisabledHttpTest.disablingVoiceInvalidatesPersistedReadyPermission"
+    ]
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/reports-1794548377",
+    "tests": 387,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": []
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/protocol-reports-1794548388",
+    "tests": 3,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": [
+      "xiaozhi.modules.devicecontrol.ProductOtaProtocolAcceptance.interruptionNeverResumesQueuedDevicesAndKeepsReservedDevicesUnknown"
+    ]
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/protocol-reports-1794548516",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": []
+  },
+  {
+    "reports": "/home/jt/ota-review-api/.runtime/voice-disabled-reports-1794548516",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "failed_tests": []
+  }
+]

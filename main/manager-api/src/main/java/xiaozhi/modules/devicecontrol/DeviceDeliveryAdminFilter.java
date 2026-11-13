@@ -14,11 +14,16 @@ import xiaozhi.modules.security.oauth2.Oauth2Filter;
 /** Reuses the operator realm while giving the new protocol proper HTTP authentication failures. */
 public final class DeviceDeliveryAdminFilter extends Oauth2Filter {
     private final ObjectMapper json = new ObjectMapper();
+    private final boolean requireHttps;
+
+    public DeviceDeliveryAdminFilter() { this(true); }
+    /** Private management is already protected by its SSH/reverse-proxy boundary. */
+    public DeviceDeliveryAdminFilter(boolean requireHttps) { this.requireHttps = requireHttps; }
 
     @Override
     protected boolean onAccessDenied(ServletRequest request, ServletResponse response) throws Exception {
         var http = (HttpServletRequest) request;
-        if (!http.isSecure()) return reject(response, 403, "HTTPS_REQUIRED");
+        if (requireHttps && !http.isSecure()) return reject(response, 403, "HTTPS_REQUIRED");
         if (Collections.list(http.getHeaders("Authorization")).size() != 1) {
             return reject(response, 401, "OPERATOR_AUTH_REQUIRED");
         }

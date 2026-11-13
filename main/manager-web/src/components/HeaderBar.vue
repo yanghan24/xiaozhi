@@ -100,6 +100,7 @@
             $route.path === '/server-side-management' ||
             $route.path === '/agent-template-management' ||
             $route.path === '/ota-management' ||
+            $route.path === '/product-ota' ||
             $route.path === '/user-management' ||
             $route.path === '/feature-management' ||
             $route.path === '/replacement-word-management'
@@ -113,6 +114,7 @@
                   $route.path === '/server-side-management' ||
                   $route.path === '/agent-template-management' ||
                   $route.path === '/ota-management' ||
+                  $route.path === '/product-ota' ||
                   $route.path === '/user-management' ||
                   $route.path === '/feature-management' ||
                   $route.path === '/replacement-word-management'
@@ -132,6 +134,7 @@
             <el-dropdown-item @click.native="handleRouter('otaManagement')">
               {{ $t("header.otaManagement") }}
             </el-dropdown-item>
+            <el-dropdown-item @click.native="$router.push('/product-ota')">产品设备 OTA</el-dropdown-item>
             <el-dropdown-item @click.native="handleRouter('dictManagement')">
               {{ $t("header.dictManagement") }}
             </el-dropdown-item>

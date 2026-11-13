@@ -16,6 +16,8 @@ WATCHED=(
   "xiaozhi.modules.customer.CustomerVoicePermissionHttpTest"
   "xiaozhi.modules.customer.CustomerVoiceDisabledHttpTest"
   "xiaozhi.modules.devicecontrol.DeviceDeliveryHttpTest"
+  "xiaozhi.modules.devicecontrol.ProductOtaCatalogHttpTest"
+  "xiaozhi.modules.devicecontrol.ProductOtaPushHttpTest"
 )
 
 if [ ! -d "$REPORT_DIR" ]; then

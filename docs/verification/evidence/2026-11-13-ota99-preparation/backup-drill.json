@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-13",
+  "environment": "Ubuntu jt@192.168.168.114; disposable network-none MySQL and synthetic private files",
+  "result": "pass",
+  "firmware_blob_bytes": 2097152,
+  "firmware_sha256": "91d3beb88a9b2f778a6c44a1c53b63d3c79931845a9aef84b3fb414610bd1938",
+  "unknown_operation_retained": true,
+  "batch_retained": true,
+  "wal_active_lock_retained": true,
+  "conversation_excluded": true,
+  "rollback_syntax": true,
+  "rollback_default_denied": true,
+  "production_mutations": 0,
+  "physical_device_calls": 0,
+  "production_backup_executed": false,
+  "production_restore_executed": false
+}
