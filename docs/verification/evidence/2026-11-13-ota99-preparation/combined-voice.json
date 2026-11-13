@@ -1,0 +1,141 @@
+{
+  "utc": "2026-11-13T05:26:09.234762+00:00",
+  "base_image": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+  "candidate_image": "sha256:4cf6a3006dc8274e4dd9b9bba1f15748be52b3cd3e7e0eb3ff11208ba4bd08d6",
+  "ota_source": "2249e3c",
+  "units": {
+    "tests": 79,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "integration_cases": [
+    {
+      "result": "pass",
+      "scenario": "abort-new-turn",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "device-tools",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "empty-answer",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "happy",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "init-failed",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "listen-start",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "ordinary",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "other-owner",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "revoked",
+      "late_model_and_tts_requests": 0,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "tool-error",
+      "model_requests": 1,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "wake-abort-start",
+      "model_requests": 2,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "wake-start-twice",
+      "model_requests": 2,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "wake-start",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    }
+  ],
+  "production_mutations": 0,
+  "physical_device_calls": 0,
+  "network": "none",
+  "source_sha256": {
+    "websocket_server.py": "1c0a6182f3f5cab6113c2000a7a244b59333537857111765ea3488e44f374ed0",
+    "product_ota_bridge.py": "de5e21a6263d3873215dee377b93da463a26a58518329d7e1c386ca509309227"
+  },
+  "evidence_sha256": {
+    "units.log": "141ed436c0deaf64587dd2a21838d63bf6503911991b47fbe40936c7acf12a3e",
+    "wake-start-twice.log": "82a021456b715255756d09460a0d74d9386e4fe5bc13989d1a5b2bcde8bf5cf9",
+    "units.json": "0cdb98c756bc663ee89e516a3653a2947aaa8e5e85f13dd4f2f6f513e9d1daa9",
+    "wake-start.log": "51e834715a09679552cd93c7392e22cde435ceffbaf4be3e812326def1df6c8e",
+    "empty-answer.log": "116ff4e07e734b8c1c9cf88dbd255d4001e2485d272c6cc2fe1372e8153a09ac",
+    "revoked.log": "c11760789b4fd17ef3599ea795da25ced60c2f7b53bfde2fa120cbd1df70f8af",
+    "ordinary.log": "e57cabd0388f32f6df1f6d0ab1f38c1fb1b51a71bff935d21462b3be9ab98824",
+    "happy.log": "4fd62db90945f5ad26724519bc149c50cddf8ae28bd6ff0ad3413755b667e346",
+    "other-owner.log": "9432eaac1b07ca2d5d690f64088dd6893cece847d47ea7355fabecdc8a87db37",
+    "device-tools.log": "fd82e01302c380d8bbc0e51281ac5a2ed4a0e220d20d09b6ab4245c947b53d0b",
+    "wake-abort-start.log": "7f7ccd30e9c6b4b2c38108b3190fd3c88918f2454f345b70875ff127df17b305",
+    "init-failed.log": "ac2b6d8347ae4d3249665600cbdc589ec14ba6dcf968fe1bfb0e2b7756d7fa33",
+    "abort-new-turn.log": "7f6863cbac1ff12b3eceb207a51777e8968572cdfb7f85d2f494513931408703",
+    "listen-start.log": "8985d5bc5c3c424430ad4fca258552659e9cb359dbb1911c78b96a8f05f07ae4",
+    "tool-error.log": "b0b1baadd161edfa52aa9ef333ee634af23c39af74b1ebcb787b627ead8a3296"
+  }
+}
