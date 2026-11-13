@@ -78,6 +78,15 @@ async def startToChat(conn: "ConnectionHandler", text):
     else:
         conn.current_speaker = None
 
+    if getattr(conn, 'product_voice_gate', None) is not None:
+        turn_id = conn.product_conversation.begin()
+        await send_stt_message(conn, actual_text)
+        if actual_text.strip() in conn.cmd_exit:
+            await conn.close()
+            return
+        conn.executor.submit(conn.chat, actual_text, turn_id=turn_id)
+        return
+
     if conn.need_bind:
         await check_bind_device(conn)
         return

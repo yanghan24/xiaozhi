@@ -35,6 +35,8 @@ class ListenTextMessageHandler(TextMessageHandler):
         if msg_json["state"] == "start":
             if getattr(conn, 'product_voice_gate', None) is not None and conn.asr is not None:
                 conn.asr.cancel()
+                conn.product_conversation.invalidate()
+                conn.clear_queues()
             # 设备从播放模式切回录音模式,清除所有音频状态和缓冲区
             conn.reset_audio_states()
         elif msg_json["state"] == "stop":

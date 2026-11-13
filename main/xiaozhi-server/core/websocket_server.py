@@ -198,10 +198,12 @@ class WebSocketServer:
             config['voiceprint'] = {}
             handler = ConnectionHandler(config, self._vad, self._asr, MarketModel(gate), MemoryProvider({}), IntentProvider({}), self)
             handler.product_voice_gate = gate
+            from core.product_chat import ProductConversation
+            handler.product_conversation = ProductConversation(handler)
             handler.asr = MarketASR(gate, self.product_audio)
             def revoke():
                 handler.asr.cancel()
-                handler.client_abort = True
+                handler.product_conversation.invalidate()
                 handler.stop_event.set()
                 handler.clear_queues()
             async def on_disconnect():
