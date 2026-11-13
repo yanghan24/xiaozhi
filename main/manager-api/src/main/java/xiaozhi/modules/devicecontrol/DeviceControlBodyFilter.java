@@ -19,11 +19,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /** Bounds bytes before either XSS sanitization or MVC can buffer a chunked upload. */
 final class DeviceControlBodyFilter extends OncePerRequestFilter {
     private static final int MAX_BYTES = 4096;
+    private static final String FIRMWARE_UPLOAD_PATH = "/admin/product-ota/firmware/upload";
     private final ObjectMapper json = new ObjectMapper();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        // Multipart firmware uploads are bounded by Spring's multipart limits and
+        // validated by ProductOtaCatalog. Reading them here would truncate every
+        // application image to the small JSON request limit below.
+        if (FIRMWARE_UPLOAD_PATH.equals(request.getServletPath())
+                && request.getContentType() != null
+                && request.getContentType().toLowerCase(java.util.Locale.ROOT).startsWith("multipart/form-data")) {
+            chain.doFilter(request, response);
+            return;
+        }
         int maxBytes = "/admin/product-ota/batch-preview".equals(request.getServletPath()) ? 256 * 1024 : MAX_BYTES;
         if (request.getContentLengthLong() > maxBytes) {
             reject(response);
