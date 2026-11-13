@@ -578,12 +578,20 @@ class TTSProviderBase(ABC):
             else self.punctuations
         )
 
-        # 取每种标点最后出现位置的最早者作为切分点（与逐个 rfind 再取最小值等价）
-        last_seen = {}
-        for i, ch in enumerate(current_text):
-            if ch in punctuations_to_use:
-                last_seen[ch] = i
-        last_punct_pos = min(last_seen.values(), default=-1)
+        if self.is_first_sentence:
+            # A buffered model answer may contain several pauses already. Start
+            # speech at the earliest safe one instead of synthesizing them all.
+            last_punct_pos = next(
+                (i for i, ch in enumerate(current_text) if ch in punctuations_to_use),
+                -1,
+            )
+        else:
+            # Keep the existing grouping for subsequent speech segments.
+            last_seen = {}
+            for i, ch in enumerate(current_text):
+                if ch in punctuations_to_use:
+                    last_seen[ch] = i
+            last_punct_pos = min(last_seen.values(), default=-1)
 
         cut_pos = -1
         if last_punct_pos != -1:
