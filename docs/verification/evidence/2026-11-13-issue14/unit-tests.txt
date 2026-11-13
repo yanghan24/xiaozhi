@@ -1,0 +1,151 @@
+test_current_turn_delivers_text_audio_and_stop_in_order (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: answer
+261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送音频消息: SentenceType.FIRST, answer
+261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送音频消息: SentenceType.LAST, None
+ok
+test_legacy_socket_does_not_need_product_turn_callbacks (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: legacy answer
+261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送音频消息: SentenceType.FIRST, legacy answer
+261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送音频消息: SentenceType.LAST, None
+ok
+test_new_turn_can_send_after_old_queued_audio_is_discarded (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: None
+ok
+test_new_turn_drops_audio_waiting_for_permission (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: None
+ok
+test_new_turn_drops_gateway_audio_waiting_for_permission (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: None
+ok
+test_new_turn_drops_status_waiting_for_permission (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: old answer
+ok
+test_new_turn_drops_stt_waiting_for_permission (test_product_audio.AudioOutputTests) ... ok
+test_old_audio_is_not_relabelled_after_sentence_start (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: old answer
+ok
+test_old_stop_does_not_clear_new_turn_speaking_state (test_product_audio.AudioOutputTests) ... ok
+test_old_stop_finishes_when_queued_audio_loses_its_turn (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: None
+261113 02:41:07[0.9.8_00000000000000][core.utils.audioRateController]-ERROR-发送音频失败: Product voice permission unavailable
+261113 02:41:07[0.9.8_00000000000000][core.utils.audioRateController]-ERROR-音频发送循环异常: Product voice permission unavailable
+ok
+test_queued_sentence_start_keeps_its_original_turn (test_product_audio.AudioOutputTests) ... 261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送第一段语音: None
+261113 02:41:07[0.9.8_00000000000000][core.handle.sendAudioHandle]-INFO-发送音频消息: SentenceType.FIRST, old queued sentence
+ok
+test_stt_does_not_start_speaking_for_a_newer_turn (test_product_audio.AudioOutputTests) ... ok
+test_cancelled_call_propagates_without_retry (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_chunks_continue_model_without_claiming_grounded_answer (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_close_during_permission_check_cannot_reexpose_pending_tools (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_closed_handler_never_initializes_or_executes_again (test_product_knowledge.ProductKnowledgeTests) ... ok
+test_contract_limit_and_json_arguments_are_forwarded_once (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_device_registration_cannot_expand_product_tool_scope (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_invalidated_turn_or_scope_cannot_execute (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_late_result_after_stop_scope_change_or_revoke_is_discarded (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:07[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_legacy_handler_keeps_global_service_and_tool_discovery (test_product_knowledge.ProductKnowledgeTests) ... Executing <Task pending name='Task-118' coro=<IsolatedAsyncioTestCase._asyncioLoopRunner() running at /usr/local/lib/python3.10/unittest/async_case.py:101> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/local/lib/python3.10/asyncio/tasks.py:665> created at /usr/local/lib/python3.10/unittest/async_case.py:117> took 0.186 seconds
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.unified_tool_handler]-INFO-当前支持的函数列表: ['handle_exit_intent', 'get_lunar', 'ask_knowledge', 'unapproved_tool']
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.unified_tool_handler]-INFO-当前支持的函数列表: ['handle_exit_intent', 'get_lunar', 'ask_knowledge', 'unapproved_tool']
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.unified_tool_handler]-INFO-工具处理器清理完成
+ok
+test_only_approved_service_and_tool_are_exposed (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_permission_check_cannot_allow_a_turn_invalidated_while_it_waits (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_protocol_error_or_malformed_result_never_reaches_model_continuation (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_rejects_other_names_and_noncontract_arguments_without_remote_call (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_remote_failure_is_fixed_safe_feedback_without_retry (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 1
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-ERROR-服务端MCP工具执行失败
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_sanitized_alias_cannot_impersonate_the_approved_tool (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-INFO-服务端MCP客户端已连接，工具数量: 2
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端初始化成功，工具数量: 0
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始执行服务端MCP工具
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-服务端MCP客户端已清理，数量: 1
+ok
+test_unapproved_or_unready_knowledge_degrades_without_global_fallback (test_product_knowledge.ProductKnowledgeTests) ... 261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-INFO-开始初始化服务端MCP客户端
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_client]-ERROR-服务端MCP客户端初始化失败
+261113 02:41:08[0.9.8_00000000000000][core.providers.tools.server_mcp.mcp_manager]-ERROR-服务端MCP客户端初始化失败
+ok
+test_ambiguous_sessions_are_rejected (test_product_maintenance.MaintenanceTests) ... ok
+test_cancelled_upgrade_returns_unknown_and_cannot_be_replayed (test_product_maintenance.MaintenanceTests) ... ok
+test_hidden_tool_probe_uses_fresh_ids_without_exposing_tools_to_model (test_product_maintenance.MaintenanceTests) ... ok
+test_missing_user_tool_never_calls_upgrade (test_product_maintenance.MaintenanceTests) ... ok
+test_new_session_during_final_permission_check_prevents_upgrade (test_product_maintenance.MaintenanceTests) ... ok
+test_only_bound_device_current_session_and_permission_can_probe (test_product_maintenance.MaintenanceTests) ... ok
+test_other_origin_expired_url_and_ambiguous_query_never_upgrade (test_product_maintenance.MaintenanceTests) ... ok
+test_permission_revoked_after_probe_blocks_upgrade_at_send_boundary (test_product_maintenance.MaintenanceTests) ... ok
+test_real_socket_reports_unknown_instead_of_denied_after_reserved_send_failure (test_product_maintenance.MaintenanceTests) ... ok
+test_real_unix_socket_is_private_and_status_contains_no_url (test_product_maintenance.MaintenanceTests) ... ok
+test_regular_file_cannot_be_replaced_as_stale_socket (test_product_maintenance.MaintenanceTests) ... ok
+test_revoked_permission_prevents_rpc (test_product_maintenance.MaintenanceTests) ... ok
+test_stale_socket_can_recover_after_process_restart (test_product_maintenance.MaintenanceTests) ... ok
+test_unknown_result_durably_prevents_automatic_replay (test_product_maintenance.MaintenanceTests) ... ok
+test_upgrade_is_explicit_and_journal_prevents_replay (test_product_maintenance.MaintenanceTests) ... ok
+test_late_response_cannot_escape_turn_stop_or_permission_change (test_product_model.ProductModelTests) ... ok
+test_malformed_model_deltas_fail_safely_without_replay (test_product_model.ProductModelTests) ... ok
+test_model_can_choose_knowledge_tool_from_fragmented_stream (test_product_model.ProductModelTests) ... ok
+test_ordinary_answer_and_tool_continuation_use_current_owner_access (test_product_model.ProductModelTests) ... ok
+test_permission_revoked_during_authorization_blocks_model_submission (test_product_model.ProductModelTests) ... ok
+test_rejected_key_blocks_peer_and_is_not_replayed (test_product_model.ProductModelTests) ... ok
+test_resource_and_stream_failures_preserve_grant_without_replay (test_product_model.ProductModelTests) ... ok
+test_stopped_turn_during_authorization_never_submits_model_request (test_product_model.ProductModelTests) ... ok
+
+----------------------------------------------------------------------
+Ran 51 tests in 5.787s
+
+OK
+{"tests": 51, "failures": 0, "errors": 0, "skipped": 0, "success": true}

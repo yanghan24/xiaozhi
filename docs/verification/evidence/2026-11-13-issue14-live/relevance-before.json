@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "run": "live-20261113T034403Z",
+  "reviewer": "independent issue14_asr_compatibility agent",
+  "scope": "Read-only semantic relevance and answer grounding review of two fixed public questions against their actual returned source chunks. No additional service request was made. Legal currentness, completeness of the underlying compilation, and physical audio acceptance are not assessed here.",
+  "complete": true,
+  "overall": "needs_fix",
+  "overall_reason": "Both retrievals are relevant, but knowledge1 turns an archive inventory into applicant requirements and an obligatory procedural sequence. Successful retrieval metadata does not establish answer grounding.",
+  "cases": [
+    {
+      "name": "knowledge1",
+      "question": "怎么申请成立社会团体",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          42,
+          43,
+          36
+        ],
+        "indirectly_relevant_ordinals": [
+          424
+        ],
+        "peripheral_ordinals": [
+          425
+        ],
+        "explanation": "42 supplies supervisor consent, application for registration and preparation-period restrictions; 43 supplies membership, resources and naming conditions; 36 supplies registration scope. 424 is a registration-records archive inventory, not expressly a current applicant checklist. 425 concerns branches and later changes."
+      },
+      "answer_grounding": {
+        "status": "needs_fix",
+        "supported": [
+          "Supervisor consent followed by application to the registration authority, and the preparation-period activity restriction: ordinal 42.",
+          "50 individual members or 30 organizational members, mixed membership total at least 50; 100000 yuan national or 30000 yuan local/cross-region funding, premises, staffing and civil liability: ordinal 43."
+        ],
+        "findings": [
+          {
+            "id": "K1-archive-as-applicant-duty",
+            "severity": "material",
+            "answer_claim": "Step 4 presents the preparation archive list as common materials applicants must prepare, including the authority's already-issued permission to prepare; step 5 presents the establishment archive list as documents applicants need to submit.",
+            "source_boundary": "Ordinal 424 is expressly titled registration-document archive scope and includes authority-issued outcomes as well as applicant documents. It does not say the entire archive inventory is a current submission checklist.",
+            "assessment": "Unsupported conversion of record-retention contents into applicant duties. Distinguish an archive inventory from an application requirement and disclose the missing current checklist."
+          },
+          {
+            "id": "K1-inferred-mandatory-sequence",
+            "severity": "material",
+            "answer_claim": "The closing summary requires applying for preparation establishment first, completing preparation, then applying for establishment registration as the key mandatory order.",
+            "source_boundary": "42 requires supervisor consent and registration; 424 separates archive categories. Those returned fragments do not expressly establish this as the current mandatory two-stage approval procedure for the user's case.",
+            "assessment": "The answer turns archive headings and document order into a definitive workflow. The fragments support preparation as a concept but do not prove the asserted present filing sequence."
+          },
+          {
+            "id": "K1-weakened-prohibition",
+            "severity": "secondary",
+            "answer_claim": "Local association names generally may not arbitrarily use China/National/Chinese prefixes.",
+            "source_boundary": "Ordinal 43 says local association names must not use those prefixes, without the answer's general/arbitrary qualifiers.",
+            "assessment": "Preserve the categorical prohibition; do not introduce an implied exception."
+          }
+        ]
+      },
+      "source_evidence": {
+        "filename": "knowledge1-dialogue-private.json",
+        "sha256": "329eb392b5a81e7d313e83ed554a1883c81cc002b3b121a326858c508699c475",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          42,
+          424,
+          36,
+          425,
+          43
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    },
+    {
+      "name": "knowledge2",
+      "question": "境外非政府组织的登记和备案",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          305,
+          308,
+          331
+        ],
+        "supporting_ordinals": [
+          341,
+          342
+        ],
+        "explanation": "305 supplies registration versus temporary-activity filing; 308 supplies registration documents and deadlines; 331 supplies publication of procedures; 341 and 342 supply related liabilities."
+      },
+      "answer_grounding": {
+        "status": "pass_with_qualification",
+        "supported": [
+          "Registration of a representative office versus filing for temporary activities, and restrictions on unregistered/unfiled activity: 305.",
+          "Application within 30 days of supervisor consent, seven categories of registration documents and decision within 60 days of acceptance: 308.",
+          "Publication of procedures and policy guidance: 331; summarized statutory violations and consequences: 341 and 342.",
+          "The answer expressly says temporary-filing actors, material list, deadlines and procedure are not sufficiently covered; it does not invent those requirements."
+        ],
+        "material_unsupported_duties_or_procedures": [],
+        "qualifications": [
+          "The opening long-term/generally wording and typically required material wording are looser than the source's mandatory wording; the subsequent basic principles preserve the substantive registration/filing distinction.",
+          "The returned reference to Article 10 does not include Article 10 itself. The answer appropriately does not invent its detailed conditions; a complete application guide is not established by this retrieval."
+        ]
+      },
+      "source_evidence": {
+        "filename": "knowledge2-dialogue-private.json",
+        "sha256": "05cdba8b5f695aa532dcc0055c705022181911d9bfa8e6869020ef76c0ff9e10",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          331,
+          305,
+          341,
+          308,
+          342
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    }
+  ],
+  "generic_prompt_review": {
+    "commit": "8afb015ca4a7a0ab814fdc7a107b727be56885c3",
+    "result": "no_actionable_findings_in_four_line_prompt_change",
+    "assessment": "The new instructions distinguish archive records from applicant requirements, prohibit deriving duties or sequence from document order, preserve subject/conditions/prohibitions/scope/time, require disclosure of incomplete guidance, and request concise speech without dropping material conditions. They contain no fixed-question answer and do not alter tool authorization scope.",
+    "behavioral_validation_of_new_candidate": "pending; this review only concerns the old run and static prompt change"
+  },
+  "reviewed_utc": "2026-11-13T03:50:30.041816+00:00",
+  "transport_acceptance": "Not assessed. Complete saved dialogue supports this semantic review and does not imply successful TTS stop receipt or physical playback."
+}

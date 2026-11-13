@@ -91,6 +91,7 @@ class ConnectionHandler:
         self.config = copy.deepcopy(config)
         self.session_id = str(uuid.uuid4())
         self.initialization = {"status": "pending", "stage": "configuration"}
+        self.components_initialized = threading.Event()
         self.logger = setup_logging()
         self.server = server  # 保存server实例的引用
 
@@ -609,20 +610,31 @@ class ConnectionHandler:
 
     def _initialize_components(self):
         try:
+            if self.stop_event.is_set():
+                return
             if self.tts is None:
                 self.tts = self._initialize_tts()
+            if self.stop_event.is_set():
+                return
             gate = getattr(self, 'product_voice_gate', None)
             if gate is not None:
                 original_speak = self.tts.text_to_speak
                 async def guarded_speak(*args, **kwargs):
+                    turn_id = getattr(self.tts, 'current_sentence_id', None)
+                    self.product_turn_guard(turn_id)
                     await gate.check_async()
-                    return await original_speak(*args, **kwargs)
+                    self.product_turn_guard(turn_id)
+                    audio = await original_speak(*args, **kwargs)
+                    self.product_turn_guard(turn_id)
+                    return audio
                 self.tts.text_to_speak = guarded_speak
             # 打开语音合成通道
             # This runs in the component worker; propagate asynchronous setup failures.
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
             ).result(timeout=30)
+            if self.stop_event.is_set():
+                return
             if self.need_bind:
                 self.bind_completed_event.set()
                 return
@@ -691,6 +703,8 @@ class ConnectionHandler:
         负样本（直接回答示例）放在动态 system 之后、紧挨真实用户消息，
         确保模型在处理用户消息前最后看到的是"不调工具"的行为模式。
         """
+        if getattr(self, 'product_voice_gate', None) is not None:
+            return
         if self.intent_type != "function_call":
             return
         if not hasattr(self, "func_handler") or self.func_handler is None:
@@ -825,6 +839,11 @@ class ConnectionHandler:
         except Exception as e:
             self._fail_initialization("components")
             self.logger.bind(tag=TAG).error(f"后台初始化失败: {e}")
+        finally:
+            self.components_initialized.set()
+            # Initialization can finish after a disconnect or readiness timeout.
+            if self.stop_event.is_set():
+                await self.close()
 
     async def _initialize_private_config_async(self):
         """从接口异步获取差异化配置（异步版本，不阻塞主循环）"""
@@ -1030,6 +1049,16 @@ class ConnectionHandler:
                 self.logger.bind(tag=TAG).info("使用主LLM作为意图识别模型")
 
     def _initialize_intent(self):
+        if getattr(self, 'product_voice_gate', None) is not None:
+            self.intent_type = 'function_call'
+            self.func_handler = UnifiedToolHandler(self)
+            future = asyncio.run_coroutine_threadsafe(self.func_handler._initialize(), self.loop)
+            try:
+                future.result(timeout=30)
+            except Exception:
+                future.cancel()
+                asyncio.run_coroutine_threadsafe(self.func_handler.cleanup(), self.loop).result(timeout=25)
+            return
         if self.intent is None:
             return
         self.intent_type = self.config["Intent"][
@@ -1083,10 +1112,16 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def chat(self, query, depth=0):
+    def product_turn_is_current(self, turn_id):
+        return self.product_conversation.current(turn_id)
+
+    def product_turn_guard(self, turn_id):
+        self.product_conversation.guard(turn_id)
+
+    def chat(self, query, depth=0, *, turn_id=None):
         gate = getattr(self, "product_voice_gate", None)
         if gate is not None:
-            gate.check()
+            return self.product_conversation.chat(query, turn_id)
         # 保存当前任务的sentence_id到局部变量，避免被新任务覆盖
         current_sentence_id = None
 

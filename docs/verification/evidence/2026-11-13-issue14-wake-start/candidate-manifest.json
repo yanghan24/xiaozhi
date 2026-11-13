@@ -1,0 +1,37 @@
+{
+  "source_commit": "69398b3c0c134529790d719d8ff27f8a452545a9",
+  "source_archive_sha256": "4bb53fa73f00a04aabb8a0feeb43ca75256242beed389d93cab40a0c35932591",
+  "base_image": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
+  "image": "xiaozhi-product-voice:issue14-wake-69398b3",
+  "image_id": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+  "files": {
+    "core/connection.py": "2f07f5a6611a88893066b1007642ab6ccbbaee9402421dace5dd1755899a0763",
+    "core/handle/abortHandle.py": "442fd52071c8966cdadab21685e328782ed7af43f7c974d3c72a0299b90cc091",
+    "core/handle/receiveAudioHandle.py": "21a294028a8e7901214e86ea36564501b8149ca75066086c65d53f53746e265e",
+    "core/handle/sendAudioHandle.py": "385a6b295a6af1a7d057fa8e4d7887d61a2cd5a42302f0c7aeb08528b86dc972",
+    "core/handle/textHandler/listenMessageHandler.py": "95e1bbaef47124b5c295b335cfcb165513c1296de9ab319755900efe98eac348",
+    "core/product_chat.py": "f57e4980a3e99311e66ce4bb586c625ab7398dbda197d0d3c957eb78f2586bc9",
+    "core/product_knowledge.py": "c5983c2d8d23cc14d8e05a77fdda87fbd611e57c272c52a9fae8b228df7e71bf",
+    "core/product_voice.py": "fa0d4dc96a4a41b5b52b0b4589b29f4b574d1a57d6379fd5f62b7afd1e55807f",
+    "core/providers/tools/device_mcp/mcp_handler.py": "26318562bdd32e15a05993dc6bf08069f188d2245f3093017ecbf8a122e9499f",
+    "core/providers/tools/server_mcp/errors.py": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+    "core/providers/tools/server_mcp/mcp_client.py": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+    "core/providers/tools/server_mcp/mcp_executor.py": "0dfce4a98522cc8958bd05546ac033bf329c3510334579ff2c3f9c572eabf661",
+    "core/providers/tools/server_mcp/mcp_manager.py": "fd230c3ab75150d3e1fad2b8701e90957fd2328bfbe4d0b2259d0a72152f7cc5",
+    "core/providers/tools/unified_tool_handler.py": "6cb3ce4635eabae7e9093944932897f0251ba07613d53b18d921fa2a06bbdacd",
+    "core/websocket_server.py": "a1dc1452f70694ad84cbb1f3cf073cfe46038950c45ccb295f5f5e49dd6bb047"
+  },
+  "changed_modules": [
+    "core/product_chat.py",
+    "core/handle/receiveAudioHandle.py",
+    "core/handle/textHandler/listenMessageHandler.py"
+  ],
+  "inherited_parent_manifest": {
+    "path": "/home/jt/issue14-device-observation-runs/20261113T040846.592186Z/source-manifest-private.json",
+    "sha256": "1d958761f23ae83a04cef919e38c4fe2821cbc97d85258271639f2a5aedc8183",
+    "source_commit": "5f01f35fb156463cbedf7dd1737256419d69267d",
+    "image_id": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
+    "retained_files": 12,
+    "updated_files": 3
+  }
+}

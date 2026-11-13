@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "run": "live-20261113T040205Z",
+  "candidate_source_commit": "5f01f35fb156463cbedf7dd1737256419d69267d",
+  "reviewer": "independent issue14_asr_compatibility agent",
+  "complete": true,
+  "scope": "独立只读审查两道固定公开问题的实际回答与实际返回片段之间的语义相关性和依据关系；未发起额外模型或知识库请求。",
+  "overall": "pass_for_observed_answer_grounding",
+  "deployment_decision": "not_made_by_this_review",
+  "acceptance_standard": "核心结论有实际片段依据，且无重大事实、主体、条件、逻辑关系、受理地点或期限错误。检索状态、片段数量和链路成功本身不作为语义通过依据。",
+  "cases": [
+    {
+      "name": "knowledge1",
+      "question": "怎么申请成立社会团体",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          42,
+          36
+        ],
+        "indirectly_relevant_ordinals": [
+          424
+        ],
+        "peripheral_ordinals": [
+          425,
+          427
+        ],
+        "explanation": "42和36直接给出申请成立、主管审查、法人条件及筹备活动限制；424是相关归档材料，425/427多为后续分支、变更、备案和年检事项。回答选择了直接相关核心条款，没有将外围材料拼成申请指南。"
+      },
+      "answer_grounding": {
+        "status": "pass",
+        "claim_source_map": [
+          {
+            "answer_claim": "成立社会团体，应当经其业务主管单位审查同意，并由发起人向登记管理机关申请登记。",
+            "source_ordinals": [
+              42,
+              36
+            ],
+            "assessment": "保留主管单位审查同意、发起人主体和登记机关申请关系。"
+          },
+          {
+            "answer_claim": "社会团体应当具备法人条件。",
+            "source_ordinals": [
+              36
+            ],
+            "assessment": "与返回条款一致。"
+          },
+          {
+            "answer_claim": "在筹备期间，不得开展筹备以外的活动。",
+            "source_ordinals": [
+              42
+            ],
+            "assessment": "保留筹备期间及禁止范围。"
+          }
+        ],
+        "material_findings": [],
+        "comparison_to_prior_outputs": "未扩展归档材料清单、强制两阶段审批或缺少条件的免登记例外，也未硬填未返回的会员人数和资金数额；回答未声称提供完整现行办事指南。"
+      },
+      "source_evidence": {
+        "filename": "knowledge1-dialogue-private.json",
+        "sha256": "7fb2280c4148fed616e4be62b7dc48f954ca067ad236c9f3a8c453f1191bc0a0",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          42,
+          424,
+          36,
+          425,
+          427
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    },
+    {
+      "name": "knowledge2",
+      "question": "境外非政府组织的登记和备案",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          305,
+          331,
+          313
+        ],
+        "ancillary_ordinals": [
+          318,
+          342
+        ],
+        "explanation": "305提供登记与临时活动备案路径及禁止范围；313提供办理主体、时限、所在地、紧急情况和活动期限；331提供程序公开。318资金管理和342责任为相关背景，回答没有无必要展开。"
+      },
+      "answer_grounding": {
+        "status": "pass",
+        "claim_source_map": [
+          {
+            "answer_claim": "登记设立代表机构；未设代表机构而在境内开展临时活动的依法备案。",
+            "source_ordinals": [
+              305
+            ],
+            "assessment": "保持两条有条件的合规路径，没有把未登记代表机构单独变成无条件禁止事由。"
+          },
+          {
+            "answer_claim": "中方合作单位按规定办理审批手续，并在临时活动十五日前向其所在地的登记管理机关备案。",
+            "source_ordinals": [
+              313
+            ],
+            "assessment": "办理主体、十五日前及其所在地原句关系保留；其所在地指代中方合作单位，未改为活动所在地。"
+          },
+          {
+            "answer_claim": "临时活动期限不超过一年，确需延长应重新备案；赈灾、救援等紧急情况下备案时间不受前款限制。",
+            "source_ordinals": [
+              313
+            ],
+            "assessment": "保留期限、延长重新备案及紧急情况下备案时间例外，未把一般时限说成无例外的全部情形。"
+          },
+          {
+            "answer_claim": "未登记代表机构、开展临时活动未经备案的，不得开展或变相开展活动及委托、资助境内单位个人在境内开展活动。",
+            "source_ordinals": [
+              305
+            ],
+            "assessment": "实际回答保留来源完整禁止句及变相委托、资助限定，没有新增前轮错误的或连接。"
+          },
+          {
+            "answer_claim": "登记管理机关通过统一网站公布代表机构申请及临时活动备案程序供查询。",
+            "source_ordinals": [
+              331
+            ],
+            "assessment": "程序公开方式与来源一致。"
+          }
+        ],
+        "material_findings": [],
+        "comparison_to_prior_outputs": "前轮错误或禁令及把中方合作单位所在地改成活动所在地的问题均未出现在本次输出；未将结果扩展成无依据的完整申请指南。"
+      },
+      "source_evidence": {
+        "filename": "knowledge2-dialogue-private.json",
+        "sha256": "f51f083724b336e23e36d31ac331d8d1c73fca0c4a8c507cb6f6a27b5c46fdba",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          305,
+          331,
+          318,
+          313,
+          342
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    }
+  ],
+  "limitations": [
+    "结论仅针对该固定运行中保存的两道实际回答，不保证同一模型未来每次生成均等价，也不代替完整产品验收。",
+    "未外部核验资料汇编的法律现行性、地方实施要求及全文完整性；本审查判断的是回答是否忠实使用实际返回片段。",
+    "不判断TTS结束帧是否送达、设备麦克风和扬声器是否成功，或是否满足部署门槛；由主任务结合运行及实机证据判断。"
+  ],
+  "reviewed_utc": "2026-11-13T04:05:02.960170+00:00",
+  "transport_acceptance": "Not assessed. Complete saved dialogue supports this semantic review and does not imply successful TTS stop receipt or physical playback."
+}

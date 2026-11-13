@@ -1,6 +1,6 @@
 # MCP 知识库最小测试契约（#12）
 
-更新：2026-11-13 10:00（Asia/Hong_Kong）。按 [#12 当前范围](https://github.com/yanghan24/xiaozhi/issues/12)，为现有 P4 B、它当前归属的获准测试账号和现有 Ubuntu 测试环境交付 #14 的接线输入。客户端修复已在 [PR #86](https://github.com/yanghan24/xiaozhi/pull/86)；本文不代表已经合并、部署或通过设备验收。
+按 [#12 当前范围](https://github.com/yanghan24/xiaozhi/issues/12)，为现有 P4 B、它当前归属的获准测试账号和现有 Ubuntu 测试环境交付 #14 的接线输入。[PR #86](https://github.com/yanghan24/xiaozhi/pull/86) 已于 2026-11-13 10:14（Asia/Hong_Kong）合并为 `289f97a`。合并不代表已经部署或通过 #14 设备验收。
 
 本轮已完成[Ubuntu 回执](../verification/2026-11-13-mcp-server-acceptance.md)：确认目标范围、复核历史原件及 14 个受测文件，并用真实 SDK 新完成一次正常查询。两轮 81 项因内容／依赖一致而复用。历史报告中的旧六项验收和独立模型链门槛保留为当时记录；本轮关闭条件以当前 Issue 为准。
 
@@ -39,7 +39,22 @@
 
 `knowledge-test` 是本地配置名，`transport` 和超时展示现有客户端的默认选择，不是对现网文件内容的声称。加载器直接读取 JSON，不会自动替换占位符或展开环境变量。服务器配置由执行方在受控后端生成、限制为服务进程可读，秘密不进入 Git、网页、固件或模型上下文。
 
-该通用配置文件没有按账号筛选的功能。#14 应沿用下节已登记的目标范围，并在工具暴露与每次新调用前检查当前设备许可／归属授权，再使用此配置；不能仅因文件存在就给所有连接开放知识库。动态 SSE 消息端点由 SDK 处理；历史标准库探测做过同源校验，产品客户端尚未新增对应校验，不能混作同一项实现。
+该通用配置文件没有按账号筛选的功能。#14 产品入口不读取它，而是显式注入下面的单台配置；在工具暴露与每次新调用前检查当前设备许可／归属授权。动态 SSE 消息端点由 SDK 处理；历史标准库探测做过同源校验，产品客户端尚未新增对应校验，不能混作同一项实现。
+
+产品语音私有 YAML 配置采用以下结构，`server` 复用上面的受控服务对象：
+
+```yaml
+product-voice:
+  knowledge:
+    device_id: <获准设备 ID>
+    authorization_subject: <后端授权主体的 64 位十六进制指纹>
+    server:
+      url: https://aimarket.hncig.cn:4191/mcp/service-669a396c73/sse
+      headers:
+        Authorization: Bearer <受控测试凭据>
+```
+
+指纹沿用后端 `customer_authorization.subject_key`，即 `SHA256(owner_issuer + "\n" + owner_subject)`，不能把原始账号 subject 当成指纹。配置缺失、设备／当前归属不匹配或服务初始化失败时，知识库不可用，普通问答仍可用。产品工具处理器只暴露和执行 `ask_knowledge`，不会加载共享插件、其他服务或设备工具；设备维护通道保持其独立用途。
 
 ### 工具输入
 
@@ -61,7 +76,7 @@
 }
 ```
 
-无声明默认值；服务注解为 `readOnlyHint=true`、`destructiveHint=false`、`openWorldHint=false`，这些注解不证明账号权限或费用。发现得到的定义原样提供给模型，不补造账号、应用、会话参数。客户端完成传输、初始化和工具发现后才可用；清洗后重名或跨服务重名拒绝注册。
+无声明默认值；服务注解为 `readOnlyHint=true`、`destructiveHint=false`、`openWorldHint=false`，这些注解不证明账号权限或费用。通用客户端保留发现定义；#14 产品入口将已确认的最小输入 Schema 映射为本地工具定义，使用本地批准的知识领域描述，不把远端工具描述当作指令，不补造账号、应用、会话参数。客户端完成传输、初始化和工具发现后才可用；清洗后重名或跨服务重名拒绝注册。
 
 ## 2. 获准测试范围与凭据
 

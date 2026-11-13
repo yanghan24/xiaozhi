@@ -1,0 +1,24 @@
+{
+  "device_alias": "B",
+  "voice_source_commit": "69398b3c0c134529790d719d8ff27f8a452545a9",
+  "voice_image_id": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+  "source": "Direct user replies in the active task after the deployment and new observation window",
+  "greeting_feedback_in_order": [
+    "屏幕有变化，仍然无声",
+    "突然有声音了",
+    "完整问候，约 10 秒以内"
+  ],
+  "greeting_playback_confirmed": true,
+  "latency": "User estimate only; not an exact duration or an unambiguous mapping to one server turn",
+  "three_question_confirmation": "三题都完整、可理解",
+  "three_question_prompt": [
+    "你好，请用一句话介绍你自己。",
+    "怎么申请成立社会团体。",
+    "境外非政府组织的登记和备案。"
+  ],
+  "ordinary_recheck_confirmation": "听到了完整自我介绍",
+  "ordinary_recheck_reason": "The original ordinary question lacked a corresponding complete server record; greeting was not substituted for it",
+  "server_correlation_review": "Complete for the two actual knowledge-topic turns and the separate ordinary introduction turn; semantic mapping used because ASR wording differed",
+  "functional_physical_acceptance": "pass",
+  "current_tool_body_grounding_review": "Not established: current tool bodies were not retained and hashes did not match historical bodies"
+}
