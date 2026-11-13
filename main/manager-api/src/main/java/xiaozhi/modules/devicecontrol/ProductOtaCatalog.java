@@ -2,7 +2,6 @@ package xiaozhi.modules.devicecontrol;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.*;
-import java.nio.*;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -73,11 +72,6 @@ public class ProductOtaCatalog {
             require(board.equals("waveshare-esp32-p4-wifi6-touch-lcd-4.3") && commit.matches("[a-f0-9]{40}")
                     && layout.equals("partitions/v2/16m.csv") && partitionHash.matches("[a-f0-9]{64}")
                     && capacity==4128768 && image.length<=capacity,"INCOMPATIBLE_LAYOUT");
-            require(((image[3]&255)>>>4)==4,"FLASH_SIZE_MISMATCH");
-            var header=ByteBuffer.wrap(image).order(ByteOrder.LITTLE_ENDIAN);
-            int min=Math.max(Short.toUnsignedInt(header.getShort(15)),(image[14]&255)*100);
-            int max=Short.toUnsignedInt(header.getShort(17)); if(max==0) max=65535;
-            require(min<=max,"INVALID_REVISION_RANGE");
             var current=source.release(releaseId);
             require(tag.equals(current.path("tag_name").asText()) && !current.path("draft").asBoolean(true)
                     && release.path("prerelease").equals(current.path("prerelease"))
@@ -89,7 +83,7 @@ public class ProductOtaCatalog {
                         id,releaseId,assetId,tag,release.path("prerelease").asBoolean(),commit,
                         "https://api.github.com/repos/yanghan24/xiaozhi/releases/assets/"+assetId,
                         digest(manifestBytes),inspected.sha256(),inspected.elfSha256(),inspected.version(),board,
-                        16777216,min,max,layout,partitionHash,capacity,image.length,"verified",operator,System.currentTimeMillis(),image);
+                        inspected.flashSize(),inspected.minRevision(),inspected.maxRevision(),layout,partitionHash,capacity,image.length,"verified",operator,System.currentTimeMillis(),image);
             } catch(org.springframework.dao.DuplicateKeyException duplicate) { throw new ControlFailure(409,"FIRMWARE_ALREADY_IMPORTED"); }
             return db.queryForMap("SELECT "+FIELDS+" FROM dc_ota_firmware WHERE firmware_id=?",id);
         } finally { importing.release(); }

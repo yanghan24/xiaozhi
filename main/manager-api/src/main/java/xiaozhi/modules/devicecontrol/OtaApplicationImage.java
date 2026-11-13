@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 
 /** P4 application image, not a merged flash image or bootloader. */
-record OtaApplicationImage(String version, String elfSha256, String sha256) {
+record OtaApplicationImage(String version, String elfSha256, String sha256, int flashSize, int minRevision, int maxRevision) {
     static OtaApplicationImage inspect(byte[] bytes, String expectedSha256) {
         if (bytes.length < 288 || bytes.length > GithubReleaseSource.MAX_IMAGE)
             throw new ControlFailure(400, "INVALID_APPLICATION_IMAGE");
@@ -43,7 +43,12 @@ record OtaApplicationImage(String version, String elfSha256, String sha256) {
         if (!sha.equals(expectedSha256)) throw new ControlFailure(400, "CHECKSUM_MISMATCH");
         if (version.isEmpty() || !version.matches("[A-Za-z0-9_.+\\-]{1,31}") || elf.equals("0".repeat(64)))
             throw new ControlFailure(400, "INVALID_APPLICATION_IMAGE");
-        return new OtaApplicationImage(version, elf, sha);
+        int flashCode=(bytes[3]&255)>>>4;
+        if(flashCode!=4) throw new ControlFailure(400,"FLASH_SIZE_MISMATCH");
+        int min=Math.max(Short.toUnsignedInt(header.getShort(15)),(bytes[14]&255)*100);
+        int max=Short.toUnsignedInt(header.getShort(17)); if(max==0) max=65535;
+        if(min>max) throw new ControlFailure(400,"INVALID_REVISION_RANGE");
+        return new OtaApplicationImage(version, elf, sha, 16777216, min, max);
     }
 
     private static byte[] digest(byte[] bytes) {

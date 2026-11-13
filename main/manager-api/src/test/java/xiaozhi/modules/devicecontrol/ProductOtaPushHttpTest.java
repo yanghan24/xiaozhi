@@ -31,6 +31,11 @@ class ProductOtaPushHttpTest {
  static volatile String session="session-97";
  static volatile String hardwareCase="normal";
  static volatile long statusDelay;
+ static final java.util.concurrent.atomic.AtomicLong now=new java.util.concurrent.atomic.AtomicLong();
+ static final AtomicInteger inspections=new AtomicInteger();
+ static volatile boolean slowPreparation;
+ static volatile boolean queuedPastExpiry;
+ @org.springframework.boot.test.mock.mockito.MockBean(name="deviceControlClock") java.time.Clock clock;
  static final Set<String> offlineDevices=java.util.concurrent.ConcurrentHashMap.newKeySet();
  static final String FIRMWARE="9".repeat(32);
  static final AtomicInteger sent=new AtomicInteger();
@@ -42,6 +47,7 @@ class ProductOtaPushHttpTest {
    Object result=Map.of("status","bridge_unavailable");
    if(connected && request.path("device_id").asText().startsWith("ota97-") && !offlineDevices.contains(request.path("device_id").asText())) {
     String action=request.path("action").asText();
+    if(action.equals("inspect") && slowPreparation && inspections.incrementAndGet()==5) now.addAndGet(121000);
     if(action.equals("inspect") && inspectUnavailable) { exchange.sendResponseHeaders(503,-1); exchange.close(); return; }
     if(action.equals("status")) result=Map.of("status","current","session_id",session,"permission_version",1);
     if(action.equals("inspect")) result=Map.of("status","ready","system_info",Map.of(
@@ -59,7 +65,7 @@ class ProductOtaPushHttpTest {
      result=changed;
     }
     if(action.equals("dispatch")) {
-     sent.incrementAndGet(); downloadUrl=request.path("url").asText();
+     if(sent.incrementAndGet()==1 && queuedPastExpiry) now.addAndGet(2000); downloadUrl=request.path("url").asText();
      if(loseReply) { exchange.sendResponseHeaders(503,-1); exchange.close(); return; }
      result=Map.of("status","accepted_unconfirmed");
     }
@@ -85,6 +91,8 @@ class ProductOtaPushHttpTest {
  final HttpClient http=HttpClient.newHttpClient();
  @BeforeEach void setup() {
   cleanup();
+  now.set(System.currentTimeMillis()); slowPreparation=false; queuedPastExpiry=false; inspections.set(0);
+  if(clock!=null) org.mockito.Mockito.when(clock.millis()).thenAnswer(call->now.get());
   connected=false; sent.set(0); elf="a".repeat(64); downloadUrl=null; loseReply=false; inspectUnavailable=false; session="session-97"; hardwareCase="normal"; statusDelay=0; offlineDevices.clear();
   db.update("INSERT INTO sys_user(id,username,super_admin,status) VALUES (?, 'ota97-admin',1,1)",ADMIN);
   db.update("INSERT INTO sys_user_token(id,user_id,token,expire_date) VALUES (?,?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))",ADMIN,ADMIN,TOKEN);
@@ -131,6 +139,29 @@ class ProductOtaPushHttpTest {
   var same=JSON.readTree(post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE)).body()).path("data");
   assertFalse(same.path("eligible").asBoolean()); assertEquals("already_running",same.path("reason").asText());
   assertEquals(0,sent.get());
+ }
+ @Test void slowPreparationLeavesAFullConfirmationWindow() throws Exception {
+  connected=true; slowPreparation=true;
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-b'),('ota97-c'),('ota97-d'),('ota97-e')");
+  var preview=JSON.readTree(post("batch-preview",Map.of("mode","selected","device_ids",List.of("ota97-device","ota97-b","ota97-c","ota97-d","ota97-e"),"firmware_id",FIRMWARE)).body()).path("data");
+  assertEquals(5,preview.path("eligible_count").asInt(),preview.toString());
+  assertEquals(now.get()+120000,preview.path("expires_at_ms").asLong(),"Confirmation window starts when preparation finishes");
+  var response=post("batches",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","f".repeat(32)));
+  assertEquals(200,response.statusCode(),response.body());
+  assertEquals(5,sent.get());
+ }
+ @Test void acceptedBatchDoesNotExpireWhileTargetsWaitForAWorker() throws Exception {
+  connected=true;
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-b'),('ota97-c'),('ota97-d'),('ota97-e')");
+  var preview=JSON.readTree(post("batch-preview",Map.of("mode","selected","device_ids",List.of("ota97-device","ota97-b","ota97-c","ota97-d","ota97-e"),"firmware_id",FIRMWARE)).body()).path("data");
+  now.set(preview.path("expires_at_ms").asLong()-1000); queuedPastExpiry=true;
+  var request=Map.of("preview_id",preview.path("preview_id").asText(),"request_key","f".repeat(32));
+  var response=post("batches",request);
+  assertEquals(200,response.statusCode(),response.body());
+  var batch=JSON.readTree(response.body()).path("data");
+  for(var item:batch.path("items")) assertEquals("accepted_unconfirmed",item.path("status").asText(),batch.toString());
+  assertEquals(5,sent.get());
+  post("batches",request); assertEquals(5,sent.get());
  }
  @Test void selectedBatchPreviewsOnlyChosenDevicesAndConfirmNeverReplays() throws Exception {
   connected=true;

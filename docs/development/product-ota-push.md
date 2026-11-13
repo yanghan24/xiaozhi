@@ -29,8 +29,8 @@ TLS Nginx 模板只新增精确格式的 `/xiaozhi/ota-artifacts/{operation}/{sh
 - `GET /operations`：持久操作记录，包含尚待核对的历史操作。
 - `GET /operations/{operation_id}`：刷新记录，并可查询新授权会话的目标运行证据；该路径绝不下发升级。
 - `POST /batch-preview`，仅 `mode` / `device_ids` / `firmware_id`：`selected` 使用所选 ID；`all_online` 要求空 ID 数组，由服务器覆盖全部产品档案分页。立即返回 `preparing` 回执和 `preview_id`，此时没有推送。
-- `GET /batch-previews/{preview_id}`：轮询至 `ready` 或 `failed`；就绪结果包含每台兼容性/排除原因、可推送数及最早的预览到期时间。首次状态不可用会使本次列表安全关闭；其他状态查询最多八路、每次两秒，兼容性检查最多四路。
-- `POST /batches`，仅 `preview_id` / `request_key`：确认持久清单，立即返回 `started` 批次回执。服务器最多四路处理逐台既有预留/重检/下发路径，不会把预览时排除、后来上线或新登记设备加入本批。
+- `GET /batch-previews/{preview_id}`：轮询至 `ready` 或 `failed`；就绪结果包含每台兼容性/排除原因、可推送数及统一的预览到期时间（全部预检完成后两分钟）。首次状态不可用会使本次列表安全关闭；其他状态查询最多八路、每次两秒，兼容性检查最多四路。
+- `POST /batches`，仅 `preview_id` / `request_key`：在有效窗口内一次性确认持久清单，立即返回 `started` 批次回执。确认后工作器排队不再消耗预览确认期限；每台发送前仍重检管理员、原会话/许可与兼容性。服务器最多四路处理逐台既有预留/重检/下发路径，不会把预览时排除、后来上线或新登记设备加入本批。
 - `GET /batches` / `GET /batches/{batch_id}`：查询当前管理员确认的批次与逐台真实结果。进行中为 `started`，结束为 `finished`；完成的是本次下发处理，不是固件安装。页面最多轮询两分钟，此后可手动刷新；所有轮询只有 GET，不重新提交。
 
 异步预检和确认避免把长时间工具调用留在管理代理的 30 秒请求窗口内。每次桥接调用具有完整响应期限（状态两秒，其他操作 45 秒，包括响应体读取）。预览清单固定设备与固件；确认只消费此清单，发送前还须通过原会话/许可和兼容性重检。

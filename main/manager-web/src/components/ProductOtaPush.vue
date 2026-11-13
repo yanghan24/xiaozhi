@@ -75,7 +75,7 @@
 </template>
 
 <script>
-import { getServiceUrl } from '@/apis/api';
+import { requestProductOta, ProductOtaError } from '@/apis/productOta';
 export default {
   props: { firmware: { type: Object, default: null } },
   data() { return { devices: [], operations: [], batches: [], deviceIds: [], page: 1, limit: 50, total: 0, loading: false, previewing: false, sending: false, error: '', preview: null, acknowledged: false, requestKey: '', uncertain: null, alive: true, previewEpoch: 0, pollingBatches: {}, batchNotices: {} }; },
@@ -117,17 +117,12 @@ export default {
     clearPreview() { this.previewEpoch++; this.preview = null; this.acknowledged = false; this.requestKey = ''; },
     async request(path, body, signal) {
       const token = JSON.parse(this.$store.getters.getToken || '{}').token;
-      const response = await fetch(`${getServiceUrl()}/admin/product-ota/${path}`, {
-        method: body ? 'POST' : 'GET', cache: 'no-store', signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
-        body: body ? JSON.stringify(body) : undefined
-      });
-      const result = await response.json();
-      if (!response.ok || result.code !== 0) {
-        if ([401, 403].includes(response.status)) throw new Error('需要有效的运营管理员登录权限。');
+      try { return await requestProductOta(token, path, body, signal); }
+      catch (error) {
+        if (!(error instanceof ProductOtaError)) throw error;
+        if ([401, 403].includes(error.status)) throw new Error('需要有效的运营管理员登录权限。');
         throw new Error('暂时无法完成请求，请刷新状态后核对。');
       }
-      return result.data;
     },
     async readStatus(path, timeout = 15000) {
       const controller = new AbortController();

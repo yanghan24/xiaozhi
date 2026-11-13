@@ -1,3 +1,5 @@
+vi.mock('@/apis/api', () => ({ getServiceUrl: () => '/xiaozhi' }));
+import { requestProductOta, ProductOtaError } from '../src/apis/productOta';
 import Vue from 'vue';
 import { mount } from '@vue/test-utils';
 import { parseComponent, compileToFunctions } from 'vue-template-compiler';
@@ -5,7 +7,7 @@ import { afterEach, it, expect, vi } from 'vitest';
 import source from '../src/components/ProductOtaPush.vue?raw';
 
 const parsed = parseComponent(source);
-const component = new Function('getServiceUrl', parsed.script.content.replace(/^import .*;$/gm, '').replace('export default', 'return'))(() => '/xiaozhi');
+const component = new Function('requestProductOta', 'ProductOtaError', parsed.script.content.replace(/^import .*;$/gm, '').replace('export default', 'return'))(requestProductOta, ProductOtaError);
 Object.assign(component, compileToFunctions(parsed.template.content));
 const response = data => ({ ok: true, json: async () => ({ code: 0, data }) });
 const settle = async () => { for (let i = 0; i < 20; i++) await Vue.nextTick(); };

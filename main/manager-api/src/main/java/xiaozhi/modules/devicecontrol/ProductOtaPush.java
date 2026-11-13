@@ -1,6 +1,8 @@
 package xiaozhi.modules.devicecontrol;
 
 import java.util.*;
+import java.time.Clock;
+import org.springframework.beans.factory.annotation.Qualifier;
 import java.util.concurrent.*;
 import jakarta.annotation.PreDestroy;
 import com.fasterxml.jackson.databind.*;
@@ -12,6 +14,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class ProductOtaPush {
     private final JdbcTemplate db;
+    private final Clock clock;
     private final ProductOtaBridge bridge;
     private final ObjectMapper json=new ObjectMapper();
     private final ProductOtaDownloads downloads;
@@ -21,8 +24,8 @@ public class ProductOtaPush {
     @PreDestroy public void close() { statusWorkers.shutdownNow(); }
     private static final String PUBLIC_FIELDS="operation_id,preview_id,request_key,device_id,firmware_id,artifact_sha256,target_version,target_elf_sha256,status,reason,observation_status,observed_at_ms,created_at_ms,updated_at_ms";
     public ProductOtaPush(JdbcTemplate db, ProductOtaBridge bridge,ProductOtaDownloads downloads,
-            ProductOtaCatalog catalog,PlatformTransactionManager tx) {
-        this.db=db; this.bridge=bridge; this.downloads=downloads; this.catalog=catalog; this.transactions=new TransactionTemplate(tx);
+            ProductOtaCatalog catalog,PlatformTransactionManager tx, @Qualifier("deviceControlClock") Clock clock) {
+        this.clock=clock; this.db=db; this.bridge=bridge; this.downloads=downloads; this.catalog=catalog; this.transactions=new TransactionTemplate(tx);
     }
     public Map<String,Object> preview(long operator,String device,String firmware) {
         validateDevice(device); validateId(firmware);
@@ -48,7 +51,7 @@ public class ProductOtaPush {
             String reason=compatibility(image,info);
             result.put("reason",reason);
             if(!reason.equals("eligible")) return result;
-            String id=id(); long expires=System.currentTimeMillis()+120000;
+            String id=id(); long expires=clock.millis()+120000;
             var snapshot=new LinkedHashMap<String,Object>(request);
             snapshot.put("sha256",image.get("sha256")); snapshot.put("current_elf_sha256",result.get("current_elf_sha256"));
             db.update("INSERT INTO dc_ota_preview VALUES (?,?,?,?,?,?)",id,operator,device,firmware,encode(snapshot),expires);
@@ -83,15 +86,29 @@ public class ProductOtaPush {
             var result=bridge.call(request);
             if(result.path("observation_status").asText().equals("target_running") && result.path("observed_at_ms").isIntegralNumber()) {
                 long at=result.path("observed_at_ms").asLong();
-                if(at>=number(visible,"created_at_ms") && at<=System.currentTimeMillis()+5000)
+                if(at>=number(visible,"created_at_ms") && at<=clock.millis()+5000)
                     db.update("UPDATE dc_ota_operation SET observation_status='target_running',observed_at_ms=?,active_device=NULL,updated_at_ms=? WHERE operation_id=?",
-                            at,System.currentTimeMillis(),operation);
+                            at,clock.millis(),operation);
             }
         } catch(Exception unavailable) { /* Keep the durable original result when observation is unavailable. */ }
         return operation(operation);
     }
     private record Reserved(String id,boolean fresh) { }
     public Map<String,Object> confirm(long operator,String preview,String requestKey) {
+        return confirm(operator,preview,requestKey,false);
+    }
+    /** Only an already accepted, fixed batch can outlive its confirmation window. */
+    Map<String,Object> confirmBatchTarget(long operator,String batch,String preview) {
+        var rows=db.queryForList("SELECT snapshot FROM dc_ota_batch WHERE batch_id=? AND operator_id=? AND status='started'",batch,operator);
+        boolean authorized=false;
+        if(rows.size()==1) try {
+            for(var item:json.readTree((String)rows.getFirst().get("snapshot")))
+                if(item.path("eligible").asBoolean() && preview.equals(item.path("preview_id").asText())) authorized=true;
+        } catch(Exception corrupt) { throw new IllegalStateException(corrupt); }
+        if(!authorized) throw new ControlFailure(409,"BATCH_NOT_STARTED");
+        return confirm(operator,preview,preview,true);
+    }
+    private Map<String,Object> confirm(long operator,String preview,String requestKey,boolean acceptedBatch) {
         validateId(preview); validateId(requestKey);
         var prior=db.queryForList("SELECT operation_id,preview_id FROM dc_ota_operation WHERE operator_id=? AND request_key=?",operator,requestKey);
         if(!prior.isEmpty()) {
@@ -103,7 +120,7 @@ public class ProductOtaPush {
         var chosen=previews.getFirst(); String device=(String)chosen.get("device_id");
         var image=firmware((String)chosen.get("firmware_id"));
         // Validate configuration before reservation; a missing download service cannot create a live command.
-        downloads.signature("0".repeat(32),(String)image.get("sha256"),System.currentTimeMillis()/1000+600);
+        downloads.signature("0".repeat(32),(String)image.get("sha256"),clock.millis()/1000+600);
         Reserved reservation=transactions.execute(tx->{
             db.queryForList("SELECT device_id FROM dc_device WHERE device_id=? FOR UPDATE",device);
             var repeated=db.queryForList("SELECT operation_id,preview_id FROM dc_ota_operation WHERE operator_id=? AND request_key=?",operator,requestKey);
@@ -114,8 +131,8 @@ public class ProductOtaPush {
             var already=db.queryForList("SELECT operation_id FROM dc_ota_operation WHERE preview_id=?",preview);
             if(!already.isEmpty()) return new Reserved((String)already.getFirst().get("operation_id"),false);
             if(pending(device)) throw new ControlFailure(409,"DEVICE_OPERATION_PENDING");
-            if(number(chosen,"expires_at_ms")<=System.currentTimeMillis()) throw new ControlFailure(409,"PREVIEW_EXPIRED");
-            String operation=id(); long now=System.currentTimeMillis();
+            if(!acceptedBatch && number(chosen,"expires_at_ms")<=clock.millis()) throw new ControlFailure(409,"PREVIEW_EXPIRED");
+            String operation=id(); long now=clock.millis();
             db.update("INSERT INTO dc_ota_operation(operation_id,preview_id,request_key,operator_id,device_id,active_device,firmware_id,artifact_sha256,target_version,target_elf_sha256,snapshot,status,reason,created_at_ms,updated_at_ms,download_expires) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     operation,preview,requestKey,operator,device,device,chosen.get("firmware_id"),image.get("sha256"),image.get("app_version"),image.get("elf_sha256"),chosen.get("snapshot"),"dispatch_reserved","awaiting_result",now,now,now/1000+600);
             return new Reserved(operation,true);
@@ -152,7 +169,7 @@ public class ProductOtaPush {
             if(!dispatchAttempted) { status="not_sent"; reason="preflight_unavailable"; }
         }
         db.update("UPDATE dc_ota_operation SET status=?,reason=?,active_device=CASE WHEN observation_status='target_running' THEN NULL ELSE ? END,updated_at_ms=? WHERE operation_id=?",
-                status,safeReason(reason),status.equals("not_sent") ? null : device,System.currentTimeMillis(),reservation.id());
+                status,safeReason(reason),status.equals("not_sent") ? null : device,clock.millis(),reservation.id());
         return operation(reservation.id());
     }
     private String safeReason(String reason) { return reason.matches("[a-z_]{1,64}") ? reason : "result_requires_verification"; }
@@ -204,7 +221,7 @@ public class ProductOtaPush {
         for(var row:rows) {
             String status=statuses.get((String)row.get("device_id"));
             row.put("display_name",row.get("device_id")); row.put("status",status);
-            row.put("reason",status); row.put("checked_at_ms",System.currentTimeMillis());
+            row.put("reason",status); row.put("checked_at_ms",clock.millis());
         }
         return Map.of("items",rows,"total",db.queryForObject("SELECT COUNT(*) FROM dc_device",Long.class),"page",page,"limit",limit);
     }

@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { getServiceUrl } from '@/apis/api';
+import { requestProductOta, ProductOtaError } from '@/apis/productOta';
 export default {
   data() { return { releases: [], firmware: [], releaseId: '', assetId: '', selectedId: '', page: 1, loading: false, error: '' }; },
   computed: {
@@ -53,20 +53,15 @@ export default {
   methods: {
     async request(path, body) {
       const token = JSON.parse(this.$store.getters.getToken || '{}').token;
-      const response = await fetch(`${getServiceUrl()}/admin/product-ota/${path}`, {
-        method: body ? 'POST' : 'GET', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
-        body: body ? JSON.stringify(body) : undefined
-      });
-      const result = await response.json();
-      if (!response.ok || result.code !== 0) {
-        if ([401, 403].includes(response.status)) throw new Error('需要有效的运营管理员登录权限。');
-        if (response.status === 409) throw new Error('该资产已经导入，请刷新目录。');
-        if (result.code === 'GITHUB_RATE_LIMITED') throw new Error('GitHub 请求额度暂时用尽，请稍后再试。');
-        if (response.status === 400) throw new Error('导入被拒绝：资产或兼容元数据不完整、已变化或校验失败。请核对 Release。');
+      try { return await requestProductOta(token, path, body, undefined); }
+      catch (error) {
+        if (!(error instanceof ProductOtaError)) throw error;
+        if ([401, 403].includes(error.status)) throw new Error('需要有效的运营管理员登录权限。');
+        if (error.status === 409) throw new Error('该资产已经导入，请刷新目录。');
+        if (error.code === 'GITHUB_RATE_LIMITED') throw new Error('GitHub 请求额度暂时用尽，请稍后再试。');
+        if (error.status === 400) throw new Error('导入被拒绝：资产或兼容元数据不完整、已变化或校验失败。请核对 Release。');
         throw new Error('暂时无法读取或导入固件，请稍后重试。');
       }
-      return result.data;
     },
     async load() {
       if (this.loading) return;

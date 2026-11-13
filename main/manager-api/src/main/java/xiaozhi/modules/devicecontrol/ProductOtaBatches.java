@@ -1,6 +1,8 @@
 package xiaozhi.modules.devicecontrol;
 
 import java.util.*;
+import java.time.Clock;
+import org.springframework.beans.factory.annotation.Qualifier;
 import java.util.concurrent.*;
 import com.fasterxml.jackson.databind.*;
 import jakarta.annotation.PreDestroy;
@@ -15,20 +17,21 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class ProductOtaBatches implements ApplicationRunner {
     private final JdbcTemplate db;
+    private final Clock clock;
     private final ProductOtaPush push;
     private final TransactionTemplate transactions;
     private final ObjectMapper json = new ObjectMapper();
     private final ExecutorService workers = Executors.newFixedThreadPool(4);
     private final ExecutorService coordinators = Executors.newFixedThreadPool(2);
-    public ProductOtaBatches(JdbcTemplate db, ProductOtaPush push, PlatformTransactionManager tx) {
-        this.db=db; this.push=push; this.transactions=new TransactionTemplate(tx);
+    public ProductOtaBatches(JdbcTemplate db, ProductOtaPush push, PlatformTransactionManager tx, @Qualifier("deviceControlClock") Clock clock) {
+        this.clock=clock; this.db=db; this.push=push; this.transactions=new TransactionTemplate(tx);
     }
     @PreDestroy public void close() { coordinators.shutdownNow(); workers.shutdownNow(); }
     @Override public void run(ApplicationArguments arguments) {
         // The deployed manager has one active process. Startup only classifies abandoned work; it never resumes it.
         db.update("UPDATE dc_ota_batch SET status='failed' WHERE status='preparing'");
         db.update("UPDATE dc_ota_batch SET status='interrupted' WHERE status='started'");
-        db.update("UPDATE dc_ota_operation SET status='result_unknown',reason='process_interrupted',updated_at_ms=? WHERE status='dispatch_reserved'",System.currentTimeMillis());
+        db.update("UPDATE dc_ota_operation SET status='result_unknown',reason='process_interrupted',updated_at_ms=? WHERE status='dispatch_reserved'",clock.millis());
     }
     public Map<String,Object> preview(long operator,String mode,List<String> devices,String firmware) {
         validateId(firmware);
@@ -40,7 +43,7 @@ public class ProductOtaBatches implements ApplicationRunner {
                 ? db.queryForList("SELECT device_id FROM dc_device ORDER BY device_id",String.class)
                 : new ArrayList<>(new TreeSet<>(devices));
         String id=id();
-        db.update("INSERT INTO dc_ota_batch VALUES (?,?,?,?,?,?,?,?,?)",id,operator,null,firmware,mode,"[]","preparing",0,System.currentTimeMillis());
+        db.update("INSERT INTO dc_ota_batch VALUES (?,?,?,?,?,?,?,?,?)",id,operator,null,firmware,mode,"[]","preparing",0,clock.millis());
         var receipt=preview(operator,id);
         coordinators.submit(()->{
             try { prepare(operator,id,candidates,firmware); }
@@ -63,9 +66,15 @@ public class ProductOtaBatches implements ApplicationRunner {
                 throw new ControlFailure(503,"PREVIEW_UNAVAILABLE");
             }
         }
-        long expires=System.currentTimeMillis()+120000;
-        for(var item:items) if(Boolean.TRUE.equals(item.get("eligible"))) expires=Math.min(expires,((Number)item.get("expires_at_ms")).longValue());
-        db.update("UPDATE dc_ota_batch SET snapshot=?,status='preview',expires_at_ms=? WHERE batch_id=? AND status='preparing'",encode(items),expires,id);
+        long expires=clock.millis()+120000;
+        transactions.executeWithoutResult(tx->{
+            // Publish one usable confirmation window only after every target has been inspected.
+            for(var item:items) if(Boolean.TRUE.equals(item.get("eligible"))) {
+                db.update("UPDATE dc_ota_preview SET expires_at_ms=? WHERE preview_id=? AND operator_id=?",expires,item.get("preview_id"),operator);
+                item.put("expires_at_ms",expires);
+            }
+            db.update("UPDATE dc_ota_batch SET snapshot=?,status='preview',expires_at_ms=? WHERE batch_id=? AND status='preparing'",encode(items),expires,id);
+        });
     }
     public Map<String,Object> preview(long operator,String id) {
         validateId(id); var row=owned(operator,id); var items=items(row);
@@ -85,7 +94,7 @@ public class ProductOtaBatches implements ApplicationRunner {
             var row=owned(operator,preview);
             if(Set.of("preparing","failed").contains(row.get("status"))) throw new ControlFailure(409,"PREVIEW_NOT_READY");
             if(!"preview".equals(row.get("status"))) return false;
-            if(((Number)row.get("expires_at_ms")).longValue()<=System.currentTimeMillis()) throw new ControlFailure(409,"PREVIEW_EXPIRED");
+            if(((Number)row.get("expires_at_ms")).longValue()<=clock.millis()) throw new ControlFailure(409,"PREVIEW_EXPIRED");
             db.update("UPDATE dc_ota_batch SET status='started',request_key=? WHERE batch_id=?",key,preview);
             return true;
         }));
@@ -101,7 +110,7 @@ public class ProductOtaBatches implements ApplicationRunner {
             var snapshot=items(owned(operator,preview));
             List<CompletableFuture<Void>> tasks=new ArrayList<>();
             for(var item:snapshot) if(item.path("eligible").asBoolean()) tasks.add(CompletableFuture.runAsync(()->{
-                try { push.confirm(operator,item.path("preview_id").asText(),item.path("preview_id").asText()); }
+                try { push.confirmBatchTarget(operator,preview,item.path("preview_id").asText()); }
                 catch(ControlFailure denied) {
                     // Another batch may own this device. Its durable operation remains authoritative.
                     // No retry, even when the competing operation later resolves.
