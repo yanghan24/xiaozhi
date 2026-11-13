@@ -16,7 +16,9 @@
 
 Python 语音服务通过私网 `/xiaozhi/internal/device-voice/v1/{open,check,close,model-access}` 查询 Java 权威状态，使用独立 `X-Voice-Service-Key`。该路由不向公网代理开放。`model-access` 仅向已认证的语音后端提供当前归属账号的 Key；不把 Key 放入设备令牌、手机页面或握手日志。
 
-产品 WebSocket 只接受精确 `/xiaozhi/v1/` 路径、Device-Id 与产品 Bearer 令牌；旧 HMAC 令牌、URL 查询参数、MQTT 回退、旧白名单和 auth.enabled=false 都不能绕过。产品 OTA 只发现 device_control 地址，不签发旧 websocket/activation；旧数字激活返回 403。该 discovery 响应不是固件下载能力，尚未验证实际固件兼容。
+产品 WebSocket 只接受精确 `/xiaozhi/v1/` 路径、Device-Id 与产品 Bearer 令牌；旧 HMAC 令牌、URL 查询参数、MQTT 回退、旧白名单和 auth.enabled=false 都不能绕过。产品 OTA 返回 device_control 地址及屏幕校时数据，不签发旧 websocket/activation；旧数字激活返回 403。该 discovery 响应不是固件下载能力。
+
+产品 OTA 的 `server_time.timestamp` 为数值型 UTC 毫秒时间戳，`timezone_offset` 为数值型分钟偏移，`timeZone` 为 IANA 时区名称。固件将偏移加到时间戳后设置本机时钟；服务端不能提前把偏移加进时间戳。`device-control.time-zone`（环境变量 `DEVICE_CONTROL_TIME_ZONE`）默认 `Asia/Shanghai`，独立于容器/JVM 的 UTC 时区；其他地区可配置 IANA 名称，偏移按响应时刻计算。响应保持 `Cache-Control: no-store`。现有固件在启动 OTA 检查时读取此字段，上线后需重新触发该检查（例如重启设备）才能校时；恢复结果仍需实机确认。
 
 正式 ConnectionHandler 对输入、模型请求、后续 TTS 输入和全部文本/二进制发送重新校验当前许可，并由 200 ms 观察任务在失效时终止连接、清理队列。同台多个连接分别受检；一次失败后连接不自行恢复。直连模式不加载旧管理员 LLM、记忆、工具或外部上下文/声纹能力。产品 ASR 使用归属账号当前业务 Key 调用集市 `qwen-audio-3.0-asr-flash-filetrans`，不再加载旧管理员 ASR。录音只在内存中生成 WAV，经短期地址供集市下载，异步识别成功后才交给模型。
 

@@ -582,8 +582,19 @@ class CustomerVoicePermissionHttpTest {
     }
     @Test void productOtaOnlyDiscoversControlAndNeverIssuesLegacyVoiceCredentials() {
         var headers=new org.springframework.http.HttpHeaders();headers.set("Device-Id","02:11:22:33:44:55");
+        long before = System.currentTimeMillis();
         var result=http.postForEntity("/ota/",new org.springframework.http.HttpEntity<>(Map.of("application",Map.of("version","1.0.0")),headers),Map.class);
+        long after = System.currentTimeMillis();
         assertEquals(200,result.getStatusCode().value());
+        var time = (Map<?,?>) result.getBody().get("server_time");
+        assertNotNull(time, "Product discovery must also synchronize the firmware clock");
+        assertInstanceOf(Number.class, time.get("timestamp"));
+        long timestamp = ((Number) time.get("timestamp")).longValue();
+        assertTrue(timestamp >= before && timestamp <= after);
+        assertEquals(480, time.get("timezone_offset"));
+        assertEquals("Asia/Shanghai", time.get("timeZone"));
+        assertEquals("no-store", result.getHeaders().getFirst("Cache-Control"));
+        assertEquals(java.util.Set.of("device_control", "server_time"), result.getBody().keySet());
         assertNull(result.getBody().get("websocket"));assertNull(result.getBody().get("activation"));
         assertEquals("https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/",((Map<?,?>)result.getBody().get("device_control")).get("base_url"));
         assertEquals(403,http.postForEntity("/ota/activate",new org.springframework.http.HttpEntity<>(Map.of(),headers),String.class).getStatusCode().value());
