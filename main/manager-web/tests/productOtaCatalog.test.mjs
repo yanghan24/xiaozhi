@@ -1,5 +1,5 @@
 vi.mock('@/apis/api', () => ({ getServiceUrl: () => '/xiaozhi' }));
-import { requestProductOta, ProductOtaError } from '../src/apis/productOta';
+import { requestProductOta, uploadProductOta, ProductOtaError } from '../src/apis/productOta';
 import Vue from 'vue';
 import { mount } from '@vue/test-utils';
 import { parseComponent, compileToFunctions } from 'vue-template-compiler';
@@ -7,7 +7,7 @@ import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import source from '../src/components/ProductOtaCatalog.vue?raw';
 
 const parsed=parseComponent(source);
-const component=new Function('requestProductOta', 'ProductOtaError',parsed.script.content.replace(/^import .*;$/gm,'').replace('export default','return'))(requestProductOta, ProductOtaError);
+const component=new Function('requestProductOta', 'uploadProductOta', 'ProductOtaError',parsed.script.content.replace(/^import .*;$/gm,'').replace('export default','return'))(requestProductOta, uploadProductOta, ProductOtaError);
 Object.assign(component,compileToFunctions(parsed.template.content));
 const response=data=>({ok:true,json:async()=>({code:0,data})});
 const settle=async()=>{for(let i=0;i<8;i++) await Vue.nextTick();};
@@ -37,4 +37,14 @@ it('keeps fixed firmware available when GitHub cannot be reached',async()=>{
   await settle();
   expect(wrapper.text()).toContain('saved-elf');
   expect(wrapper.find('[role=alert]').exists()).toBe(true);
+});
+
+it('uploads image and manifest as multipart without overriding the boundary', async () => {
+  fetch.mockResolvedValueOnce(response({ firmware_id: 'uploaded', verification_status: 'verified' }));
+  const image = new File(['image'], 'app.bin', { type: 'application/octet-stream' });
+  const manifest = new File(['{}'], 'manifest.json', { type: 'application/json' });
+  await uploadProductOta('fixture', image, manifest);
+  expect(fetch.mock.calls[0][0]).toContain('/admin/product-ota/firmware/upload');
+  expect(fetch.mock.calls[0][1].body).toBeInstanceOf(FormData);
+  expect(fetch.mock.calls[0][1].headers['Content-Type']).toBeUndefined();
 });

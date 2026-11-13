@@ -23,3 +23,7 @@ Release 必须带 `manifest.json` 和 GitHub SHA-256 digest。manifest 需声明
 `dc_ota_firmware` 保存不可变应用字节及元数据，未来发布模块按 `firmware_id` 读取，不能重新下载 mutable Release 替换固定字节。迁移仅新增表，可停用新入口并保留该表；删除目录会影响后续发布引用，不提供删除接口。备份未来使用目录和发布状态时应一并保留该表，镜像可能包含构建配置，禁止加入匿名下载或普通备份日志。
 
 自动 HTTP 测试在 Ubuntu 独立 MySQL/Redis 运行，外部 GitHub 边界使用受控夹具。真实网络检查需显式执行 `mvn test -DskipTests=false -Dtest=ProductOtaCatalogLiveProbe`，该类不属于默认离线回归命名。它核对明确的 12f2ff1 候选 SHA/ELF并清理自己的管理员和目录夹具，不向设备发送命令。
+
+## 小智后台上传
+
+管理员可通过 POST /admin/product-ota/firmware/upload 以 multipart 上传 .bin 应用镜像和 manifest.json。服务端沿用 P4、版本、ELF、SHA-256、板型及分区布局校验，校验通过后把不可变镜像保存到目录，来源标记为 ackend_upload，可直接交给在线 OTA 推送。GitHub Release 导入接口保留用于兼容既有目录。
