@@ -25,6 +25,7 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
         self.connected = asyncio.Event()
         self.closed = asyncio.Event()
         self.mode = 'success'
+        self.authority_latency = 0
         self.end_received = asyncio.Event()
         self.tmp = tempfile.TemporaryDirectory()
         app = web.Application()
@@ -46,6 +47,7 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
         self.tmp._finalizer.detach()
 
     async def authority_request(self, request):
+        await asyncio.sleep(self.authority_latency)
         action = request.match_info['action']
         if action == 'key-rejected':
             self.allowed = False
@@ -124,6 +126,11 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
     async def test_native_sequence_numbers_include_interim_messages(self):
         self.mode = 'native-sequence'
         self.assertEqual(await self.provider.speech_to_text([b'\0'*1280], 'test'), ('你好，世界。', None))
+
+    async def test_permission_latency_does_not_accumulate_on_top_of_audio_duration(self):
+        self.authority_latency = .04
+        self.provider.TIMEOUT = 3
+        self.assertEqual(await self.provider.speech_to_text([b'\0'*64000], 'test'), ('你好，世界。', None))
 
     async def test_business_failures_do_not_revoke_or_retry(self):
         for mode in ('403', '500', 'redirect', 'error', 'empty', 'partial-final', 'disconnect'):

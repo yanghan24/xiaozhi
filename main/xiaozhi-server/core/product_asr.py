@@ -212,12 +212,18 @@ class MarketASR(ASRProviderBase):
             await asyncio.sleep(.2)
 
     async def _send_pcm(self, socket, pcm, session_id, ended):
+        loop = asyncio.get_running_loop()
+        next_send = loop.time()
         for offset in range(0, len(pcm), 1280):
-            await self.gate.check_async()
+            # Overlap authority latency with pacing, but never burst to catch up
+            # after a delayed check. Every frame still requires a fresh permission.
+            await asyncio.gather(self.gate.check_async(),
+                asyncio.sleep(max(0, next_send - loop.time())))
             chunk = pcm[offset:offset + 1280]
             await socket.send_bytes(chunk)
-            await asyncio.sleep(len(chunk) / 32000)
-        await self.gate.check_async()
+            next_send = loop.time() + len(chunk) / 32000
+        await asyncio.gather(self.gate.check_async(),
+            asyncio.sleep(max(0, next_send - loop.time())))
         await socket.send_json({'end': True, 'sessionId': session_id})
         ended.set()
 
