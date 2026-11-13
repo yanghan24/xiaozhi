@@ -1,0 +1,56 @@
+{
+  "snapshots": [
+    {
+      "utc": "2026-11-13T11:14:26.486774+00:00",
+      "devices": {
+        "A": {
+          "online": false,
+          "status": "offline",
+          "reason": "offline",
+          "last_seen_at_ms": null,
+          "ota_transport": null,
+          "voice_status": "offline"
+        },
+        "B": {
+          "online": true,
+          "status": "online_requires_wake",
+          "reason": "online_requires_wake",
+          "last_seen_at_ms": "1794568464500",
+          "ota_transport": null,
+          "voice_status": "offline"
+        }
+      }
+    },
+    {
+      "utc": "2026-11-13T11:15:06.547093+00:00",
+      "devices": {
+        "A": {
+          "online": false,
+          "status": "offline",
+          "reason": "offline",
+          "last_seen_at_ms": null,
+          "ota_transport": null,
+          "voice_status": "offline"
+        },
+        "B": {
+          "online": true,
+          "status": "online_requires_wake",
+          "reason": "online_requires_wake",
+          "last_seen_at_ms": "1794568494736",
+          "ota_transport": null,
+          "voice_status": "offline"
+        }
+      }
+    }
+  ],
+  "used_device_credentials": false,
+  "ota_sent": false,
+  "operations_unchanged": true,
+  "operation_count": 0,
+  "authenticated_contact_advanced": {
+    "A": false,
+    "B": true
+  },
+  "device_presence_verification": "pending_device_contact",
+  "physical_standby_ota_acceptance": "pending_firmware_installation"
+}
