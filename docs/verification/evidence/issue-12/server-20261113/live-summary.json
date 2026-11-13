@@ -1,0 +1,146 @@
+{
+  "started_utc": "2026-11-13T01:59:32.035570+00:00",
+  "ended_utc": "2026-11-13T01:59:33.487706+00:00",
+  "python": "3.10.22",
+  "mcp_distribution": "2.3.0",
+  "probe_sha256": "8b01354098340256eefb17a321d54c44863db0172017f90462e24ccff7af32bf",
+  "tools_call_submissions": 1,
+  "model_requests": 0,
+  "tts_requests": 0,
+  "retries": 0,
+  "status": "tool_response_received",
+  "initialization_attempts": 1,
+  "connected_after_initialize": true,
+  "tool_result_summary": {
+    "object_type": "CallToolResult",
+    "is_error": false,
+    "structured_keys": [
+      "answer",
+      "cacheHit",
+      "chunks",
+      "elapsedMs",
+      "generated",
+      "mode",
+      "model",
+      "modelCalled",
+      "note",
+      "returned",
+      "sources",
+      "status",
+      "topK"
+    ],
+    "content_blocks": 6,
+    "business_complete": null,
+    "observed_labels": {
+      "status": "ok",
+      "mode": "chunks",
+      "generated": false,
+      "modelCalled": false,
+      "model": "",
+      "returned": 5,
+      "topK": 5,
+      "cacheHit": false,
+      "elapsedMs": 476
+    },
+    "sources_count": 5
+  },
+  "cleanup_completed": true,
+  "connected_after_cleanup": false,
+  "worker_reference_cleared": true,
+  "source_sha256": {
+    "main/xiaozhi-server/core/connection.py": "0c29dac3bdaea8cff0bc7964852b9f267986d7862a520b49d3c2d93d05c18832",
+    "main/xiaozhi-server/core/product_rejections.py": "cf19c9dc93b84150ac668a4d6633a05dcde5af0644b869d71d39ad66485213a7",
+    "main/xiaozhi-server/core/product_voice.py": "d17517c031fbf842027220da25b2cc515ada11c959c53042d05c4872971f3f27",
+    "main/xiaozhi-server/core/providers/tools/base/__init__.py": "04e13360c8c8bd197a2ff1e5eea73c753538fb764bf791d823497c9370aa2a2b",
+    "main/xiaozhi-server/core/providers/tools/base/tool_executor.py": "e7a372a4572452312ddff864b5e45784b576e5d457bfc0fe7b1e114ff9a69e57",
+    "main/xiaozhi-server/core/providers/tools/base/tool_types.py": "7f5adb1d40efcc59ecc0f712a9ecb7310d982919faf1ca0dcfa6dc224d0a5fbf",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/__init__.py": "eba11cfd661da2b9d578f9a4ab23b8b641b43200a6fcc4c79a7292b81caa6a4b",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/errors.py": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_client.py": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py": "ed7e5e21efa3b1dbbebecd950ae2a12839ca4a242ebbfcb4a22effdfea16ffdc",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py": "2b563e95d1fa9b81e8bf65f4fa171df59ce67f9b435ed90e81ba10ad8ce62f13",
+    "main/xiaozhi-server/core/utils/util.py": "445fc1b342f9719d31121a034adf99ef6bbb4022d8726490dd34073d5bbae8f3",
+    "main/xiaozhi-server/plugins_func/register.py": "b96778e6aa0acbed95d3fe70c869a091bc140ea0b34c16cb66ec80e48c24a1a8",
+    "scripts/check-mcp-offline.py": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612"
+  },
+  "schema": "issue12-authorized-live-summary-v1",
+  "summary_is_original_report": false,
+  "candidate_commit": "830b11a30550de9533065706c1c9d275484b4cbb",
+  "original_report": {
+    "path": "/home/jt/issue12-minimal-verification-20261113T015751Z/live01/result.json",
+    "bytes": 4741,
+    "sha256": "e9965f481ab43c086a44f93077b479d72e9d4bd35a61ce90cbf926c2606b0205"
+  },
+  "protocol": "2025-06-18",
+  "server_info": {
+    "name": "service-669a396c73",
+    "version": "4.32"
+  },
+  "tool": {
+    "name": "ask_knowledge",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "用户要查询的知识库问题，最多300字",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "additionalProperties": false
+    },
+    "independent_version": "not_exposed"
+  },
+  "request": {
+    "tool": "ask_knowledge",
+    "arguments": {
+      "question": "怎么申请成立社会团体"
+    }
+  },
+  "scope": {
+    "device_label": "P4-B",
+    "account_label": "B-current-owner-20261113",
+    "private_mapping_path": "/home/jt/issue12-minimal-verification-20261113T015751Z/scope-private.json",
+    "authorization_source": "Direct human reply in Codex chat 01a1d297-23e1-7bc0-ab82-2b6c4d172e2a on 2026-11-13"
+  },
+  "execution": {
+    "image_id": "sha256:a0ce61af271cd24539236f0e069c062902bd153fb0d78cd237b28348a31e92c5",
+    "network": "host",
+    "source_mount": "read-only",
+    "configuration_mount": "read-only",
+    "container_user": "1000:1000"
+  },
+  "private_response": {
+    "path": "/home/jt/issue12-minimal-verification-20261113T015751Z/live01/tool-result-private.json",
+    "filename": "tool-result-private.json",
+    "bytes": 31576,
+    "sha256": "15fd63f9d4dd09aade0b7a57e36dd982990ce75e0b6ca73e6094560da81a6217",
+    "kind": "Complete SDK result serialization, not a wire capture",
+    "derived_valid_json_path": "/home/jt/issue12-minimal-verification-20261113T015751Z/live01/tool-result-parsed-private.json",
+    "derived_valid_json_sha256": "15fd63f9d4dd09aade0b7a57e36dd982990ce75e0b6ca73e6094560da81a6217",
+    "literal_newline_suffix_removed_in_derived_file": false
+  },
+  "post_check": {
+    "observed_at": "2026-11-13T02:00:20.601194+00:00",
+    "target_owner_and_permission_unchanged": true,
+    "configuration_unchanged": true,
+    "services": {
+      "xiaozhi-pr26-api": {
+        "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+        "started_at": "2026-11-12T03:13:39.656388819Z",
+        "running": true
+      },
+      "xiaozhi-pr26-voice": {
+        "image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+        "started_at": "2026-11-12T06:50:32.021169588Z",
+        "running": true
+      }
+    }
+  },
+  "remote_cancellation": "unknown",
+  "model_and_physical_voice_acceptance": false
+}

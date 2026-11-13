@@ -1,18 +1,18 @@
 # Issue #12 → #14：MCP 知识库接线交接
 
-更新：2026-11-13（Asia/Shanghai）。按 [#12](https://github.com/yanghan24/xiaozhi/issues/12) 和 [#14](https://github.com/yanghan24/xiaozhi/issues/14) 当前正文，交付单台现有 P4、一个获准测试账号的接线输入。服务、配置、Schema 和结果约定统一见 [MCP 最小测试契约](../contracts/mcp-knowledge-contract.md)。
+更新：2026-11-13 10:00（Asia/Hong_Kong）。按 [#12](https://github.com/yanghan24/xiaozhi/issues/12) 和 [#14](https://github.com/yanghan24/xiaozhi/issues/14) 当前正文，交付单台现有 P4、一个获准测试账号的接线输入。服务、配置、Schema 和结果约定统一见 [MCP 最小测试契约](../contracts/mcp-knowledge-contract.md)。
 
-客户端修复已提交至 [PR #86](https://github.com/yanghan24/xiaozhi/pull/86)，尚未合并或部署。2026-11-13 没有新增服务器实测；服务器执行方按[执行单](2026-11-13-mcp-minimal-server-check.md)核验原件与目标测试范围。接线开发可继续，目标账号／设备的 MCP 范围未确认时，仅对应真实调用受阻。
+客户端修复已提交至 [PR #86](https://github.com/yanghan24/xiaozhi/pull/86)，尚未合并或部署。2026-11-13 已完成[服务器回执](../verification/2026-11-13-mcp-server-acceptance.md)：用户确认 P4 B 及当前归属测试账号，建立受控映射、核验原件，并新完成一次真实查询。#12 最小契约已具备签收证据；#14 接线继续按当前许可／归属校验。
 
 ## 1. 可直接复用的输入
 
 | 输入 | 已有证据 | 适用范围 |
 | --- | --- | --- |
-| SSE／工具定义 | 真实初始化和 tools/list，服务 4.31、协议 2024-11-05、工具 ask_knowledge | question 字符串 1–300 字，唯一必填参数；独立工具版本未暴露 |
+| SSE／工具定义 | 真实初始化和 tools/list，本次服务 4.32、SDK 协商协议 2025-06-18、工具 ask_knowledge | question 字符串 1–300 字，唯一必填参数；独立工具版本未暴露 |
 | 修复后的 ServerMCPClient | 真实 MCP 2.3.0 初始化、发现和一次正常公开问题调用 | 直接工具检索，不证明模型选工具、续答或设备播放 |
 | 错误、超时及清理处理 | [6bf7620 基线的 81 条回归](../verification/evidence/issue-12/main6bf81-20261112/README.md)；[当前源码核对](../verification/2026-11-13-mcp-minimal-delivery.md) | 传输／会话大部分合成；真实 SDK 内存流仅验证超时分支 |
-| 无关问题和非法输入 | [2026-11-12 实测](../verification/2026-11-12-mcp-a2-a6-probe.md) | 无关问题仍 ok／5 片段；空问题和 301 字为 -32602 |
-| 凭据配置入口 | 服务器受控配置引用、manager 文件格式已在契约列明 | 测试账号／设备映射由服务器回填；通用配置本身不按账号筛选 |
+| 无关问题和非法输入 | [2026-11-12 实测](../verification/2026-11-12-mcp-a2-a6-probe.md) | 历史结果为无关问题 ok／5 片段、非法输入 -32602；A2 哈希差异和本次重核见服务器回执 |
+| 凭据配置入口 | 服务器受控配置引用、manager 文件格式已在契约列明 | 已登记 `P4-B` / `B-current-owner-20261113`，私有对应见服务器回执；通用配置本身不按账号筛选 |
 
 ## 2. #14 需要补的产品接线
 

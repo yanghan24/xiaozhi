@@ -1,0 +1,8 @@
+{
+  "audit.json": "e5746e0cc7e7c27896ec89b7e04c4c59051377232d7c91b3278de7cb1b1c585b",
+  "audit.snapshot.py": "2dc67c4b9cf9334b8caec8b63f3687abf6a624963c76c98735b8b0065f34d4f4",
+  "installed01-result.json": "e7411021ae983b15d4fdc5e53eb2c22dea109f37a970a65af824ca221ccb48ba",
+  "installed02-result.json": "e7411021ae983b15d4fdc5e53eb2c22dea109f37a970a65af824ca221ccb48ba",
+  "live-once.snapshot.py": "8b01354098340256eefb17a321d54c44863db0172017f90462e24ccff7af32bf",
+  "live-summary.json": "325839031490eb539a6b3f12588fc0abd41bf7bb77f83ffa2633ba95a001e08b"
+}

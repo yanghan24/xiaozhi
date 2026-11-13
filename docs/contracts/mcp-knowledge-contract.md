@@ -1,23 +1,23 @@
 # MCP 知识库最小测试契约（#12）
 
-更新：2026-11-13（Asia/Shanghai）。按 [#12 当前范围](https://github.com/yanghan24/xiaozhi/issues/12)，为一台现有 P4、一个获准测试账号和现有 Ubuntu 测试环境交付 #14 的接线输入。客户端修复已在 [PR #86](https://github.com/yanghan24/xiaozhi/pull/86)；本文不代表已经合并、部署或通过设备验收。
+更新：2026-11-13 10:00（Asia/Hong_Kong）。按 [#12 当前范围](https://github.com/yanghan24/xiaozhi/issues/12)，为现有 P4 B、它当前归属的获准测试账号和现有 Ubuntu 测试环境交付 #14 的接线输入。客户端修复已在 [PR #86](https://github.com/yanghan24/xiaozhi/pull/86)；本文不代表已经合并、部署或通过设备验收。
 
-本轮复用 2026-11-12 的真实协议、直接工具调用及 81 条回归记录。2026-11-13 只核对本地源码和文档，服务器验证由服务器执行方负责，见[执行单](../handoff/2026-11-13-mcp-minimal-server-check.md)。历史报告中的旧六项验收和独立模型链门槛保留为当时记录；本轮关闭条件以当前 Issue 为准。
+本轮已完成[Ubuntu 回执](../verification/2026-11-13-mcp-server-acceptance.md)：确认目标范围、复核历史原件及 14 个受测文件，并用真实 SDK 新完成一次正常查询。两轮 81 项因内容／依赖一致而复用。历史报告中的旧六项验收和独立模型链门槛保留为当时记录；本轮关闭条件以当前 Issue 为准。
 
 ## 1. 已确认的接线输入
 
 | 项目 | 值与依据 |
 | --- | --- |
 | 传输与目标 | SSE；`https://aimarket.hncig.cn:4191/mcp/service-669a396c73/sse` |
-| 协议／服务 | 实测协议 `2024-11-05`；`serverInfo.name=service-669a396c73`，`version=4.31` |
-| 工具 | `ask_knowledge`，独立工具版本未暴露；4.31 仅为服务版本 |
-| 实际测试客户端 | 仓库 `ServerMCPClient`＋MCP SDK `2.3.0`；Ubuntu 测试 Python `3.10.22`。这是测试容器版本，当前部署需服务器另行核对 |
+| 协议／服务 | 本次 SDK 协商 `2025-06-18`；`serverInfo.name=service-669a396c73`，`version=4.32`；历史标准库发现为 2024-11-05／4.31 |
+| 工具 | `ask_knowledge`，独立工具版本未暴露；4.32 仅为服务版本 |
+| 实际测试客户端 | 仓库 `ServerMCPClient`＋MCP SDK `2.3.0`；Ubuntu 测试 Python `3.10.22`。现网也是该 SDK／Python，但 MCP 模块仍为旧代码，候选未部署 |
 | 候选源码 | PR #86 代码提交 `6538c2b1e731901201976a743ab0321eb6ac4354`，比较基线 `6bf7620ea5ac6fc9dd7b852cb9cd26387bc96f80` |
-| 受控凭据引用 | Ubuntu `/home/jt/.private-mcp/config.json`，历史核对为 0600、uid 1000，顶层 `url` / `headers`，`Authorization` 已设置；本轮未读取秘密 |
+| 受控凭据引用 | Ubuntu `/home/jt/.private-mcp/config.json`，本次核对为 0600、uid 1000，顶层 `url` / `headers`，`Authorization` 已设置；秘密仅在后端探针中使用 |
 | 结果模式 | `mode=chunks`、`generated=false`、`modelCalled=false`；工具返回检索原文，由模型依据相关片段生成回答 |
 | 后续模型／语音 | #14 使用 `qwen3.8-flash` 和 Edge TTS；模型自动选工具、续答和音箱播放统一在 #14/#19 验收 |
 
-版本和定义来自[真实协议记录](../verification/2026-11-12-mcp-stage3-protocol.md)，修复客户端兼容性来自[真实 SDK 调用记录](../verification/2026-11-12-mcp-gap-fixes.md)。[当前交付记录](../verification/2026-11-13-mcp-minimal-delivery.md)说明历史受测文件与当前检出的对应关系。
+当前版本、Schema 和修复客户端兼容性见[本次真实查询摘要](../verification/evidence/issue-12/server-20261113/live-summary.json)。[历史协议](../verification/2026-11-12-mcp-stage3-protocol.md)及[历史 SDK 调用](../verification/2026-11-12-mcp-gap-fixes.md)保留原观察；[服务器回执](../verification/2026-11-13-mcp-server-acceptance.md)说明版本对应与历史哈希差异。
 
 ### 配置方式
 
@@ -39,7 +39,7 @@
 
 `knowledge-test` 是本地配置名，`transport` 和超时展示现有客户端的默认选择，不是对现网文件内容的声称。加载器直接读取 JSON，不会自动替换占位符或展开环境变量。服务器配置由执行方在受控后端生成、限制为服务进程可读，秘密不进入 Git、网页、固件或模型上下文。
 
-该通用配置文件没有按账号筛选的功能。#14 应先确认下节的目标范围，并在工具暴露与每次新调用前沿用设备许可／归属授权检查，再使用此配置；不能仅因文件存在就给所有连接开放知识库。动态 SSE 消息端点由 SDK 处理；历史标准库探测做过同源校验，产品客户端尚未新增对应校验，不能混作同一项实现。
+该通用配置文件没有按账号筛选的功能。#14 应沿用下节已登记的目标范围，并在工具暴露与每次新调用前检查当前设备许可／归属授权，再使用此配置；不能仅因文件存在就给所有连接开放知识库。动态 SSE 消息端点由 SDK 处理；历史标准库探测做过同源校验，产品客户端尚未新增对应校验，不能混作同一项实现。
 
 ### 工具输入
 
@@ -65,12 +65,12 @@
 
 ## 2. 获准测试范围与凭据
 
-依据 [#10](https://github.com/yanghan24/xiaozhi/issues/10) 和 #12，沿用现有获准测试访问；当前已知证据只覆盖上述服务的直接检索。服务可访问不能证明它属于任意集市账号，也不能推导所有已登录客户均获授权。
+依据 [#10](https://github.com/yanghan24/xiaozhi/issues/10) 和 #12，沿用现有获准测试访问；本次用户已确认 P4 B 及其当前归属测试账号使用现有 MCP 配置查询固定公开问题；证据覆盖该服务的直接检索。服务可访问不能证明它属于任意集市账号，也不能推导所有已登录客户均获授权。
 
 | 范围 | 当前确认程度／接续动作 |
 | --- | --- |
-| MCP 服务与配置 | 已有受控配置及真实调用；服务器核对仍指向本节服务、权限和实际版本 |
-| 单台 P4＋单个测试账号 | 本轮规格已限定数量，现有材料未给出可核验的目标设备、归属账号与 MCP 测试授权对应记录。由服务器执行方沿用已有测试登记，回填脱敏标签及受控授权记录引用 |
+| MCP 服务与配置 | 已核对受控配置、0600／uid 1000，并完成服务 4.32 的真实调用 |
+| 单台 P4＋单个测试账号 | 用户直接确认，服务器建立 `P4-B` / `B-current-owner-20261113` 对应；真实映射保存在 `/home/jt/issue12-minimal-verification-20261113T015751Z/scope-private.json`（0600）。本次 ready／许可24／归属7，后续每次调用重新检查当前归属／许可 |
 | 获准资源与操作 | 当前契约只覆盖 `ask_knowledge`；已有正常公开问题为“怎么申请成立社会团体”。不从工具提示中的资源链接扩大到其他知识库、资源遍历或其他客户 |
 | 无法确认对应范围 | 只阻塞依赖该范围的真实调用；源码、契约与离线回归可继续。#14 的真实工具接线须等目标范围确认，不能借测试凭据给其他客户放行 |
 
@@ -86,7 +86,7 @@
 {"method":"tools/call","params":{"name":"ask_knowledge","arguments":{"question":"怎么申请成立社会团体"}}}
 ```
 
-修复客户端实际返回 `CallToolResult`，`is_error=false`，业务字段为 `status=ok`、`mode=chunks`、`generated=false`、`modelCalled=false`、`model=""`，`returned=5`，5 个来源、6 个内容块，服务自报 `elapsedMs=408`。以下只保留实测字段的脱敏投影，不是完整原响应或可重放 fixture：
+2026-11-12 修复客户端实际返回 `CallToolResult`，`is_error=false`，业务字段为 `status=ok`、`mode=chunks`、`generated=false`、`modelCalled=false`、`model=""`，`returned=5`，5 个来源、6 个内容块，服务自报 `elapsedMs=408`。以下只保留实测字段的脱敏投影，不是完整原响应或可重放 fixture：
 
 ```json
 {
@@ -106,6 +106,8 @@
 }
 ```
 
+2026-11-13 同一公开问题新调用仍为上述 chunks 结果形态，服务自报 476ms；一次提交、零重试、清理完成。完整 SDK 响应留在服务器，脱敏摘要和 hash 见[本轮回执](../verification/2026-11-13-mcp-server-acceptance.md)。
+
 原文、资源 URI 和动态会话端点继续留在受控后端。工具说明“完整存储切片不代表完整文档”；邻片和 `resources/read` 未在本轮验证，不自动声称完整覆盖。
 
 | 结果分支 | 本轮处理约定 | 实现／证据边界 |
@@ -118,7 +120,7 @@
 
 检索内容是资料，不是给模型的新指令。#14 必须核对资料是否支持问题与最终回答，不能把 `status=ok`、HTTP 200、`returned=5`、有来源或 `generated=false` 中任一个当成有据回答的结论。通用执行器不实现知识库语义分类，这一消费约定在 #14 的真实成功和失败／无相关资料用例中验收。
 
-真实非法输入已测：空字符串和 301 字均被协议层以 `MCPError(code=-32602)` 拒绝。限流、其他服务故障及工具 `is_error=true` 的真实远端样例尚未取得，采用已有边界的合成回归，不为收集样例破坏共享服务。
+历史真实非法输入报告记载空字符串和 301 字均为 `MCPError(code=-32602)`。本次重读确认结构和结果，但两份 A2 报告哈希与历史文档不一致，差异保留于[回执](../verification/2026-11-13-mcp-server-acceptance.md)；必要本地边界另由已核验的 81 项回归覆盖。限流、其他服务故障及工具 `is_error=true` 的真实远端样例尚未取得，采用已有边界的合成回归，不为收集样例破坏共享服务。
 
 ## 4. 超时、停止与迟到结果
 
@@ -137,7 +139,7 @@
 ## 5. 交付与验收入口
 
 - [#14 接线交接](../handoff/2026-11-12-mcp-knowledge-to-issue14.md)：产品入口缺口、调用和输出检查点。
-- [服务器执行单](../handoff/2026-11-13-mcp-minimal-server-check.md)：核对现有证据、目标测试范围与必要复验，回传脱敏结果。
-- [2026-11-13 交付记录](../verification/2026-11-13-mcp-minimal-delivery.md)：按当前五项验收列出已交付和待回执部分。
+- [服务器执行单](../handoff/2026-11-13-mcp-minimal-server-check.md)：执行方法；本次已完成，结果见[服务器签收记录](../verification/2026-11-13-mcp-server-acceptance.md)。
+- [2026-11-13 交付记录](../verification/2026-11-13-mcp-minimal-delivery.md)：保留服务器接续前的交付与审查记录，最新结论见服务器签收记录。
 
 #12 交付服务配置、Schema、结果消费约定、直接工具证据和本地边界处理；#14/#19 一处验证模型自动调用、依据资料续答和实际音箱播放。多客户扩展、完整远端契约和服务升级规则由 #88 跟进。
