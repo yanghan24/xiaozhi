@@ -355,7 +355,8 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None, sentence
     await _send_output(conn, json.dumps(message), sentence_id)
     if getattr(conn, "product_voice_gate", None) is not None:
         conn.logger.bind(tag=TAG).info('Product turn {} session {} tts {} sent frames {}: {}',
-                                     sentence_id, conn.session_id, state, sent_audio_frames, text)
+                                     sentence_id, conn.session_id, state, sent_audio_frames,
+                                     json.dumps(text, ensure_ascii=False))
 
 
 async def send_stt_message(conn: "ConnectionHandler", text):
