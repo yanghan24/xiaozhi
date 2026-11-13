@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /** Administrator HTTP is the public seam; voice is a separate protocol peer. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,
- properties={"server.servlet.context-path=/xiaozhi","server.forward-headers-strategy=native"})
+ properties={"server.servlet.context-path=/xiaozhi","server.forward-headers-strategy=native",
+ "device-control.enabled=true","device-control.public-origin=https://speaker.example.test"})
 class ProductOtaPushHttpTest {
  static final long ADMIN=970000000000001L;
  static final String TOKEN="ota97-admin-fixture";
@@ -40,6 +41,7 @@ class ProductOtaPushHttpTest {
  @org.springframework.boot.test.mock.mockito.MockBean(name="deviceControlClock") java.time.Clock clock;
  static final Set<String> offlineDevices=java.util.concurrent.ConcurrentHashMap.newKeySet();
  static final String FIRMWARE="9".repeat(32);
+ static final String DEVICE_CREDENTIAL="management-fixture-"+"x".repeat(32);
  static final AtomicInteger sent=new AtomicInteger();
  @DynamicPropertySource static void properties(DynamicPropertyRegistry registry) throws Exception {
   voice=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
@@ -111,6 +113,8 @@ class ProductOtaPushHttpTest {
   db.update("DELETE FROM dc_ota_preview WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_ota_firmware WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_delivery_operation WHERE device_id LIKE 'ota97-%'");
+  db.update("DELETE FROM dc_device_presence WHERE device_id LIKE 'ota97-%'");
+  db.update("DELETE FROM dc_device_boot WHERE device_id LIKE 'ota97-%'");
   db.update("DELETE FROM dc_device WHERE device_id LIKE 'ota97-%'");
   db.update("DELETE FROM sys_user_token WHERE user_id=?",ADMIN);
   db.update("DELETE FROM sys_user WHERE id=?",ADMIN);
@@ -295,12 +299,16 @@ class ProductOtaPushHttpTest {
  }
  @Test void unavailableInventoryHasAShortBoundInsteadOfOneLongTimeoutPerDevice() throws Exception {
   db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-second'),('ota97-third'),('ota97-fourth')");
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",ProductOtaCatalog.digest(DEVICE_CREDENTIAL.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  assertEquals(200,http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/device-control/v1/state"))
+   .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device").header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofString()).statusCode());
   statusDelay=3000;
   long start=System.nanoTime();
   var response=get("devices?limit=100",TOKEN);
   assertEquals(200,response.statusCode(),response.body());
   assertTrue((System.nanoTime()-start)/1_000_000<5000,"Unavailable status must fail closed within five seconds for this page");
-  for(var device:JSON.readTree(response.body()).path("data").path("items")) assertEquals("bridge_unavailable",device.path("status").asText());
+  for(var device:JSON.readTree(response.body()).path("data").path("items"))
+   assertTrue(Set.of("bridge_unavailable","online_requires_wake").contains(device.path("status").asText()),device.toString());
  }
  @Test void allOnlineSpansPagesButFreezesExclusionsAndDoesNotAddLaterRegistrationsOrReconnects() throws Exception {
   connected=true;
@@ -463,6 +471,16 @@ class ProductOtaPushHttpTest {
   if(token!=null) req.header("Authorization","Bearer "+token);
   return http.send(req.GET().build(),HttpResponse.BodyHandlers.ofString());
  }
+ JsonNode inventoryDevice(String deviceId) throws Exception {
+  for(int page=1;;page++) {
+   var response=get("devices?page="+page+"&limit=100",TOKEN);
+   assertEquals(200,response.statusCode(),response.body());
+   var inventory=JSON.readTree(response.body()).path("data");
+   var device=batchItem(inventory,deviceId);
+   if(!device.isMissingNode()) return device;
+   assertTrue(page*100<inventory.path("total").asInt(),"Product inventory must include "+deviceId+" across pages");
+  }
+ }
  @Test void administratorSeesProductInventoryAndUnavailableBridgeCannotPromiseOnline() throws Exception {
   var response=get("devices?page=1&limit=50",TOKEN);
   assertEquals(200,response.statusCode(),response.body());
@@ -475,5 +493,339 @@ class ProductOtaPushHttpTest {
   assertNotNull(device,"Product inventory must include the fixture across pages");
   assertEquals("bridge_unavailable",device.path("status").asText());
   assertEquals(401,get("devices",null).statusCode());
+ }
+ @Test void authenticatedBackgroundPollMakesUnboundDeviceOnlineWithoutVoice() throws Exception {
+  connected=true; offlineDevices.add("ota97-device");
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",ProductOtaCatalog.digest(DEVICE_CREDENTIAL.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  var response=http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/device-control/v1/state"))
+   .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device")
+   .header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofString());
+  assertEquals(200,response.statusCode(),response.body());
+  JsonNode device=inventoryDevice("ota97-device");
+  assertTrue(device.path("online").asBoolean(),device.toString());
+  assertEquals("online_requires_wake",device.path("status").asText());
+  now.addAndGet(90001);
+  assertFalse(inventoryDevice("ota97-device").path("online").asBoolean());
+ }
+ static Map<String,Object> maintenanceReport(String boot,boolean idle,Object operation) {
+  var report=new LinkedHashMap<String,Object>();
+  report.put("boot_id",boot); report.put("ota_capable",true); report.put("idle",idle); report.put("operation",operation);
+  report.put("system_info",Map.of("board",Map.of("type","waveshare-esp32-p4-wifi6-touch-lcd-4.3"),"flash_size",16777216,
+   "chip_info",Map.of("model",18,"revision",302),"application",Map.of("version","2.2.6","elf_sha256",elf),
+   "ota",Map.of("label","ota_0","state","valid"),"partition_table",List.of(
+    partition("nvs",1,2,0x9000,0x4000),partition("otadata",1,0,0xd000,0x2000),
+    partition("phy_init",1,1,0xf000,0x1000),partition("ota_0",0,16,0x20000,0x3f0000),
+    partition("ota_1",0,17,0x410000,0x3f0000),partition("assets",1,130,0x800000,0x800000))));
+  return report;
+ }
+ HttpResponse<String> maintenance(Object report) throws Exception {
+  return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/device-control/v1/maintenance"))
+   .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device")
+   .header("X-Forwarded-Proto","https").header("Content-Type","application/json")
+   .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(report))).build(),HttpResponse.BodyHandlers.ofString());
+ }
+ @Test void managementOtaWaitsForIdleAndRequiresDurableAcceptance() throws Exception {
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",ProductOtaCatalog.digest(DEVICE_CREDENTIAL.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  String boot="1".repeat(32);
+  var contact=maintenance(maintenanceReport(boot,false,null));
+  assertEquals(200,contact.statusCode(),contact.body());
+  var inventory=inventoryDevice("ota97-device");
+  assertTrue(inventory.path("online").asBoolean()); assertEquals("management",inventory.path("ota_transport").asText());
+  var preview=JSON.readTree(post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE)).body()).path("data");
+  assertTrue(preview.path("eligible").asBoolean(),preview.toString());
+  var request=Map.of("preview_id",preview.path("preview_id").asText(),"request_key","7".repeat(32));
+  var operation=JSON.readTree(post("operations",request).body()).path("data");
+  assertEquals("waiting_idle",operation.path("status").asText(),operation.toString());
+  assertEquals("management",operation.path("ota_transport").asText());
+  String id=operation.path("operation_id").asText();
+  assertTrue(JSON.readTree(maintenance(maintenanceReport(boot,false,null)).body()).path("data").path("command").isNull());
+  var offered=JSON.readTree(maintenance(maintenanceReport(boot,true,null)).body()).path("data").path("command");
+  assertEquals(id,offered.path("operation_id").asText(),offered.toString());
+  assertEquals("c".repeat(64),offered.path("target_elf_sha256").asText());
+  assertEquals(3,offered.path("image_size").asInt());
+  assertEquals("command_offered",JSON.readTree(get("operations/"+id,TOKEN).body()).path("data").path("status").asText());
+  var accepted=Map.of("operation_id",id,"origin_boot_id",boot,"status","accepted");
+  var ack=JSON.readTree(maintenance(maintenanceReport(boot,true,accepted)).body()).path("data");
+  assertEquals(id,ack.path("operation_ack").path("operation_id").asText());
+  assertEquals("accepted",ack.path("operation_ack").path("status").asText());
+  assertTrue(ack.path("operation_ack").path("expires_in_ms").asLong()>0);
+  assertTrue(ack.path("command").isNull());
+  assertEquals("accepted_unconfirmed",JSON.readTree(get("operations/"+id,TOKEN).body()).path("data").path("status").asText());
+  assertEquals(id,JSON.readTree(post("operations",request).body()).path("data").path("operation_id").asText());
+  assertEquals(0,sent.get());
+ }
+ void admitManagement(String boot) throws Exception {
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",ProductOtaCatalog.digest(DEVICE_CREDENTIAL.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  var response=maintenance(maintenanceReport(boot,true,null));
+  assertEquals(200,response.statusCode(),response.body());
+ }
+ JsonNode managementPreview() throws Exception {
+  var response=post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE));
+  assertEquals(200,response.statusCode(),response.body());
+  return JSON.readTree(response.body()).path("data");
+ }
+ JsonNode managementOperation() throws Exception {
+  var preview=managementPreview(); assertTrue(preview.path("eligible").asBoolean(),preview.toString());
+  var response=post("operations",Map.of("preview_id",preview.path("preview_id").asText(),"request_key",UUID.randomUUID().toString().replace("-","")));
+  assertEquals(200,response.statusCode(),response.body()); return JSON.readTree(response.body()).path("data");
+ }
+ JsonNode operationData(String id) throws Exception { return JSON.readTree(get("operations/"+id,TOKEN).body()).path("data"); }
+ Object receipt(String id,String boot,String status) { return Map.of("operation_id",id,"origin_boot_id",boot,"status",status); }
+ HttpResponse<byte[]> downloadCommand(JsonNode command) throws Exception {
+  var url=URI.create(command.path("url").asText());
+  return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+url.getRawPath()+"?"+url.getRawQuery()))
+   .header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofByteArray());
+ }
+ @Test void managementDownloadRequiresAcceptanceAndCurrentDeviceCredential() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  var command=JSON.readTree(maintenance(maintenanceReport(boot,true,null)).body()).path("data").path("command");
+  assertEquals(404,downloadCommand(command).statusCode());
+  assertEquals(200,maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted"))).statusCode());
+  assertArrayEquals(new byte[]{1,2,3},downloadCommand(command).body());
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'","b".repeat(64));
+  assertEquals(404,downloadCommand(command).statusCode(),"A previously issued management download must fail after credential rotation");
+ }
+ @Test void managementInstallNeedsNewBootTargetElfAndValidSlotAndPreservesTransportReceipt() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  maintenance(maintenanceReport(boot,true,null));
+  maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted")));
+  elf="c".repeat(64);
+  assertEquals(409,maintenance(maintenanceReport(boot,true,receipt(id,boot,"installed"))).statusCode());
+  var unverified=JSON.valueToTree(maintenanceReport("2".repeat(32),true,receipt(id,boot,"installed")));
+  ((com.fasterxml.jackson.databind.node.ObjectNode)unverified.path("system_info").path("ota")).put("state","pending_verify");
+  assertEquals(409,maintenance(unverified).statusCode());
+  assertEquals("unobserved",operationData(id).path("observation_status").asText());
+  var installed=maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"installed")));
+  assertEquals(200,installed.statusCode(),installed.body());
+  assertEquals("target_running",operationData(id).path("observation_status").asText());
+  assertEquals("accepted_unconfirmed",operationData(id).path("status").asText());
+  assertEquals("already_running",managementPreview().path("reason").asText());
+  assertEquals(200,maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"installed"))).statusCode());
+  assertEquals(0,sent.get());
+ }
+ @Test void retiredBootCannotReplaceCurrentPresenceOrAcceptAnOldCommand() throws Exception {
+  String first="1".repeat(32),second="2".repeat(32); admitManagement(first);
+  assertEquals(200,maintenance(maintenanceReport(second,true,null)).statusCode());
+  var stale=maintenance(maintenanceReport(first,true,null));
+  assertEquals(409,stale.statusCode()); assertEquals("STALE_DEVICE_BOOT",JSON.readTree(stale.body()).path("code").asText());
+  String id=managementOperation().path("operation_id").asText();
+  var command=JSON.readTree(maintenance(maintenanceReport(second,true,null)).body()).path("data").path("command");
+  assertEquals(second,command.path("boot_id").asText());
+  assertEquals(409,maintenance(maintenanceReport(first,true,receipt(id,second,"accepted"))).statusCode());
+  assertEquals("command_offered",operationData(id).path("status").asText());
+ }
+ @ParameterizedTest @ValueSource(booleans={false,true})
+ void fixedCommandExpiryDistinguishesUnsentFromExposedWithoutReplay(boolean exposed) throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  JsonNode first=null;
+  if(exposed) {
+   first=JSON.readTree(maintenance(maintenanceReport(boot,true,null)).body()).path("data").path("command");
+   now.addAndGet(1000);
+   var repeated=JSON.readTree(maintenance(maintenanceReport(boot,true,null)).body()).path("data").path("command");
+   assertEquals(first.path("expires_at_ms"),repeated.path("expires_at_ms"));
+   assertEquals(id,repeated.path("operation_id").asText());
+  }
+  now.addAndGet(600001);
+  assertEquals(exposed ? "result_unknown" : "not_sent",operationData(id).path("status").asText());
+  var response=JSON.readTree(maintenance(maintenanceReport(boot,true,null)).body()).path("data");
+  assertTrue(response.path("command").isNull());
+  if(exposed) {
+   var ack=JSON.readTree(maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted"))).body()).path("data").path("operation_ack");
+   assertEquals(0,ack.path("expires_in_ms").asLong());
+   assertEquals("operation_pending",managementPreview().path("reason").asText());
+  } else assertTrue(managementPreview().path("eligible").asBoolean());
+ }
+ @Test void delayedFailureReceiptCannotReleaseANewerDeviceReservation() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String old=managementOperation().path("operation_id").asText();
+  maintenance(maintenanceReport(boot,true,null));
+  assertEquals(200,maintenance(maintenanceReport(boot,true,receipt(old,boot,"failed"))).statusCode());
+  String current=managementOperation().path("operation_id").asText();
+  assertEquals(200,maintenance(maintenanceReport(boot,false,receipt(old,boot,"failed"))).statusCode());
+  assertEquals("waiting_idle",operationData(current).path("status").asText());
+  assertEquals("operation_pending",managementPreview().path("reason").asText());
+  assertEquals(409,maintenance(maintenanceReport(boot,true,receipt(old,boot,"accepted"))).statusCode());
+ }
+ @ParameterizedTest @ValueSource(strings={"boot","credential","hardware","operator","firmware"})
+ void managementRechecksAuthorityAndHardwareBeforeFirstCommand(String change) throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  var report=JSON.valueToTree(maintenanceReport(boot,true,null));
+  if(change.equals("boot")) ((com.fasterxml.jackson.databind.node.ObjectNode)report).put("boot_id","2".repeat(32));
+  if(change.equals("hardware")) ((com.fasterxml.jackson.databind.node.ObjectNode)report.path("system_info").path("board")).put("type","unknown-p4");
+  if(change.equals("operator")) db.update("UPDATE sys_user SET status=0 WHERE id=?",ADMIN);
+  if(change.equals("firmware")) db.update("UPDATE dc_ota_firmware SET verification_status='rejected' WHERE firmware_id=?",FIRMWARE);
+  if(change.equals("credential")) db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'","b".repeat(64));
+  var response=maintenance(report);
+  if(change.equals("credential")) assertEquals(401,response.statusCode());
+  else { assertEquals(200,response.statusCode(),response.body()); assertTrue(JSON.readTree(response.body()).path("data").path("command").isNull()); }
+  if(change.equals("operator")) db.update("UPDATE sys_user SET status=1 WHERE id=?",ADMIN);
+  if(!change.equals("credential")) assertEquals("not_sent",operationData(id).path("status").asText());
+  assertEquals(0,sent.get());
+ }
+ @ParameterizedTest @ValueSource(strings={"unbound","device_disabled"})
+ void managementUpgradeDoesNotRequireOrChangeCustomerPermission(String reason) throws Exception {
+  String boot="1".repeat(32); db.update("UPDATE dc_device SET reason=?,local_enabled=false WHERE device_id='ota97-device'",reason);
+  admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  assertEquals(id,JSON.readTree(maintenance(maintenanceReport(boot,true,null)).body()).path("data").path("command").path("operation_id").asText());
+  assertEquals(200,maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted"))).statusCode());
+  var state=http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/device-control/v1/state"))
+   .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device").header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofString());
+  var data=JSON.readTree(state.body()).path("data");
+  assertEquals(reason,data.path("reason").asText()); assertEquals("blocked",data.path("use_permission").asText());
+  assertEquals(1,data.path("permission_version").asLong());
+ }
+ @Test void legacyPollCannotRefreshExpiredManagementCapabilityAndMalformedReportsCannotRefreshOnline() throws Exception {
+  connected=true; offlineDevices.add("ota97-device");
+  String boot="1".repeat(32); admitManagement(boot); now.addAndGet(90001);
+  var malformed=JSON.valueToTree(maintenanceReport(boot,true,null));
+  ((com.fasterxml.jackson.databind.node.ObjectNode)malformed.path("system_info").path("application")).put("elf_sha256","bad");
+  assertEquals(400,maintenance(malformed).statusCode());
+  assertFalse(inventoryDevice("ota97-device").path("online").asBoolean());
+  var state=http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/device-control/v1/state"))
+   .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device").header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofString());
+  assertEquals(200,state.statusCode());
+  var device=inventoryDevice("ota97-device");
+  assertTrue(device.path("online").asBoolean()); assertEquals("online_requires_wake",device.path("status").asText());
+  assertFalse(managementPreview().path("eligible").asBoolean());
+ }
+ @Test void allOnlineBatchUsesManagementEvenWhenTheFirstVoiceProbeFails() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot);
+  db.update("INSERT INTO dc_device(device_id) VALUES ('ota97-aaa-offline')");
+  var preview=JSON.readTree(post("batch-preview",Map.of("mode","all_online","device_ids",List.of(),"firmware_id",FIRMWARE)).body()).path("data");
+  assertEquals(1,preview.path("eligible_count").asInt(),preview.toString());
+  assertFalse(batchItem(preview,"ota97-aaa-offline").path("eligible").asBoolean());
+  assertEquals("management",batchItem(preview,"ota97-device").path("ota_transport").asText());
+  var batch=JSON.readTree(post("batches",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","5".repeat(32))).body()).path("data");
+  assertEquals("waiting_idle",batchItem(batch,"ota97-device").path("status").asText());
+  assertEquals("management",batchItem(batch,"ota97-device").path("ota_transport").asText());
+  connected=true; now.addAndGet(90001); // Legacy voice becomes usable, but shares the same durable device claim.
+  assertEquals("operation_pending",managementPreview().path("reason").asText());
+  assertEquals(0,sent.get());
+ }
+ @Test void managementConfirmationRetainsThePreviewArtifactAndRejectsNumericBootIdentifiers() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot);
+  var malformed=JSON.valueToTree(maintenanceReport(boot,true,null));
+  ((com.fasterxml.jackson.databind.node.ObjectNode)malformed).put("boot_id",new java.math.BigInteger(boot));
+  assertEquals(400,maintenance(malformed).statusCode());
+  var preview=managementPreview(); assertTrue(preview.path("eligible").asBoolean());
+  db.update("UPDATE dc_ota_firmware SET sha256=? WHERE firmware_id=?","e".repeat(64),FIRMWARE);
+  var operation=JSON.readTree(post("operations",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","6".repeat(32))).body()).path("data");
+  assertEquals("not_sent",operation.path("status").asText());
+  assertEquals("artifact_changed",operation.path("reason").asText());
+ }
+ @Test void rebootBeforeInstallationReportsInterruptionWithoutIssuingTheCommandAgain() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  maintenance(maintenanceReport(boot,true,null));
+  maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted")));
+  var response=maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"interrupted")));
+  assertEquals(200,response.statusCode(),response.body());
+  var data=JSON.readTree(response.body()).path("data");
+  assertEquals("interrupted",data.path("operation_ack").path("status").asText());
+  assertTrue(data.path("command").isNull());
+  assertEquals("result_requires_verification",operationData(id).path("status").asText());
+  assertEquals("operation_pending",managementPreview().path("reason").asText());
+  assertEquals(200,maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"interrupted"))).statusCode());
+ }
+ @Test void productionFirmwareRequestProjectionWorksWithTheRealManagementHttpInterface() throws Exception {
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",ProductOtaCatalog.digest(DEVICE_CREDENTIAL.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  JsonNode report;
+  try(var input=getClass().getResourceAsStream("/device-maintenance/firmware-request.json")) { report=JSON.readTree(input); }
+  var contact=maintenance(report); assertEquals(200,contact.statusCode(),contact.body());
+  var preview=managementPreview();
+  assertEquals("f242b5b68cc3c565335c7eb0b048156209531ebd6fb5e9c54bdf809b9cc58d6e",preview.path("current_elf_sha256").asText());
+  assertTrue(preview.path("eligible").asBoolean(),preview.toString());
+  String id=managementOperation().path("operation_id").asText();
+  var response=maintenance(report); assertEquals(200,response.statusCode(),response.body());
+  assertEquals(id,JSON.readTree(response.body()).path("data").path("command").path("operation_id").asText());
+  java.nio.file.Files.writeString(java.nio.file.Path.of("target/maintenance-response.json"),response.body());
+ }
+ @Test void legacyVoiceBootstrapCompletesFromFreshManagementReportWithoutWakingVoiceAgain() throws Exception {
+  connected=true;
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",ProductOtaCatalog.digest(DEVICE_CREDENTIAL.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  String id=managementOperation().path("operation_id").asText();
+  assertEquals("voice",operationData(id).path("ota_transport").asText());
+  connected=false; now.incrementAndGet(); elf="c".repeat(64);
+  assertEquals(200,maintenance(maintenanceReport("2".repeat(32),true,null)).statusCode());
+  assertEquals("target_running",operationData(id).path("observation_status").asText());
+  assertEquals("accepted_unconfirmed",operationData(id).path("status").asText());
+  assertEquals("already_running",managementPreview().path("reason").asText());
+  assertEquals(1,sent.get());
+ }
+ @Test void managementRunningEvidenceCanCompleteWithoutReceiptButNeverAcrossCredentialRotation() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  maintenance(maintenanceReport(boot,true,null));
+  maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted")));
+  elf="c".repeat(64); now.incrementAndGet();
+  assertEquals(200,maintenance(maintenanceReport("2".repeat(32),true,null)).statusCode());
+  assertEquals("target_running",operationData(id).path("observation_status").asText());
+  var delayed=maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"installed")));
+  assertEquals(200,delayed.statusCode(),delayed.body());
+  assertEquals("installed",JSON.readTree(delayed.body()).path("data").path("operation_ack").path("status").asText());
+  assertEquals(409,maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"failed"))).statusCode());
+  cleanup(); setup(); connected=true;
+  String otherCredential="z".repeat(64);
+  db.update("UPDATE dc_device SET credential_hash=? WHERE device_id='ota97-device'",otherCredential);
+  String old=managementOperation().path("operation_id").asText();
+  connected=false; elf="c".repeat(64); now.incrementAndGet();
+  admitManagement("3".repeat(32));
+  assertEquals("unobserved",operationData(old).path("observation_status").asText());
+  assertEquals("operation_pending",managementPreview().path("reason").asText());
+ }
+ @ParameterizedTest @ValueSource(booleans={false,true})
+ void durableFailedReceiptCanBeAcknowledgedAfterRebootWithoutHidingRunningEvidence(boolean running) throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  maintenance(maintenanceReport(boot,true,null));
+  maintenance(maintenanceReport(boot,true,receipt(id,boot,"accepted")));
+  if(running) elf="c".repeat(64);
+  var failed=maintenance(maintenanceReport("2".repeat(32),true,receipt(id,boot,"failed")));
+  assertEquals(200,failed.statusCode(),failed.body());
+  assertEquals("failed",JSON.readTree(failed.body()).path("data").path("operation_ack").path("status").asText());
+  assertEquals(running ? "target_running" : "unobserved",operationData(id).path("observation_status").asText());
+  if(!running) {
+   assertEquals("failed",operationData(id).path("status").asText());
+   assertTrue(managementPreview().path("eligible").asBoolean());
+   String next=managementOperation().path("operation_id").asText();
+   assertEquals(200,maintenance(maintenanceReport("2".repeat(32),false,receipt(id,boot,"failed"))).statusCode());
+   assertEquals("waiting_idle",operationData(next).path("status").asText());
+  } else assertEquals("already_running",managementPreview().path("reason").asText());
+ }
+ @ParameterizedTest @ValueSource(strings={"current","offline","bridge_unavailable"})
+ void inventoryShowsActualVoiceStateWithoutChangingManagementEligibility(String voiceState) throws Exception {
+  String boot="1".repeat(32); admitManagement(boot);
+  connected=!voiceState.equals("bridge_unavailable");
+  if(voiceState.equals("offline")) offlineDevices.add("ota97-device");
+  var device=inventoryDevice("ota97-device");
+  assertEquals(voiceState,device.path("voice_status").asText(),device.toString());
+  assertTrue(device.path("online").asBoolean()); assertEquals("current",device.path("status").asText());
+  assertEquals("management",device.path("ota_transport").asText());
+  assertTrue(managementPreview().path("eligible").asBoolean());
+ }
+ @Test void hardwareReportMustRemainIdenticalEvenWhenBothVersionsWouldBeCompatible() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); String id=managementOperation().path("operation_id").asText();
+  var changed=JSON.valueToTree(maintenanceReport(boot,true,null));
+  ((com.fasterxml.jackson.databind.node.ObjectNode)changed.path("system_info")).put("flash_size",33554432);
+  var response=maintenance(changed); assertEquals(200,response.statusCode(),response.body());
+  assertTrue(JSON.readTree(response.body()).path("data").path("command").isNull());
+  assertEquals("not_sent",operationData(id).path("status").asText());
+  assertEquals("hardware_changed",operationData(id).path("reason").asText());
+ }
+ @Test void failedArmingReservationExpiresWithoutNeedingAnApiRestart() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); var preview=managementPreview();
+  db.execute("CREATE TRIGGER maintenance_expiry_failure BEFORE UPDATE ON dc_ota_operation FOR EACH ROW "
+    +"BEGIN IF OLD.device_id='ota97-device' AND OLD.status='dispatch_reserved' AND NEW.status='waiting_idle' "
+    +"THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='fixture arm interruption'; END IF; END");
+  String id;
+  try {
+   var response=post("operations",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","3".repeat(32)));
+   assertEquals(503,response.statusCode(),response.body());
+   var operation=JSON.readTree(get("operations",TOKEN).body()).path("data").get(0);
+   id=operation.path("operation_id").asText();
+   assertEquals("dispatch_reserved",operation.path("status").asText());
+  } finally { db.execute("DROP TRIGGER maintenance_expiry_failure"); }
+  now.addAndGet(600001);
+  assertEquals("not_sent",operationData(id).path("status").asText());
+  assertEquals("command_expired",operationData(id).path("reason").asText());
+  var contact=maintenance(maintenanceReport(boot,true,null)); assertEquals(200,contact.statusCode(),contact.body());
+  assertTrue(JSON.readTree(contact.body()).path("data").path("command").isNull());
+  assertTrue(managementPreview().path("eligible").asBoolean());
  }
 }

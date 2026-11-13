@@ -27,7 +27,10 @@ public class ProductOtaDownloadController {
                     downloads.signature(operation,sha,expires).getBytes(StandardCharsets.US_ASCII))) throw new IllegalArgumentException();
             var rows=db.queryForList("SELECT f.image,f.sha256,f.image_size FROM dc_ota_operation o JOIN dc_ota_firmware f ON f.firmware_id=o.firmware_id "
                     +"WHERE o.operation_id=? AND o.artifact_sha256=? AND o.download_expires=? AND o.active_device IS NOT NULL "
-                    +"AND o.status IN ('dispatch_reserved','accepted_unconfirmed','result_unknown','result_requires_verification') AND f.verification_status='verified'",operation,sha,expires);
+                    +"AND o.status IN ('dispatch_reserved','accepted_unconfirmed','result_unknown','result_requires_verification') AND f.verification_status='verified' "
+                    +"AND (o.ota_transport='voice' OR (o.device_status='accepted' AND EXISTS (SELECT 1 FROM dc_device d "
+                    +"WHERE d.device_id=o.device_id AND d.admitted=true AND d.credential_hash=JSON_UNQUOTE(JSON_EXTRACT(o.snapshot,'$.credential_hash'))) "
+                    +"AND EXISTS (SELECT 1 FROM sys_user u WHERE u.id=o.operator_id AND u.super_admin=1 AND u.status=1)))",operation,sha,expires);
             if(rows.size()!=1) throw new IllegalArgumentException();
             var row=rows.getFirst(); byte[] bytes=(byte[])row.get("image");
             if(!sha.equals(row.get("sha256")) || bytes.length!=((Number)row.get("image_size")).intValue()

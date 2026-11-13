@@ -30,6 +30,7 @@ public class DeviceControlService {
     private final JdbcTemplate db;
     private final TransactionTemplate transactions;
     private final Clock clock;
+    private final DevicePresence presence;
     private final boolean enabled;
     private final String publicOrigin;
     private final xiaozhi.modules.customer.CustomerVoicePermissions permissions;
@@ -40,9 +41,10 @@ public class DeviceControlService {
             @Value("${device-control.enabled:false}") boolean enabled,
             @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin,
             xiaozhi.modules.customer.CustomerVoicePermissions permissions,
-            xiaozhi.modules.customer.CustomerAccountDetails accountDetails) {
+            xiaozhi.modules.customer.CustomerAccountDetails accountDetails, DevicePresence presence) {
         this.db = db; this.permissions=permissions;
         this.accountDetails = accountDetails;
+        this.presence = presence;
         this.transactions = new TransactionTemplate(transactionManager);
         this.clock = clock;
         this.enabled = enabled;
@@ -188,6 +190,8 @@ public class DeviceControlService {
     }
 
     Map<String, Object> poll(Identity identity, Long afterRevision, int waitMs) {
+        // One received request proves contact. Internal long-poll reads must not renew it.
+        presence.touch(identity);
         var snapshot = state(identity);
         if (afterRevision == null || waitMs == 0 || number(snapshot, "revision") != afterRevision) return snapshot;
         if (!waiters.tryAcquire()) throw new ControlFailure(429, "RATE_LIMITED");
