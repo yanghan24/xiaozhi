@@ -104,17 +104,15 @@ manager = original['manager-nginx.conf'].decode()
 assert '/xiaozhi/admin/product-ota/firmware' not in manager
 location = re.search(r'location /xiaozhi/\s*\{(.*?)\n\s*\}', manager, re.S)
 assert location, 'Manager proxy no longer matches reviewed structure'
-proxy = re.search(r'proxy_pass\s+([^;]+);', location[1])[1]
+assert re.search(r'proxy_pass\s+[^;]+;', location[1]), 'Manager proxy is missing its upstream'
+import_proxy = re.sub(r'proxy_read_timeout\s+[^;]+;', 'proxy_read_timeout 300s;', location[1])
+if not re.search(r'proxy_read_timeout\s+', import_proxy):
+    import_proxy += '\n        proxy_read_timeout 300s;'
 manager_marker = re.search(r'(?m)^[ \t]*location /xiaozhi/', manager)[0]
-manager = insert_once(manager, manager_marker, '''    location = /xiaozhi/admin/product-ota/firmware {
-        proxy_pass ''' + proxy + ''';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_connect_timeout 5s;
-        proxy_read_timeout 300s;
-    }
-''')
+# Preserve location-scoped resolver/set directives and forwarding behavior.
+# Copying only proxy_pass can reference an unset variable despite nginx -t passing.
+manager = insert_once(manager, manager_marker,
+                      '    location = /xiaozhi/admin/product-ota/firmware {' + import_proxy + '\n    }\n')
 (args.output/'compose.json').write_text(json.dumps(compose, indent=2)+'\n')
 (args.output/'public-nginx.conf').write_text(public)
 (args.output/'manager-nginx.conf').write_text(manager)
