@@ -6,6 +6,8 @@ import java.net.*;
 import java.net.http.*;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -51,7 +53,7 @@ class ProductOtaPushHttpTest {
     if(action.equals("inspect") && inspectUnavailable) { exchange.sendResponseHeaders(503,-1); exchange.close(); return; }
     if(action.equals("status")) result=Map.of("status","current","session_id",session,"permission_version",1);
     if(action.equals("inspect")) result=Map.of("status","ready","system_info",Map.of(
-     "board",Map.of("type",hardwareCase.equals("canonical-board") ? "esp32-p4-wifi6-touch-lcd" : "waveshare-esp32-p4-wifi6-touch-lcd-4.3"),"flash_size",33554432,
+     "board",Map.of("type",hardwareCase.startsWith("family-") ? "esp32-p4-wifi6-touch-lcd" : "waveshare-esp32-p4-wifi6-touch-lcd-4.3"),"flash_size",33554432,
      "chip_info",Map.of("model",18,"revision",100),"application",Map.of("version","2.2.6","elf_sha256",elf),
      "ota",Map.of("label","ota_0"),"partition_table",List.of(
       partition("nvs",1,2,0x9000,0x4000),partition("otadata",1,0,0xd000,0x2000),
@@ -61,7 +63,10 @@ class ProductOtaPushHttpTest {
      var changed=(com.fasterxml.jackson.databind.node.ObjectNode)JSON.valueToTree(result);
      var info=(com.fasterxml.jackson.databind.node.ObjectNode)changed.path("system_info");
      if(hardwareCase.equals("missing")) info.remove("chip_info");
-     if(hardwareCase.equals("small-slot")) ((com.fasterxml.jackson.databind.node.ObjectNode)info.path("partition_table").get(4)).put("size",2048);
+     if(hardwareCase.equals("small-slot") || hardwareCase.equals("family-small-slot")) ((com.fasterxml.jackson.databind.node.ObjectNode)info.path("partition_table").get(4)).put("size",2048);
+     if(hardwareCase.equals("unknown-board")) ((com.fasterxml.jackson.databind.node.ObjectNode)info.path("board")).put("type","unrecognized-p4");
+     if(hardwareCase.equals("family-wrong-chip")) ((com.fasterxml.jackson.databind.node.ObjectNode)info.path("chip_info")).put("model",9);
+     if(hardwareCase.equals("family-wrong-revision")) ((com.fasterxml.jackson.databind.node.ObjectNode)info.path("chip_info")).put("revision",400);
      result=changed;
     }
     if(action.equals("dispatch")) {
@@ -105,6 +110,7 @@ class ProductOtaPushHttpTest {
   db.update("DELETE FROM dc_ota_operation WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_ota_preview WHERE operator_id=?",ADMIN);
   db.update("DELETE FROM dc_ota_firmware WHERE operator_id=?",ADMIN);
+  db.update("DELETE FROM dc_delivery_operation WHERE device_id LIKE 'ota97-%'");
   db.update("DELETE FROM dc_device WHERE device_id LIKE 'ota97-%'");
   db.update("DELETE FROM sys_user_token WHERE user_id=?",ADMIN);
   db.update("DELETE FROM sys_user WHERE id=?",ADMIN);
@@ -140,13 +146,79 @@ class ProductOtaPushHttpTest {
   assertFalse(same.path("eligible").asBoolean()); assertEquals("already_running",same.path("reason").asText());
   assertEquals(0,sent.get());
  }
- @Test void acceptsCanonicalBoardNameReportedByCurrentDevice() throws Exception {
-  connected=true; hardwareCase="canonical-board";
+ void delivery(String board,boolean complete) {
+  db.update("INSERT INTO dc_delivery_operation(operation_id,operator_id,device_id,hardware_id,network_hardware_id,board_type,credential_hash,credential_cipher,status,created_at_ms,device_verified_at_ms,write_operation_id,completed_at_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    "d".repeat(32),ADMIN,"ota97-device","020000009701","020000009702",board,"e".repeat(64),"fixture-cipher",
+    complete ? "delivered" : "pending",1,complete ? 2L : null,complete ? "f".repeat(32) : null,complete ? 3L : null);
+ }
+ @Test void familyNameWithCompletedPreciseDeliveryCanPreviewAndConfirm() throws Exception {
+  connected=true; hardwareCase="family-normal";
+  delivery("waveshare-esp32-p4-wifi6-touch-lcd-4.3",true);
   var response=post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE));
   assertEquals(200,response.statusCode(),response.body());
   var preview=JSON.readTree(response.body()).path("data");
   assertTrue(preview.path("eligible").asBoolean(),response.body());
   assertEquals("eligible",preview.path("reason").asText());
+  assertEquals(0,sent.get());
+  var confirmed=post("operations",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","6".repeat(32)));
+  assertEquals(200,confirmed.statusCode(),confirmed.body());
+  assertEquals("accepted_unconfirmed",JSON.readTree(confirmed.body()).path("data").path("status").asText());
+  assertEquals(1,sent.get());
+ }
+ @Test void genericNameWithoutCompletedPreciseDeliveryNeverBecomesEligible() throws Exception {
+  connected=true; hardwareCase="family-normal";
+  for(String evidence:List.of("missing","pending","other-screen","unknown")) {
+   db.update("DELETE FROM dc_delivery_operation WHERE device_id='ota97-device'");
+   if(!evidence.equals("missing")) delivery(evidence.equals("pending") ? "waveshare-esp32-p4-wifi6-touch-lcd-4.3"
+     : evidence.equals("other-screen") ? "waveshare-esp32-p4-wifi6-touch-lcd-7" : "unknown-board",!evidence.equals("pending"));
+   var response=post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE));
+   assertEquals(200,response.statusCode(),response.body());
+   var preview=JSON.readTree(response.body()).path("data");
+   assertFalse(preview.path("eligible").asBoolean(),evidence+": "+response.body());
+   assertEquals("incompatible_board",preview.path("reason").asText(),evidence);
+   assertEquals("",preview.path("preview_id").asText());
+  }
+  assertEquals(0,sent.get());
+  assertEquals(0,JSON.readTree(get("operations",TOKEN).body()).path("data").size());
+ }
+ @Test void exactRuntimeNameCannotOverrideAConflictingDelivery() throws Exception {
+  connected=true;
+  delivery("waveshare-esp32-p4-wifi6-touch-lcd-7",true);
+  var response=post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE));
+  var preview=JSON.readTree(response.body()).path("data");
+  assertFalse(preview.path("eligible").asBoolean(),response.body());
+  assertEquals("incompatible_board",preview.path("reason").asText());
+  assertEquals(0,sent.get());
+ }
+ @Test void preciseDeliveryDoesNotOverrideUnknownRuntimeOrOtherHardwareChecks() throws Exception {
+  connected=true; delivery("waveshare-esp32-p4-wifi6-touch-lcd-4.3",true);
+  for(var scenario:Map.of("unknown-board","incompatible_board","family-wrong-chip","incompatible_board",
+    "family-wrong-revision","incompatible_revision","family-small-slot","incompatible_layout").entrySet()) {
+   hardwareCase=scenario.getKey();
+   var response=post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE));
+   var preview=JSON.readTree(response.body()).path("data");
+   assertFalse(preview.path("eligible").asBoolean(),response.body());
+   assertEquals(scenario.getValue(),preview.path("reason").asText(),scenario.getKey());
+  }
+  assertEquals(0,sent.get());
+  assertEquals(0,JSON.readTree(get("operations",TOKEN).body()).path("data").size());
+ }
+ @ParameterizedTest
+ @ValueSource(strings={"other-screen","pending","removed"})
+ void confirmationRechecksCurrentDeliveryEvidenceBeforeDispatch(String change) throws Exception {
+  connected=true; hardwareCase="family-normal";
+  delivery("waveshare-esp32-p4-wifi6-touch-lcd-4.3",true);
+  var preview=JSON.readTree(post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE)).body()).path("data");
+  assertTrue(preview.path("eligible").asBoolean(),preview.toString());
+  if(change.equals("other-screen")) db.update("UPDATE dc_delivery_operation SET board_type='waveshare-esp32-p4-wifi6-touch-lcd-7' WHERE device_id='ota97-device'");
+  else if(change.equals("pending")) db.update("UPDATE dc_delivery_operation SET status='pending',device_verified_at_ms=NULL,write_operation_id=NULL,completed_at_ms=NULL WHERE device_id='ota97-device'");
+  else db.update("DELETE FROM dc_delivery_operation WHERE device_id='ota97-device'");
+  var response=post("operations",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","6".repeat(32)));
+  assertEquals(200,response.statusCode(),response.body());
+  var operation=JSON.readTree(response.body()).path("data");
+  assertEquals("not_sent",operation.path("status").asText(),response.body());
+  assertEquals("incompatible_board",operation.path("reason").asText());
+  assertEquals(0,sent.get());
  }
  @Test void slowPreparationLeavesAFullConfirmationWindow() throws Exception {
   connected=true; slowPreparation=true;

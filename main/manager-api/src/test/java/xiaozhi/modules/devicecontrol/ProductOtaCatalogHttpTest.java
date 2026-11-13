@@ -13,6 +13,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import java.util.*;
 import java.nio.*;
+import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayOutputStream;
 import java.security.MessageDigest;
 
 /** Exercises the actual HTTP authentication chain and persisted catalog on Ubuntu. */
@@ -84,6 +86,41 @@ class ProductOtaCatalogHttpTest {
         when(source.asset(id*10+1, 65536)).thenReturn(metadata);
         return sha;
     }
+    HttpResponse<String> upload(String board) throws Exception {
+        fixture(9601,1);
+        byte[] image=source.asset(96010,GithubReleaseSource.MAX_IMAGE);
+        var manifest=(com.fasterxml.jackson.databind.node.ObjectNode)JSON.readTree(source.asset(96011,65536));
+        manifest.put("board_type",board);
+        String boundary="ota96-multipart-boundary";
+        var body=new ByteArrayOutputStream();
+        body.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"image\"; filename=\"app.bin\"\r\nContent-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        body.write(image);
+        body.write(("\r\n--"+boundary+"\r\nContent-Disposition: form-data; name=\"manifest\"; filename=\"manifest.json\"\r\nContent-Type: application/json\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        body.write(JSON.writeValueAsBytes(manifest));
+        body.write(("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.UTF_8));
+        return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/admin/product-ota/firmware/upload"))
+                .header("Authorization","Bearer "+TOKEN).header("Content-Type","multipart/form-data; boundary="+boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build(),HttpResponse.BodyHandlers.ofString());
+    }
+    @Test void backendUploadPreservesThePreciseBoardVariant() throws Exception {
+        String board="waveshare-esp32-p4-wifi6-touch-lcd-4.3";
+        var response=upload(board);
+        assertEquals(200,response.statusCode(),response.body());
+        var uploaded=JSON.readTree(response.body()).path("data");
+        assertEquals(board,uploaded.path("board_type").asText());
+        assertEquals("backend_upload",uploaded.path("source_kind").asText());
+        assertEquals("verified",uploaded.path("verification_status").asText());
+        assertEquals(board,db.queryForObject("SELECT board_type FROM dc_ota_firmware WHERE firmware_id=?",String.class,uploaded.path("firmware_id").asText()));
+        assertEquals(board,JSON.readTree(get("firmware",TOKEN).body()).path("data").path(0).path("board_type").asText());
+    }
+    @Test void backendUploadRejectsFamilyAndUnknownNamesWithoutSavingThem() throws Exception {
+        for(String board:List.of("esp32-p4-wifi6-touch-lcd","waveshare-esp32-p4-wifi6-touch-lcd-7","unknown-board")) {
+            var response=upload(board);
+            assertEquals(400,response.statusCode(),response.body());
+            assertEquals("INCOMPATIBLE_LAYOUT",JSON.readTree(response.body()).path("code").asText());
+        }
+        assertEquals(0,JSON.readTree(get("firmware",TOKEN).body()).path("data").size());
+    }
     @Test void importsFixedReleaseAndReadsDistinctBuildsWithSameVersion() throws Exception {
         String sha=fixture(9601,1);
         var releases=get("github-releases?page=1",TOKEN);
@@ -98,6 +135,7 @@ class ProductOtaCatalogHttpTest {
         var value=JSON.readTree(first.body()).path("data");
         assertEquals("2.2.6",value.path("app_version").asText());
         assertEquals("verified",value.path("verification_status").asText());
+        assertEquals("waveshare-esp32-p4-wifi6-touch-lcd-4.3",value.path("board_type").asText());
         assertEquals(100,value.path("min_revision").asInt());
         assertEquals(4128768,value.path("app_partition_bytes").asInt());
         assertFalse(catalog.toString().contains("image\""));

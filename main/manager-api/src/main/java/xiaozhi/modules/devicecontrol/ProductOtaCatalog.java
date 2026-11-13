@@ -65,12 +65,12 @@ public class ProductOtaCatalog {
             var inspected=OtaApplicationImage.inspect(image,app.path("sha256").asText());
             require(image.length==app.path("bytes").asLong() && inspected.version().equals(manifest.path("app_version").asText())
                     && inspected.elfSha256().equals(app.path("elf_sha256").asText()),"MANIFEST_IMAGE_MISMATCH");
-            String board=ProductOtaBoardTypes.canonical(manifest.path("board_type").asText());
+            String board=manifest.path("board_type").asText();
             String commit=manifest.path("source_commit").asText();
             String layout=manifest.path("partition_layout").asText();
             String partitionHash=manifest.path("partition_table_sha256").asText();
             int capacity=manifest.path("app_partition_bytes").asInt();
-            require(board != null && commit.matches("[a-f0-9]{40}")
+            require(board.equals("waveshare-esp32-p4-wifi6-touch-lcd-4.3") && commit.matches("[a-f0-9]{40}")
                     && layout.equals("partitions/v2/16m.csv") && partitionHash.matches("[a-f0-9]{64}")
                     && capacity==4128768 && image.length<=capacity,"INCOMPATIBLE_LAYOUT");
             var current=source.release(releaseId);
@@ -114,10 +114,10 @@ public class ProductOtaCatalog {
             var inspected=OtaApplicationImage.inspect(image,app.path("sha256").asText());
             require(image.length==app.path("bytes").asLong() && inspected.version().equals(manifest.path("app_version").asText())
                     && inspected.elfSha256().equals(app.path("elf_sha256").asText()),"MANIFEST_IMAGE_MISMATCH");
-            String board=ProductOtaBoardTypes.canonical(manifest.path("board_type").asText()), commit=manifest.path("source_commit").asText();
+            String board=manifest.path("board_type").asText(), commit=manifest.path("source_commit").asText();
             String layout=manifest.path("partition_layout").asText(), partitionHash=manifest.path("partition_table_sha256").asText();
             int capacity=manifest.path("app_partition_bytes").asInt();
-            require(board != null && commit.matches("[a-f0-9]{40}")
+            require(board.equals("waveshare-esp32-p4-wifi6-touch-lcd-4.3") && commit.matches("[a-f0-9]{40}")
                     && layout.equals("partitions/v2/16m.csv") && partitionHash.matches("[a-f0-9]{64}")
                     && capacity==4128768 && image.length<=capacity,"INCOMPATIBLE_LAYOUT");
             if (db.queryForObject("SELECT COUNT(*) FROM dc_ota_firmware WHERE sha256=?", Integer.class, inspected.sha256()) > 0)
