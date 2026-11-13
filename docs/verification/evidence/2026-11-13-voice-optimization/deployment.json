@@ -1,0 +1,31 @@
+{
+  "observed_at_utc": "2026-11-13T08:54:25.581803+00:00",
+  "baseline_image": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+  "candidate_image": "sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff",
+  "checkpoint": "/home/jt/voice-optimization-guarded-20261113/deployment-checkpoints/20261113T085328337420Z",
+  "backup": "/home/jt/pr26-deployment-885918d/private/backups/20261113T084515Z",
+  "checks": {
+    "checkpoint_completed": true,
+    "voice_running": true,
+    "voice_candidate_image": true,
+    "compose_matches_checkpoint": true,
+    "only_voice_image_changed": true,
+    "voice_identity_matches_checkpoint": true,
+    "other_containers_unchanged_including_mysql_redis": true,
+    "mounts_networks_environment_unchanged": true,
+    "diagnostic_absent": true,
+    "nginx_config_unchanged": true,
+    "persistent_state_directory_present": true,
+    "persistent_state_mount_preserved": true,
+    "baseline_image_available": true,
+    "candidate_image_available": true,
+    "rollback_compose_check": true,
+    "running_five_files_match_tested_image": true,
+    "ota_tls_discovery_ok": true,
+    "unauthorized_wss_close_1008": true,
+    "rollback_pointer_matches": true
+  },
+  "authorization_state_limitation": "Persistent directory and mount retained; dynamic state contents were not snapshotted or compared.",
+  "real_model_calls": 0,
+  "physical_device_test": false
+}

@@ -1,5 +1,7 @@
 # 当前部署与公网入口
 
+2026-11-13 16:54（Asia/Hong_Kong）完成[唤醒与首段语音优化部署](../verification/2026-11-13-voice-optimization.md)：语音运行镜像 `sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff`，固定问候缓存、最早安全首段与 Edge 增量播放生效。受测镜像通过 99 项单测及 31 个 WebSocket 场景；部署只更改语音 image，保留部署前其他任务更新的 API／管理页面，MySQL／Redis／入口容器及原配置、持久挂载保持。TLS 发现 200，无授权 WSS 1008；实际音箱速度与完整播放待用户确认。[部署与回退证据](../verification/evidence/2026-11-13-voice-optimization/deployment.json)。
+
 2026-11-13 15:57（Asia/Hong_Kong）完成[唤醒与首音延迟诊断](../verification/2026-11-13-voice-latency.md)：短时启用元数据计时后已恢复原语音镜像 `sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2`，临时计时关闭；Compose 与诊断前逐字节一致，API／管理页／入口容器未重建，TLS 发现 200、无授权 WSS 1008。两轮实测定位到模型与首段语音合成等待；本次没有部署延迟优化。
 
 2026-11-13 14:43（Asia/Hong_Kong）只读核对确认服务器已运行合并 PR #93 后的语音镜像 `xiaozhi-product-voice:ota99-26b1703`，digest 为 `sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2`；API digest 为 `sha256:292846c40a6279bf720ccc75eed08796eb042b287350b0b13e048d04a9fa500d`，管理页 digest 为 `sha256:6f36cacdb1ab2d8eb7234eb8cf07e2f8996be29179e3ea6a7c1f34ac70aaa9c5`。部署目录仍为 `/home/jt/pr26-deployment-885918d`，本次没有覆盖后续维护/ASR 变更或重复重启。PR #93 合并后部署和 B 现场复验证据见 [#14 合并后部署与复验](../verification/2026-11-13-issue14-postdeploy.md) 及其 [deployment.json](../verification/evidence/2026-11-13-issue14-postdeploy/deployment.json)。
@@ -48,7 +50,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:asr-switch`，11:02:36 重建；#18 下发前只读复查确认 |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:issue14-wake-69398b3`；12:32:14重建，修复配套监听误取消问候，保留 #18维护路径、#94 ASR和原提示词；镜像 ID `sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585`。代码审阅入口 [PR #93](https://github.com/yanghan24/xiaozhi/pull/93)，实际问候及三题完整播放功能验收通过；转写及工具正文证据限制见本页顶部报告 |
+| 产品语音 | `xiaozhi-pr26-voice` / `sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff`；16:53 重建，缓存唤醒问候、最早安全首段与 Edge 增量播放，保留原 ASR、知识库、维护和授权状态。代码审阅入口 [PR #107](https://github.com/yanghan24/xiaozhi/pull/107)；16:54 部署核验通过，物理首声与完整播放待用户确认 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web` / `xiaozhi-manager-web:asr-switch`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问；模型配置 → 语音识别可切换来源 |
 
