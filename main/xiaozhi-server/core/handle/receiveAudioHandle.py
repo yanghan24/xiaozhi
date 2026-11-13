@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.connection import ConnectionHandler
-from core.utils.util import audio_to_data
+from core.utils.util import audio_to_data, remove_punctuation_and_length
 from core.handle.abortHandle import handleAbortMessage
 from core.handle.intentHandler import handle_user_intent
 from core.utils.output_counter import check_device_output_limit
@@ -43,7 +43,7 @@ async def resume_vad_detection(conn: "ConnectionHandler"):
     conn.just_woken_up = False
 
 
-async def startToChat(conn: "ConnectionHandler", text):
+async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
     # 检查输入是否是JSON格式（包含说话人信息）
     speaker_name = None
     actual_text = text
@@ -77,6 +77,17 @@ async def startToChat(conn: "ConnectionHandler", text):
         conn.current_speaker = speaker_name
     else:
         conn.current_speaker = None
+
+    if getattr(conn, 'product_voice_gate', None) is not None:
+        turn_id = conn.product_conversation.begin(wakeup=wakeup)
+        await send_stt_message(conn, actual_text)
+        command_text = actual_content if speaker_name is not None else actual_text
+        _, command_text = remove_punctuation_and_length(command_text.strip())
+        if command_text in conn.cmd_exit:
+            await conn.close()
+            return
+        conn.executor.submit(conn.chat, actual_text, turn_id=turn_id)
+        return
 
     if conn.need_bind:
         await check_bind_device(conn)

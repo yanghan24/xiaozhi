@@ -184,16 +184,37 @@ class MarketModel:
         self.gate = gate
 
     def response(self, session_id, dialogue, **kwargs):
+        stream = self._stream(dialogue, turn_guard=kwargs.get('turn_guard'))
+        try:
+            for content, _ in stream:
+                if content:
+                    yield content
+        finally:
+            stream.close()
+
+    def response_with_functions(self, session_id, dialogue, functions=None, **kwargs):
+        yield from self._stream(dialogue, functions=functions, turn_guard=kwargs.get('turn_guard'))
+
+    def _stream(self, dialogue, functions=None, turn_guard=None):
+        if turn_guard is not None:
+            turn_guard()
         access = self.gate.model_access()
         body = {'model': access['model'], 'messages': dialogue, 'stream': True}
+        if functions:
+            body['tools'] = functions
         request = urllib.request.Request(access['base_url'].rstrip('/') + '/chat/completions',
             data=json.dumps(body, ensure_ascii=False).encode(), headers={
                 'Authorization': 'Bearer ' + access['api_key'], 'Content-Type': 'application/json'}, method='POST')
         try:
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+            self.gate.check()
+            if turn_guard is not None:
+                turn_guard()
             with opener.open(request, timeout=30) as response:
                 for raw in response:
                     self.gate.check()
+                    if turn_guard is not None:
+                        turn_guard()
                     if not raw.startswith(b'data:'):
                         continue
                     payload = raw[5:].strip()
@@ -204,9 +225,21 @@ class MarketModel:
                         raise ModelUnavailable('AI market stream failed')
                     choices = item.get('choices', [])
                     if choices:
-                        content = choices[0].get('delta', {}).get('content')
-                        if isinstance(content, str) and content:
-                            yield content
+                        delta = choices[0].get('delta', {})
+                        content = delta.get('content')
+                        calls = delta.get('tool_calls')
+                        if content is not None and not isinstance(content, str):
+                            raise ModelUnavailable('AI market stream failed')
+                        if calls is not None and (not isinstance(calls, list) or any(
+                                not isinstance(call, dict) or type(call.get('index')) is not int
+                                or call['index'] < 0 for call in calls)):
+                            raise ModelUnavailable('AI market stream failed')
+                        if calls:
+                            from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
+                            calls = [ChoiceDeltaToolCall.model_validate(
+                                {**call, 'function': call.get('function') or {}}, strict=True) for call in calls]
+                        if content is not None or calls:
+                            yield content, calls
                 raise ModelUnavailable('AI market stream ended without completion')
         except urllib.error.HTTPError as error:
             if error.code == 401:
@@ -217,6 +250,3 @@ class MarketModel:
             raise
         except Exception:
             raise ModelUnavailable('AI market response unavailable') from None
-
-    def response_with_functions(self, *args, **kwargs):
-        raise ModelUnavailable('Tools are not enabled for direct market model mode')

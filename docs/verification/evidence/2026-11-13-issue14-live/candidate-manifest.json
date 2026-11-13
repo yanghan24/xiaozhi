@@ -1,0 +1,22 @@
+{
+  "source_commit": "5f01f35fb156463cbedf7dd1737256419d69267d",
+  "source_archive_sha256": "df8f9aab8020e6c9ee0ef03f7173a9f576cca83ee16dafd88b93e8a1727f46b0",
+  "base_image": "sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897",
+  "files": {
+    "core/connection.py": "2f07f5a6611a88893066b1007642ab6ccbbaee9402421dace5dd1755899a0763",
+    "core/handle/abortHandle.py": "442fd52071c8966cdadab21685e328782ed7af43f7c974d3c72a0299b90cc091",
+    "core/handle/receiveAudioHandle.py": "4cc5a81e2555e984bffee41bac8886e24490e20790cdcaa24f58c22d81ae4eb0",
+    "core/handle/sendAudioHandle.py": "385a6b295a6af1a7d057fa8e4d7887d61a2cd5a42302f0c7aeb08528b86dc972",
+    "core/handle/textHandler/listenMessageHandler.py": "a816c3baea523c92be56e1edc8affac009a32e298d706c7e89b42c2c51c06a37",
+    "core/product_chat.py": "b3a774d18ec32e1bde150e09701053cb8d50b2b41a6038b53b8b666e2d79fdaa",
+    "core/product_knowledge.py": "c5983c2d8d23cc14d8e05a77fdda87fbd611e57c272c52a9fae8b228df7e71bf",
+    "core/product_voice.py": "fa0d4dc96a4a41b5b52b0b4589b29f4b574d1a57d6379fd5f62b7afd1e55807f",
+    "core/providers/tools/device_mcp/mcp_handler.py": "26318562bdd32e15a05993dc6bf08069f188d2245f3093017ecbf8a122e9499f",
+    "core/providers/tools/server_mcp/errors.py": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+    "core/providers/tools/server_mcp/mcp_client.py": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+    "core/providers/tools/server_mcp/mcp_executor.py": "0dfce4a98522cc8958bd05546ac033bf329c3510334579ff2c3f9c572eabf661",
+    "core/providers/tools/server_mcp/mcp_manager.py": "fd230c3ab75150d3e1fad2b8701e90957fd2328bfbe4d0b2259d0a72152f7cc5",
+    "core/providers/tools/unified_tool_handler.py": "6cb3ce4635eabae7e9093944932897f0251ba07613d53b18d921fa2a06bbdacd",
+    "core/websocket_server.py": "a1dc1452f70694ad84cbb1f3cf073cfe46038950c45ccb295f5f5e49dd6bb047"
+  }
+}

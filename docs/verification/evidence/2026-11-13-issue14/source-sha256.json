@@ -1,0 +1,22 @@
+{
+    "source_commit":  "c418994bbb29909cb234ad1fe81bf54d4548ee29",
+    "files":  {
+                  "main/xiaozhi-server/core/connection.py":  "2f07f5a6611a88893066b1007642ab6ccbbaee9402421dace5dd1755899a0763",
+                  "main/xiaozhi-server/core/handle/abortHandle.py":  "442fd52071c8966cdadab21685e328782ed7af43f7c974d3c72a0299b90cc091",
+                  "main/xiaozhi-server/core/handle/receiveAudioHandle.py":  "4cc5a81e2555e984bffee41bac8886e24490e20790cdcaa24f58c22d81ae4eb0",
+                  "main/xiaozhi-server/core/handle/sendAudioHandle.py":  "eb97abd405ef6eca831d4db6daa768ace5eb7594ea0050df1bba44f7de2bcaf0",
+                  "main/xiaozhi-server/core/handle/textHandler/listenMessageHandler.py":  "a816c3baea523c92be56e1edc8affac009a32e298d706c7e89b42c2c51c06a37",
+                  "main/xiaozhi-server/core/product_chat.py":  "af03a540a70b35e11b273e031efb960eeb41d94b82b364ea043470308e96bd7b",
+                  "main/xiaozhi-server/core/product_knowledge.py":  "2d9a539b158fa9a9e4901861286fd6ce78b3c26efa23b0e1c4a794a4567d715f",
+                  "main/xiaozhi-server/core/product_voice.py":  "1d85b884b3f667ff31525d97df0eedfc3015c07be50dea7e064873f01e1d438c",
+                  "main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py":  "26318562bdd32e15a05993dc6bf08069f188d2245f3093017ecbf8a122e9499f",
+                  "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py":  "0dfce4a98522cc8958bd05546ac033bf329c3510334579ff2c3f9c572eabf661",
+                  "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py":  "fd230c3ab75150d3e1fad2b8701e90957fd2328bfbe4d0b2259d0a72152f7cc5",
+                  "main/xiaozhi-server/core/providers/tools/unified_tool_handler.py":  "6cb3ce4635eabae7e9093944932897f0251ba07613d53b18d921fa2a06bbdacd",
+                  "main/xiaozhi-server/core/websocket_server.py":  "cb45afdb3fa21d7bc3a0177531bcafcc973bbb535e6aaf005a0d6edc897c888c",
+                  "main/xiaozhi-server/tests/test_product_audio.py":  "da32ca46c0e35c94f59b14bb31d5c72a3b0c1928c5925e963c83720bbaf89760",
+                  "main/xiaozhi-server/tests/test_product_knowledge.py":  "0da293ed9b7ccd2976a17ed428965b45dde310955fe74346397f7ac70c73e821",
+                  "main/xiaozhi-server/tests/test_product_model.py":  "ff4ef457726736bb43692667ab6cf866925100737d819d105782d5c2e1bba01b",
+                  "scripts/check-product-knowledge.py":  "bfeddf665eed7f434c4f50aae6598aa03eaf3a2413f18cb026a08c5188edbaa8"
+              }
+}

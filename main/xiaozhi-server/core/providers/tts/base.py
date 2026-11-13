@@ -122,9 +122,20 @@ class TTSProviderBase(ABC):
     def handle_audio_file(self, file_audio: bytes, text):
         self.before_stop_play_files.append((file_audio, text))
 
+    def _diagnostic_text(self, text):
+        if getattr(self.conn, "product_voice_gate", None) is not None:
+            return f"turn {getattr(self, 'current_sentence_id', None)}"
+        return text
+
+    def _diagnostic_error(self, error):
+        if getattr(self.conn, "product_voice_gate", None) is not None:
+            return type(error).__name__
+        return str(error)
+
     def to_tts_stream(self, text, opus_handler: Callable[[bytes], None] = None) -> None:
         # 保留原始文本用于显示/上报
         original_text = text
+        diagnostic_text = self._diagnostic_text(original_text)
         text = MarkdownCleaner.clean_markdown(text)
         # 使用正则一次性替换，避免重复遍历和部分匹配问题
         if self._correct_words_pattern:
@@ -151,16 +162,16 @@ class TTSProviderBase(ABC):
                         max_repeat_time -= 1
                 except Exception as e:
                     logger.bind(tag=TAG).warning(
-                        f"语音生成失败{5 - max_repeat_time + 1}次: {original_text}，错误: {e}"
+                        f"语音生成失败{5 - max_repeat_time + 1}次: {diagnostic_text}，错误: {self._diagnostic_error(e)}"
                     )
                     max_repeat_time -= 1
             if max_repeat_time > 0:
                 logger.bind(tag=TAG).info(
-                    f"语音生成成功: {original_text}，重试{5 - max_repeat_time}次"
+                    f"语音生成成功: {diagnostic_text}，重试{5 - max_repeat_time}次"
                 )
             else:
                 logger.bind(tag=TAG).error(
-                    f"语音生成失败: {original_text}，请检查网络或服务是否正常"
+                    f"语音生成失败: {diagnostic_text}，请检查网络或服务是否正常"
                 )
             return None
         else:
@@ -171,7 +182,7 @@ class TTSProviderBase(ABC):
                         asyncio.run(self.text_to_speak(text, tmp_file))
                     except Exception as e:
                         logger.bind(tag=TAG).warning(
-                            f"语音生成失败{5 - max_repeat_time + 1}次: {original_text}，错误: {e}"
+                            f"语音生成失败{5 - max_repeat_time + 1}次: {diagnostic_text}，错误: {self._diagnostic_error(e)}"
                         )
                         # 未执行成功，删除文件
                         if os.path.exists(tmp_file):
@@ -180,16 +191,18 @@ class TTSProviderBase(ABC):
 
                 if max_repeat_time > 0:
                     logger.bind(tag=TAG).info(
-                        f"语音生成成功: {original_text}:{tmp_file}，重试{5 - max_repeat_time}次"
+                        f"语音生成成功: {diagnostic_text}:{tmp_file}，重试{5 - max_repeat_time}次"
                     )
                 else:
                     logger.bind(tag=TAG).error(
-                        f"语音生成失败: {original_text}，请检查网络或服务是否正常"
+                        f"语音生成失败: {diagnostic_text}，请检查网络或服务是否正常"
                     )
                 self.tts_audio_queue.put((SentenceType.FIRST, None, original_text, getattr(self, 'current_sentence_id', None)))
                 self._process_audio_file_stream(tmp_file, callback=opus_handler)
             except Exception as e:
-                logger.bind(tag=TAG).error(f"Failed to generate TTS file: {e}")
+                logger.bind(tag=TAG).error(
+                    f"Failed to generate TTS file: {self._diagnostic_error(e)}"
+                )
                 return None
     
     def to_tts(self, text):
@@ -405,9 +418,14 @@ class TTSProviderBase(ABC):
             except queue.Empty:
                 continue
             except Exception as e:
-                logger.bind(tag=TAG).error(
-                    f"处理TTS文本失败: {str(e)}, 类型: {type(e).__name__}, 堆栈: {traceback.format_exc()}"
-                )
+                if getattr(self.conn, "product_voice_gate", None) is not None:
+                    logger.bind(tag=TAG).error(
+                        f"处理TTS文本失败: {self._diagnostic_text(None)}, 类型: {type(e).__name__}"
+                    )
+                else:
+                    logger.bind(tag=TAG).error(
+                        f"处理TTS文本失败: {str(e)}, 类型: {type(e).__name__}, 堆栈: {traceback.format_exc()}"
+                    )
                 continue
 
     def _audio_play_priority_thread(self):
@@ -468,7 +486,9 @@ class TTSProviderBase(ABC):
                     add_device_output(self.conn.headers.get("device-id"), len(text))
 
             except Exception as e:
-                logger.bind(tag=TAG).error(f"audio_play_priority_thread: {text} {e}")
+                logger.bind(tag=TAG).error(
+                    f"audio_play_priority_thread: {self._diagnostic_text(text)} {self._diagnostic_error(e)}"
+                )
 
     async def start_session(self, session_id):
         pass

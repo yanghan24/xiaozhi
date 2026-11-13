@@ -35,13 +35,17 @@ class _ManagerClosed(Exception):
 class ServerMCPManager:
     """管理多个服务端MCP服务的集中管理器"""
 
-    def __init__(self, conn) -> None:
+    def __init__(self, conn, *, servers=None, allowed_tools=None) -> None:
         """初始化MCP管理器"""
         self.conn = conn
-        self.config_path = get_project_dir() + "data/.mcp_server_settings.json"
-        if not os.path.exists(self.config_path):
-            self.config_path = ""
-            logger.bind(tag=TAG).debug("MCP服务配置文件不存在")
+        self._servers = servers
+        self._allowed_tools = None if allowed_tools is None else frozenset(allowed_tools)
+        self.config_path = ""
+        if servers is None:
+            self.config_path = get_project_dir() + "data/.mcp_server_settings.json"
+            if not os.path.exists(self.config_path):
+                self.config_path = ""
+                logger.bind(tag=TAG).debug("MCP服务配置文件不存在")
         self.clients: Dict[str, ServerMCPClient] = {}
         self.tools = []
         self._init_lock = asyncio.Lock()
@@ -50,6 +54,8 @@ class ServerMCPManager:
 
     def load_config(self) -> Dict[str, Any]:
         """加载MCP服务配置"""
+        if self._servers is not None:
+            return self._servers
         if len(self.config_path) == 0:
             return {}
 
@@ -93,7 +99,7 @@ class ServerMCPManager:
                 client.initialize(logging_callback=self.logging_callback),
                 timeout=_INIT_TIMEOUT_SECONDS,
             )
-            client_tools = client.get_available_tools()
+            client_tools = self._client_tools(client)
 
             async with self._init_lock:
                 if self._closed:
@@ -166,7 +172,7 @@ class ServerMCPManager:
             await asyncio.gather(*tasks)
 
         # 输出当前支持的服务端MCP工具列表
-        if hasattr(self.conn, "func_handler") and self.conn.func_handler:
+        if self._servers is None and hasattr(self.conn, "func_handler") and self.conn.func_handler:
             # 刷新工具缓存以确保服务端MCP工具被正确加载
             if hasattr(self.conn.func_handler, "tool_manager"):
                 self.conn.func_handler.tool_manager.refresh_tools()
@@ -175,6 +181,16 @@ class ServerMCPManager:
     def get_all_tools(self) -> List[Dict[str, Any]]:
         """获取所有服务的工具function定义"""
         return self.tools
+
+    def _client_tools(self, client):
+        tools = client.get_available_tools()
+        if self._allowed_tools is None:
+            return tools
+        # The SDK client sanitizes names. A different original name must never
+        # acquire a restricted tool's authority through that alias.
+        return [tool for tool in tools
+                if tool["function"]["name"] in self._allowed_tools
+                and client.name_mapping.get(tool["function"]["name"]) == tool["function"]["name"]]
 
     def is_mcp_tool(self, tool_name: str) -> bool:
         """检查是否是MCP工具"""
@@ -191,6 +207,8 @@ class ServerMCPManager:
         logger.bind(tag=TAG).info("开始执行服务端MCP工具")
         if self._closed:
             raise MCPToolExecutionError(MCP_EXECUTION_FAILED_MESSAGE)
+        if self._allowed_tools is not None and not self.is_mcp_tool(tool_name):
+            raise ToolNotFoundError(MCP_TOOL_NOT_FOUND_MESSAGE)
 
         target_client = None
         for client in list(self.clients.values()):
@@ -234,7 +252,7 @@ class ServerMCPManager:
         tools = []
         for client in self.clients.values():
             try:
-                tools.extend(client.get_available_tools())
+                tools.extend(self._client_tools(client))
             except Exception:
                 logger.bind(tag=TAG).error("服务端MCP工具列表刷新失败")
         self.tools = tools
