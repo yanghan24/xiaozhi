@@ -1,0 +1,55 @@
+{
+  "captured_at_utc": "2026-11-13T06:34:13Z",
+  "host": "jt@192.168.168.114",
+  "runner_root": "/home/jt/issue14-current-image-retest",
+  "image_digest": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+  "summary_path": "/home/jt/issue14-current-image-retest/current-image/summary.json",
+  "summary_sha256": "cf891561486be13c89184f8fbab898e3965dbc3fda49ed0f68a5cf66e017f093",
+  "isolation": {
+    "network": "none",
+    "root_filesystem": "read-only",
+    "capabilities": "all dropped",
+    "fixtures": "synthetic model, MCP, ASR and TTS fixtures",
+    "source_overlay": false,
+    "real_external_requests": false
+  },
+  "results": {
+    "product_units": {
+      "tests": 70,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exit": 0
+    },
+    "websocket_scenarios": {
+      "count": 22,
+      "passed": 22,
+      "failed": 0,
+      "exit_codes": "all zero",
+      "names": [
+        "abort-new-turn",
+        "device-tools",
+        "empty-answer",
+        "happy",
+        "ordinary",
+        "other-owner",
+        "revoked",
+        "tool-error",
+        "init-failed",
+        "listen-start",
+        "wake-abort-start",
+        "wake-start-twice",
+        "wake-start",
+        "exit-period",
+        "exit-exclamation",
+        "exit-whitespace",
+        "startup-wake",
+        "startup-paired",
+        "startup-abort",
+        "startup-listen",
+        "startup-failed",
+        "startup-timeout"
+      ]
+    }
+  }
+}

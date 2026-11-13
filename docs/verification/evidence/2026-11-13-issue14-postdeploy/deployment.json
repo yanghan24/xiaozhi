@@ -1,0 +1,36 @@
+{
+  "captured_at_utc": "2026-11-13T06:43:17Z",
+  "host": "jt@192.168.168.114",
+  "deployment_root": "/home/jt/pr26-deployment-885918d",
+  "compose_file": "/home/jt/pr26-deployment-885918d/private/compose.json",
+  "services": {
+    "xiaozhi-pr26-voice": {
+      "image_tag": "xiaozhi-product-voice:ota99-26b1703",
+      "image_digest": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+      "started_at": "2026-11-13T06:11:22.137206008Z",
+      "status": "running"
+    },
+    "xiaozhi-pr26-api": {
+      "image_digest": "sha256:292846c40a6279bf720ccc75eed08796eb042b287350b0b13e048d04a9fa500d",
+      "started_at": "2026-11-13T06:11:27.277143105Z",
+      "status": "running"
+    },
+    "xiaozhi-pr26-web": {
+      "image_digest": "sha256:6f36cacdb1ab2d8eb7234eb8cf07e2f8996be29179e3ea6a7c1f34ac70aaa9c5",
+      "started_at": "2026-11-13T06:11:27.211259996Z",
+      "status": "running"
+    }
+  },
+  "voice_labels": {
+    "maintenance": "p4-a30f6a8-root-only",
+    "review_head": "f830a8c34393d4befd13263d2ca7b809ac24252f",
+    "upstream_revision": "c8e60d1325650c8a31d00e36d8528f8bb74aeb11",
+    "image_revision": "885918d24d69f0b2ed87114f1937292727111d4e"
+  },
+  "pr93": {
+    "merge_commit": "66d77eeefaae8f7039f7dcb1bf190eb303b4f2f5",
+    "head_commit": "e98c300daa8192972969e263f169d2b339a376f7",
+    "running_image_check": "Five PR #93 source files extracted from the running image matched the merged source after CRLF normalization: connection.py, product_chat.py, receiveAudioHandle.py, sendAudioHandle.py and providers/tts/base.py."
+  },
+  "change_scope": "The voice image was already updated before this verification. No rebuild, source overlay or service restart was performed by this run; later maintenance and ASR image contents were preserved."
+}
