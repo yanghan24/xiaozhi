@@ -1,0 +1,42 @@
+{
+  "observed_at": "2026-11-13T04:51:04.923916Z",
+  "snapshot_window_ended_at": "2026-11-13T04:49:33.618951Z",
+  "b_scope_matches": true,
+  "source_versions": {
+    "voice_image": "xiaozhi-product-voice:issue14-wake-69398b3",
+    "voice_image_id": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+    "voice_started_at": "2026-11-13T04:32:14.520271114Z",
+    "source_commit": "69398b3c0c134529790d719d8ff27f8a452545a9",
+    "runtime_source_hashes_match_manifest": true,
+    "asr_provider": "market",
+    "asr_revision": "5"
+  },
+  "records": [
+    {
+      "topic": "ordinary_self_introduction",
+      "mapping": "Manual topic mapping from retained introduction request, with unrelated suffix omitted publicly",
+      "recognized_test_text": "介绍自己。",
+      "additional_non_test_ASR_suffix_omitted": true,
+      "input_sha256": "00bcd7c7961354b35adcee209ebc94e87a8e9dfbb2b6249839d18aae827cb340",
+      "asr_at": "2026-11-13T04:48:46.169668868Z",
+      "input_at": "2026-11-13T04:48:46.216321206Z",
+      "asr_session_binding": "Unique exact ASR content hash matches explicit mapped B-session input; ASR log itself has no session",
+      "model_decisions": 1,
+      "knowledge_calls": 0,
+      "first_audio_at": "2026-11-13T04:48:51.347028435Z",
+      "tts_stop_at": "2026-11-13T04:49:15.868378930Z",
+      "input_to_first_audio_seconds": 5.131,
+      "input_to_stop_seconds": 29.652,
+      "sent_audio_frames": 408,
+      "sent_response_excerpt_redacted": "我是中国建筑业协会智能AI小助手小智，可以问制度、问规范，也是一部智能百科全书。",
+      "additional_clarification_for_unrelated_ASR_suffix_omitted": true,
+      "server_output_complete": true,
+      "private_response_sha256": "c5259324c5a8e0a160129abbe1e719489b244110128350101cb4d0623a1888b8"
+    }
+  ],
+  "raw_source_sha256": "a5ad2f3f18bc60cc96c489195bedf6e9df4b5b8098ad97ca28d4e66cdba8d11c",
+  "user_confirmation": "听到了完整自我介绍",
+  "confirmation_source": "Direct reply to the separate ordinary-question recheck in the active root task",
+  "physical_playback_from_server_logs_alone": false,
+  "new_model_MCP_OTA_calls_by_script": 0
+}

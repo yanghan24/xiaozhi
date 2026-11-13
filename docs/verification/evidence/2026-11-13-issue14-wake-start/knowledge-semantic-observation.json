@@ -1,0 +1,161 @@
+{
+  "observed_at": "2026-11-13T04:47:02.640192Z",
+  "snapshot_window_ended_at": "2026-11-13T04:40:55.383125Z",
+  "b_scope_matches": true,
+  "strict_fixed_question_cases": {
+    "ordinary": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    },
+    "knowledge1": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    },
+    "knowledge2": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    }
+  },
+  "manual_semantic_records": [
+    {
+      "manual_topic_mapping": "knowledge1",
+      "mapping_basis": "Same social-organization-establishment topic; recognized phrase lacks the application/question opening. Manual topic mapping, not exact question matching.",
+      "strict_fixed_question_match": false,
+      "recognized_text_redacted": "成立社会团体。",
+      "input_sha256": "6376947105bac0c7f883350267d3d9759b8e9985de5ec560bf629e5d9211110c",
+      "input_at": "2026-11-13T04:38:03.978210015Z",
+      "asr_at": "2026-11-13T04:38:03.935810022Z",
+      "asr_session_binding": "unscoped ASR exact-content hash uniquely matches explicit B-session input",
+      "tool_started_count": 1,
+      "tool_completed_count": 1,
+      "tool_actions": [
+        "REQLLM"
+      ],
+      "grounded_continuation_count": 1,
+      "tool_result_sha256": "e847c95bc6c3e392a976b2079de0d46ba6444f28cd99ef568909060cea365cec",
+      "first_audio_at": "2026-11-13T04:38:16.540087574Z",
+      "tts_stop_at": "2026-11-13T04:38:57.361350383Z",
+      "sent_audio_frames": 656,
+      "input_to_first_audio_seconds": 12.562,
+      "input_to_stop_seconds": 53.383,
+      "server_output_complete": true,
+      "output_is_partial": false,
+      "sentence_start_messages_redacted": [
+        {
+          "at_utc": "2026-11-13T04:38:16.373883292Z",
+          "text": "成立社会团体"
+        },
+        {
+          "at_utc": "2026-11-13T04:38:19.785372414Z",
+          "text": "通常需要先经其业务主管单位审查同意，再由发起人向登记管理机关申请登记"
+        },
+        {
+          "at_utc": "2026-11-13T04:38:27.532108987Z",
+          "text": "登记资料还显示"
+        },
+        {
+          "at_utc": "2026-11-13T04:38:29.754218050Z",
+          "text": "成立社会团体应当具备法人条件；"
+        },
+        {
+          "at_utc": "2026-11-13T04:38:33.478321829Z",
+          "text": "申请成立须经业务主管单位审查同意并依法登记"
+        },
+        {
+          "at_utc": "2026-11-13T04:38:38.699508645Z",
+          "text": "资料中列示了“社会团体登记文件材料归档范围”，包括筹备成立和成立登记相关文件，但这属于归档范围，不等同于法定必须提交材料清单或固定先后程序"
+        },
+        {
+          "at_utc": "2026-11-13T04:38:53.393237680Z",
+          "text": "筹备期间不得开展筹备以外的活动"
+        }
+      ],
+      "full_sent_sentence_text_redacted": "成立社会团体通常需要先经其业务主管单位审查同意，再由发起人向登记管理机关申请登记登记资料还显示成立社会团体应当具备法人条件；申请成立须经业务主管单位审查同意并依法登记资料中列示了“社会团体登记文件材料归档范围”，包括筹备成立和成立登记相关文件，但这属于归档范围，不等同于法定必须提交材料清单或固定先后程序筹备期间不得开展筹备以外的活动",
+      "full_original_response_retained_privately": true,
+      "private_response_record_sha256": "e4bb20193eb3abe4a120ca513511c882506ddebe462ba9f5f3d8baa9ccc324a8",
+      "existing_tool_result_hash_matches": 0,
+      "existing_tool_result_references": [],
+      "actual_tool_result_body_status": "not_retained_in_this_observation_and_no_existing_hash_match",
+      "physical_playback_confirmation": "User reports complete/understandable via root; independent of server stop evidence"
+    },
+    {
+      "manual_topic_mapping": "knowledge2",
+      "mapping_basis": "Foreign NGO registration and filing terms remain explicit, with unrelated ASR prefix noise. Manual topic mapping, not exact question matching.",
+      "strict_fixed_question_match": false,
+      "recognized_text_redacted": "对啊就是直联是我境外非政府组织的登记和备案。",
+      "input_sha256": "aae5c10409365239ef5956b1d6a866cd829660528ac5cf96782ed3aae37b93ca",
+      "input_at": "2026-11-13T04:39:09.237510263Z",
+      "asr_at": "2026-11-13T04:39:09.192821918Z",
+      "asr_session_binding": "unscoped ASR exact-content hash uniquely matches explicit B-session input",
+      "tool_started_count": 1,
+      "tool_completed_count": 1,
+      "tool_actions": [
+        "REQLLM"
+      ],
+      "grounded_continuation_count": 1,
+      "tool_result_sha256": "31eb44d03691c2ef70573401b58c1d9a7d60b752d6e66bf7bb131be074915388",
+      "first_audio_at": "2026-11-13T04:39:25.245601974Z",
+      "tts_stop_at": "2026-11-13T04:40:33.479546078Z",
+      "sent_audio_frames": 1115,
+      "input_to_first_audio_seconds": 16.008,
+      "input_to_stop_seconds": 84.242,
+      "server_output_complete": true,
+      "output_is_partial": false,
+      "sentence_start_messages_redacted": [
+        {
+          "at_utc": "2026-11-13T04:39:25.069200676Z",
+          "text": "明白"
+        },
+        {
+          "at_utc": "2026-11-13T04:39:27.524933845Z",
+          "text": "你问的是境外非政府组织的登记和备案"
+        },
+        {
+          "at_utc": "2026-11-13T04:39:31.703393759Z",
+          "text": "核心规则是"
+        },
+        {
+          "at_utc": "2026-11-13T04:39:33.600893740Z",
+          "text": "境外非政府组织在中国境内开展活动，应当依法登记设立代表机构；未登记设立代表机构需要在中国境内开展临时活动的，应当依法备案"
+        },
+        {
+          "at_utc": "2026-11-13T04:39:46.552411391Z",
+          "text": "如果未登记设立代表机构，也没有依法备案，则"
+        },
+        {
+          "at_utc": "2026-11-13T04:39:51.359522163Z",
+          "text": "境外非政府组织未登记设立代表机构、开展临时活动未经备案的，不得在中国境内开展或者变相开展活动，不得委托、资助或者变相委托、资助中国境内任何单位和个人在中国境内开展活动"
+        },
+        {
+          "at_utc": "2026-11-13T04:40:09.416926853Z",
+          "text": "申请设立代表机构登记时，原句规定"
+        },
+        {
+          "at_utc": "2026-11-13T04:40:13.501948597Z",
+          "text": "境外非政府组织应当自业务主管单位同意之日起三十日内，向登记管理机关申请设立代表机构登记"
+        },
+        {
+          "at_utc": "2026-11-13T04:40:22.921316730Z",
+          "text": "登记管理机关审查后"
+        },
+        {
+          "at_utc": "2026-11-13T04:40:25.501625830Z",
+          "text": "登记管理机关应当自受理申请之日起六十日内作出准予登记或者不予登记的决定"
+        }
+      ],
+      "full_sent_sentence_text_redacted": "明白你问的是境外非政府组织的登记和备案核心规则是境外非政府组织在中国境内开展活动，应当依法登记设立代表机构；未登记设立代表机构需要在中国境内开展临时活动的，应当依法备案如果未登记设立代表机构，也没有依法备案，则境外非政府组织未登记设立代表机构、开展临时活动未经备案的，不得在中国境内开展或者变相开展活动，不得委托、资助或者变相委托、资助中国境内任何单位和个人在中国境内开展活动申请设立代表机构登记时，原句规定境外非政府组织应当自业务主管单位同意之日起三十日内，向登记管理机关申请设立代表机构登记登记管理机关审查后登记管理机关应当自受理申请之日起六十日内作出准予登记或者不予登记的决定",
+      "full_original_response_retained_privately": true,
+      "private_response_record_sha256": "44fc00602243145a185d26f8564bf7166a2e349d2cf571b38a340d857b12b224",
+      "existing_tool_result_hash_matches": 0,
+      "existing_tool_result_references": [],
+      "actual_tool_result_body_status": "not_retained_in_this_observation_and_no_existing_hash_match",
+      "physical_playback_confirmation": "User reports complete/understandable via root; independent of server stop evidence"
+    }
+  ],
+  "ordinary_question_gap": {
+    "status": "not_established",
+    "reason": "The additional short ASR phrase is semantically incomplete and not a self-introduction request; no response/audio/stop was present for it in this snapshot. Original unrelated text remains private."
+  },
+  "raw_source_sha256": "02ba5901cf47aca5ad2b43182b8e87779e58b4406e8051b46e42ab0004503e9a",
+  "no_new_collect_model_MCP_or_OTA_calls": true
+}
