@@ -1,0 +1,8 @@
+{
+  "environment": "Ubuntu 192.168.168.114 / isolated ota96-catalog",
+  "reports": "/home/jt/ota96-catalog/.runtime/final-reports",
+  "tests": 370,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0
+}

@@ -98,6 +98,11 @@ const routes = [
     }
   },
   {
+    path: '/product-ota',
+    name: 'ProductOtaManagement',
+    component: () => import('../views/ProductOtaManagement.vue')
+  },
+  {
     path: '/ota-management',
     name: 'OtaManagement',
     component: function () {
