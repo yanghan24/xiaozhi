@@ -28,4 +28,3 @@
 [脱敏计时与恢复证据](evidence/2026-11-13-voice-latency/timings.json)。Ubuntu 私有诊断与恢复材料位于 `/home/jt/voice-latency-isolated-20261113/`。临时源码已从工作树的业务代码移除，另存于被忽略的 `.runtime/voice-latency-diagnostic-20261113/`，未合并临时埋点。
 
 后续优化应优先验证首段 TTS 的首块／整段耗时，并评估唤醒固定应答缓存；任何方案仍须验证取消、授权闸门和实际首声时间。本轮完成诊断与恢复，尚未部署延迟优化。
-
