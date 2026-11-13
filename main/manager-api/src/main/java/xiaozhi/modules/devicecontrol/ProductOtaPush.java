@@ -182,7 +182,9 @@ public class ProductOtaPush {
         if(!app.path("elf_sha256").asText().matches("[a-f0-9]{64}") || app.path("version").asText().isEmpty()
                 || !chip.path("revision").isIntegralNumber() || !info.path("flash_size").isIntegralNumber()
                 || !info.path("board").path("type").isTextual()) return "hardware_unknown";
-        if(!image.get("board_type").equals(info.path("board").path("type").asText()) || chip.path("model").asInt(-1)!=18) return "incompatible_board";
+        String imageBoard=ProductOtaBoardTypes.canonical((String)image.get("board_type"));
+        String deviceBoard=ProductOtaBoardTypes.canonical(info.path("board").path("type").asText());
+        if(imageBoard==null || !imageBoard.equals(deviceBoard) || chip.path("model").asInt(-1)!=18) return "incompatible_board";
         if(chip.path("revision").asInt()<number(image,"min_revision") || chip.path("revision").asInt()>number(image,"max_revision")) return "incompatible_revision";
         if(info.path("flash_size").asLong()<number(image,"flash_size") || !"partitions/v2/16m.csv".equals(image.get("partition_layout"))) return "incompatible_layout";
         Object[][] layout={{"nvs",1,2,0x9000,0x4000},{"otadata",1,0,0xd000,0x2000},{"phy_init",1,1,0xf000,0x1000},

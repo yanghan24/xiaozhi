@@ -51,7 +51,7 @@ class ProductOtaPushHttpTest {
     if(action.equals("inspect") && inspectUnavailable) { exchange.sendResponseHeaders(503,-1); exchange.close(); return; }
     if(action.equals("status")) result=Map.of("status","current","session_id",session,"permission_version",1);
     if(action.equals("inspect")) result=Map.of("status","ready","system_info",Map.of(
-     "board",Map.of("type","waveshare-esp32-p4-wifi6-touch-lcd-4.3"),"flash_size",33554432,
+     "board",Map.of("type",hardwareCase.equals("canonical-board") ? "esp32-p4-wifi6-touch-lcd" : "waveshare-esp32-p4-wifi6-touch-lcd-4.3"),"flash_size",33554432,
      "chip_info",Map.of("model",18,"revision",100),"application",Map.of("version","2.2.6","elf_sha256",elf),
      "ota",Map.of("label","ota_0"),"partition_table",List.of(
       partition("nvs",1,2,0x9000,0x4000),partition("otadata",1,0,0xd000,0x2000),
@@ -139,6 +139,14 @@ class ProductOtaPushHttpTest {
   var same=JSON.readTree(post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE)).body()).path("data");
   assertFalse(same.path("eligible").asBoolean()); assertEquals("already_running",same.path("reason").asText());
   assertEquals(0,sent.get());
+ }
+ @Test void acceptsCanonicalBoardNameReportedByCurrentDevice() throws Exception {
+  connected=true; hardwareCase="canonical-board";
+  var response=post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE));
+  assertEquals(200,response.statusCode(),response.body());
+  var preview=JSON.readTree(response.body()).path("data");
+  assertTrue(preview.path("eligible").asBoolean(),response.body());
+  assertEquals("eligible",preview.path("reason").asText());
  }
  @Test void slowPreparationLeavesAFullConfirmationWindow() throws Exception {
   connected=true; slowPreparation=true;
