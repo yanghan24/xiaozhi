@@ -20,9 +20,13 @@ public class GithubReleaseSource {
         catch(IOException malformed) { throw new ControlFailure(502,"GITHUB_INVALID_RESPONSE"); }
     }
     private byte[] fetch(URI uri,int limit,boolean binary) {
-        long deadline=System.nanoTime()+60_000_000_000L;
+        // Keep metadata checks short while allowing a progressing multi-MiB
+        // application download. The independent 30-second idle limit remains.
+        long budgetSeconds=binary && limit==MAX_IMAGE ? 180 : 30;
+        long deadline=System.nanoTime()+budgetSeconds*1_000_000_000L;
         try {
             for(int redirect=0;redirect<5;redirect++) {
+                if(System.nanoTime()>deadline) throw new SocketTimeoutException();
                 if(!"https".equals(uri.getScheme()) || uri.getRawUserInfo()!=null || uri.getRawFragment()!=null
                         || (uri.getPort()!=-1 && uri.getPort()!=443)
                         || !Set.of("api.github.com","release-assets.githubusercontent.com","objects.githubusercontent.com").contains(uri.getHost()))
@@ -49,7 +53,7 @@ public class GithubReleaseSource {
                     try(var input=connection.getInputStream();var out=new ByteArrayOutputStream()) {
                         byte[] buffer=new byte[16384];
                         for(int count;(count=input.read(buffer))!=-1;) {
-                            if(System.nanoTime()>deadline) throw new IOException();
+                            if(System.nanoTime()>deadline) throw new SocketTimeoutException();
                             if(out.size()+count>limit) throw new ControlFailure(400,"ASSET_SIZE_INVALID");
                             out.write(buffer,0,count);
                         }
