@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-13",
+  "issue": 13,
+  "device_alias": "B",
+  "evidence_type": "user_confirmation_in_current_session",
+  "confirmations": [
+    {
+      "statement": "现在b设备可用",
+      "scope": "B is currently usable."
+    },
+    {
+      "question": "你刚确认 B 可用，是否也确认过：关闭手机上的登录/绑定页面后，B 仍能完成一次普通语音问答并完整播报？",
+      "statement": "B可用确认过，关闭手机上的登录也可以",
+      "scope": "B completes an ordinary voice answer after the phone login/binding page is closed."
+    }
+  ],
+  "firmware_measured_in_this_session": null,
+  "server_versions_measured_in_this_session": null,
+  "new_serial_capture": false,
+  "new_login_logout_or_reset_sequence_run_by_agent": false,
+  "server_verification_status": "completed_in_followup",
+  "server_verification_evidence": "2026-11-13-issue13-server-audit.json",
+  "handoff": "../../handoff/2026-11-13-issue13-device-to-server.md"
+}
