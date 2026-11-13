@@ -1,5 +1,7 @@
 # 当前部署与公网入口
 
+2026-11-13 19:28（Asia/Hong_Kong）已上线[产品 OTA 屏幕校时修复](../verification/2026-11-13-product-ota-clock.md)：PR #115 合并提交 `e708ba2`，保留 PR #114 的在线与待机 OTA 能力。完整合并源码在 Ubuntu 通过 436 项回归，API 镜像为 `sha256:d5bf10d9296716476009324f0e82c812d580e7003c13e6dd876139360b968265`。正常 TLS 产品发现已返回数值毫秒时间戳和 UTC+8 偏移。仅重建 API，既有 Web、语音、身份/归属/许可及操作记录保持。用户选择自行在后台向 B 下发已校验的 `b471c10` 候选固件；本次没有下发 OTA，屏幕与安装结果待实机确认。
+
 2026-11-13 19:12（Asia/Hong_Kong）已上线[开机联网在线与待机 OTA](../verification/2026-11-13-powered-device-ota.md)：[PR #114](https://github.com/yanghan24/xiaozhi/pull/114)，合并提交 `a285acc`。API `sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5`、Web `sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2`；432 项 Ubuntu 回归及最终 C++/Java 协议互通通过。仅重建 API/Web，现场语音、依赖容器、身份/归属/许可、配置及操作记录保持。B 在语音离线时已显示在线，实际管理联系时间持续更新；A 暂无近期联系。配套固件 `b471c10` 已经 [PR #113](https://github.com/yanghan24/xiaozhi/pull/113) 合并并上传小智后台候选目录，40 项固件测试和 P4 编译通过；首次安装与真实待机 OTA 仍待实机窗口，未向 A/B 下发。本机 TLS 入口检查通过，浏览器视觉检查因自动授权拒绝而未完成。详细 SHA、备份、观察证据及恢复边界见上述报告。
 
 2026-11-13 17:34（Asia/Hong_Kong）已上线 [OTA 精确板型识别修复](../verification/2026-11-13-ota-board-identity.md)：[PR #109](https://github.com/yanghan24/xiaozhi/pull/109)，合并提交 `7a1a097`，API 镜像 `sha256:cb7c7d1774c3d8dae13402e0c9f1656903c5eb1077f7b87c8fff14f655e72c7b`。设备上报系列名称时结合已核验、已完成的精确 4.3 寸交付登记，预检与下发前均重查；原 manifest、目录与硬件检查保留。Ubuntu 完整回归 401 项通过，受测 JAR 与镜像核验一致，既有数据库启动及公网入口检查通过。仅重建 API，保留现场语音 `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686` 和现有 Web。B 当时离线，在线预检待唤醒；真实 OTA 操作数仍为 0。备份、就绪检查地址修正和部署证据见上述报告。
@@ -20,7 +22,7 @@
 
 2026-11-13 10:49（Asia/Hong_Kong）最新维护更新：[#18准备与部署记录](../verification/2026-11-13-issue18-ota-preparation.md)确认现网语音更新为 `xiaozhi-product-voice:issue18-12f2ff1`，基于现场实际 `rtasr-3739aad` 镜像，仅增加新固件精确维护路径。API与身份数据不变；新路径短时HTTPS下载验证后已撤销，尚未向B下发OTA。下方更早的签收及部署说明保留历史范围。
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 19:12（Asia/Hong_Kong），当前 API/Web 和配套固件依据[开机联网在线与待机 OTA 部署记录](../verification/2026-11-13-powered-device-ota.md)。较早报告保留各自当时的验证范围；操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 19:28（Asia/Hong_Kong），当前 API 依据[校时部署记录](../verification/2026-11-13-product-ota-clock.md)，Web 和配套固件依据[开机联网在线与待机 OTA 部署记录](../verification/2026-11-13-powered-device-ota.md)。较早报告保留各自当时的验证范围；操作服务器前仍须检查实际运行状态。
 
 2026-11-13 设备现场状态补充：用户确认 B 当前可用，关闭手机登录/绑定页面后仍能完成普通语音问答。设备侧已有步骤及本次确认已整理为 [#13 设备验收与服务器交接](../handoff/2026-11-13-issue13-device-to-server.md)。这项确认晚于 [PR #87 当时的连接失败记录](https://github.com/yanghan24/xiaozhi/blob/6a20c8c8de190ac9b8ce7eda212ed277fdf2245a/docs/verification/2026-11-12-pr84-pr85-continuation.md)；历史失败结论保留。服务器接续已完成，#13 已关闭，详见下方签收；各历史报告保留各自日期和版本。
 
@@ -49,10 +51,10 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `a285acc3cd904aa567b01814b39b5da4f888dde8`（PR #114）；受测后端 `2d522fe` 的 API 内容与合并结果一致 |
+| API 源码 | `e708ba21f6d36e6b3dde5879572d57b6dd466eef`（PR #115），包含 PR #114 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api`，镜像 `sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5`；2026-11-13 19:12 上线核验通过 |
+| 产品 API | `xiaozhi-pr26-api`，镜像 `sha256:d5bf10d9296716476009324f0e82c812d580e7003c13e6dd876139360b968265`；2026-11-13 19:28 上线核验通过 |
 | 产品语音 | `xiaozhi-pr26-voice`，19:12 核验现场镜像 `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686`；本轮沿用该版本，未重建语音 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，镜像 `sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2`；Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |

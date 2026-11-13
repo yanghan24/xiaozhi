@@ -1,0 +1,22 @@
+{
+  "deployed_utc": "2026-11-13T11:28:19.888682+00:00",
+  "source_commit": "e708ba21f6d36e6b3dde5879572d57b6dd466eef",
+  "api_image_before": "sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5",
+  "api_image_after": "sha256:d5bf10d9296716476009324f0e82c812d580e7003c13e6dd876139360b968265",
+  "jar_sha256": "900400d3437141ca5563bdec5d19e62f2c2b20f308a181f93fcbfbdd879d67e9",
+  "voice_image_preserved": "sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686",
+  "web_image_preserved": "sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2",
+  "identity_delivery_firmware_operations_unchanged": true,
+  "private_configuration_unchanged": true,
+  "dependency_containers_not_recreated": true,
+  "ota_sent": false,
+  "checks": {
+    "/xiaozhi/ota/": 200,
+    "/xiaozhi/admin/product-ota/devices": 404,
+    "/internal/product-ota/v1/control": 404,
+    "unsigned_artifact": 404,
+    "clock_timestamp_numeric": true,
+    "clock_offset_minutes": 480
+  },
+  "backup": "/home/jt/ota-clock-merged-20261113/rollout/backup"
+}
