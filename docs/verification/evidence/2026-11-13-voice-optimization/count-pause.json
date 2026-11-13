@@ -1,0 +1,53 @@
+{
+  "result": "matched_user_described_count_request",
+  "turn_alias": "1b970f4ebd84",
+  "input_time_local": "2026-11-13T16:57:21.488+08:00",
+  "clock": "docker log ingestion timestamps, millisecond display",
+  "events": [
+    {
+      "at_local": "2026-11-13T16:57:21.465+08:00",
+      "event": "tts_start_sent",
+      "cumulative_frames": 0
+    },
+    {
+      "at_local": "2026-11-13T16:57:21.488+08:00",
+      "event": "input"
+    },
+    {
+      "at_local": "2026-11-13T16:57:21.489+08:00",
+      "event": "model_decision_start"
+    },
+    {
+      "at_local": "2026-11-13T16:57:24.096+08:00",
+      "event": "tts_sentence_start_sent",
+      "cumulative_frames": 0
+    },
+    {
+      "at_local": "2026-11-13T16:57:24.110+08:00",
+      "event": "first_audio_sent"
+    },
+    {
+      "at_local": "2026-11-13T16:57:34.164+08:00",
+      "event": "edge_segment_complete"
+    },
+    {
+      "at_local": "2026-11-13T16:57:35.518+08:00",
+      "event": "tts_sentence_start_sent",
+      "cumulative_frames": 18
+    },
+    {
+      "at_local": "2026-11-13T16:57:35.943+08:00",
+      "event": "edge_segment_complete"
+    },
+    {
+      "at_local": "2026-11-13T16:57:40.995+08:00",
+      "event": "tts_stop_sent",
+      "cumulative_frames": 106
+    }
+  ],
+  "limits": [
+    "individual Edge request start and actual spoken segment text are not logged",
+    "frame count is cumulative and server send time is not physical speaker playback",
+    "ASR-to-turn association uses an in-memory text hash; no text or identity saved"
+  ]
+}
