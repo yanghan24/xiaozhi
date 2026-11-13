@@ -39,3 +39,5 @@
 - Runner：`/home/jt/ota-review-test.sh`、`ota-review-protocol-test.sh`、`ota-review-voice-disabled.sh`、`ota-review-candidate.sh`；原始日志和 XML 保留在上述源码目录的 `.runtime/`。
 
 打包阶段跳过已完成的测试，不作为测试跳过；完整回归 XML 的 skipped 为 0。候选配置准备及最终浏览器复核由主任务接续；物理设备安装、重启与身份保持仍属于 #99 的独立验收。
+
+主任务最终浏览器复核：在 `8cf0da9` 的真实组件及共享客户端上，重新加载已有 `ota98-api` 隔离夹具，目录、98台设备、已持久化批次和两台独立结果正常显示。GitHub Release列表限流时仍可选择已导入固件、刷新历史批次；刷新后升级帧计数仍为1/1/0。该复核验证最终前端与既有API契约，不冒充以最终API重新执行整套浏览器推送；最终后端与协议证据为上表独立回归。期间恢复了临时工作树共享的开发依赖，源代码及Ubuntu候选产物未变更。
