@@ -81,6 +81,7 @@ public class ShiroConfig {
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
         filterMap.put("/admin/product-ota/**", "productOtaAdmin");
+        filterMap.put("/ota-artifacts/*/*.bin", "anon");
         filterMap.put("/device-delivery/v1/authorize", "deliveryAdmin");
         filterMap.put("/device-delivery/v1/recoveries", "deliveryAdmin");
         filterMap.put("/device-delivery/v1/recoveries/*", "deliveryAdmin");

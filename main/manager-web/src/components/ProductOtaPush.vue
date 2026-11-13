@@ -71,6 +71,8 @@ export default {
         offline: '离线 · 当前无产品会话', no_unique_session: '存在多个会话，无法安全推送',
         permission_unavailable: '当前许可不可用', mcp_initializing: '升级工具初始化中',
         upgrade_tool_unavailable: '当前固件不支持升级工具', bridge_unavailable: '设备状态服务暂不可用',
+        tool_unavailable: '当前固件缺少升级或系统信息工具', preflight_unavailable: '发送前检查不可用，未发送',
+        session_or_permission_unavailable: '当前会话或许可不可用', device_operation_pending: '本台已有待核对操作',
         already_running: '设备已运行同一固件，无需重装', hardware_unknown: '缺少可信硬件信息',
         missing_system_info: '缺少可信硬件信息', incompatible_board: '设备板型不兼容',
         incompatible_revision: '芯片修订版本不兼容', incompatible_layout: '分区布局或容量不兼容',

@@ -4,6 +4,8 @@
 
 导入并不发布 OTA。已校验列表按固定 `firmware_id` 选择，显示实际应用版本、ELF、SHA-256、P4 revision 与分区容量。同名应用版本的不同构建是不同目录项。GitHub 暂时不可用时，已导入目录仍可读取。
 
+当前单台发布入口、会话兼容性检查与结果边界见 [后台单台在线 OTA](product-ota-push.md)。
+
 管理 API 使用现有管理员 Bearer 身份和数据库中的当前管理员/启用状态，支持当前 SSH 隧道内的私有管理 HTTP。公网反向代理不得开放 `/admin/product-ota/**`；设备交付 API 的 HTTPS 要求不变。客户、设备与烧录凭据不能管理目录。
 
 | 接口（管理 API context 下） | 行为 |

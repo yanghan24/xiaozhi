@@ -34,6 +34,7 @@ class DevicePeer:
         self.version = '2.2.5'
         self.elf_sha256 = 'a' * 64
         self.permission_version = 1
+        self.revision = 100
         self.pending = {}
         self.next_id = 3
         self.upgrades = 0
@@ -79,7 +80,7 @@ class DevicePeer:
                               [{'name': 'self.upgrade_firmware'}, {'name': 'self.get_system_info'}]}
                 elif name == 'self.get_system_info':
                     info = {'flash_size': 33554432, 'chip_model_name': 'esp32p4',
-                        'chip_info': {'model': 18, 'cores': 2, 'revision': 100, 'features': 0},
+                        'chip_info': {'model': 18, 'cores': 2, 'revision': self.revision, 'features': 0},
                         'application': {'version': self.version, 'elf_sha256': self.elf_sha256},
                         'board': {'type': 'waveshare-esp32-p4-wifi6-touch-lcd-4.3', 'name': 'fixture', 'ssid': 'must-not-escape'},
                         'partition_table': PARTITIONS, 'ota': {'label': 'ota_0'}}
@@ -107,6 +108,7 @@ class DevicePeer:
         self.version = body.get('version', self.version)
         self.elf_sha256 = body.get('elf_sha256', self.elf_sha256)
         self.permission_version = body.get('permission_version', self.permission_version)
+        self.revision = body.get('revision', self.revision)
         self.handler.session_id = self.session_id
         self.handler.product_voice_gate.version = self.permission_version
         self.sessions.pop(self.device_id + '-duplicate', None)
