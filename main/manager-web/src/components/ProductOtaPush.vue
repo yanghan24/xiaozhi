@@ -113,7 +113,7 @@ export default {
         validating: '检查中', dispatch_reserved: '下发已预留 · 待核对',
         waiting_idle: '等待设备空闲', command_offered: '已提供升级任务 · 等待设备确认',
         command_expired: '执行窗口已过期，请核对结果', device_restarted: '设备已重启，请重新检查',
-        credential_changed: '设备凭据已变化', management_unavailable: '设备管理连接暂不可用',
+        credential_changed: '设备凭据已变化', hardware_changed: '设备硬件报告已变化，请重新检查', management_unavailable: '设备管理连接暂不可用',
         maintenance_not_authorized: '维护授权已变化', ota_not_valid: '当前固件尚未确认有效',
         artifact_changed: '固件产物已变化，请重新检查', awaiting_device_acceptance: '等待设备接收确认',
         awaiting_installation: '等待安装结果', device_upgrade_failed: '设备报告升级失败',
