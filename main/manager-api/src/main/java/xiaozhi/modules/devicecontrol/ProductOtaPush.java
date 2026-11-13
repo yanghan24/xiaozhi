@@ -16,44 +16,55 @@ public class ProductOtaPush {
     private final JdbcTemplate db;
     private final Clock clock;
     private final ProductOtaBridge bridge;
+    private final DevicePresence presence;
+    private final DeviceMaintenance maintenance;
+    private final ProductOtaHardware hardware;
     private final ObjectMapper json=new ObjectMapper();
     private final ProductOtaDownloads downloads;
     private final ProductOtaCatalog catalog;
     private final TransactionTemplate transactions;
     private final ExecutorService statusWorkers=Executors.newFixedThreadPool(8);
     @PreDestroy public void close() { statusWorkers.shutdownNow(); }
-    private static final String PUBLIC_FIELDS="operation_id,preview_id,request_key,device_id,firmware_id,artifact_sha256,target_version,target_elf_sha256,status,reason,observation_status,observed_at_ms,created_at_ms,updated_at_ms";
+    private static final String PUBLIC_FIELDS="operation_id,preview_id,request_key,device_id,firmware_id,artifact_sha256,target_version,target_elf_sha256,ota_transport,status,reason,observation_status,observed_at_ms,created_at_ms,updated_at_ms";
     public ProductOtaPush(JdbcTemplate db, ProductOtaBridge bridge,ProductOtaDownloads downloads,
-            ProductOtaCatalog catalog,PlatformTransactionManager tx, @Qualifier("deviceControlClock") Clock clock) {
+            ProductOtaCatalog catalog,PlatformTransactionManager tx, @Qualifier("deviceControlClock") Clock clock, DevicePresence presence, DeviceMaintenance maintenance, ProductOtaHardware hardware) {
         this.clock=clock; this.db=db; this.bridge=bridge; this.downloads=downloads; this.catalog=catalog; this.transactions=new TransactionTemplate(tx);
+        this.presence=presence; this.maintenance=maintenance; this.hardware=hardware;
     }
     public Map<String,Object> preview(long operator,String device,String firmware) {
         validateDevice(device); validateId(firmware);
         if(db.queryForList("SELECT device_id FROM dc_device WHERE device_id=?",device).size()!=1)
             throw new ControlFailure(404,"DEVICE_NOT_FOUND");
-        var image=firmware(firmware);
+        var image=hardware.firmware(firmware);
         var result=new LinkedHashMap<String,Object>();
         result.put("device_id",device); result.put("firmware_id",firmware);
         result.put("target_version",image.get("app_version")); result.put("target_elf_sha256",image.get("elf_sha256"));
         result.put("eligible",false); result.put("reason","bridge_unavailable");
         result.put("current_version",""); result.put("current_elf_sha256","");
-        result.put("preview_id",""); result.put("expires_at_ms",0);
+        result.put("preview_id",""); result.put("expires_at_ms",0); result.put("ota_transport",null);
         if(pending(device)) { result.put("reason","operation_pending"); return result; }
         try {
-            var session=bridge.call(Map.of("action","status","device_id",device));
-            if(!session.path("status").asText().equals("current")) { result.put("reason",session.path("status").asText()); return result; }
-            var request=sessionRequest("inspect",device,session);
-            var inspected=bridge.call(request);
+            var contact=presence.read(device);
+            boolean managed=presence.capable(contact);
+            var session=managed ? json.valueToTree(Map.of("status","current")) : bridge.call(Map.of("action","status","device_id",device));
+            if(!session.path("status").asText().equals("current")) {
+                result.put("reason",displayStatus(session.path("status").asText(),contact)); return result;
+            }
+            result.put("ota_transport",managed ? "management" : "voice");
+            var request=managed ? maintenance.snapshot(contact) : sessionRequest("inspect",device,session);
+            var inspected=managed ? json.valueToTree(Map.of("status","ready","system_info",maintenance.info(contact))) : bridge.call(request);
             if(!inspected.path("status").asText().equals("ready")) { result.put("reason",inspected.path("status").asText()); return result; }
             var info=inspected.path("system_info");
             result.put("current_version",info.path("application").path("version").asText());
             result.put("current_elf_sha256",info.path("application").path("elf_sha256").asText());
-            String reason=compatibility(device,image,info);
+            String reason=hardware.compatibility(device,image,info);
+            if(managed && !"valid".equals(info.path("ota").path("state").asText())) reason="ota_not_valid";
             result.put("reason",reason);
             if(!reason.equals("eligible")) return result;
             String id=id(); long expires=clock.millis()+120000;
             var snapshot=new LinkedHashMap<String,Object>(request);
             snapshot.put("sha256",image.get("sha256")); snapshot.put("current_elf_sha256",result.get("current_elf_sha256"));
+            if(!managed) snapshot.put("credential_hash",db.queryForMap("SELECT credential_hash FROM dc_device WHERE device_id=?",device).get("credential_hash"));
             db.update("INSERT INTO dc_ota_preview VALUES (?,?,?,?,?,?)",id,operator,device,firmware,encode(snapshot),expires);
             result.put("eligible",true); result.put("preview_id",id); result.put("expires_at_ms",expires);
         } catch(ControlFailure unavailable) { result.put("reason","bridge_unavailable"); }
@@ -63,10 +74,12 @@ public class ProductOtaPush {
         return !db.queryForList("SELECT operation_id FROM dc_ota_operation WHERE active_device=?",device).isEmpty();
     }
     public List<Map<String,Object>> operations() {
+        maintenance.expire();
         return db.queryForList("SELECT "+PUBLIC_FIELDS+" FROM dc_ota_operation ORDER BY created_at_ms DESC,operation_id");
     }
     public Map<String,Object> operation(String operation) {
         validateId(operation);
+        maintenance.expire();
         var rows=db.queryForList("SELECT "+PUBLIC_FIELDS+" FROM dc_ota_operation WHERE operation_id=?",operation);
         if(rows.size()!=1) throw new ControlFailure(404,"OPERATION_NOT_FOUND");
         return rows.getFirst();
@@ -74,6 +87,7 @@ public class ProductOtaPush {
     /** Observe authenticated running code separately; this path can never dispatch. */
     public Map<String,Object> observe(String operation) {
         var visible=operation(operation);
+        if("management".equals(visible.get("ota_transport"))) return visible;
         if("not_sent".equals(visible.get("status")) || "target_running".equals(visible.get("observation_status"))) return visible;
         try {
             String device=(String)visible.get("device_id");
@@ -118,7 +132,7 @@ public class ProductOtaPush {
         var previews=db.queryForList("SELECT * FROM dc_ota_preview WHERE preview_id=? AND operator_id=?",preview,operator);
         if(previews.size()!=1) throw new ControlFailure(404,"PREVIEW_NOT_FOUND");
         var chosen=previews.getFirst(); String device=(String)chosen.get("device_id");
-        var image=firmware((String)chosen.get("firmware_id"));
+        var image=hardware.firmware((String)chosen.get("firmware_id"));
         // Validate configuration before reservation; a missing download service cannot create a live command.
         downloads.signature("0".repeat(32),(String)image.get("sha256"),clock.millis()/1000+600);
         Reserved reservation=transactions.execute(tx->{
@@ -133,11 +147,15 @@ public class ProductOtaPush {
             if(pending(device)) throw new ControlFailure(409,"DEVICE_OPERATION_PENDING");
             if(!acceptedBatch && number(chosen,"expires_at_ms")<=clock.millis()) throw new ControlFailure(409,"PREVIEW_EXPIRED");
             String operation=id(); long now=clock.millis();
-            db.update("INSERT INTO dc_ota_operation(operation_id,preview_id,request_key,operator_id,device_id,active_device,firmware_id,artifact_sha256,target_version,target_elf_sha256,snapshot,status,reason,created_at_ms,updated_at_ms,download_expires) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    operation,preview,requestKey,operator,device,device,chosen.get("firmware_id"),image.get("sha256"),image.get("app_version"),image.get("elf_sha256"),chosen.get("snapshot"),"dispatch_reserved","awaiting_result",now,now,now/1000+600);
+            db.update("INSERT INTO dc_ota_operation(operation_id,preview_id,request_key,operator_id,device_id,active_device,firmware_id,artifact_sha256,target_version,target_elf_sha256,snapshot,status,reason,created_at_ms,updated_at_ms,download_expires,ota_transport) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    operation,preview,requestKey,operator,device,device,chosen.get("firmware_id"),image.get("sha256"),image.get("app_version"),image.get("elf_sha256"),chosen.get("snapshot"),"dispatch_reserved","awaiting_result",now,now,now/1000+600,decode((String)chosen.get("snapshot")).path("ota_transport").asText("voice"));
             return new Reserved(operation,true);
         });
         if(!reservation.fresh()) return operation(reservation.id());
+        if("management".equals(decode((String)chosen.get("snapshot")).path("ota_transport").asText())) {
+            maintenance.arm(reservation.id());
+            return operation(reservation.id());
+        }
         String status="result_unknown",reason="bridge_response_unavailable";
         boolean dispatchAttempted=false;
         try {
@@ -148,7 +166,7 @@ public class ProductOtaPush {
             } else {
                 var inspect=sessionRequest("inspect",device,snapshot);
                 var checked=bridge.call(inspect);
-                String compatible=checked.path("status").asText().equals("ready") ? compatibility(device,image,checked.path("system_info")) : checked.path("status").asText();
+                String compatible=checked.path("status").asText().equals("ready") ? hardware.compatibility(device,image,checked.path("system_info")) : checked.path("status").asText();
                 if(!compatible.equals("eligible") || !snapshot.path("current_elf_sha256").asText().equals(checked.path("system_info").path("application").path("elf_sha256").asText())) {
                     status="not_sent"; reason=compatible.equals("eligible") ? "session_changed" : compatible;
                 } else {
@@ -172,43 +190,8 @@ public class ProductOtaPush {
                 status,safeReason(reason),status.equals("not_sent") ? null : device,clock.millis(),reservation.id());
         return operation(reservation.id());
     }
+    private JsonNode decode(String raw) { try { return json.readTree(raw); } catch(Exception bad) { throw new IllegalStateException(bad); } }
     private String safeReason(String reason) { return reason.matches("[a-z_]{1,64}") ? reason : "result_requires_verification"; }
-    private Map<String,Object> firmware(String id) {
-        var rows=db.queryForList("SELECT firmware_id,sha256,elf_sha256,app_version,board_type,flash_size,min_revision,max_revision,partition_layout,app_partition_bytes,image_size FROM dc_ota_firmware WHERE firmware_id=? AND verification_status='verified'",id);
-        if(rows.size()!=1) throw new ControlFailure(404,"FIRMWARE_NOT_FOUND"); return rows.getFirst();
-    }
-    private String compatibility(String device,Map<String,Object> image,JsonNode info) {
-        var app=info.path("application"); var chip=info.path("chip_info");
-        if(!app.path("elf_sha256").asText().matches("[a-f0-9]{64}") || app.path("version").asText().isEmpty()
-                || !chip.path("revision").isIntegralNumber() || !info.path("flash_size").isIntegralNumber()
-                || !info.path("board").path("type").isTextual()) return "hardware_unknown";
-        var deliveries=db.queryForList("SELECT board_type,status,device_verified_at_ms,completed_at_ms FROM dc_delivery_operation WHERE device_id=?",device);
-        if(deliveries.size()>1) return "incompatible_board";
-        Map<String,Object> delivery=deliveries.isEmpty() ? Map.of() : deliveries.getFirst();
-        boolean delivered="delivered".equals(delivery.get("status")) && delivery.get("device_verified_at_ms")!=null
-                && delivery.get("completed_at_ms")!=null;
-        if(!ProductOtaBoardTypes.matches((String)image.get("board_type"),info.path("board").path("type").asText(),
-                (String)delivery.get("board_type"),delivered) || chip.path("model").asInt(-1)!=18) return "incompatible_board";
-        if(chip.path("revision").asInt()<number(image,"min_revision") || chip.path("revision").asInt()>number(image,"max_revision")) return "incompatible_revision";
-        if(info.path("flash_size").asLong()<number(image,"flash_size") || !"partitions/v2/16m.csv".equals(image.get("partition_layout"))) return "incompatible_layout";
-        Object[][] layout={{"nvs",1,2,0x9000,0x4000},{"otadata",1,0,0xd000,0x2000},{"phy_init",1,1,0xf000,0x1000},
-                {"ota_0",0,16,0x20000,0x3f0000},{"ota_1",0,17,0x410000,0x3f0000},{"assets",1,130,0x800000,0x800000}};
-        var partitions=info.path("partition_table");
-        if(!partitions.isArray() || partitions.size()!=layout.length || number(image,"image_size")>0x3f0000
-                || number(image,"app_partition_bytes")!=0x3f0000 || !Set.of("ota_0","ota_1").contains(info.path("ota").path("label").asText())) return "incompatible_layout";
-        for(var expected:layout) {
-            int found=0;
-            for(var partition:partitions) if(expected[0].equals(partition.path("label").asText())) {
-                found++;
-                String[] fields={"type","subtype","address","size"};
-                for(int i=0;i<fields.length;i++) if(!partition.path(fields[i]).isIntegralNumber()
-                        || partition.path(fields[i]).asLong()!=((Number)expected[i+1]).longValue()) return "incompatible_layout";
-            }
-            if(found!=1) return "incompatible_layout";
-        }
-        if(image.get("elf_sha256").equals(app.path("elf_sha256").asText())) return "already_running";
-        return "eligible";
-    }
     private Map<String,Object> sessionRequest(String action,String device,JsonNode session) {
         if(!session.path("session_id").isTextual() || session.path("session_id").asText().length()>128
                 || !session.path("permission_version").isIntegralNumber()) throw new ControlFailure(503,"BRIDGE_UNAVAILABLE");
@@ -228,26 +211,46 @@ public class ProductOtaPush {
             String status=statuses.get((String)row.get("device_id"));
             row.put("display_name",row.get("device_id")); row.put("status",status);
             row.put("reason",status); row.put("checked_at_ms",clock.millis());
+            var contact=presence.read((String)row.get("device_id"));
+            row.put("online",presence.online(contact) || "current".equals(status));
+            row.put("last_seen_at_ms",contact.get("last_seen_at_ms"));
+            row.put("ota_transport",presence.capable(contact) ? "management" : "current".equals(status) ? "voice" : null);
+            row.put("voice_status",presence.capable(contact) ? "not_checked" : status.equals("online_requires_wake") ? "offline" : status);
         }
         return Map.of("items",rows,"total",db.queryForObject("SELECT COUNT(*) FROM dc_device",Long.class),"page",page,"limit",limit);
     }
     public Map<String,String> statuses(List<String> devices) {
         var result=new LinkedHashMap<String,String>();
-        if(devices.isEmpty()) return result;
-        String first=status(devices.getFirst());
-        // A failed bridge probe fails this inventory closed without N network timeouts.
-        if(first.equals("bridge_unavailable")) { for(String device:devices) result.put(device,first); return result; }
-        result.put(devices.getFirst(),first);
+        var contacts=new LinkedHashMap<String,Map<String,Object>>();
+        var legacy=new ArrayList<String>();
+        for(String device:devices) {
+            var contact=presence.read(device); contacts.put(device,contact);
+            if(presence.capable(contact)) result.put(device,"current");
+            else legacy.add(device);
+        }
+        if(legacy.isEmpty()) return result;
+        String first=voiceStatus(legacy.getFirst());
+        // Bridge availability is independent of management presence. One failed probe must
+        // not fan out N timeouts merely because the first device still has a heartbeat.
+        if(first.equals("bridge_unavailable")) {
+            for(String device:legacy) result.put(device,first);
+            return result;
+        }
+        result.put(legacy.getFirst(),displayStatus(first,contacts.get(legacy.getFirst())));
         var pending=new LinkedHashMap<String,CompletableFuture<String>>();
-        for(String device:devices.subList(1,devices.size())) pending.put(device,CompletableFuture.supplyAsync(()->status(device),statusWorkers));
+        for(String device:legacy.subList(1,legacy.size()))
+            pending.put(device,CompletableFuture.supplyAsync(()->voiceStatus(device),statusWorkers));
         for(var entry:pending.entrySet()) {
-            try { result.put(entry.getKey(),entry.getValue().get()); }
+            try { result.put(entry.getKey(),displayStatus(entry.getValue().get(),contacts.get(entry.getKey()))); }
             catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new ControlFailure(503,"BRIDGE_UNAVAILABLE"); }
             catch(ExecutionException unavailable) { result.put(entry.getKey(),"bridge_unavailable"); }
         }
         return result;
     }
-    private String status(String device) {
+    private String displayStatus(String voice,Map<String,Object> contact) {
+        return "offline".equals(voice) && presence.online(contact) ? "online_requires_wake" : voice;
+    }
+    private String voiceStatus(String device) {
         try { return bridge.call(Map.of("action","status","device_id",device)).path("status").asText(); }
         catch(ControlFailure unavailable) { return "bridge_unavailable"; }
     }

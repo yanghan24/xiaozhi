@@ -133,6 +133,7 @@ public class ProductOtaBatches implements ApplicationRunner {
         for(var item:items(row)) {
             var result=new LinkedHashMap<String,Object>();
             result.put("device_id",item.path("device_id").asText());
+            result.put("ota_transport",item.path("ota_transport").isTextual() ? item.path("ota_transport").asText() : null);
             boolean eligible=item.path("eligible").asBoolean();
             boolean running="started".equals(row.get("status"));
             result.put("status",eligible && running ? "validating" : "not_sent");

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /** Keep product error envelopes and HTTP statuses separate from upstream Result. */
 @Order(-100)
-@RestControllerAdvice(assignableTypes = {DeviceControlController.class, DeviceDeliveryController.class, ProductOtaCatalogController.class, ProductOtaPushController.class, ProductOtaDownloadController.class})
+@RestControllerAdvice(assignableTypes = {DeviceControlController.class, DeviceMaintenanceController.class, DeviceDeliveryController.class, ProductOtaCatalogController.class, ProductOtaPushController.class, ProductOtaDownloadController.class})
 public class DeviceControlErrors {
     @ExceptionHandler(ControlFailure.class)
     public ResponseEntity<Map<String, Object>> failure(ControlFailure failure) {
