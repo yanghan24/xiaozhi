@@ -128,7 +128,10 @@ esp_err_t ResetUserSettings() {
     while (result == ESP_OK) {
         nvs_entry_info_t info;
         nvs_entry_info(it, &info);
-        if (std::string(info.namespace_name) != kNamespace)
+        // The OTA ledger is maintenance state, not a user preference. Clearing
+        // it would lose the original operation after a reboot or lost ACK.
+        if (std::string(info.namespace_name) != kNamespace &&
+            std::string(info.namespace_name) != "ota_maint")
             namespaces.emplace(info.namespace_name);
         result = nvs_entry_next(&it);
     }

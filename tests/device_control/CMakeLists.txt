@@ -16,24 +16,47 @@ target_compile_options(device_control_tests PRIVATE -Wall -Wextra -Werror)
 enable_testing()
 add_test(NAME device_control_tests COMMAND device_control_tests)
 
+add_executable(maintenance_tests maintenance_test.cc
+  "${CONTROL_DIR}/maintenance_model.cc" "${CONTROL_DIR}/control_model.cc"
+  "${IDF_PATH}/components/json/cJSON/cJSON.c")
+target_include_directories(maintenance_tests PRIVATE "${CONTROL_DIR}"
+  "${IDF_PATH}/components/json/cJSON")
+target_compile_options(maintenance_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME maintenance_tests COMMAND maintenance_tests)
+
+add_executable(ota_image_tests ota_image_test.cc "${CONTROL_DIR}/../ota_image_writer.cc")
+target_include_directories(ota_image_tests PRIVATE "${CONTROL_DIR}/..")
+target_compile_options(ota_image_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME ota_image_tests COMMAND ota_image_tests)
+
 add_executable(control_worker_tests control_worker_test.cc
   "${CONTROL_DIR}/device_control.cc" "${CONTROL_DIR}/control_model.cc"
   "${IDF_PATH}/components/json/cJSON/cJSON.c")
 target_include_directories(control_worker_tests PRIVATE stubs "${CONTROL_DIR}"
   "${IDF_PATH}/components/json/cJSON")
 target_compile_options(control_worker_tests PRIVATE -Wall -Wextra -Werror)
-foreach(operation account unbind)
+foreach(operation account unbind maintenance)
   foreach(outcome unauthorized forbidden tls invalid missing server network timeout)
     add_test(NAME control_worker_${operation}_${outcome}
       COMMAND control_worker_tests ${operation} ${outcome})
   endforeach()
 endforeach()
+add_test(NAME control_worker_maintenance_cancelled_success
+  COMMAND control_worker_tests maintenance cancelled-success)
 add_test(NAME control_worker_account_nullable COMMAND control_worker_tests account nullable)
 foreach(outcome success signed-out reauth auth-pending)
   add_test(NAME control_worker_unbind_${outcome} COMMAND control_worker_tests unbind ${outcome})
 endforeach()
 
 find_package(Threads REQUIRED)
+add_executable(audio_activity_gate_tests
+  "${CMAKE_CURRENT_LIST_DIR}/../audio_access/audio_activity_gate_test.cc")
+target_include_directories(audio_activity_gate_tests PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/../../main/audio")
+target_link_libraries(audio_activity_gate_tests PRIVATE Threads::Threads)
+target_compile_options(audio_activity_gate_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME audio_activity_gate_tests COMMAND audio_activity_gate_tests)
+
 add_executable(controlled_audio_access_tests
   "${CMAKE_CURRENT_LIST_DIR}/../audio_access/controlled_audio_access_test.cc")
 target_include_directories(controlled_audio_access_tests PRIVATE

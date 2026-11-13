@@ -1,9 +1,11 @@
 #include "ota.h"
+#include <mbedtls/sha256.h>
 #include "assets/lang_config.h"
 #include "device_control/control_model.h"
+#include "device_control/delivery_bootstrap.h"
 #include "device_control/device_control.h"
 #include "device_control/device_identity.h"
-#include "device_control/delivery_bootstrap.h"
+#include "ota_image_writer.h"
 #include "settings.h"
 #include "system_info.h"
 
@@ -314,126 +316,104 @@ void Ota::MarkCurrentVersionValid() {
     }
 }
 
-bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progress, size_t speed)> callback) {
-    ESP_LOGI(TAG, "Upgrading firmware from %s", firmware_url.c_str());
-    esp_ota_handle_t update_handle = 0;
-    auto update_partition = esp_ota_get_next_update_partition(NULL);
-    if (update_partition == NULL) {
-        ESP_LOGE(TAG, "Failed to get update partition");
+bool Ota::Upgrade(const std::string& firmware_url,
+                  std::function<void(int progress, size_t speed)> callback,
+                  const Validation* validation) {
+    static_assert(sizeof(esp_image_header_t) == 24 && sizeof(esp_image_segment_header_t) == 8);
+    static_assert(sizeof(esp_app_desc_t) == 256 && offsetof(esp_app_desc_t, app_elf_sha256) == 144);
+    auto partition = esp_ota_get_next_update_partition(nullptr);
+    if (!partition)
         return false;
-    }
-
-    ESP_LOGI(TAG, "Writing to partition %s at offset 0x%lx", update_partition->label, update_partition->address);
-    bool image_header_checked = false;
-    std::string image_header;
-
-    auto network = Board::GetInstance().GetNetwork();
-    auto http = network->CreateHttp(0);
-    if (!http->Open("GET", firmware_url)) {
-        ESP_LOGE(TAG, "Failed to open HTTP connection");
+    auto http = Board::GetInstance().GetNetwork()->CreateHttp(0);
+    if (!http->Open("GET", firmware_url) || http->GetStatusCode() != 200)
         return false;
-    }
 
-    if (http->GetStatusCode() != 200) {
-        ESP_LOGE(TAG, "Failed to get firmware, status code: %d", http->GetStatusCode());
-        return false;
-    }
-
-    size_t content_length = http->GetBodyLength();
-    if (content_length == 0) {
-        ESP_LOGE(TAG, "Failed to get content length");
-        return false;
-    }
-
-    constexpr size_t PAGE_SIZE = 4096;
-    char* buffer = (char*)heap_caps_malloc(PAGE_SIZE, MALLOC_CAP_INTERNAL);
-    if (buffer == nullptr) {
-        ESP_LOGE(TAG, "Failed to allocate buffer");
-        return false;
-    }
-
-    size_t buffer_offset = 0;  // Current data size in buffer
-    size_t total_read = 0, recent_read = 0;
-    auto last_calc_time = esp_timer_get_time();
-    while (true) {
-        int ret = http->Read(buffer + buffer_offset, PAGE_SIZE - buffer_offset);
-        if (ret < 0) {
-            ESP_LOGE(TAG, "Failed to read HTTP data: %s", esp_err_to_name(ret));
-            heap_caps_free(buffer);
-            return false;
+    class Download final : public OtaImageIO {
+    public:
+        Download(Http& http, const esp_partition_t* partition, const Validation* validation,
+                 std::function<void(int, size_t)> callback)
+            : http_(http),
+              partition_(partition),
+              validation_(validation),
+              callback_(std::move(callback)) {
+            mbedtls_sha256_init(&hash_);
+            hash_ok_ = mbedtls_sha256_starts(&hash_, 0) == 0;
         }
-
-        // Calculate speed and progress every second
-        recent_read += ret;
-        total_read += ret;
-        buffer_offset += ret;
-        if (esp_timer_get_time() - last_calc_time >= 1000000 || ret == 0) {
-            size_t progress = total_read * 100 / content_length;
-            ESP_LOGI(TAG, "Progress: %u%% (%u/%u), Speed: %uB/s", progress, total_read, content_length, recent_read);
-            if (callback) {
-                callback(progress, recent_read);
-            }
-            last_calc_time = esp_timer_get_time();
-            recent_read = 0;
+        ~Download() override {
+            Abort();
+            http_.Close();
+            mbedtls_sha256_free(&hash_);
         }
-
-        if (!image_header_checked) {
-            image_header.append(buffer, buffer_offset);
-            if (image_header.size() >= sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t)) {
-                esp_app_desc_t new_app_info;
-                memcpy(&new_app_info, image_header.data() + sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t), sizeof(esp_app_desc_t));
-
-                if (esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &update_handle)) {
-                    esp_ota_abort(update_handle);
-                    ESP_LOGE(TAG, "Failed to begin OTA");
-                    heap_caps_free(buffer);
-                    return false;
-                }
-
-                image_header_checked = true;
-                std::string().swap(image_header);
+        size_t Length() const override { return http_.GetBodyLength(); }
+        size_t Capacity() const override { return partition_->size; }
+        int Read(uint8_t* bytes, size_t capacity) override {
+            return http_.Read(reinterpret_cast<char*>(bytes), capacity);
+        }
+        bool Hash(const uint8_t* bytes, size_t size) override {
+            return hash_ok_ && mbedtls_sha256_update(&hash_, bytes, size) == 0;
+        }
+        std::string Digest() override {
+            uint8_t digest[32];
+            if (!hash_ok_ || mbedtls_sha256_finish(&hash_, digest) != 0)
+                return "";
+            char text[65];
+            for (size_t i = 0; i < 32; ++i)
+                snprintf(text + i * 2, 3, "%02x", digest[i]);
+            return text;
+        }
+        bool CanStart() const override {
+            return !validation_ ||
+                   (esp_timer_get_time() / 1000 < validation_->start_deadline_ms && Connected());
+        }
+        bool Connected() const override {
+            return !validation_ || DeviceControl::GetInstance().IsNetworkConnected();
+        }
+        bool Begin(size_t length) override {
+            return esp_ota_begin(partition_, length, &handle_) == ESP_OK;
+        }
+        bool Write(const uint8_t* bytes, size_t size) override {
+            return esp_ota_write(handle_, bytes, size) == ESP_OK;
+        }
+        bool End() override {
+            auto handle = handle_;
+            handle_ = 0;  // esp_ota_end frees the handle on success and failure.
+            return esp_ota_end(handle) == ESP_OK;
+        }
+        bool Activate() override { return esp_ota_set_boot_partition(partition_) == ESP_OK; }
+        void Abort() override {
+            if (handle_) {
+                esp_ota_abort(handle_);
+                handle_ = 0;
             }
         }
-
-        // Write to flash when buffer is full (4KB) or it's the last chunk
-        bool is_last_chunk = (ret == 0);
-        if (buffer_offset == PAGE_SIZE || (is_last_chunk && buffer_offset > 0)) {
-            auto err = esp_ota_write(update_handle, buffer, buffer_offset);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to write OTA data: %s", esp_err_to_name(err));
-                esp_ota_abort(update_handle);
-                heap_caps_free(buffer);
-                return false;
-            }
-
-            buffer_offset = 0;
+        void Progress(size_t received, size_t length) override {
+            auto now = esp_timer_get_time();
+            if (now - last_time_ < 1000000 && received != length)
+                return;
+            if (callback_)
+                callback_(received * 100 / length, received - last_received_);
+            last_time_ = now;
+            last_received_ = received;
         }
 
-        if (is_last_chunk) {
-            break;
-        }
-    }
-    http->Close();
-    heap_caps_free(buffer);
-
-    esp_err_t err = esp_ota_end(update_handle);
-    if (err != ESP_OK) {
-        if (err == ESP_ERR_OTA_VALIDATE_FAILED) {
-            ESP_LOGE(TAG, "Image validation failed, image is corrupted");
-        } else {
-            ESP_LOGE(TAG, "Failed to end OTA: %s", esp_err_to_name(err));
-        }
-        return false;
-    }
-
-    err = esp_ota_set_boot_partition(update_partition);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set boot partition: %s", esp_err_to_name(err));
-        return false;
-    }
-
-    ESP_LOGI(TAG, "Firmware upgrade successful");
-    return true;
+    private:
+        Http& http_;
+        const esp_partition_t* partition_;
+        const Validation* validation_;
+        std::function<void(int, size_t)> callback_;
+        esp_ota_handle_t handle_ = 0;
+        mbedtls_sha256_context hash_;
+        bool hash_ok_ = false;
+        int64_t last_time_ = esp_timer_get_time();
+        size_t last_received_ = 0;
+    } download(*http, partition, validation, std::move(callback));
+    OtaImageTarget expected;
+    if (validation)
+        expected = {validation->artifact_sha256, validation->target_elf_sha256,
+                    validation->image_size};
+    bool installed = InstallOtaImage(download, validation ? &expected : nullptr);
+    ESP_LOGI(TAG, "Firmware image installation %s", installed ? "verified" : "failed");
+    return installed;
 }
 
 bool Ota::StartUpgrade(std::function<void(int progress, size_t speed)> callback) {

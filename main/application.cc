@@ -5,6 +5,7 @@
 #include "board.h"
 #include "device_control/delivery_bootstrap.h"
 #include "device_control/device_identity.h"
+#include "device_control/maintenance_runtime.h"
 #include "display.h"
 #include "features/audio_recorder.h"
 #include "features/music_player.h"
@@ -62,6 +63,9 @@ Application::~Application() {
 }
 
 bool Application::SetDeviceState(DeviceState state) {
+    std::lock_guard<std::mutex> gate(maintenance_gate_);
+    if (maintenance_reserved_ && state != kDeviceStateUpgrading)
+        return false;
     if ((state == kDeviceStateConnecting || state == kDeviceStateListening ||
          state == kDeviceStateSpeaking) &&
         !VoiceAllowed()) {
@@ -87,6 +91,7 @@ void Application::Initialize() {
 
     auto& control = DeviceControl::GetInstance();
     if (control.Enabled()) {
+        device_control::InitializeMaintenance();
         display->SetAccountAction([&control]() { control.RequestAccount(); });
         control.SetCallbacks(
             [this](const DeviceControlView&) {
@@ -989,18 +994,20 @@ void Application::HandleWakeWordDetectedEvent() {
                       [this, wake_word]() { ContinueWakeWordInvoke(wake_word); });
     } else if (state == kDeviceStateSpeaking || state == kDeviceStateListening) {
         AbortSpeaking(kAbortReasonWakeWordDetected);
+        // Drop the interrupted answer before AutoStop starts the next turn.
+        // Otherwise Listening waits for the old playback queue to drain.
+        audio_service_.ResetDecoder();
         // Clear send queue to avoid sending residues to server
         while (audio_service_.PopPacketFromSendQueue());
 
         if (state == kDeviceStateListening) {
             protocol_->SendStartListening(GetDefaultListeningMode());
-            audio_service_.ResetDecoder();
-            audio_service_.PlaySound(Lang::Sounds::OGG_POPUP, true);
             // Re-enable wake word detection as it was stopped by the detection itself
             audio_service_.EnableWakeWordDetection(true);
         } else {
-            // Play popup sound and start listening again
-            play_popup_on_listening_ = true;
+            // An interruption opens the next turn silently. Only an idle wake
+            // sends listen/detect and requests the server's spoken greeting.
+            play_popup_on_listening_ = false;
             SetListeningMode(GetDefaultListeningMode());
         }
     } else if (state == kDeviceStateActivating) {
@@ -1233,7 +1240,9 @@ void Application::SetListeningMode(ListeningMode mode) {
 }
 
 ListeningMode Application::GetDefaultListeningMode() const {
-    return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
+    // Keep echo cancellation independent of turn-taking. Auto-stop uses the
+    // existing AFE wake-word path while ordinary voice processing is off during playback.
+    return kListeningModeAutoStop;
 }
 
 void Application::Reboot() {
@@ -1290,7 +1299,80 @@ bool Application::RestoreFactorySettings() {
 #endif
 }
 
-bool Application::UpgradeFirmware(const std::string& url, const std::string& version) {
+bool Application::MaintenanceIdle() {
+    std::lock_guard<std::mutex> gate(maintenance_gate_);
+    auto state = GetDeviceState();
+    return !upgrade_active_ &&
+           ((maintenance_reserved_ && state == kDeviceStateUpgrading) ||
+            state == kDeviceStateIdle) &&
+           audio_service_.MaintenanceIdle() &&
+           MusicPlayer::GetInstance().GetStatus().state != MusicPlayerState::kPlaying &&
+           AudioRecorder::GetInstance().GetStatus().state != AudioRecorderState::kRecording;
+}
+
+bool Application::ReserveMaintenance() {
+    std::lock_guard<std::mutex> gate(maintenance_gate_);
+    auto state = GetDeviceState();
+    if (maintenance_reserved_ || upgrade_active_ || state != kDeviceStateIdle ||
+        !audio_service_.ReserveMaintenance())
+        return false;
+    // Admission is now frozen. A recorder/music start either published its
+    // active state before this reservation, or is rejected by the same gate.
+    if (MusicPlayer::GetInstance().GetStatus().state == MusicPlayerState::kPlaying ||
+        AudioRecorder::GetInstance().GetStatus().state == AudioRecorderState::kRecording) {
+        audio_service_.ReleaseMaintenance();
+        return false;
+    }
+    maintenance_previous_state_ = state;
+    maintenance_reserved_ = true;
+    DeviceControl::GetInstance().SetMaintenanceActive(true);
+    if (!state_machine_.TransitionTo(kDeviceStateUpgrading)) {
+        maintenance_reserved_ = false;
+        DeviceControl::GetInstance().SetMaintenanceActive(false);
+        audio_service_.ReleaseMaintenance();
+        return false;
+    }
+    return true;
+}
+
+void Application::ReleaseMaintenance() {
+    std::lock_guard<std::mutex> gate(maintenance_gate_);
+    if (!maintenance_reserved_)
+        return;
+    maintenance_reserved_ = false;
+    DeviceControl::GetInstance().SetMaintenanceActive(false);
+    audio_service_.ReleaseMaintenance();
+    state_machine_.TransitionTo(maintenance_previous_state_);
+}
+
+bool Application::UpgradeMaintenance(const device_control::MaintenanceCommand& command) {
+    // Executed on the main application task after the server confirmed durable
+    // acceptance. Recheck both the exclusive idle gate and the monotonic lease.
+    {
+        std::lock_guard<std::mutex> gate(maintenance_gate_);
+        if (!maintenance_reserved_ || GetDeviceState() != kDeviceStateUpgrading ||
+            !audio_service_.MaintenanceIdle() ||
+            MusicPlayer::GetInstance().GetStatus().state == MusicPlayerState::kPlaying ||
+            AudioRecorder::GetInstance().GetStatus().state == AudioRecorderState::kRecording ||
+            !DeviceControl::GetInstance().IsNetworkConnected() ||
+            esp_timer_get_time() / 1000 >= command.deadline_ms)
+            return false;
+    }
+    Ota::Validation expected{command.artifact_sha256, command.target_elf_sha256, command.image_size,
+                             command.deadline_ms};
+    return UpgradeFirmware(command.url, "", &expected);
+}
+
+bool Application::UpgradeFirmware(const std::string& url, const std::string& version,
+                                  const Ota::Validation* validation) {
+    {
+        std::lock_guard<std::mutex> gate(maintenance_gate_);
+        if (upgrade_active_ || (maintenance_reserved_ && !validation))
+            return false;
+        // Reserve before the alert/network work: an older MCP upgrade and a
+        // management offer must never both acquire the inactive flash slot.
+        upgrade_active_ = true;
+    }
     auto& board = Board::GetInstance();
     auto display = board.GetDisplay();
 
@@ -1302,7 +1384,7 @@ bool Application::UpgradeFirmware(const std::string& url, const std::string& ver
         ESP_LOGI(TAG, "Closing audio channel before firmware upgrade");
         protocol_->CloseAudioChannel();
     }
-    ESP_LOGI(TAG, "Starting firmware upgrade from URL: %s", upgrade_url.c_str());
+    ESP_LOGI(TAG, "Starting firmware upgrade");
 
     Alert(Lang::Strings::OTA_UPGRADE, Lang::Strings::UPGRADING, "download", Lang::Sounds::OGG_UPGRADE);
     vTaskDelay(pdMS_TO_TICKS(3000));
@@ -1316,13 +1398,16 @@ bool Application::UpgradeFirmware(const std::string& url, const std::string& ver
     audio_service_.Stop();
     vTaskDelay(pdMS_TO_TICKS(1000));
 
-    bool upgrade_success = Ota::Upgrade(upgrade_url, [this, display](int progress, size_t speed) {
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "%d%% %uKB/s", progress, speed / 1024);
-        Schedule([display, message = std::string(buffer)]() {
-            display->SetChatMessage("system", message.c_str());
-        });
-    });
+    bool upgrade_success = Ota::Upgrade(
+        upgrade_url,
+        [this, display](int progress, size_t speed) {
+            char buffer[32];
+            snprintf(buffer, sizeof(buffer), "%d%% %uKB/s", progress, speed / 1024);
+            Schedule([display, message = std::string(buffer)]() {
+                display->SetChatMessage("system", message.c_str());
+            });
+        },
+        validation);
 
     if (!upgrade_success) {
         // Upgrade failed, restart audio service and continue running
@@ -1331,6 +1416,12 @@ bool Application::UpgradeFirmware(const std::string& url, const std::string& ver
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER); // Restore power save level
         Alert(Lang::Strings::ERROR, Lang::Strings::UPGRADE_FAILED, "circle_xmark", Lang::Sounds::OGG_EXCLAMATION);
         vTaskDelay(pdMS_TO_TICKS(3000));
+        {
+            std::lock_guard<std::mutex> gate(maintenance_gate_);
+            upgrade_active_ = false;
+            if (!maintenance_reserved_)
+                state_machine_.TransitionTo(kDeviceStateIdle);
+        }
         return false;
     } else {
         // Upgrade success, reboot immediately

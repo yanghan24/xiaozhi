@@ -5,6 +5,10 @@
 #include <memory>
 #include <string>
 
+namespace device_control {
+struct HttpResult;
+}
+
 struct DeviceControlView {
     bool voice_allowed = false;
     uint64_t revision = 0;
@@ -58,6 +62,10 @@ public:
                       std::function<void(uint64_t)> on_revoked);
     void Start(const std::string& trusted_ota_url, const std::string& discovered_base_url);
     void NotifyNetwork(bool connected);
+    bool IsNetworkConnected() const;
+    void SetMaintenanceActive(bool active);
+    void SetMaintenanceCallbacks(std::function<std::string()> request,
+                                 std::function<void(const device_control::HttpResult&)> response);
     bool IsVoiceAllowed() const;
     bool IsCurrentGeneration(uint64_t generation) const;
     uint64_t GetGeneration() const;

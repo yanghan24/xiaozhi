@@ -23,6 +23,7 @@ std::string outcome;
 device_control::HttpResult response;
 bool sent_operation = false;
 bool opened = false;
+bool maintenance_replied = false;
 unsigned revocations = 0;
 unsigned previous_revocations = 0;
 uint64_t previous_generation = 0;
@@ -72,6 +73,9 @@ void CheckBeforeState() {
               "fatal menu response must invalidate the old audio generation");
         DeviceVoiceConfig voice;
         Check(!control.GetVoiceConfig(voice), "fatal menu response must hide the old voice token");
+    } else if (operation == "maintenance") {
+        Check(maintenance_replied && control.IsVoiceAllowed(),
+              "missing or unavailable maintenance must preserve ordinary voice and state polling");
     } else if (operation == "account") {
         Check(revocations == previous_revocations && control.IsVoiceAllowed() &&
                   control.GetGeneration() == previous_generation,
@@ -149,16 +153,19 @@ HttpResult ControlRequest(const std::string& url, const std::string& method, con
     auto& control = DeviceControl::GetInstance();
     previous_revocations = revocations;
     previous_generation = control.GetGeneration();
+    if (operation == "maintenance" && outcome == "cancelled-success")
+        control.Refresh();
     return response;
 }
 }  // namespace device_control
 
 int main(int argc, char** argv) {
     try {
-        Check(argc == 3, "usage: control_worker_tests account|unbind outcome");
+        Check(argc == 3, "usage: control_worker_tests account|unbind|maintenance outcome");
         operation = argv[1];
         outcome = argv[2];
-        Check(operation == "account" || operation == "unbind", "unknown operation");
+        Check(operation == "account" || operation == "unbind" || operation == "maintenance",
+              "unknown operation");
         response.failure = device_control::HttpFailure::None;
         if (outcome == "unauthorized")
             response.status = 401;
@@ -176,6 +183,8 @@ int main(int argc, char** argv) {
             response.failure = device_control::HttpFailure::Network;
         else if (outcome == "timeout")
             response.failure = device_control::HttpFailure::Timeout;
+        else if (outcome == "cancelled-success")
+            response.status = 200;
         else if (outcome == "nullable") {
             response.status = 200;
             response.body = NullableAccount;
@@ -185,6 +194,17 @@ int main(int argc, char** argv) {
         } else
             Check(false, "unknown outcome");
         auto& control = DeviceControl::GetInstance();
+        if (operation == "maintenance") {
+            control.SetMaintenanceCallbacks(
+                [] { return "{}"; },
+                [&](const device_control::HttpResult& result) {
+                    maintenance_replied = true;
+                    if (outcome == "cancelled-success")
+                        Check(result.failure == device_control::HttpFailure::Cancelled,
+                              "a response from an interrupted control epoch must not reach the "
+                              "command parser as success");
+                });
+        }
         control.SetCallbacks(
             [&](const DeviceControlView& view) {
                 if (sent_operation && Released() && view.reason == "unbound") {
@@ -201,7 +221,7 @@ int main(int argc, char** argv) {
                 opened = true;
                 if (operation == "account")
                     control.ShowAccountDetails(true);
-                else
+                else if (operation == "unbind")
                     Check(control.SignOut(view.permission_version), "local sign-out must start");
             },
             [&](uint64_t) { ++revocations; });
