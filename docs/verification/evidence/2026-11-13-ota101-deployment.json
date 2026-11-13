@@ -1,0 +1,33 @@
+{
+  "merged_commit": "e75b399ad56b0f0cb9d3d51c9e90faf6ac50927b",
+  "started_utc": "2026-11-13T06:11:21.004462+00:00",
+  "completed_utc": "2026-11-13T06:11:38.471343+00:00",
+  "images": {
+    "api": {
+      "image": "sha256:292846c40a6279bf720ccc75eed08796eb042b287350b0b13e048d04a9fa500d",
+      "started_at": "2026-11-13T06:11:27.277143105Z"
+    },
+    "voice": {
+      "image": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+      "started_at": "2026-11-13T06:11:22.137206008Z"
+    },
+    "web": {
+      "image": "sha256:6f36cacdb1ab2d8eb7234eb8cf07e2f8996be29179e3ea6a7c1f34ac70aaa9c5",
+      "started_at": "2026-11-13T06:11:27.211259996Z"
+    }
+  },
+  "tls_checks": {
+    "/xiaozhi/ota/": 200,
+    "/xiaozhi/admin/product-ota/devices": 404,
+    "/internal/product-ota/v1/control": 404,
+    "unsigned_artifact": 404
+  },
+  "private_manager_unauthenticated": "HTTP 401 or HTTP 200 with business code 401",
+  "product_identity_ownership_permission_unchanged": true,
+  "original_private_configuration_unchanged": true,
+  "database_redis_ingress_not_recreated": true,
+  "bridge_host_port_published": false,
+  "ota_operations": 0,
+  "physical_ota_sent": false,
+  "backup": "/home/jt/ota101-rollout-20261113/backup-before"
+}
