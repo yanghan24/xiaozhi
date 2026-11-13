@@ -1,0 +1,8 @@
+{
+  "observed_at": "2026-11-13T03:04:31.732271+00:00",
+  "voice_image": "xiaozhi-product-voice:asr-switch",
+  "image_id": "sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897",
+  "maintenance_sha256": "3c1a9a6c25044f207e3034cf786dfd60d638f2edb6849f0b5f274507d50b0e5d",
+  "maintenance_tests": 16,
+  "upgrade_sent": false
+}

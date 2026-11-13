@@ -1,5 +1,13 @@
 # 当前部署与公网入口
 
+2026-11-13 11:17（Asia/Hong_Kong）[#18单台OTA验收通过](../verification/2026-11-13-issue18-ota-preparation.md)：B本轮12f2ff1同版本重装的UART证明完整写入、自动重启、ota_1→ota_0、目标ELF及有效标记；真实产品会话恢复，许可24/归属7与有效凭据保持，A不受影响。11:15已撤销本轮下载路由（目标404、发现200），下方11:10的限时链接已提前失效。原传输回执未知记录保留且没有重发，安装确认另存；#19继续普通/MCP问答复测。
+
+2026-11-13 11:10（Asia/Hong_Kong）[#18单次下发记录](../verification/2026-11-13-issue18-ota-preparation.md)：已修复后端重建后Nginx缓存旧语音地址导致的502（仅平滑重载，配置不变），B重新建立会话后单次下发12f2ff1 OTA。回执未知，操作号`198bf4223d1740cb95fd1ea9dbf314c7`，未重发；当前凭据200/OK、许可24/归属7保持，安装结果待硬件日志。新签名下载有效至11:24:30，完成后须撤销。API和语音当前均为后续任务的`asr-switch`镜像。
+
+2026-11-13 11:05（Asia/Hong_Kong）[#18下发前只读复查](../verification/2026-11-13-issue18-ota-preparation.md)发现现网已由后续任务切换为 `xiaozhi-product-voice:asr-switch`，实际镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897`。该镜像保留 #18 维护路径更新，16项隔离维护回归通过；本任务没有执行这次镜像切换。B许可24/归属7，尚未下发OTA。
+
+2026-11-13 10:49（Asia/Hong_Kong）最新维护更新：[#18准备与部署记录](../verification/2026-11-13-issue18-ota-preparation.md)确认现网语音更新为 `xiaozhi-product-voice:issue18-12f2ff1`，基于现场实际 `rtasr-3739aad` 镜像，仅增加新固件精确维护路径。API与身份数据不变；新路径短时HTTPS下载验证后已撤销，尚未向B下发OTA。下方更早的签收及部署说明保留历史范围。
+
 本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 10:05（Asia/Hong_Kong），本次[服务器签收](../verification/2026-11-13-issue13-server-closeout.md)确认 API/语音镜像和运行产物；历史部署说明如下，API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
 
 2026-11-13 设备现场状态补充：用户确认 B 当前可用，关闭手机登录/绑定页面后仍能完成普通语音问答。设备侧已有步骤及本次确认已整理为 [#13 设备验收与服务器交接](../handoff/2026-11-13-issue13-device-to-server.md)。这项确认晚于 [PR #87 当时的连接失败记录](https://github.com/yanghan24/xiaozhi/blob/6a20c8c8de190ac9b8ce7eda212ed277fdf2245a/docs/verification/2026-11-12-pr84-pr85-continuation.md)；历史失败结论保留。服务器接续已完成，#13 已关闭，详见下方签收；各历史报告保留各自日期和版本。
@@ -28,11 +36,11 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `1b50709fd1cadfad966b12d4afedf78b1f279aa6`，PR #67 `71130c1` 与现网 PR #63 `7738647` 的组合版本；运行产物固定于该组合提交 |
+| API 源码 | 11:02后运行`asr-switch`派生镜像，本轮未独立核对其完整源码提交；此前基线为`1b50709fd1cadfad966b12d4afedf78b1f279aa6`，历史源码/产物证据不能冒充新镜像验证 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:pr79-f830a8c`，PR #79 合并提交 `7864e25` 与受测 head `f830a8c` 文件树一致；在原维护镜像基础上同时更新 `product_maintenance.py` 与 `product_voice.py`，2026-11-12 12:58 单独重建，原配置和系统提示词保留 |
+| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:asr-switch`，11:02:36由后续任务重建，本轮只读核对 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:asr-switch`，镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897`；11:05只读复查，保留 #18 的维护路径更新；此前10:47的 `issue18-12f2ff1` 镜像已被后续任务替代，详见上方证据 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
