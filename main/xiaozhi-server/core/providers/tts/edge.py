@@ -100,6 +100,11 @@ class TTSProvider(TTSProviderBase):
             encoder = OpusEncoderUtils(self.conn.sample_rate, 1, 60)
 
             async def feed():
+                # Streaming bypasses text_to_speak's connection wrapper, so keep
+                # its authoritative check before every external attempt.
+                await self.conn.product_voice_gate.check_async()
+                if not self.conn.product_turn_is_current(turn_id):
+                    raise asyncio.CancelledError()
                 communicate = edge_tts.Communicate(
                     text, voice=self.voice, rate=self.edge_rate,
                     volume=self.edge_volume, pitch=self.edge_pitch)

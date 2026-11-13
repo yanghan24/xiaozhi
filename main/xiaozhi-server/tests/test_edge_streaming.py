@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import opuslib_next
 from core.product_chat import ProductConversation
+from core.product_voice import VoiceGate
 from core.providers.tts.edge import TTSProvider
 from core.utils.opus_encoder_utils import OpusEncoderUtils
 from core.utils.util import audio_bytes_to_data_stream
@@ -22,10 +23,22 @@ class EdgeStreamingTests(unittest.TestCase):
             '-b:a', '96k', '-f', 'mp3', 'pipe:1'], check=True, stdout=subprocess.PIPE).stdout
 
     def provider(self):
+        class Authority:
+            allowed = True
+            before_check = None
+
+            def check_scope(self, grant):
+                pass
+
+            def request(self, action, payload):
+                if self.before_check:
+                    self.before_check()
+                return {'allowed': self.allowed, 'permission_version': 1}
+
         conn = SimpleNamespace(sentence_id='a' * 32, client_abort=False,
                                stop_event=threading.Event(), sample_rate=24000,
                                audio_format='opus',
-                               product_voice_gate=SimpleNamespace(ended=threading.Event()))
+                               product_voice_gate=VoiceGate(Authority(), 'test-session', 1, {}))
         conn.product_conversation = ProductConversation(conn)
         conn.product_turn_is_current = conn.product_conversation.current
         provider = TTSProvider({'voice': 'zh-CN-XiaoxiaoNeural'}, delete_audio_file=True)
@@ -33,6 +46,36 @@ class EdgeStreamingTests(unittest.TestCase):
         provider.current_sentence_id = conn.sentence_id
         provider.opus_encoder = OpusEncoderUtils(24000, 1, 60)
         return provider
+
+    def test_authority_revocation_blocks_external_synthesis(self):
+        provider = self.provider()
+        gate = provider.conn.product_voice_gate
+        gate.authority.allowed = False
+        self.assertFalse(gate.ended.is_set(), 'Periodic watcher has not observed revocation yet')
+        packets = []
+        with patch('core.providers.tts.edge.edge_tts.Communicate',
+                   side_effect=RuntimeError('Unexpected external synthesis')) as network:
+            provider.to_tts_stream('固定测试文本。', packets.append)
+        network.assert_not_called()
+        self.assertEqual([], packets)
+        self.assertTrue(gate.ended.is_set())
+
+    def test_turn_cancelled_during_authority_check_does_not_start_synthesis(self):
+        provider = self.provider()
+        checked = threading.Event()
+
+        def cancel():
+            provider.conn.client_abort = True
+            checked.set()
+
+        provider.conn.product_voice_gate.authority.before_check = cancel
+        packets = []
+        with patch('core.providers.tts.edge.edge_tts.Communicate',
+                   side_effect=RuntimeError('Unexpected external synthesis')) as network:
+            provider.to_tts_stream('固定测试文本。', packets.append)
+        self.assertTrue(checked.is_set())
+        network.assert_not_called()
+        self.assertEqual([], packets)
 
     def test_audio_is_decodable_before_network_finishes(self):
         provider = self.provider()
