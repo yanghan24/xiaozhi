@@ -190,8 +190,10 @@ async def run(fixture):
     import edge_tts
     from config.config_loader import load_config
     from core.websocket_server import WebSocketServer
+    background_errors = []
+    asyncio.get_running_loop().set_exception_handler(lambda loop, context: background_errors.append(context))
     config=await load_config()
-    config['server']['auth_key']='synthetic-legacy-key'
+    config['server']['auth_key']='synthetic-legacy-key-with-at-least-32-bytes'
     config['product_voice_required']=True
     config['product-voice']={'authority_url':fixture.origin,'service_key':SERVICE_KEY,
                             'state_directory':'/tmp/knowledge-rejections',
@@ -238,6 +240,18 @@ async def run(fixture):
                     break
                 await asyncio.sleep(.1)
             assert ready['status']=='ready',ready
+            if fixture.scenario == 'device-tools':
+                await socket.send(json.dumps({'type':'hello','version':1,'features':{'mcp':True}}))
+                for _ in range(3):  # hello, initialize and tools/list
+                    message=json.loads(await asyncio.wait_for(socket.recv(),5))
+                    if message['type']=='mcp':
+                        request=message['payload']
+                        result=({'serverInfo':{'name':'device-fixture','version':'1'}}
+                                if request['method']=='initialize' else {'tools':[{
+                                    'name':'self.device.get_status','description':'Device maintenance only',
+                                    'inputSchema':{'type':'object','properties':{}}}]})
+                        await socket.send(json.dumps({'type':'mcp','payload':{
+                            'jsonrpc':'2.0','id':request['id'],'result':result}}))
             question = ORDINARY_QUESTION if fixture.scenario in ('ordinary','init-failed') else QUESTION
             await socket.send(json.dumps({'type':'listen','state':'detect','text':question}))
             if fixture.scenario in ('listen-start', 'abort-new-turn', 'revoked'):
@@ -291,6 +305,9 @@ async def run(fixture):
             else:
                 assert '根据知识库资料' in spoken and '应提交成立申请书和章程草案' in spoken and heard_audio, (
                     'Grounded continuation did not reach audio output', spoken, heard_audio)
+            if fixture.scenario == 'device-tools':
+                assert {tool['function']['name'] for tool in fixture.model_requests[0]['tools']} == {'ask_knowledge'}
+                assert not background_errors, [str(error.get('exception')) for error in background_errors]
     print(json.dumps({'result':'pass','scenario':fixture.scenario,'model_requests':len(fixture.model_requests),
                       'tool_requests':len(fixture.tool_requests),'audio':heard_audio,'real_external_requests':0},ensure_ascii=False))
 
