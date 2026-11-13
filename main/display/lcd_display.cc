@@ -38,13 +38,36 @@
 LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
 LV_FONT_DECLARE(BUILTIN_ICON_FONT);
 LV_FONT_DECLARE(font_awesome_30_4);
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 && CONFIG_XIAOZHI_DEVICE_CONTROL
+LV_FONT_DECLARE(font_puhui_binding_30_4);
+#endif
 
 namespace {
 constexpr int64_t kTopBarAutoHideUs = 3 * 1000 * 1000;
+
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 && CONFIG_XIAOZHI_DEVICE_CONTROL
+void ApplyTextFontToObjectTree(lv_obj_t* object, const lv_font_t* font) {
+    if (object == nullptr) {
+        return;
+    }
+
+    lv_obj_set_style_text_font(object, font, 0);
+    const uint32_t child_count = lv_obj_get_child_cnt(object);
+    for (uint32_t i = 0; i < child_count; ++i) {
+        ApplyTextFontToObjectTree(lv_obj_get_child(object, i), font);
+    }
+}
+#endif
 } // namespace
 
 void LcdDisplay::InitializeLcdThemes() {
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 && CONFIG_XIAOZHI_DEVICE_CONTROL
+    // Binding and recovery prompts must render before network assets are applied,
+    // including when networking or the assets partition is unavailable.
+    auto text_font = std::make_shared<LvglBuiltInFont>(&font_puhui_binding_30_4);
+#else
     auto text_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_TEXT_FONT);
+#endif
     auto icon_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_ICON_FONT);
     auto large_icon_font = std::make_shared<LvglBuiltInFont>(&font_awesome_30_4);
 
@@ -3110,6 +3133,15 @@ void LcdDisplay::SetTheme(Theme* theme) {
             lv_obj_set_style_text_color(label, lv_color_hex(kCyberText), 0);
         }
     }
+#if CONFIG_XIAOZHI_DEVICE_CONTROL
+    // The binding screen is created before the runtime asset font is loaded.
+    // Refresh its font owners here so every binding label can use the same
+    // glyph coverage as the rest of the P4 interface.
+    lv_obj_t* binding_text_objects[] = {binding_panel_, account_button_, binding_close_button_};
+    for (lv_obj_t* object : binding_text_objects) {
+        ApplyTextFontToObjectTree(object, text_font);
+    }
+#endif
     if (cyber_company_name_label_ != nullptr) {
         lv_obj_set_style_text_color(cyber_company_name_label_, lv_color_hex(kCyberCyan), 0);
     }

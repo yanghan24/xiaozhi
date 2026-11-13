@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.16)
+project(binding_font_host_tests LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+get_filename_component(DEFAULT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+set(FIRMWARE_ROOT "${DEFAULT_ROOT}" CACHE PATH "Firmware source tree")
+set(MANAGED_COMPONENTS_DIR "${FIRMWARE_ROOT}/managed_components" CACHE PATH "ESP-IDF managed components")
+set(BINDING_FONT_SOURCE "${FIRMWARE_ROOT}/main/display/fonts/font_puhui_binding_30_4.c"
+    CACHE FILEPATH "Binding screen's built-in font")
+set(LV_BUILD_CONF_PATH "${CMAKE_CURRENT_LIST_DIR}/lv_conf.h" CACHE PATH "" FORCE)
+set(CONFIG_LV_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
+set(CONFIG_LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CONFIG_LV_USE_THORVG_INTERNAL OFF CACHE BOOL "" FORCE)
+if(NOT EXISTS "${MANAGED_COMPONENTS_DIR}/lvgl__lvgl/CMakeLists.txt")
+    message(FATAL_ERROR "Set MANAGED_COMPONENTS_DIR to the installed firmware managed_components directory")
+endif()
+add_subdirectory("${MANAGED_COMPONENTS_DIR}/lvgl__lvgl" lvgl)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(LCD_SOURCE "${FIRMWARE_ROOT}/main/display/lcd_display.cc")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${LCD_SOURCE}" "${CMAKE_CURRENT_LIST_DIR}/collect_binding_text.py")
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/collect_binding_text.py"
+    "${LCD_SOURCE}" "${CMAKE_CURRENT_BINARY_DIR}/binding_texts.h"
+    RESULT_VARIABLE FIXTURE_RESULT)
+if(NOT FIXTURE_RESULT EQUAL 0)
+    message(FATAL_ERROR "Cannot extract binding text fixtures")
+endif()
+add_executable(binding_font_tests binding_font_test.cc "${BINDING_FONT_SOURCE}"
+    "${MANAGED_COMPONENTS_DIR}/78__xiaozhi-fonts/src/font_puhui_basic_30_4.c")
+target_include_directories(binding_font_tests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_link_libraries(binding_font_tests PRIVATE lvgl m)
+enable_testing()
+add_test(NAME binding_font_tests COMMAND binding_font_tests)
