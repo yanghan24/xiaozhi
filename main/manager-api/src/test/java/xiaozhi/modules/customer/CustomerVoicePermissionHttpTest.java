@@ -480,6 +480,58 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("allowed",client.state(a).get("use_permission"));
         assertEquals("market_auth_required",client.state(b).get("reason"));
     }
+    @Test void signingOutOneDeviceDuringSharedRefreshKeepsPeerAndRotatedGrant() throws Exception {
+        String subject = UUID.randomUUID().toString();
+        var first = client.device();
+        var second = client.device();
+        var firstFlow = client.scan(first);
+        client.login(firstFlow, null, subject);
+        String page = BindingTestClient.data(client.confirm(firstFlow, "bind-first"))
+                .get("device_session_id").toString();
+        var secondFlow = client.scan(second);
+        client.login(secondFlow, null, subject);
+        assertEquals(200, client.confirm(secondFlow, "bind-second").getStatusCode().value());
+        var peerBefore = client.state(second);
+        // The latest login is the shared grant. Read its refresh token through the
+        // configured encryption boundary rather than choosing an obsolete fixture token.
+        var authorization = db.queryForMap("SELECT * FROM customer_authorization WHERE subject=?", subject);
+        String refresh = oidcConfig.decrypt(authorization.get("refresh_token").toString());
+        var gates = new CountDownLatch[] {new CountDownLatch(1), new CountDownLatch(1)};
+        market.refreshGates.put(refresh, gates);
+        try {
+            CustomerTestTime.offset.set(271000);
+            assertTrue(gates[0].await(5, TimeUnit.SECONDS));
+            assertEquals(200, CompletableFuture.supplyAsync(() -> client.post(firstFlow,
+                    "device-sessions/" + page + "/sign-out", "stop-during-refresh"))
+                    .get(3, TimeUnit.SECONDS).getStatusCode().value());
+            assertEquals("user_signed_out", client.state(first).get("reason"));
+            assertEquals("allowed", client.state(second).get("use_permission"));
+        } finally {
+            gates[1].countDown();
+            market.refreshGates.remove(refresh);
+        }
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(6);
+        while (!"ACTIVE".equals(db.queryForObject(
+                "SELECT status FROM customer_authorization WHERE subject=?", String.class, subject))
+                && System.nanoTime() < deadline) Thread.sleep(25);
+        assertEquals("ACTIVE", db.queryForObject(
+                "SELECT status FROM customer_authorization WHERE subject=?", String.class, subject));
+        assertFalse(refresh.equals(oidcConfig.decrypt(db.queryForObject(
+                "SELECT refresh_token FROM customer_authorization WHERE subject=?", String.class, subject))),
+                "Successful refresh must rotate the token");
+        assertEquals(1, market.refreshAttempts.get(refresh).get());
+        assertEquals("user_signed_out", client.state(first).get("reason"));
+        var peerAfter = client.state(second);
+        assertEquals("allowed", peerAfter.get("use_permission"));
+        assertEquals(peerBefore.get("permission_version"), peerAfter.get("permission_version"));
+        assertEquals(peerBefore.get("revision"), peerAfter.get("revision"));
+        String token = ((Map<?, ?>) peerAfter.get("voice")).get("token").toString();
+        var opened = voice("open", Map.of("device_id", second.id(), "token", token));
+        assertEquals(200, opened.getStatusCode().value());
+        assertEquals(200, voice("model-access", Map.of("session", opened.getBody().get("session")))
+                .getStatusCode().value());
+    }
+
     @Test void accessRefreshDoesNotSignOutAnOtherwiseValidModelGrant() throws Exception {
         var device=client.device();var flow=client.scan(device);var auth=client.login(flow,null,null);
         client.confirm(flow,"bind");
