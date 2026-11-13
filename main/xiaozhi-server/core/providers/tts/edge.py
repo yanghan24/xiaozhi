@@ -160,11 +160,20 @@ class TTSProvider(TTSProviderBase):
                     decoder.kill()
                 except ProcessLookupError:
                     pass
-            await decoder.wait()
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
-            if encoder is not None:
-                encoder.close()
+            # Process exit alone does not finish pipe transports. Drain buffered
+            # PCM and await stdin closure before asyncio.run closes this loop.
+            try:
+                decoder.stdin.close()
+                try:
+                    await asyncio.wait_for(decoder.stdin.wait_closed(), 5)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass  # Expected when cancellation kills a decoder still reading.
+                await asyncio.wait_for(decoder.communicate(), 5)
+            finally:
+                if encoder is not None:
+                    encoder.close()
 
     async def text_to_speak(self, text, output_file):
         try:

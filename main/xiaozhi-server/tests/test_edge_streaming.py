@@ -1,5 +1,6 @@
 """Exercise the Edge provider with real MP3/Opus and controlled network chunks."""
 import asyncio
+import gc
 import subprocess
 import threading
 import unittest
@@ -232,6 +233,36 @@ class EdgeStreamingTests(unittest.TestCase):
         self.assertEqual([], packets)
         self.assertEqual(2, len(calls))
         self.assertEqual(2, len(closed))
+
+    def test_cancel_with_buffered_audio_closes_process_pipes(self):
+        provider = self.provider()
+        mp3 = subprocess.run([
+            'ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
+            'sine=frequency=440:sample_rate=24000', '-t', '60', '-ac', '1',
+            '-b:a', '96k', '-f', 'mp3', 'pipe:1'], check=True, stdout=subprocess.PIPE).stdout
+        heard = []
+        finalizer_errors = []
+
+        class Network:
+            def __init__(self, text, **kwargs):
+                pass
+
+            async def stream(self):
+                yield {'type': 'audio', 'data': mp3}
+                await asyncio.Event().wait()
+
+        def cancel(packet):
+            heard.append(packet)
+            provider.conn.client_abort = True
+
+        gc.collect()
+        with patch('core.providers.tts.edge.edge_tts.Communicate', Network), \
+                patch('sys.unraisablehook', finalizer_errors.append), \
+                self.assertNoLogs('asyncio', level='ERROR'):
+            provider.to_tts_stream('固定测试文本。', cancel)
+            gc.collect()
+        self.assertTrue(heard)
+        self.assertEqual([], finalizer_errors, 'Decoder pipes outlived the synthesis event loop')
 
 
 if __name__ == '__main__':
