@@ -1,0 +1,41 @@
+{
+  "result": "pass",
+  "revision": "7a935ab",
+  "utc": "2026-11-13T03:03:00.504424+00:00",
+  "images": {
+    "product-api": "sha256:e3453400512165dbf1be0ab6c4fcc2c579d94801dec614f1bbafdf40ed5b9add",
+    "product-voice": "sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897",
+    "product-web": "sha256:f65f2c801760610d31a8fdb6bb1f45182bcd9cf451690caf8b06dcbaadef1434"
+  },
+  "image_tags": {
+    "product-api": "xiaozhi-product-api:asr-switch",
+    "product-voice": "xiaozhi-product-voice:asr-switch",
+    "product-web": "xiaozhi-manager-web:asr-switch"
+  },
+  "previous_images": {
+    "product-api": "xiaozhi-product-api:1b50709",
+    "product-voice": "xiaozhi-product-voice:issue18-12f2ff1",
+    "product-web": "xiaozhi-manager-web:6e354edf292c3df14fd783c5dc7314a4402e3b74"
+  },
+  "selection": {
+    "provider": "market",
+    "xfyunConfigured": true,
+    "revision": "3"
+  },
+  "device_identity_ownership_permission_unchanged": true,
+  "private_configuration_unchanged": true,
+  "database_redis_tls_containers_unchanged": true,
+  "local_tls_ota": 200,
+  "public_admin_and_internal_routes": 404,
+  "temporary_credentials_removed": true,
+  "backup_includes_asr_settings": true,
+  "backup_directory": "/home/jt/asr-provider-switch-20261113/deployment-20261113T030226Z",
+  "physical_device_test": false,
+  "started_utc": {
+    "product-api": "2026-11-13T03:02:36.595245484Z",
+    "product-voice": "2026-11-13T03:02:48.022828932Z",
+    "product-web": "2026-11-13T03:02:47.99751937Z"
+  },
+  "manager_http": 200,
+  "temporary_admin_removed": true
+}

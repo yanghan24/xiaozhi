@@ -39,6 +39,51 @@ class CustomerVoicePermissionHttpTest {
     BindingTestClient client;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
     @Autowired CustomerOidcConfig oidcConfig;
+    @Test void asrSelectionPersistsEncryptedCredentialsAndRequiresAdminAndLiveDevicePermission() {
+        long admin = 430000000000001L, regular = admin + 1;
+        String adminToken = "asr-admin-" + UUID.randomUUID(), regularToken = "asr-user-" + UUID.randomUUID();
+        db.update("INSERT INTO sys_user(id,username,super_admin,status) VALUES (?,'asr-admin',1,1),(?,'asr-user',0,1)", admin, regular);
+        db.update("INSERT INTO sys_user_token(id,user_id,token,expire_date) VALUES (?,?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY)),(?,?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))", admin,admin,adminToken,regular,regular,regularToken);
+        try {
+            var headers = new org.springframework.http.HttpHeaders(); headers.setBearerAuth(adminToken);
+            var userHeaders = new org.springframework.http.HttpHeaders(); userHeaders.setBearerAuth(regularToken);
+            assertFalse(http.getForEntity("/admin/product-asr", String.class).getBody().contains("xfyunConfigured"));
+            assertFalse(http.exchange("/admin/product-asr", HttpMethod.GET, new HttpEntity<>(userHeaders), String.class).getBody().contains("xfyunConfigured"));
+            var initial = http.exchange("/admin/product-asr", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            assertEquals(200, initial.getStatusCode().value());
+            var data = (Map<?,?>) initial.getBody().get("data");
+            long revision = Long.parseLong(data.get("revision").toString());
+            assertEquals(400, http.exchange("/admin/product-asr", HttpMethod.PUT, new HttpEntity<>(Map.of("provider","xfyun","revision",revision),headers),Map.class).getStatusCode().value());
+            var update = Map.of("provider","xfyun","revision",revision,"appId","synthetic-app","apiKey","synthetic-key","apiSecret","synthetic-secret");
+            assertFalse(http.exchange("/admin/product-asr",HttpMethod.PUT,new HttpEntity<>(update,userHeaders),String.class).getBody().contains("xfyunConfigured"));
+            var saved = http.exchange("/admin/product-asr",HttpMethod.PUT,new HttpEntity<>(update,headers),String.class);
+            assertEquals(200,saved.getStatusCode().value());
+            assertFalse(saved.getBody().contains("synthetic"));
+            assertEquals("no-store",saved.getHeaders().getFirst("Cache-Control"));
+            String stored = db.queryForObject("SELECT credential_cipher FROM product_asr_settings WHERE id=1",String.class);
+            assertFalse(stored.contains("synthetic"));
+            assertEquals("synthetic-app\nsynthetic-key\nsynthetic-secret",oidcConfig.decrypt(stored));
+            assertEquals(409,http.exchange("/admin/product-asr",HttpMethod.PUT,new HttpEntity<>(update,headers),Map.class).getStatusCode().value());
+            var device=client.device(); var flow=client.scan(device); client.login(flow,null,null);
+            String page=BindingTestClient.data(client.confirm(flow,"bind")).get("device_session_id").toString();
+            String token=((Map<?,?>)client.state(device).get("voice")).get("token").toString();
+            String session=voice("open",Map.of("device_id",device.id(),"token",token)).getBody().get("session").toString();
+            var direct=voice("asr-access",Map.of("session",session));
+            assertEquals("xfyun",direct.getBody().get("provider")); assertEquals("synthetic-secret",direct.getBody().get("api_secret"));
+            var switchBack=Map.of("provider","market","revision",revision+1);
+            assertEquals(200,http.exchange("/admin/product-asr",HttpMethod.PUT,new HttpEntity<>(switchBack,headers),Map.class).getStatusCode().value());
+            assertEquals(Map.of("provider","market"),voice("asr-access",Map.of("session",session)).getBody());
+            assertEquals(stored,db.queryForObject("SELECT credential_cipher FROM product_asr_settings WHERE id=1",String.class));
+            var reselect=Map.of("provider","xfyun","revision",revision+2);
+            assertEquals(200,http.exchange("/admin/product-asr",HttpMethod.PUT,new HttpEntity<>(reselect,headers),Map.class).getStatusCode().value());
+            client.post(flow,"device-sessions/"+page+"/sign-out","stop");
+            assertEquals(403,voice("asr-access",Map.of("session",session)).getStatusCode().value());
+        } finally {
+            db.update("UPDATE product_asr_settings SET provider='market',credential_cipher=NULL,revision=0 WHERE id=1");
+            db.update("DELETE FROM sys_user_token WHERE user_id IN (?,?)",admin,regular);
+            db.update("DELETE FROM sys_user WHERE id IN (?,?)",admin,regular);
+        }
+    }
     @BeforeEach void setup(){client=new BindingTestClient(http,db,market);org.mockito.Mockito.when(deviceClock.millis()).thenAnswer(call->customerClock.millis());}
     @AfterEach void reset(){CustomerTestTime.offset.set(0);CustomerTestTime.frozen.set(0);}
 

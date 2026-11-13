@@ -129,6 +129,14 @@ class VoiceGate:
             pass  # The shared store failure also blocks every gate for this authority.
         raise VoiceDenied()
 
+    def asr_access(self):
+        self.check()
+        result = self.authority.request('asr-access', {'session': self.session})
+        self.check()
+        if result.get('provider') not in ('market', 'xfyun'):
+            raise ModelUnavailable('ASR configuration unavailable')
+        return result
+
     async def close(self):
         self.ended.set()
         try:
