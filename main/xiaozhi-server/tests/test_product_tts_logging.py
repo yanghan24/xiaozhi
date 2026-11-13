@@ -1,5 +1,6 @@
 """Product TTS preserves speech while excluding its body from diagnostic logs."""
 import subprocess
+import threading
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -7,6 +8,8 @@ from unittest.mock import patch
 from loguru import logger
 
 from core.providers.tts.edge import TTSProvider
+from core.product_chat import ProductConversation
+from core.product_voice import VoiceGate
 
 
 BODY = "PrivateAnswerSentinel"
@@ -28,10 +31,18 @@ class ProductTTSLoggingTests(unittest.TestCase):
         self.addCleanup(logger.remove, sink)
 
     def provider(self, *, product=True):
+        authority = SimpleNamespace(
+            check_scope=lambda grant: None,
+            request=lambda action, payload: {'allowed': True, 'permission_version': 1},
+        )
         provider = TTSProvider({"voice": "zh-CN-XiaoxiaoNeural"}, delete_audio_file=True)
         provider.conn = SimpleNamespace(
-            sample_rate=24000, product_voice_gate=object() if product else None,
+            sample_rate=24000, audio_format='opus', client_abort=False,
+            sentence_id='logging-test-turn', stop_event=threading.Event(),
+            product_voice_gate=VoiceGate(authority, 'test-session', 1, {}) if product else None,
         )
+        conversation = ProductConversation(provider.conn)
+        provider.conn.product_turn_is_current = conversation.current
         provider.current_sentence_id = "logging-test-turn"
         provider.opus_encoder = None
         return provider

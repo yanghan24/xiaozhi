@@ -1,0 +1,46 @@
+{
+  "source_code_commit": "c0d6708defa0278f163daa391de3a55b9a8476d9",
+  "test_fixture_commit": "c84877360203e13568b1f8731d749d88fec8d6ae",
+  "base_image": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+  "candidate_image": "sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff",
+  "candidate_file_sha256": {
+    "core/product_wakeup.py": "92a95e5091c8715141fca21ceecb9fb066c585b1c470b9bf487d3643e54bb76a",
+    "core/handle/receiveAudioHandle.py": "3e20ad418862a29fa05a82b03f8363f16b30e3a5f50daeab96443034540c1791",
+    "config/assets/product_wakeup.wav": "d62e0993fc0ab412df7eccd5c2869f12a22d7cf30c8403965fb65d687a54403a",
+    "core/providers/tts/base.py": "ac3f550b671d1e3f9254c269bf735a8ff8e90d38f80faddd63b2130c70fd60ba",
+    "core/providers/tts/edge.py": "27bc08bd4c24b7470658f99fe059fc852b6f92cd9ab8e000670f2253cae88632"
+  },
+  "fixture_sha256": {
+    "test_product_tts_logging.py": "f87bc08759d1f0ffd8684b78195787339985fb18c15fd08924e2a16a28c6f70e",
+    "check-product-knowledge.py": "1e431e9bbdcf5f48f5fef5942363f64082f80cd701690b7792ef56e7ae15f4de",
+    "check-product-first-segment.py": "27e4b9016fcfecab7faf1121c927f64a25e116ed8d4d8115d4d41318309e25c9",
+    "test_edge_streaming.py": "bdf30315c5b48a55581d61155aa84db459b84f6da04ce131d2be839489c5842d"
+  },
+  "verification": {
+    "network": "none",
+    "source_overlay": false,
+    "units": {
+      "tests": 77,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "success": true
+    },
+    "quote_tests_passed": 22,
+    "websocket_scenarios_passed": 28,
+    "first_segment_scenarios_passed": 3,
+    "real_external_requests": 0,
+    "physical_device_test": false
+  },
+  "initial_unit_run": {
+    "tests": 77,
+    "errors": 2,
+    "failures": 0,
+    "cause": "The previous privacy-test fixture lacked the audio_format field required by the new streaming product path.",
+    "resolution": "Fixture commit c848773 supplies a complete guarded product connection and repeats all 77 tests against the identical image; original failure preserved."
+  },
+  "evidence_paths": {
+    "full_run": "/home/jt/voice-optimization-final-regression/candidate-final",
+    "fixture_rerun": "/home/jt/voice-optimization-final-regression/units-fixture-fixed"
+  }
+}

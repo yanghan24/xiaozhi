@@ -1,0 +1,87 @@
+{
+  "measured_at": "2026-11-13",
+  "timezone": "Asia/Hong_Kong",
+  "device_environment": {
+    "board": "esp32-p4-wifi6-touch-lcd",
+    "firmware_version": "2.2.6",
+    "source": "Read-only session correlation with MCP metadata in the same server log window",
+    "limit": "Device alias, hardware revision and firmware source commit not independently established; no new flash readback or physical playback-clock measurement."
+  },
+  "scope": "User-triggered physical-device interaction; service-side timings from model invocation to first audio frame send. No external microphone-to-speaker clock.",
+  "baseline_image": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+  "diagnostic_image": "sha256:b728245d1b89ce6933e2e554f22ce2ba14e6ca4798aabba313a725b6937a1eb3",
+  "cases": [
+    {
+      "name": "wake_greeting",
+      "model_start_local": "15:52:34",
+      "wake_received_local": "15:52:33",
+      "first_audio_local": "15:52:37",
+      "clock_resolution_seconds": 1,
+      "monotonic_ns": {
+        "decision_start": 2418658314144476,
+        "decision_text": 2418659240888418,
+        "decision_end": 2418659883295364,
+        "sentence_ready": 2418659886207337,
+        "tts_start": 2418659886760127,
+        "tts_complete": 2418661555823691,
+        "first_audio": 2418661740994446
+      },
+      "decision_seconds": 1.569,
+      "tts_seconds": 1.669,
+      "encode_send_seconds": 0.185,
+      "total_seconds": 3.427,
+      "tts_local_retries": 0,
+      "knowledge_calls": 0
+    },
+    {
+      "name": "counting_test",
+      "model_start_local": "15:52:56",
+      "first_audio_local": "15:53:09",
+      "monotonic_ns": {
+        "decision_start": 2418680946306550,
+        "decision_text": 2418681744287235,
+        "decision_end": 2418682408494445,
+        "sentence_ready": 2418682409366258,
+        "tts_start": 2418682410185015,
+        "tts_complete": 2418693777728593,
+        "first_audio": 2418693955445508
+      },
+      "decision_seconds": 1.462,
+      "tts_seconds": 11.368,
+      "encode_send_seconds": 0.178,
+      "total_seconds": 13.009,
+      "tts_local_retries": 0,
+      "knowledge_calls": 0,
+      "association": "ASR-result hash matched turn-input hash; user-described counting request matched numeric variants without exporting raw text"
+    }
+  ],
+  "validation": {
+    "candidate_off": {
+      "unit_passed": 78,
+      "websocket_passed": 22
+    },
+    "candidate_on": {
+      "unit_passed": 78,
+      "websocket_passed": 4,
+      "metadata_checks": "passed"
+    }
+  },
+  "restoration": {
+    "observed_at_utc": "2026-11-13T07:57:10.703143+00:00",
+    "baseline_image_running": true,
+    "diagnostic_disabled": true,
+    "compose_restored_byte_for_byte": true,
+    "other_containers_unchanged": true,
+    "mounts_networks_environment_unchanged": true,
+    "nginx_configuration_unchanged": true,
+    "tls_discovery_status": 200,
+    "unauthorized_websocket_close": 1008,
+    "limitation": "Persistent state directory and mount preserved; dynamic contents were not snapshotted or compared."
+  },
+  "limits": [
+    "Two measured interactions do not establish a latency distribution.",
+    "TTS duration does not distinguish connection, upstream first-byte, and remaining-audio transfer.",
+    "Physical wake detection, uplink, ASR, and device playback buffering are outside the monotonic total.",
+    "No raw transcript, model answer, audio, identity or credentials are included."
+  ]
+}

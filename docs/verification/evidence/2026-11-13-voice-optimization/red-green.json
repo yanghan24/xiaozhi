@@ -1,0 +1,40 @@
+{
+  "environment": "Ubuntu jt@192.168.168.114; isolated production-derived containers",
+  "base_image": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2",
+  "cases": [
+    {
+      "behavior": "Cached wake does not wait for blocked model",
+      "before": "No wake audio within 3 seconds",
+      "after": "About 65 ms to first WebSocket audio with no model or online TTS request",
+      "scope": "Synthetic external services; not physical speaker latency"
+    },
+    {
+      "behavior": "Earliest quote-safe first segment",
+      "before": "First request included two phrases",
+      "after": "First request ends at first safe pause; complete text retained",
+      "websocket_cases_passed": 3,
+      "existing_quote_tests_passed": 22
+    },
+    {
+      "behavior": "Playable Opus before final MP3 chunk",
+      "before": "No Opus until final chunk released",
+      "after": "First packet decoded before release; all final Opus packets equal full-file baseline"
+    },
+    {
+      "behavior": "Authoritative permission and turn checks before external streaming synthesis",
+      "before_revision": "7834059",
+      "before": "Two new regressions failed; four existing tests passed",
+      "after_revision": "bcb92df",
+      "after": "All six Edge tests passed"
+    },
+    {
+      "behavior": "Cancel buffered decoder without unhandled pipe/finalizer errors",
+      "before_revision": "bcb92df",
+      "before": "New regression failed on unretrieved BrokenPipeError",
+      "after_revision": "c0d6708",
+      "after": "All seven Edge tests passed; no unhandled asyncio/finalizer errors",
+      "limit": "Prior exploratory checks did not reproduce worker hang or file descriptor growth"
+    }
+  ],
+  "privacy": "Public fixed text and synthetic tone only; no customer content or credentials"
+}

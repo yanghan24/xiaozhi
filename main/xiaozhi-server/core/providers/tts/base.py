@@ -522,6 +522,9 @@ class TTSProviderBase(ABC):
     # 德语句子的切分只能靠“不平衡就顺延”保守处理（最终由 flush 兜底）。
     _CLOSERS = '」』”》）"»“】〉］]'
     _QUOTE_CHARS = "".join(ch for pair in _QUOTE_PAIRS for ch in pair)
+    _NUMERIC_SEQUENCE = re.compile(
+        r"[\s\d零〇一二三四五六七八九十百千万亿两点正负，、,.。！？!?；;：:~～+\-]+"
+    )
 
     @classmethod
     def _quote_safe_cut(cls, text: str, pos: int, punctuations) -> int:
@@ -578,12 +581,23 @@ class TTSProviderBase(ABC):
             else self.punctuations
         )
 
-        # 取每种标点最后出现位置的最早者作为切分点（与逐个 rfind 再取最小值等价）
-        last_seen = {}
-        for i, ch in enumerate(current_text):
-            if ch in punctuations_to_use:
-                last_seen[ch] = i
-        last_punct_pos = min(last_seen.values(), default=-1)
+        if self.is_first_sentence:
+            # A buffered model answer may contain several pauses already. Start
+            # at an early phrase, but keep numeric sequences together: speaking
+            # just 'one' exposes the next request's network wait mid-count.
+            last_punct_pos = next(
+                (i for i, ch in enumerate(current_text)
+                 if ch in punctuations_to_use
+                 and not self._NUMERIC_SEQUENCE.fullmatch(current_text[:i + 1])),
+                -1,
+            )
+        else:
+            # Keep the existing grouping for subsequent speech segments.
+            last_seen = {}
+            for i, ch in enumerate(current_text):
+                if ch in punctuations_to_use:
+                    last_seen[ch] = i
+            last_punct_pos = min(last_seen.values(), default=-1)
 
         cut_pos = -1
         if last_punct_pos != -1:
