@@ -989,18 +989,20 @@ void Application::HandleWakeWordDetectedEvent() {
                       [this, wake_word]() { ContinueWakeWordInvoke(wake_word); });
     } else if (state == kDeviceStateSpeaking || state == kDeviceStateListening) {
         AbortSpeaking(kAbortReasonWakeWordDetected);
+        // Drop the interrupted answer before AutoStop starts the next turn.
+        // Otherwise Listening waits for the old playback queue to drain.
+        audio_service_.ResetDecoder();
         // Clear send queue to avoid sending residues to server
         while (audio_service_.PopPacketFromSendQueue());
 
         if (state == kDeviceStateListening) {
             protocol_->SendStartListening(GetDefaultListeningMode());
-            audio_service_.ResetDecoder();
-            audio_service_.PlaySound(Lang::Sounds::OGG_POPUP, true);
             // Re-enable wake word detection as it was stopped by the detection itself
             audio_service_.EnableWakeWordDetection(true);
         } else {
-            // Play popup sound and start listening again
-            play_popup_on_listening_ = true;
+            // An interruption opens the next turn silently. Only an idle wake
+            // sends listen/detect and requests the server's spoken greeting.
+            play_popup_on_listening_ = false;
             SetListeningMode(GetDefaultListeningMode());
         }
     } else if (state == kDeviceStateActivating) {
