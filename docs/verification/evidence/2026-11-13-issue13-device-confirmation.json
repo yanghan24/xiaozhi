@@ -18,6 +18,7 @@
   "server_versions_measured_in_this_session": null,
   "new_serial_capture": false,
   "new_login_logout_or_reset_sequence_run_by_agent": false,
-  "server_verification_status": "pending_server_side",
+  "server_verification_status": "completed_in_followup",
+  "server_verification_evidence": "2026-11-13-issue13-server-audit.json",
   "handoff": "../../handoff/2026-11-13-issue13-device-to-server.md"
 }
