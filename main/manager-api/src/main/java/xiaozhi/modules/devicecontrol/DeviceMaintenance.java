@@ -57,9 +57,9 @@ public class DeviceMaintenance {
 
     /** Expiry never turns an exposed command into an un-sent command or releases its unique device claim. */
     void expire() {
-        db.update("UPDATE dc_ota_operation SET active_device=CASE WHEN status='waiting_idle' THEN NULL ELSE active_device END,"
-                +"reason='command_expired',updated_at_ms=?,status=CASE WHEN status='waiting_idle' THEN 'not_sent' ELSE 'result_unknown' END "
-                +"WHERE ota_transport='management' AND status IN ('waiting_idle','command_offered') AND download_expires<=?",clock.millis(),clock.millis()/1000);
+        db.update("UPDATE dc_ota_operation SET active_device=CASE WHEN status IN ('dispatch_reserved','waiting_idle') THEN NULL ELSE active_device END,"
+                +"reason='command_expired',updated_at_ms=?,status=CASE WHEN status IN ('dispatch_reserved','waiting_idle') THEN 'not_sent' ELSE 'result_unknown' END "
+                +"WHERE ota_transport='management' AND status IN ('dispatch_reserved','waiting_idle','command_offered') AND download_expires<=?",clock.millis(),clock.millis()/1000);
     }
 
     Map<String,Object> exchange(DeviceControlService.Identity identity,JsonNode body) {

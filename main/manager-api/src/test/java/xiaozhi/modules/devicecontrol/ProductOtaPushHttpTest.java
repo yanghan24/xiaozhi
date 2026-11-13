@@ -799,4 +799,24 @@ class ProductOtaPushHttpTest {
   assertEquals("not_sent",operationData(id).path("status").asText());
   assertEquals("hardware_changed",operationData(id).path("reason").asText());
  }
+ @Test void failedArmingReservationExpiresWithoutNeedingAnApiRestart() throws Exception {
+  String boot="1".repeat(32); admitManagement(boot); var preview=managementPreview();
+  db.execute("CREATE TRIGGER maintenance_expiry_failure BEFORE UPDATE ON dc_ota_operation FOR EACH ROW "
+    +"BEGIN IF OLD.device_id='ota97-device' AND OLD.status='dispatch_reserved' AND NEW.status='waiting_idle' "
+    +"THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='fixture arm interruption'; END IF; END");
+  String id;
+  try {
+   var response=post("operations",Map.of("preview_id",preview.path("preview_id").asText(),"request_key","3".repeat(32)));
+   assertEquals(503,response.statusCode(),response.body());
+   var operation=JSON.readTree(get("operations",TOKEN).body()).path("data").get(0);
+   id=operation.path("operation_id").asText();
+   assertEquals("dispatch_reserved",operation.path("status").asText());
+  } finally { db.execute("DROP TRIGGER maintenance_expiry_failure"); }
+  now.addAndGet(600001);
+  assertEquals("not_sent",operationData(id).path("status").asText());
+  assertEquals("command_expired",operationData(id).path("reason").asText());
+  var contact=maintenance(maintenanceReport(boot,true,null)); assertEquals(200,contact.statusCode(),contact.body());
+  assertTrue(JSON.readTree(contact.body()).path("data").path("command").isNull());
+  assertTrue(managementPreview().path("eligible").asBoolean());
+ }
 }
