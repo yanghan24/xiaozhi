@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.connection import ConnectionHandler
-from core.utils.util import audio_to_data
+from core.utils.util import audio_to_data, remove_punctuation_and_length
 from core.handle.abortHandle import handleAbortMessage
 from core.handle.intentHandler import handle_user_intent
 from core.utils.output_counter import check_device_output_limit
@@ -81,7 +81,9 @@ async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
     if getattr(conn, 'product_voice_gate', None) is not None:
         turn_id = conn.product_conversation.begin(wakeup=wakeup)
         await send_stt_message(conn, actual_text)
-        if actual_text.strip() in conn.cmd_exit:
+        command_text = actual_content if speaker_name is not None else actual_text
+        _, command_text = remove_punctuation_and_length(command_text)
+        if command_text in conn.cmd_exit:
             await conn.close()
             return
         conn.executor.submit(conn.chat, actual_text, turn_id=turn_id)

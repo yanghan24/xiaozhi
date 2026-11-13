@@ -30,7 +30,8 @@ async def sendAudioMessage(conn: "ConnectionHandler", sentenceType, audios, text
         return
 
     if conn.tts.tts_audio_first_sentence:
-        conn.logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
+        if getattr(conn, "product_voice_gate", None) is None:
+            conn.logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
         conn.tts.tts_audio_first_sentence = False
 
     if sentenceType == SentenceType.FIRST:
@@ -52,7 +53,7 @@ async def sendAudioMessage(conn: "ConnectionHandler", sentenceType, audios, text
     if not _turn_is_current(conn, sentence_id):
         return
     # 发送句子开始消息
-    if sentenceType is not SentenceType.MIDDLE:
+    if sentenceType is not SentenceType.MIDDLE and getattr(conn, "product_voice_gate", None) is None:
         conn.logger.bind(tag=TAG).info(f"发送音频消息: {sentenceType}, {text}")
 
     # 发送结束消息（如果是最后一个文本）
@@ -354,9 +355,8 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None, sentence
                          if flow_control.get("sentence_id") == sentence_id else 0)
     await _send_output(conn, json.dumps(message), sentence_id)
     if getattr(conn, "product_voice_gate", None) is not None:
-        conn.logger.bind(tag=TAG).info('Product turn {} session {} tts {} sent frames {}: {}',
-                                     sentence_id, conn.session_id, state, sent_audio_frames,
-                                     json.dumps(text, ensure_ascii=False))
+        conn.logger.bind(tag=TAG).info('Product turn {} session {} tts {} sent frames {}',
+                                     sentence_id, conn.session_id, state, sent_audio_frames)
 
 
 async def send_stt_message(conn: "ConnectionHandler", text):

@@ -213,6 +213,26 @@ class AudioOutputTests(unittest.IsolatedAsyncioTestCase):
             [json.loads(frame)["state"] if isinstance(frame, str) else frame
              for frame in self.device.frames])
 
+    async def test_product_output_logs_metadata_without_answer_content(self):
+        content = "privateanswercanary"
+        messages = []
+        sink = self.conn.logger.add(lambda record: messages.append(record.record["message"]))
+        try:
+            await send_stt_message(self.conn, content)
+            await sendAudioMessage(
+                self.conn, SentenceType.FIRST, [b"audio"], content, "turn-a"
+            )
+            await sendAudioMessage(self.conn, SentenceType.LAST, [], None, "turn-a")
+        finally:
+            self.conn.logger.remove(sink)
+        self.assertTrue(any(content in frame for frame in self.device.frames
+                            if isinstance(frame, str)))
+        self.assertIn(b"audio", self.device.frames)
+        self.assertEqual("stop", json.loads(self.device.frames[-1])["state"])
+        self.assertNotIn(content, "\n".join(messages))
+        self.assertTrue(any("turn-a" in message and "sent frames 1" in message
+                            for message in messages))
+
     async def test_stt_does_not_start_speaking_for_a_newer_turn(self):
         self.conn.client_is_speaking = False
 

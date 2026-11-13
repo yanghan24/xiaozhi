@@ -91,6 +91,7 @@ class ConnectionHandler:
         self.config = copy.deepcopy(config)
         self.session_id = str(uuid.uuid4())
         self.initialization = {"status": "pending", "stage": "configuration"}
+        self.components_initialized = threading.Event()
         self.logger = setup_logging()
         self.server = server  # 保存server实例的引用
 
@@ -609,8 +610,12 @@ class ConnectionHandler:
 
     def _initialize_components(self):
         try:
+            if self.stop_event.is_set():
+                return
             if self.tts is None:
                 self.tts = self._initialize_tts()
+            if self.stop_event.is_set():
+                return
             gate = getattr(self, 'product_voice_gate', None)
             if gate is not None:
                 original_speak = self.tts.text_to_speak
@@ -628,6 +633,8 @@ class ConnectionHandler:
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
             ).result(timeout=30)
+            if self.stop_event.is_set():
+                return
             if self.need_bind:
                 self.bind_completed_event.set()
                 return
@@ -832,6 +839,11 @@ class ConnectionHandler:
         except Exception as e:
             self._fail_initialization("components")
             self.logger.bind(tag=TAG).error(f"后台初始化失败: {e}")
+        finally:
+            self.components_initialized.set()
+            # Initialization can finish after a disconnect or readiness timeout.
+            if self.stop_event.is_set():
+                await self.close()
 
     async def _initialize_private_config_async(self):
         """从接口异步获取差异化配置（异步版本，不阻塞主循环）"""

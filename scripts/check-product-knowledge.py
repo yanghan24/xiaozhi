@@ -33,6 +33,8 @@ WAKE_WORD = '你好小智'
 WAKE_GREETING = '嘿，你好呀'
 WAKE_ANSWER = '你好，我准备好了。'
 WAKE_SCENARIOS = ('wake-start', 'wake-start-twice', 'wake-abort-start')
+STARTUP_SCENARIOS = ('startup-wake', 'startup-paired', 'startup-abort', 'startup-listen',
+                     'startup-failed', 'startup-timeout')
 SCHEMA = {'type':'object','properties':{'question':{'type':'string','minLength':1,'maxLength':300}},
           'required':['question'],'additionalProperties':False}
 
@@ -239,6 +241,32 @@ async def run(fixture):
             yield {'type':'audio','data':audio}
 
     edge_tts.Communicate=EdgeBoundary
+    if fixture.scenario in STARTUP_SCENARIOS:
+        from core.connection import ConnectionHandler
+        from core.product_chat import ProductConversation
+        import core.product_chat as product_chat
+        initialization_entered = threading.Event()
+        initialization_release = threading.Event()
+        chat_entered = threading.Event()
+        original_initialize = ConnectionHandler._initialize_components
+        original_chat = ProductConversation.chat
+
+        def held_initialize(conn):
+            initialization_entered.set()
+            assert initialization_release.wait(10), 'Initialization barrier timed out'
+            if fixture.scenario == 'startup-failed':
+                conn._fail_initialization('providers')
+                return
+            original_initialize(conn)
+
+        def observed_chat(conversation, query, turn_id):
+            chat_entered.set()
+            return original_chat(conversation, query, turn_id)
+
+        ConnectionHandler._initialize_components = held_initialize
+        ProductConversation.chat = observed_chat
+        if fixture.scenario == 'startup-timeout':
+            product_chat.INITIALIZATION_TIMEOUT = .2
     product=WebSocketServer(config)
     headers={'Device-Id':DEVICE,'Client-Id':DEVICE,'Authorization':'Bearer '+TOKEN}
     async with websockets.serve(product._handle_connection,'127.0.0.1',0,process_request=product._http_response) as server:
@@ -248,6 +276,37 @@ async def run(fixture):
                                          'audio_params':{'format':'opus','sample_rate':24000,'channels':1,'frame_duration':60}}))
             hello=json.loads(await asyncio.wait_for(socket.recv(),20))
             assert hello['type']=='hello'
+
+            if fixture.scenario in STARTUP_SCENARIOS:
+                assert await asyncio.to_thread(initialization_entered.wait, 3)
+                try:
+                    question = ORDINARY_QUESTION if fixture.scenario == 'startup-listen' else WAKE_WORD
+                    await socket.send(json.dumps({'type':'listen','state':'detect','text':question}))
+                    assert await asyncio.to_thread(chat_entered.wait, 3)
+                    if fixture.scenario == 'startup-abort':
+                        await socket.send(json.dumps({'type':'abort'}))
+                    elif fixture.scenario in ('startup-listen', 'startup-paired'):
+                        await socket.send(json.dumps({'type':'listen','state':'start','mode':'auto'}))
+                    # The read loop must remain responsive while initialization waits.
+                    await socket.send(json.dumps({'type':'hello','version':1}))
+                    while True:
+                        message = await asyncio.wait_for(socket.recv(), 3)
+                        if isinstance(message,str) and json.loads(message).get('type') == 'hello':
+                            break
+                    if fixture.scenario == 'startup-timeout':
+                        await asyncio.wait_for(socket.wait_closed(), 3)
+                    else:
+                        await asyncio.sleep(.2)
+                        initialization_release.set()
+                    if fixture.scenario in ('startup-failed', 'startup-timeout'):
+                        await asyncio.wait_for(socket.wait_closed(), 3)
+                        assert socket.close_code == 1011, socket.close_code
+                        assert not fixture.model_requests and not fixture.tool_requests and not fixture.synthesis
+                        print(json.dumps({'result':'pass','scenario':fixture.scenario,
+                                          'model_requests':0,'real_external_requests':0}))
+                        return
+                finally:
+                    initialization_release.set()
 
             def readiness():
                 request=urllib.request.Request(origin.replace('ws:','http:')+'/xiaozhi/v1/ready/'+hello['session_id'],headers=headers)
@@ -260,6 +319,14 @@ async def run(fixture):
                     break
                 await asyncio.sleep(.1)
             assert ready['status']=='ready',ready
+            if fixture.scenario in ('exit-period', 'exit-exclamation'):
+                command = '退出。' if fixture.scenario == 'exit-period' else ' 关闭！ '
+                await socket.send(json.dumps({'type':'listen','state':'detect','text':command}))
+                await asyncio.wait_for(socket.wait_closed(), 3)
+                assert not fixture.model_requests and not fixture.tool_requests and not fixture.synthesis
+                print(json.dumps({'result':'pass','scenario':fixture.scenario,
+                                  'model_requests':0,'tool_requests':0,'real_external_requests':0}))
+                return
             if fixture.scenario == 'device-tools':
                 await socket.send(json.dumps({'type':'hello','version':1,'features':{'mcp':True}}))
                 for _ in range(3):  # hello, initialize and tools/list
@@ -272,10 +339,14 @@ async def run(fixture):
                                     'inputSchema':{'type':'object','properties':{}}}]})
                         await socket.send(json.dumps({'type':'mcp','payload':{
                             'jsonrpc':'2.0','id':request['id'],'result':result}}))
-            question = ORDINARY_QUESTION if fixture.scenario in ('ordinary','init-failed') else QUESTION
+            question = ORDINARY_QUESTION if fixture.scenario in ('ordinary','init-failed','startup-abort','startup-listen') else QUESTION
             if fixture.scenario in WAKE_SCENARIOS:
                 question = WAKE_WORD
-            await socket.send(json.dumps({'type':'listen','state':'detect','text':question}))
+            if fixture.scenario in ('startup-abort', 'startup-listen'):
+                await asyncio.sleep(.2)
+                assert not fixture.model_requests and not fixture.synthesis, 'Cancelled startup turn resumed'
+            if fixture.scenario not in ('startup-wake', 'startup-paired'):
+                await socket.send(json.dumps({'type':'listen','state':'detect','text':question}))
             if fixture.scenario in WAKE_SCENARIOS:
                 assert await asyncio.to_thread(fixture.model_started.wait, 5), 'Wake model did not start'
                 if fixture.scenario == 'wake-abort-start':
@@ -336,15 +407,15 @@ async def run(fixture):
                     heard_stop=True
                     break
             assert heard_stop, 'Answer did not send TTS stop'
-            expected_tools = 0 if fixture.scenario in ('ordinary','other-owner','init-failed') + WAKE_SCENARIOS else 1
-            expected_models = 1 if fixture.scenario in ('ordinary','other-owner','tool-error','init-failed','wake-start') else 2
+            expected_tools = 0 if fixture.scenario in ('ordinary','other-owner','init-failed') + WAKE_SCENARIOS + STARTUP_SCENARIOS else 1
+            expected_models = 1 if fixture.scenario in ('ordinary','other-owner','tool-error','init-failed','wake-start') + STARTUP_SCENARIOS else 2
             assert len(fixture.tool_requests)==expected_tools, 'Unexpected MCP request count'
             assert len(fixture.model_requests)==expected_models, 'Unexpected model request count'
             spoken = ''.join(fixture.synthesis)
-            if fixture.scenario == 'wake-start':
+            if fixture.scenario in ('wake-start', 'startup-wake', 'startup-paired'):
                 assert normalized_speech(spoken) == normalized_speech(WAKE_ANSWER) and heard_audio, (
                     'Paired wake listen/start lost greeting audio', spoken, heard_audio)
-            elif fixture.scenario in ('listen-start','abort-new-turn','ordinary','init-failed','wake-start-twice','wake-abort-start'):
+            elif fixture.scenario in ('listen-start','abort-new-turn','ordinary','init-failed','wake-start-twice','wake-abort-start','startup-abort','startup-listen'):
                 assert '我是语音助手' in spoken and '根据知识库资料' not in spoken and heard_audio
                 assert normalized_speech(WAKE_ANSWER) not in normalized_speech(spoken), (
                     'Obsolete wake answer contaminated a new turn', spoken)

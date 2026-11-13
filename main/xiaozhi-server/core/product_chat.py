@@ -7,6 +7,7 @@ import asyncio
 import copy
 import hashlib
 import threading
+import time
 import uuid
 from concurrent.futures import TimeoutError
 
@@ -14,6 +15,8 @@ from core.product_voice import VoiceDenied, ModelUnavailable
 from core.providers.tts.dto.dto import ContentType, SentenceType, TTSMessageDTO
 from core.utils.dialogue import Message
 from plugins_func.register import Action
+
+INITIALIZATION_TIMEOUT = 30
 
 
 class ProductConversation:
@@ -69,6 +72,29 @@ class ProductConversation:
                 content_type=ContentType.TEXT if text else ContentType.ACTION,
                 content_detail=text))
 
+    def _wait_until_ready(self, turn_id):
+        conn = self.conn
+        deadline = time.monotonic() + INITIALIZATION_TIMEOUT
+        while True:
+            self.guard(turn_id)
+            if conn.components_initialized.is_set():
+                if conn.initialization['status'] == 'ready':
+                    return True
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            # The WebSocket loop remains free to invalidate this waiting turn.
+            conn.components_initialized.wait(min(.1, remaining))
+
+        async def close_if_current():
+            if self.current(turn_id):
+                await conn.websocket.close(code=1011, reason='Voice initialization unavailable')
+
+        conn.logger.warning('Product turn {} initialization unavailable', turn_id)
+        asyncio.run_coroutine_threadsafe(close_if_current(), conn.loop)
+        return False
+
     def _tool(self, turn_id, call):
         conn = self.conn
         with self.lock:
@@ -92,6 +118,8 @@ class ProductConversation:
         answer = []
         history = []
         try:
+            if not self._wait_until_ready(turn_id):
+                return
             self.guard(turn_id)
             conn.product_voice_gate.check()
             with self.lock:
