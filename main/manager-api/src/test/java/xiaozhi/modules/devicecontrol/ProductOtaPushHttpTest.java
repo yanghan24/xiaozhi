@@ -471,6 +471,16 @@ class ProductOtaPushHttpTest {
   if(token!=null) req.header("Authorization","Bearer "+token);
   return http.send(req.GET().build(),HttpResponse.BodyHandlers.ofString());
  }
+ JsonNode inventoryDevice(String deviceId) throws Exception {
+  for(int page=1;;page++) {
+   var response=get("devices?page="+page+"&limit=100",TOKEN);
+   assertEquals(200,response.statusCode(),response.body());
+   var inventory=JSON.readTree(response.body()).path("data");
+   var device=batchItem(inventory,deviceId);
+   if(!device.isMissingNode()) return device;
+   assertTrue(page*100<inventory.path("total").asInt(),"Product inventory must include "+deviceId+" across pages");
+  }
+ }
  @Test void administratorSeesProductInventoryAndUnavailableBridgeCannotPromiseOnline() throws Exception {
   var response=get("devices?page=1&limit=50",TOKEN);
   assertEquals(200,response.statusCode(),response.body());
@@ -491,12 +501,11 @@ class ProductOtaPushHttpTest {
    .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device")
    .header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofString());
   assertEquals(200,response.statusCode(),response.body());
-  var inventory=JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data");
-  JsonNode device=batchItem(inventory,"ota97-device");
-  assertTrue(device.path("online").asBoolean(),inventory.toString());
+  JsonNode device=inventoryDevice("ota97-device");
+  assertTrue(device.path("online").asBoolean(),device.toString());
   assertEquals("online_requires_wake",device.path("status").asText());
   now.addAndGet(90001);
-  assertFalse(batchItem(JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data"),"ota97-device").path("online").asBoolean());
+  assertFalse(inventoryDevice("ota97-device").path("online").asBoolean());
  }
  static Map<String,Object> maintenanceReport(String boot,boolean idle,Object operation) {
   var report=new LinkedHashMap<String,Object>();
@@ -520,7 +529,7 @@ class ProductOtaPushHttpTest {
   String boot="1".repeat(32);
   var contact=maintenance(maintenanceReport(boot,false,null));
   assertEquals(200,contact.statusCode(),contact.body());
-  var inventory=batchItem(JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data"),"ota97-device");
+  var inventory=inventoryDevice("ota97-device");
   assertTrue(inventory.path("online").asBoolean()); assertEquals("management",inventory.path("ota_transport").asText());
   var preview=JSON.readTree(post("preview",Map.of("device_id","ota97-device","firmware_id",FIRMWARE)).body()).path("data");
   assertTrue(preview.path("eligible").asBoolean(),preview.toString());
@@ -670,11 +679,11 @@ class ProductOtaPushHttpTest {
   var malformed=JSON.valueToTree(maintenanceReport(boot,true,null));
   ((com.fasterxml.jackson.databind.node.ObjectNode)malformed.path("system_info").path("application")).put("elf_sha256","bad");
   assertEquals(400,maintenance(malformed).statusCode());
-  assertFalse(batchItem(JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data"),"ota97-device").path("online").asBoolean());
+  assertFalse(inventoryDevice("ota97-device").path("online").asBoolean());
   var state=http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/xiaozhi/device-control/v1/state"))
    .header("Authorization","Bearer "+DEVICE_CREDENTIAL).header("Device-Id","ota97-device").header("X-Forwarded-Proto","https").GET().build(),HttpResponse.BodyHandlers.ofString());
   assertEquals(200,state.statusCode());
-  var device=batchItem(JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data"),"ota97-device");
+  var device=inventoryDevice("ota97-device");
   assertTrue(device.path("online").asBoolean()); assertEquals("online_requires_wake",device.path("status").asText());
   assertFalse(managementPreview().path("eligible").asBoolean());
  }
@@ -784,7 +793,7 @@ class ProductOtaPushHttpTest {
   String boot="1".repeat(32); admitManagement(boot);
   connected=!voiceState.equals("bridge_unavailable");
   if(voiceState.equals("offline")) offlineDevices.add("ota97-device");
-  var device=batchItem(JSON.readTree(get("devices?limit=100",TOKEN).body()).path("data"),"ota97-device");
+  var device=inventoryDevice("ota97-device");
   assertEquals(voiceState,device.path("voice_status").asText(),device.toString());
   assertTrue(device.path("online").asBoolean()); assertEquals("current",device.path("status").asText());
   assertEquals("management",device.path("ota_transport").asText());
