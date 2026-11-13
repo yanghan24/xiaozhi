@@ -13,7 +13,7 @@ B 的当前认证会话上报 `esp32-p4-wifi6-touch-lcd`、ESP32-P4/model 18、r
 ## Ubuntu 验证
 
 - 独立 Compose 项目 `ota-board-identity`，专用 MySQL/Redis，与生产业务库分离。
-- 首轮空库启动揭示原 master changelog 的 OTA `ALTER TABLE` 排在 `CREATE TABLE` 前。修复仅将五项迁移按依赖顺序移到尾部，133 个 changeSet 的内容、ID、author、SQL 路径保持相同。
+- 首轮空库启动揭示原 master changelog 的 OTA `ALTER TABLE` 排在 `CREATE TABLE` 前。修复仅将五项迁移按依赖顺序移到尾部，134 个 changeSet 的内容、ID、author、SQL 路径保持相同。
 - 最终全量 Java 回归：401 项，失败 0、错误 0、跳过 0；`scripts/check-integration-tests.sh` 通过，JAR 构建成功。
 - 新 HTTP 回归覆盖精确 manifest 上传、系列/未知 manifest 拒绝、系列上报结合已完成登记的预检及确认、其他屏幕/未知登记拒绝，以及确认前登记被更改/撤回/删除时 `not_sent` 且未发送命令。
 - Standards 与 Spec 两轴复审通过；早期无条件别名方案已撤回，不属于最终实现。
