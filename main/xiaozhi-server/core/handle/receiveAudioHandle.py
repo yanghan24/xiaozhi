@@ -82,7 +82,7 @@ async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
         turn_id = conn.product_conversation.begin(wakeup=wakeup)
         await send_stt_message(conn, actual_text)
         command_text = actual_content if speaker_name is not None else actual_text
-        _, command_text = remove_punctuation_and_length(command_text)
+        _, command_text = remove_punctuation_and_length(command_text.strip())
         if command_text in conn.cmd_exit:
             await conn.close()
             return

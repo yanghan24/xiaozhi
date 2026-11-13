@@ -319,8 +319,10 @@ async def run(fixture):
                     break
                 await asyncio.sleep(.1)
             assert ready['status']=='ready',ready
-            if fixture.scenario in ('exit-period', 'exit-exclamation'):
-                command = '退出。' if fixture.scenario == 'exit-period' else ' 关闭！ '
+            exit_commands = {'exit-period':'退出。', 'exit-exclamation':' 关闭！ ',
+                             'exit-whitespace':'\t退出\r\n'}
+            if fixture.scenario in exit_commands:
+                command = exit_commands[fixture.scenario]
                 await socket.send(json.dumps({'type':'listen','state':'detect','text':command}))
                 await asyncio.wait_for(socket.wait_closed(), 3)
                 assert not fixture.model_requests and not fixture.tool_requests and not fixture.synthesis
