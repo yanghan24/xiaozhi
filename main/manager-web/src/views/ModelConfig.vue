@@ -58,7 +58,8 @@
         </el-menu>
 
         <!-- 右侧内容 -->
-        <div class="content-area">
+        <div class="content-area" :class="{ 'asr-content': activeTab === 'asr' }">
+          <ProductAsrSettings v-if="activeTab === 'asr'" />
           <el-card class="model-card" shadow="never">
             <el-table
               ref="modelTable"
@@ -244,6 +245,7 @@
 
 <script>
 import Api from "@/apis/api";
+import ProductAsrSettings from "@/components/ProductAsrSettings.vue";
 import AddModelDialog from "@/components/AddModelDialog.vue";
 import HeaderBar from "@/components/HeaderBar.vue";
 import ModelEditDialog from "@/components/ModelEditDialog.vue";
@@ -252,7 +254,7 @@ import CustomPagination from "@/components/CustomPagination.vue";
 import CustomButton from "@/components/CustomButton.vue";
 import VersionFooter from "@/components/VersionFooter.vue";
 export default {
-  components: { HeaderBar, ModelEditDialog, TtsModel, AddModelDialog, VersionFooter, CustomPagination, CustomButton },
+  components: { ProductAsrSettings, HeaderBar, ModelEditDialog, TtsModel, AddModelDialog, VersionFooter, CustomPagination, CustomButton },
   data() {
     return {
       addDialogVisible: false,
@@ -688,6 +690,10 @@ export default {
   align-items: center;
   gap: 16px;
 }
+
+.asr-content { overflow-y: auto; }
+.asr-content > .product-asr { flex-shrink: 0; }
+.asr-content > .model-card { min-height: 420px; flex-shrink: 0; }
 
 .search-group {
   display: flex;

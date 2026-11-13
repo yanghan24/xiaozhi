@@ -8,7 +8,7 @@ import unittest
 sys.path.insert(0, '/app')
 from aiohttp import web, WSMsgType
 from core.product_voice import VoiceAuthority, VoiceDenied
-from core.product_asr import AudioPublication, MarketASR, TranscriptionUnavailable
+from core.product_asr import AudioPublication, MarketASR, ProductASR, TranscriptionUnavailable
 
 
 def result(text, final=False, segment=0, kind='0'):
@@ -26,11 +26,13 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
         self.closed = asyncio.Event()
         self.mode = 'success'
         self.authority_latency = 0
+        self.selected_provider = 'market'
         self.end_received = asyncio.Event()
         self.tmp = tempfile.TemporaryDirectory()
         app = web.Application()
         app.router.add_post('/internal/device-voice/v1/{action}', self.authority_request)
         app.router.add_get('/v1/asr/xfyun/rtasr-llm', self.market)
+        app.router.add_get('/ast/communicate/v1', self.xfyun)
         self.runner = web.AppRunner(app)
         await self.runner.setup()
         site = web.TCPSite(self.runner, '127.0.0.1', 0)
@@ -49,6 +51,9 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
     async def authority_request(self, request):
         await asyncio.sleep(self.authority_latency)
         action = request.match_info['action']
+        if action == 'asr-access':
+            return web.json_response({'provider': self.selected_provider, 'app_id': 'test-app',
+                'api_key': 'test-key', 'api_secret': 'test-secret'})
         if action == 'key-rejected':
             self.allowed = False
             return web.json_response({'recorded': True})
@@ -59,11 +64,26 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
             'model': 'qwen3.8-flash', 'api_key': 'synthetic-market-key',
             'base_url': self.base + '/v1/', 'rejection_receipt': 'synthetic-receipt'})
 
+    async def xfyun(self, request):
+        import base64, hashlib, hmac
+        from urllib.parse import urlencode
+        self.assertNotIn('Authorization', request.headers)
+        params = dict(request.query)
+        signature = params.pop('signature')
+        self.assertEqual(params['appId'], 'test-app')
+        self.assertEqual(params['accessKeyId'], 'test-key')
+        self.assertEqual(signature, base64.b64encode(hmac.new(b'test-secret',
+            urlencode(sorted(params.items())).encode(), hashlib.sha1).digest()).decode())
+        return await self.upstream(request)
+
     async def market(self, request):
-        self.requests += 1
         self.assertEqual(request.headers.get('Authorization'), 'Bearer synthetic-market-key')
         self.assertEqual(dict(request.query), {'model': 'rtasr-llm', 'lang': 'autodialect',
                                              'audio_encode': 'pcm_s16le', 'samplerate': '16000'})
+        return await self.upstream(request)
+
+    async def upstream(self, request):
+        self.requests += 1
         if self.mode in ('401', '403', '500'):
             return web.Response(status=int(self.mode))
         if self.mode == 'redirect':
@@ -117,6 +137,42 @@ class ASRContract(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(bytes(self.received), pcm)
         self.assertEqual(self.requests, 1)
         self.assertFalse(self.provider.publication.files)
+        await asyncio.wait_for(self.closed.wait(), 1)
+
+    def use_product(self):
+        self.provider = ProductASR(self.gate, self.provider.publication)
+        self.provider.XFYUN_ENDPOINT = self.base + '/ast/communicate/v1'
+
+    async def test_switch_applies_next_utterance_on_existing_connection(self):
+        self.use_product()
+        for provider in ('market', 'xfyun', 'market'):
+            self.selected_provider = provider
+            self.assertEqual(await self.provider.speech_to_text([b'\0'*1280], 'test'), ('你好，世界。', None))
+        self.assertEqual(self.requests, 3)
+
+    async def test_direct_401_never_revokes_market_authorization_or_falls_back(self):
+        self.use_product(); self.selected_provider = 'xfyun'; self.mode = '401'
+        with self.assertRaises(TranscriptionUnavailable):
+            await self.provider.speech_to_text([b'\0'*1280], 'test')
+        await self.gate.check_async()
+        self.assertEqual(self.requests, 1)
+
+    async def test_direct_cancel_closes_socket_and_next_call_can_use_market(self):
+        self.use_product(); self.selected_provider = 'xfyun'; self.mode = 'pending'
+        task = asyncio.create_task(self.provider.speech_to_text([b'\0'*1280], 'test'))
+        await asyncio.wait_for(self.end_received.wait(), 2)
+        self.provider.cancel()
+        with self.assertRaises(asyncio.CancelledError): await task
+        await asyncio.wait_for(self.closed.wait(), 1)
+        self.selected_provider = 'market'; self.mode = 'success'
+        self.assertEqual(await self.provider.speech_to_text([b'\0'*1280], 'test'), ('你好，世界。', None))
+
+    async def test_direct_permission_loss_stops_silent_upstream(self):
+        self.use_product(); self.selected_provider = 'xfyun'; self.mode = 'pending'
+        task = asyncio.create_task(self.provider.speech_to_text([b'\0'*1280], 'test'))
+        await asyncio.wait_for(self.end_received.wait(), 2)
+        self.allowed = False
+        with self.assertRaises(VoiceDenied): await asyncio.wait_for(task, 2)
         await asyncio.wait_for(self.closed.wait(), 1)
 
     async def test_string_result_envelope(self):

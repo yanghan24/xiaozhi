@@ -1,5 +1,9 @@
 """Bounded, memory-only audio and AI-market rtasr-llm transcription."""
 import asyncio
+import base64
+import datetime
+import hashlib
+import hmac
 import io
 import json
 import re
@@ -7,7 +11,7 @@ import secrets
 import time
 import aiohttp
 import wave
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 
 from core.product_voice import VoiceDenied
 from core.providers.asr.base import ASRProviderBase
@@ -152,7 +156,7 @@ class MarketASR(ASRProviderBase):
             raise TranscriptionUnavailable()
         return message, data
 
-    async def _transcribe(self, pcm):
+    async def _request(self):
         access = await asyncio.to_thread(self.gate.model_access)
         parsed = urlparse(access['base_url'])
         if (parsed.username or parsed.password or parsed.query or parsed.fragment or
@@ -162,6 +166,10 @@ class MarketASR(ASRProviderBase):
         scheme = 'wss' if parsed.scheme == 'https' else 'ws'
         url = parsed._replace(scheme=scheme, path=parsed.path.rstrip('/') +
             '/asr/xfyun/rtasr-llm', query='model=rtasr-llm&lang=autodialect&audio_encode=pcm_s16le&samplerate=16000').geturl()
+        return url, {'Authorization': 'Bearer ' + access['api_key']}, access
+
+    async def _transcribe(self, pcm):
+        url, headers, market_access = await self._request()
         # aiohttp WebSocket handshakes otherwise follow HTTP redirects.
         async def reject_redirect(*args):
             raise TranscriptionUnavailable()
@@ -171,7 +179,7 @@ class MarketASR(ASRProviderBase):
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5),
                     trust_env=False, trace_configs=[trace]) as session:
-                async with session.ws_connect(url, headers={'Authorization': 'Bearer ' + access['api_key']},
+                async with session.ws_connect(url, headers=headers,
                         max_msg_size=1024 * 1024, autoclose=True) as socket:
                     ready = await asyncio.wait_for(socket.receive(), 5)
                     if ready.type != aiohttp.WSMsgType.TEXT:
@@ -202,8 +210,8 @@ class MarketASR(ASRProviderBase):
                             task.cancel()
                         await asyncio.gather(*tasks, return_exceptions=True)
         except aiohttp.WSServerHandshakeError as error:
-            if error.status == 401:
-                await asyncio.to_thread(self.gate.key_rejected, access)
+            if error.status == 401 and market_access is not None:
+                await asyncio.to_thread(self.gate.key_rejected, market_access)
             raise TranscriptionUnavailable() from None
 
     async def _watch_permission(self):
@@ -264,3 +272,25 @@ class MarketASR(ASRProviderBase):
                     raise TranscriptionUnavailable()
                 return text
         raise TranscriptionUnavailable()
+
+
+class ProductASR(MarketASR):
+    """Resolve the admin selection once per utterance; never silently fail over."""
+    XFYUN_ENDPOINT = 'wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1'
+
+    async def _request(self):
+        access = await asyncio.to_thread(self.gate.asr_access)
+        if access.get('provider') == 'market':
+            return await super()._request()
+        if access.get('provider') != 'xfyun':
+            raise TranscriptionUnavailable()
+        params = {
+            'appId': access['app_id'], 'accessKeyId': access['api_key'],
+            'uuid': secrets.token_hex(16),
+            'utc': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S%z'),
+            'lang': 'autodialect', 'audio_encode': 'pcm_s16le', 'samplerate': '16000',
+        }
+        canonical = urlencode(sorted(params.items()))
+        params['signature'] = base64.b64encode(hmac.new(access['api_secret'].encode(),
+            canonical.encode(), hashlib.sha1).digest()).decode()
+        return self.XFYUN_ENDPOINT + '?' + urlencode(params), {}, None

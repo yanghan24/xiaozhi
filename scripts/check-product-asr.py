@@ -7,7 +7,7 @@ from config.settings import check_config_file
 check_config_file()
 from config.config_loader import load_config
 from core.websocket_server import WebSocketServer
-from core.product_asr import TranscriptionUnavailable
+from core.product_asr import ProductASR, TranscriptionUnavailable
 import websockets,opuslib_next,edge_tts
 BASE='http://127.0.0.1:8002/xiaozhi/'
 SERVICE='isolated-voice-test-service-secret-123456'
@@ -16,8 +16,16 @@ scenario='success'
 from aiohttp import web, WSMsgType
 asr_closed=set()
 async def market_asr(request):
-    assert request.headers.get('Authorization')=='Bearer test-business-key'
-    assert request.query['model']=='rtasr-llm'
+    if os.environ.get('ASR_TEST_PROVIDER')=='xfyun':
+        import base64,hashlib,hmac
+        from urllib.parse import urlencode
+        assert 'Authorization' not in request.headers
+        params=dict(request.query);signature=params.pop('signature')
+        assert params['appId']=='synthetic-app' and params['accessKeyId']=='synthetic-key'
+        assert signature==base64.b64encode(hmac.new(b'synthetic-secret',urlencode(sorted(params.items())).encode(),hashlib.sha1).digest()).decode()
+    else:
+        assert request.headers.get('Authorization')=='Bearer test-business-key'
+        assert request.query['model']=='rtasr-llm'
     ws=web.WebSocketResponse()
     await ws.prepare(request)
     ticket=len(asr_urls)
@@ -62,6 +70,8 @@ async def main():
     global scenario
     app=web.Application()
     app.router.add_get('/v1/asr/xfyun/rtasr-llm',market_asr)
+    app.router.add_get('/ast/communicate/v1',market_asr)
+    ProductASR.XFYUN_ENDPOINT='ws://127.0.0.1:18085/ast/communicate/v1'
     app.router.add_post('/v1/chat/completions',market_model)
     market=web.AppRunner(app)
     await market.setup()
