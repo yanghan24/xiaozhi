@@ -5,6 +5,7 @@ history or queue speech; a late remote result never becomes the next turn's inpu
 """
 import asyncio
 import copy
+import hashlib
 import threading
 import uuid
 from concurrent.futures import TimeoutError
@@ -91,6 +92,8 @@ class ProductConversation:
             else:
                 messages.insert(0, {'role': 'system', 'content': prompt})
             self._speech(turn_id, SentenceType.FIRST)
+            conn.logger.info('Product turn {} session {} input_sha256 {}',
+                             turn_id, conn.session_id, hashlib.sha256(query.encode()).hexdigest())
             conn.logger.info('Product turn {} model decision started', turn_id)
             guard = lambda: self.guard(turn_id)
             calls = []
@@ -118,6 +121,8 @@ class ProductConversation:
                 result = self._tool(turn_id, call)
                 answer = []
                 conn.logger.info('Product turn {} knowledge completed: {}', turn_id, result.action.name)
+                conn.logger.info('Product turn {} knowledge result_sha256 {}', turn_id,
+                                 hashlib.sha256((result.result or '').encode()).hexdigest())
                 if result.action == Action.NONE:
                     return
                 if result.action == Action.REQLLM:
