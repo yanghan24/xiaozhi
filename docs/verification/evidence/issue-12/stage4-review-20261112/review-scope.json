@@ -1,0 +1,12 @@
+{
+  "scope": "stage-four diagnostic injection: original 75 plus two real-client cleanup requirements",
+  "wrapper_sha256": "66a07a9bf4cd09ec43e5fffc663ebf18e74f1c98ae1503f97aac3e96671c8d59",
+  "original_script_sha256": "a9e0fb86db34777493678edf50940f528bb0a12de5fff7480581410bf70cdac1",
+  "product_source_modified": false,
+  "network_guards": "original main Python guards active; transports synthetic; not OS sandbox",
+  "ubuntu_rerun": false,
+  "added_cases": [
+    "test_real_client_pending_worker_reference_survives_cleanup_deadline",
+    "test_real_client_pending_worker_reference_survives_caller_cancel"
+  ]
+}

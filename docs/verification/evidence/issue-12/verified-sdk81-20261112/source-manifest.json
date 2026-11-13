@@ -1,0 +1,22 @@
+{
+  "base_commit": "b448aa080ba057f8e48383adf6501daa4df32011",
+  "stage": "after",
+  "file_count": 14,
+  "files": {
+    "main/xiaozhi-server/core/connection.py": "0c29dac3bdaea8cff0bc7964852b9f267986d7862a520b49d3c2d93d05c18832",
+    "main/xiaozhi-server/core/product_rejections.py": "cf19c9dc93b84150ac668a4d6633a05dcde5af0644b869d71d39ad66485213a7",
+    "main/xiaozhi-server/core/product_voice.py": "fade26059a58863316465e602d82e809976718b6d512dc14f2cdfdc473357071",
+    "main/xiaozhi-server/core/providers/tools/base/__init__.py": "04e13360c8c8bd197a2ff1e5eea73c753538fb764bf791d823497c9370aa2a2b",
+    "main/xiaozhi-server/core/providers/tools/base/tool_executor.py": "e7a372a4572452312ddff864b5e45784b576e5d457bfc0fe7b1e114ff9a69e57",
+    "main/xiaozhi-server/core/providers/tools/base/tool_types.py": "7f5adb1d40efcc59ecc0f712a9ecb7310d982919faf1ca0dcfa6dc224d0a5fbf",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/__init__.py": "eba11cfd661da2b9d578f9a4ab23b8b641b43200a6fcc4c79a7292b81caa6a4b",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/errors.py": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_client.py": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py": "ed7e5e21efa3b1dbbebecd950ae2a12839ca4a242ebbfcb4a22effdfea16ffdc",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py": "2b563e95d1fa9b81e8bf65f4fa171df59ce67f9b435ed90e81ba10ad8ce62f13",
+    "main/xiaozhi-server/core/utils/util.py": "445fc1b342f9719d31121a034adf99ef6bbb4022d8726490dd34073d5bbae8f3",
+    "main/xiaozhi-server/plugins_func/register.py": "b96778e6aa0acbed95d3fe70c869a091bc140ea0b34c16cb66ec80e48c24a1a8",
+    "scripts/check-mcp-offline.py": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612"
+  },
+  "private_config_included": false
+}

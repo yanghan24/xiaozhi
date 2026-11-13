@@ -1,0 +1,71 @@
+{
+  "schema": "issue12-current-server-observations-v1",
+  "evidence_kind": "manual transcript of observed terminal summaries and hashes; NOT original server result JSON",
+  "original_server_reports_copied_to_local": false,
+  "offline_runs": {
+    "server_root": "/home/jt/issue12-sdk-verified81-20261112",
+    "reports": ["results/installed01/result.json", "results/installed02/result.json"],
+    "each_counts": {"run": 81, "pass": 81, "fail": 0, "error": 0, "skip": 0},
+    "same_cases": true,
+    "same_sources": true,
+    "source_manifest_mismatches": 0,
+    "each_report_sha256": "1bbdf293608726c71967c1ad434fc34b4147e971221379d3b3747697fca2340f",
+    "each_report_bytes": 13185,
+    "script_sha256": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+    "container_network": "none",
+    "container_root_read_only": true,
+    "each_container_exit_code": 0,
+    "containers_running": false
+  },
+  "live_client_runs": {
+    "server_root": "/home/jt/issue12-sdk-final81-20261112",
+    "scope": "real product ServerMCPClient and SDK transport/session; logger and unrelated config bootstrap replaced; no model or device chain",
+    "client_sha256": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
+    "bridge_failed_connection_attempts": 3,
+    "phase03_safe_cause": "ConnectTimeout at transport_started before SDK initialize",
+    "host04": {
+      "report": "results/live-host04/result.json",
+      "sha256": "20d53b3175406c8bde415cb62c7f7b7eb6fdece8c1eaa76336d2ca65c6f79053",
+      "status": "discovered",
+      "ask_knowledge_found": true,
+      "cleanup_completed": true,
+      "connected_after_cleanup": false,
+      "worker_reference_cleared": true,
+      "exit_code": 0
+    },
+    "tool05": {
+      "report": "results/live-tool05/result.json",
+      "sha256": "311426c20915fcc074b90be4ae2072107ec47a17497a3b520033573168f7ba8f",
+      "status": "tool_response_received",
+      "tools_call_submissions": 1,
+      "result_object": "CallToolResult",
+      "is_error": false,
+      "mode": "chunks",
+      "business_status": "ok",
+      "generated": false,
+      "model_called": false,
+      "source_count": 5,
+      "content_blocks": 6,
+      "server_elapsed_ms": 408,
+      "business_complete": null,
+      "cleanup_completed": true,
+      "connected_after_cleanup": false,
+      "worker_reference_cleared": true,
+      "exit_code": 0
+    },
+    "host_container_network": "host",
+    "container_root_read_only": true,
+    "containers_running": false,
+    "model_requests": 0,
+    "tts_requests": 0
+  },
+  "production_observed_before_and_after": {
+    "api_image": "xiaozhi-product-api:1b50709",
+    "api_started_at": "2026-11-12T03:13:39.656388819Z",
+    "voice_image": "xiaozhi-product-voice:pr79-f830a8c",
+    "voice_started_at": "2026-11-12T06:50:32.021169588Z",
+    "task_deployed_or_restarted_product": false
+  },
+  "sudo_cache_cleared": true,
+  "billing_telemetry_queried": false
+}

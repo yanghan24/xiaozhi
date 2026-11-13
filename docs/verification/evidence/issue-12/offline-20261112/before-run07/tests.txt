@@ -1,0 +1,303 @@
+test_call_before_initialize_raises (__main__.ExistingBehavior.test_call_before_initialize_raises) ... ok
+test_call_options_are_passed_to_the_session (__main__.ExistingBehavior.test_call_options_are_passed_to_the_session) ... ok
+test_cleanup_closes_worker_and_transport (__main__.ExistingBehavior.test_cleanup_closes_worker_and_transport) ... ok
+test_default_transport_is_sse_not_streamable_http (__main__.ExistingBehavior.test_default_transport_is_sse_not_streamable_http) ... ok
+test_discovered_synthetic_schema_is_preserved (__main__.ExistingBehavior.test_discovered_synthetic_schema_is_preserved) ... ok
+test_executor_forwards_incomplete_markers_without_classification (__main__.ExistingBehavior.test_executor_forwards_incomplete_markers_without_classification) ... ok
+test_executor_forwards_tool_error_marker_without_a_gate (__main__.ExistingBehavior.test_executor_forwards_tool_error_marker_without_a_gate) ... ok
+test_executor_maps_other_exception_to_error (__main__.ExistingBehavior.test_executor_maps_other_exception_to_error) ... ok
+test_executor_maps_value_error_to_notfound (__main__.ExistingBehavior.test_executor_maps_value_error_to_notfound) ... ok
+test_executor_not_initialized_returns_error (__main__.ExistingBehavior.test_executor_not_initialized_returns_error) ... ok
+test_executor_strips_mcp_prefix (__main__.ExistingBehavior.test_executor_strips_mcp_prefix) ... ok
+test_local_cancellation_propagates_without_retry (__main__.ExistingBehavior.test_local_cancellation_propagates_without_retry) ... ok
+test_manager_current_failure_attempts_are_bounded (__main__.ExistingBehavior.test_manager_current_failure_attempts_are_bounded) ... ok
+test_manager_first_initialize_has_ten_second_deadline (__main__.ExistingBehavior.test_manager_first_initialize_has_ten_second_deadline) ... ok
+test_manager_success_submits_once (__main__.ExistingBehavior.test_manager_success_submits_once) ... ok
+test_sanitized_name_maps_back_to_original (__main__.ExistingBehavior.test_sanitized_name_maps_back_to_original) ... ok
+test_separate_clients_do_not_share_session_objects (__main__.ExistingBehavior.test_separate_clients_do_not_share_session_objects) ... ok
+test_sse_headers_and_custom_timeouts_are_forwarded (__main__.ExistingBehavior.test_sse_headers_and_custom_timeouts_are_forwarded) ... ok
+test_sse_timeout_defaults_are_forwarded (__main__.ExistingBehavior.test_sse_timeout_defaults_are_forwarded) ... ok
+test_stdio_is_replaced_without_spawning_a_process (__main__.ExistingBehavior.test_stdio_is_replaced_without_spawning_a_process) ... ok
+test_streamable_http_requires_explicit_choice (__main__.ExistingBehavior.test_streamable_http_requires_explicit_choice) ... ok
+test_unknown_manager_tool_is_rejected (__main__.ExistingBehavior.test_unknown_manager_tool_is_rejected) ... ok
+test_executor_exception_is_not_echoed_in_public_response (__main__.RequiredBehavior.test_executor_exception_is_not_echoed_in_public_response) ... FAIL
+test_executor_value_error_is_not_echoed_in_public_response (__main__.RequiredBehavior.test_executor_value_error_is_not_echoed_in_public_response) ... FAIL
+test_initialization_failure_is_not_reported_as_connected (__main__.RequiredBehavior.test_initialization_failure_is_not_reported_as_connected) ... FAIL
+test_progress_text_does_not_leak_into_logs (__main__.RequiredBehavior.test_progress_text_does_not_leak_into_logs) ... FAIL
+test_server_notification_does_not_leak_into_logs (__main__.RequiredBehavior.test_server_notification_does_not_leak_into_logs) ... FAIL
+test_tool_arguments_do_not_leak_into_logs (__main__.RequiredBehavior.test_tool_arguments_do_not_leak_into_logs) ... FAIL
+test_tool_timeout_is_not_automatically_replayed (__main__.RequiredBehavior.test_tool_timeout_is_not_automatically_replayed) ... FAIL
+test_uncertain_failure_is_not_automatically_replayed (__main__.RequiredBehavior.test_uncertain_failure_is_not_automatically_replayed) ... FAIL
+test_upstream_exception_does_not_leak_into_logs (__main__.RequiredBehavior.test_upstream_exception_does_not_leak_into_logs) ... FAIL
+test_cancellation_during_retry_wait_prevents_third_submit (__main__.ExtendedBehavior.test_cancellation_during_retry_wait_prevents_third_submit) ... ok
+test_client_call_cancel_propagates_to_synthetic_session (__main__.ExtendedBehavior.test_client_call_cancel_propagates_to_synthetic_session) ... ok
+test_empty_tool_list_preserves_empty_availability (__main__.ExtendedBehavior.test_empty_tool_list_preserves_empty_availability) ... ok
+test_executor_cancellation_is_not_rewritten_as_error (__main__.ExtendedBehavior.test_executor_cancellation_is_not_rewritten_as_error) ... ok
+test_http_status_labels_are_generic_errors_not_credit_verdicts (__main__.ExtendedBehavior.test_http_status_labels_are_generic_errors_not_credit_verdicts) ... ok
+test_initialization_is_idempotent_while_running (__main__.ExtendedBehavior.test_initialization_is_idempotent_while_running) ... ok
+test_manager_init_timeout_does_not_register_client (__main__.ExtendedBehavior.test_manager_init_timeout_does_not_register_client) ... ok
+test_manager_passes_client_read_timeout_default_as_unspecified (__main__.ExtendedBehavior.test_manager_passes_client_read_timeout_default_as_unspecified) ... ok
+test_result_payloads_are_forwarded_without_a_completion_verdict (__main__.ExtendedBehavior.test_result_payloads_are_forwarded_without_a_completion_verdict) ... ok
+test_shutdown_clears_worker_connection_state (__main__.ExtendedBehavior.test_shutdown_clears_worker_connection_state) ... ok
+test_successful_reconnect_currently_replays_same_arguments (__main__.ExtendedBehavior.test_successful_reconnect_currently_replays_same_arguments) ... ok
+test_call_after_cleanup_has_controlled_error (__main__.ExtendedRequirements.test_call_after_cleanup_has_controlled_error) ... FAIL
+test_client_worker_error_is_not_logged_verbatim (__main__.ExtendedRequirements.test_client_worker_error_is_not_logged_verbatim) ... FAIL
+test_discovery_failure_propagates_and_is_not_connected (__main__.ExtendedRequirements.test_discovery_failure_propagates_and_is_not_connected) ... FAIL
+test_executor_does_not_forward_none_as_a_tool_result (__main__.ExtendedRequirements.test_executor_does_not_forward_none_as_a_tool_result) ... FAIL
+test_manager_init_error_is_not_logged_verbatim (__main__.ExtendedRequirements.test_manager_init_error_is_not_logged_verbatim) ... FAIL
+test_reconnect_error_is_not_logged_verbatim (__main__.ExtendedRequirements.test_reconnect_error_is_not_logged_verbatim) ... FAIL
+test_sanitized_tool_name_collision_is_rejected (__main__.ExtendedRequirements.test_sanitized_tool_name_collision_is_rejected) ... FAIL
+test_successful_reconnect_does_not_authorize_unknown_replay (__main__.ExtendedRequirements.test_successful_reconnect_does_not_authorize_unknown_replay) ... FAIL
+test_ended_gate_makes_no_new_authority_request (__main__.LocalVoiceGuard.test_ended_gate_makes_no_new_authority_request) ... ok
+test_guarded_socket_checks_every_send_and_rejects_after_exit (__main__.LocalVoiceGuard.test_guarded_socket_checks_every_send_and_rejects_after_exit) ... ok
+test_invalid_scope_subject_and_order_fail_closed (__main__.LocalVoiceGuard.test_invalid_scope_subject_and_order_fail_closed) ... ok
+test_model_access_uses_each_gates_own_session (__main__.LocalVoiceGuard.test_model_access_uses_each_gates_own_session) ... ok
+test_permission_version_change_ends_gate (__main__.LocalVoiceGuard.test_permission_version_change_ends_gate) ... ok
+test_rejected_generation_fails_closed (__main__.LocalVoiceGuard.test_rejected_generation_fails_closed) ... ok
+test_unavailable_rejection_store_fails_closed (__main__.LocalVoiceGuard.test_unavailable_rejection_store_fails_closed) ... ok
+test_valid_scope_passes_local_format_and_quarantine_guard (__main__.LocalVoiceGuard.test_valid_scope_passes_local_format_and_quarantine_guard) ... ok
+test_wrong_model_or_missing_key_receipt_ends_gate (__main__.LocalVoiceGuard.test_wrong_model_or_missing_key_receipt_ends_gate) ... ok
+test_timed_out_tool_keeps_running_but_late_result_is_not_appended (__main__.ToolTimeoutObservation.test_timed_out_tool_keeps_running_but_late_result_is_not_appended) ... ok
+
+======================================================================
+FAIL: test_executor_exception_is_not_echoed_in_public_response (__main__.RequiredBehavior.test_executor_exception_is_not_echoed_in_public_response)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 537, in test_executor_exception_is_not_echoed_in_public_response
+    self.assertFalse(SYNTHETIC_SECRET in (response.response or ""), "PUBLIC_EXCEPTION_LEAK")
+AssertionError: True is not false : PUBLIC_EXCEPTION_LEAK
+
+======================================================================
+FAIL: test_executor_value_error_is_not_echoed_in_public_response (__main__.RequiredBehavior.test_executor_value_error_is_not_echoed_in_public_response)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 541, in test_executor_value_error_is_not_echoed_in_public_response
+    self.assertFalse(SYNTHETIC_SECRET in (response.response or ""), "PUBLIC_VALUE_ERROR_LEAK")
+AssertionError: True is not false : PUBLIC_VALUE_ERROR_LEAK
+
+======================================================================
+FAIL: test_initialization_failure_is_not_reported_as_connected (__main__.RequiredBehavior.test_initialization_failure_is_not_reported_as_connected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 496, in test_initialization_failure_is_not_reported_as_connected
+    self.assertTrue(rejected, "FAILED_INITIALIZATION_RETURNED_SUCCESS")
+AssertionError: False is not true : FAILED_INITIALIZATION_RETURNED_SUCCESS
+
+======================================================================
+FAIL: test_progress_text_does_not_leak_into_logs (__main__.RequiredBehavior.test_progress_text_does_not_leak_into_logs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 527, in test_progress_text_does_not_leak_into_logs
+    self.assertFalse(any(SYNTHETIC_SECRET in s for s in H.logger.messages), "PROGRESS_LOG_LEAK")
+AssertionError: True is not false : PROGRESS_LOG_LEAK
+
+======================================================================
+FAIL: test_server_notification_does_not_leak_into_logs (__main__.RequiredBehavior.test_server_notification_does_not_leak_into_logs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 532, in test_server_notification_does_not_leak_into_logs
+    self.assertFalse(any(SYNTHETIC_SECRET in s for s in H.logger.messages), "SERVER_LOG_LEAK")
+AssertionError: True is not false : SERVER_LOG_LEAK
+
+======================================================================
+FAIL: test_tool_arguments_do_not_leak_into_logs (__main__.RequiredBehavior.test_tool_arguments_do_not_leak_into_logs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 515, in test_tool_arguments_do_not_leak_into_logs
+    self.assertFalse(any(SYNTHETIC_SECRET in s for s in H.logger.messages), "ARGUMENT_LOG_LEAK")
+AssertionError: True is not false : ARGUMENT_LOG_LEAK
+
+======================================================================
+FAIL: test_tool_timeout_is_not_automatically_replayed (__main__.RequiredBehavior.test_tool_timeout_is_not_automatically_replayed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 510, in test_tool_timeout_is_not_automatically_replayed
+    self.assertTrue(client.call_tool.await_count == 1, "TIMED_OUT_REQUEST_WAS_REPLAYED")
+AssertionError: False is not true : TIMED_OUT_REQUEST_WAS_REPLAYED
+
+======================================================================
+FAIL: test_uncertain_failure_is_not_automatically_replayed (__main__.RequiredBehavior.test_uncertain_failure_is_not_automatically_replayed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 503, in test_uncertain_failure_is_not_automatically_replayed
+    self.assertTrue(client.call_tool.await_count == 1, "UNKNOWN_OUTCOME_WAS_REPLAYED")
+AssertionError: False is not true : UNKNOWN_OUTCOME_WAS_REPLAYED
+
+======================================================================
+FAIL: test_upstream_exception_does_not_leak_into_logs (__main__.RequiredBehavior.test_upstream_exception_does_not_leak_into_logs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 522, in test_upstream_exception_does_not_leak_into_logs
+    self.assertFalse(any(SYNTHETIC_SECRET in s for s in H.logger.messages), "EXCEPTION_LOG_LEAK")
+AssertionError: True is not false : EXCEPTION_LOG_LEAK
+
+======================================================================
+FAIL: test_call_after_cleanup_has_controlled_error (__main__.ExtendedRequirements.test_call_after_cleanup_has_controlled_error)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 706, in test_call_after_cleanup_has_controlled_error
+    self.assertTrue(controlled, "CLOSED_CLIENT_FAILURE_NOT_CONTROLLED")
+AssertionError: False is not true : CLOSED_CLIENT_FAILURE_NOT_CONTROLLED
+
+======================================================================
+FAIL: test_client_worker_error_is_not_logged_verbatim (__main__.ExtendedRequirements.test_client_worker_error_is_not_logged_verbatim)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 726, in test_client_worker_error_is_not_logged_verbatim
+    self.assertFalse(any(SYNTHETIC_SECRET in v for v in H.logger.messages),
+AssertionError: True is not false : WORKER_LOG_LEAK
+
+======================================================================
+FAIL: test_discovery_failure_propagates_and_is_not_connected (__main__.ExtendedRequirements.test_discovery_failure_propagates_and_is_not_connected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 678, in test_discovery_failure_propagates_and_is_not_connected
+    self.assertTrue(rejected and not connected, "DISCOVERY_FAILURE_NOT_PROPAGATED")
+AssertionError: False is not true : DISCOVERY_FAILURE_NOT_PROPAGATED
+
+======================================================================
+FAIL: test_executor_does_not_forward_none_as_a_tool_result (__main__.ExtendedRequirements.test_executor_does_not_forward_none_as_a_tool_result)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 710, in test_executor_does_not_forward_none_as_a_tool_result
+    self.assertIs(response.action, H.register.Action.ERROR, "NONE_RESULT_FORWARDED_TO_MODEL")
+AssertionError: <Action.REQLLM: (3, '调用函数后再请求llm生成回复')> is not <Action.ERROR: (-1, '错误')> : NONE_RESULT_FORWARDED_TO_MODEL
+
+======================================================================
+FAIL: test_manager_init_error_is_not_logged_verbatim (__main__.ExtendedRequirements.test_manager_init_error_is_not_logged_verbatim)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 735, in test_manager_init_error_is_not_logged_verbatim
+    self.assertFalse(any(SYNTHETIC_SECRET in v for v in H.logger.messages),
+AssertionError: True is not false : MANAGER_INIT_LOG_LEAK
+
+======================================================================
+FAIL: test_reconnect_error_is_not_logged_verbatim (__main__.ExtendedRequirements.test_reconnect_error_is_not_logged_verbatim)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 747, in test_reconnect_error_is_not_logged_verbatim
+    self.assertFalse(any(SYNTHETIC_SECRET in v for v in H.logger.messages),
+AssertionError: True is not false : RECONNECT_LOG_LEAK
+
+======================================================================
+FAIL: test_sanitized_tool_name_collision_is_rejected (__main__.ExtendedRequirements.test_sanitized_tool_name_collision_is_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 694, in test_sanitized_tool_name_collision_is_rejected
+    self.assertTrue(rejected, "COLLIDING_TOOL_DEFINITIONS_SILENTLY_OVERWRITTEN")
+AssertionError: False is not true : COLLIDING_TOOL_DEFINITIONS_SILENTLY_OVERWRITTEN
+
+======================================================================
+FAIL: test_successful_reconnect_does_not_authorize_unknown_replay (__main__.ExtendedRequirements.test_successful_reconnect_does_not_authorize_unknown_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\scripts\check-mcp-offline.py", line 760, in test_successful_reconnect_does_not_authorize_unknown_replay
+    self.assertTrue(old.call_tool.await_count == 1 and new.call_tool.await_count == 0,
+AssertionError: False is not true : RECONNECT_REPLAYED_UNCERTAIN_REQUEST
+
+----------------------------------------------------------------------
+Ran 60 tests in 1.311s
+
+FAILED (failures=17)

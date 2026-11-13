@@ -1,0 +1,9 @@
+{
+  "before-run07/result.json": "cc4cd0d79246e59789c241d059302909c8ee18b44d87152f2144eaae6160c1a6",
+  "before-run07/tests.txt": "64d9995af2966b2b8368fc50ccb31996ea8a4d88af3a8d08f710d15cf2946d50",
+  "local-fixed15/result.json": "58af7ce64167ba2f3fc255e2b6cd2929b324e0b8b55ab570d369e4bea8130d2f",
+  "local-fixed15/tests.txt": "5927e5e022fda1a2f317613a5fca000e1eee23e4639ad90f4b0efb6ba2e3f445",
+  "local-fixed16/result.json": "58af7ce64167ba2f3fc255e2b6cd2929b324e0b8b55ab570d369e4bea8130d2f",
+  "local-fixed16/tests.txt": "0d197f0c2e0ff9be3566f4300b8d78ed8941a4fa593e5ebc5312faaf08bc7a86",
+  "source-manifest.json": "118d7d3d83abb55fd90dfdcf07c690dd071853bd4a62422d79684b27391dd544"
+}

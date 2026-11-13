@@ -1,0 +1,509 @@
+{
+  "schema": "issue12-server-evidence-audit-v1",
+  "observed_at": "2026-11-13T01:57:52.595831+00:00",
+  "candidate_commit": "830b11a30550de9533065706c1c9d275484b4cbb",
+  "candidate_deployed": false,
+  "services": {
+    "xiaozhi-pr26-api": {
+      "image": "xiaozhi-product-api:1b50709",
+      "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+      "running": true,
+      "started_at": "2026-11-12T03:13:39.656388819Z"
+    },
+    "xiaozhi-pr26-voice": {
+      "image": "xiaozhi-product-voice:pr79-f830a8c",
+      "image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+      "running": true,
+      "started_at": "2026-11-12T06:50:32.021169588Z"
+    }
+  },
+  "runtime_voice": {
+    "python": "3.10.22 (main, Oct  6 2026, 02:06:23) [GCC 12.2.0]",
+    "mcp": "2.3.0",
+    "module_sha256": {
+      "mcp_client.py": "0af9bef3bc11f9a66717a6aaf042b33b8e2302288c8de7c0844c48af566b3012",
+      "mcp_executor.py": "93e10e9466d2b570c6604747f521a9bdb5bd98dce73347d83428932ee8655b11",
+      "__init__.py": "152372c23027aa858580870572120bccf8b10ae8d4f4513b347edc5c8a5dd177",
+      "mcp_manager.py": "740a82470e81595cd596a1a00c4e7ee1fe6de6cf2436fbfdc2a33b40169b9f79"
+    }
+  },
+  "test_environment": {
+    "python": "3.10.22 (main, Oct  6 2026, 02:06:23) [GCC 12.2.0]",
+    "installed_metadata": {
+      "mcp": "2.3.0",
+      "mcp-types": "2.3.0",
+      "httpx2": "2.14.0",
+      "httpx": "0.28.1",
+      "openai": "2.8.1",
+      "anyio": "4.16.0"
+    },
+    "image_id": "sha256:a0ce61af271cd24539236f0e069c062902bd153fb0d78cd237b28348a31e92c5",
+    "network": "none",
+    "action": "metadata inspection only; no regression rerun"
+  },
+  "config": {
+    "path": "/home/jt/.private-mcp/config.json",
+    "mode": "0o600",
+    "uid": 1000,
+    "url_matches_contract": true,
+    "authorization_set": true,
+    "config_mtime_utc": "2026-11-10T10:38:52.821025+00:00"
+  },
+  "scope": {
+    "recorded_at": "2026-11-13T01:57:52.595310+00:00",
+    "device_label": "P4-B",
+    "account_label": "B-current-owner-20261113",
+    "authorization_source": "Direct human reply in Codex chat 01a1d297-23e1-7bc0-ab82-2b6c4d172e2a on 2026-11-13",
+    "authorization_text": "确认使用 B 及其当前归属测试账号，按上述范围测试",
+    "device_mapping_source": "Existing B PRODUCT_MAINTENANCE_DEVICE_ID and current dc_device row",
+    "config_reference": "/home/jt/.private-mcp/config.json",
+    "service": "service-669a396c73",
+    "tool": "ask_knowledge",
+    "fixed_public_question": "怎么申请成立社会团体",
+    "permission_boundary": "Only this device and its current owner; no other customers, model calls, TTS, firmware, or deployment",
+    "private_mapping_path": "/home/jt/issue12-minimal-verification-20261113T015751Z/scope-private.json",
+    "current_device_state": {
+      "admitted": "1",
+      "local_enabled": "1",
+      "reason": "ready",
+      "permission_version": "24",
+      "ownership_version": "7"
+    },
+    "has_owner": true,
+    "model_or_oidc_authorization_revalidated": false
+  },
+  "original_reports": {
+    "installed01": {
+      "path": "/home/jt/issue12-main6bf-20261112/results/installed01/result.json",
+      "bytes": 13185,
+      "sha256": "e7411021ae983b15d4fdc5e53eb2c22dea109f37a970a65af824ca221ccb48ba",
+      "historical_document_sha256": null,
+      "matches_historical_document_hash": null
+    },
+    "installed02": {
+      "path": "/home/jt/issue12-main6bf-20261112/results/installed02/result.json",
+      "bytes": 13185,
+      "sha256": "e7411021ae983b15d4fdc5e53eb2c22dea109f37a970a65af824ca221ccb48ba",
+      "historical_document_sha256": null,
+      "matches_historical_document_hash": null
+    },
+    "discovery": {
+      "path": "/home/jt/issue12-stage3-discovery-20261112/discovery01/discovery.json",
+      "bytes": 2045,
+      "sha256": "a8ac41feb034101973e42ab07a83de232f25eb40dadaab06e36ff04ce8dd6d10",
+      "historical_document_sha256": "a8ac41feb034101973e42ab07a83de232f25eb40dadaab06e36ff04ce8dd6d10",
+      "matches_historical_document_hash": true
+    },
+    "normal": {
+      "path": "/home/jt/issue12-sdk-final81-20261112/results/live-tool05/result.json",
+      "bytes": 4028,
+      "sha256": "311426c20915fcc074b90be4ae2072107ec47a17497a3b520033573168f7ba8f",
+      "historical_document_sha256": "311426c20915fcc074b90be4ae2072107ec47a17497a3b520033573168f7ba8f",
+      "matches_historical_document_hash": true
+    },
+    "behaviour": {
+      "path": "/home/jt/issue12-a2-20261112/run01/result.json",
+      "bytes": 4340,
+      "sha256": "a8be4d736a5a3711859ed07216cd91217deda9a07993578f6480ec160c057d31",
+      "historical_document_sha256": "a8be4d736a5a3711859ed07216cd91217deda9a07993578f6488ec160c057d31",
+      "matches_historical_document_hash": false
+    },
+    "invalid_input": {
+      "path": "/home/jt/issue12-a2-20261112/errors01/result.json",
+      "bytes": 940,
+      "sha256": "b5262ba7dc487997f561f6ee6a3e339816a5f0fbecbf84113977fef9407aac43",
+      "historical_document_sha256": "b5262ba7dc487997f561f6ee6a3e339816a5f0febcfb84113977fef9407aac43",
+      "matches_historical_document_hash": false
+    }
+  },
+  "source_comparison": [
+    {
+      "path": "main/xiaozhi-server/core/connection.py",
+      "server_raw_sha256": "0c29dac3bdaea8cff0bc7964852b9f267986d7862a520b49d3c2d93d05c18832",
+      "server_lf_sha256": "83da0cf6704610eebfe7eb02ad7f000bf19c7635cc7c336fafc90e24e13b187f",
+      "candidate_lf_sha256": "83da0cf6704610eebfe7eb02ad7f000bf19c7635cc7c336fafc90e24e13b187f",
+      "historical_raw_sha256": "0c29dac3bdaea8cff0bc7964852b9f267986d7862a520b49d3c2d93d05c18832",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/product_rejections.py",
+      "server_raw_sha256": "cf19c9dc93b84150ac668a4d6633a05dcde5af0644b869d71d39ad66485213a7",
+      "server_lf_sha256": "7ce6eae345d40e6cec91e00ae3fc020fd1b6c5c38b4e934dbce4d2cbf5bb1f23",
+      "candidate_lf_sha256": "7ce6eae345d40e6cec91e00ae3fc020fd1b6c5c38b4e934dbce4d2cbf5bb1f23",
+      "historical_raw_sha256": "cf19c9dc93b84150ac668a4d6633a05dcde5af0644b869d71d39ad66485213a7",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/product_voice.py",
+      "server_raw_sha256": "d17517c031fbf842027220da25b2cc515ada11c959c53042d05c4872971f3f27",
+      "server_lf_sha256": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c",
+      "candidate_lf_sha256": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c",
+      "historical_raw_sha256": "d17517c031fbf842027220da25b2cc515ada11c959c53042d05c4872971f3f27",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/base/__init__.py",
+      "server_raw_sha256": "04e13360c8c8bd197a2ff1e5eea73c753538fb764bf791d823497c9370aa2a2b",
+      "server_lf_sha256": "fdf1fe9d27cf517f0e462c547cbae9fbb8c6e6f3402350b1ed6a666754bc0e27",
+      "candidate_lf_sha256": "fdf1fe9d27cf517f0e462c547cbae9fbb8c6e6f3402350b1ed6a666754bc0e27",
+      "historical_raw_sha256": "04e13360c8c8bd197a2ff1e5eea73c753538fb764bf791d823497c9370aa2a2b",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/base/tool_executor.py",
+      "server_raw_sha256": "e7a372a4572452312ddff864b5e45784b576e5d457bfc0fe7b1e114ff9a69e57",
+      "server_lf_sha256": "361c6d7e163bb8ed5bb00c1138e5c2126284870d1d0a1aa3b8fab5dba9a50e26",
+      "candidate_lf_sha256": "361c6d7e163bb8ed5bb00c1138e5c2126284870d1d0a1aa3b8fab5dba9a50e26",
+      "historical_raw_sha256": "e7a372a4572452312ddff864b5e45784b576e5d457bfc0fe7b1e114ff9a69e57",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/base/tool_types.py",
+      "server_raw_sha256": "7f5adb1d40efcc59ecc0f712a9ecb7310d982919faf1ca0dcfa6dc224d0a5fbf",
+      "server_lf_sha256": "5cac336143c085ff3ecc724f9d98bdd41aa4fd6ce93c5c3f8b169957a4977a19",
+      "candidate_lf_sha256": "5cac336143c085ff3ecc724f9d98bdd41aa4fd6ce93c5c3f8b169957a4977a19",
+      "historical_raw_sha256": "7f5adb1d40efcc59ecc0f712a9ecb7310d982919faf1ca0dcfa6dc224d0a5fbf",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/__init__.py",
+      "server_raw_sha256": "eba11cfd661da2b9d578f9a4ab23b8b641b43200a6fcc4c79a7292b81caa6a4b",
+      "server_lf_sha256": "152372c23027aa858580870572120bccf8b10ae8d4f4513b347edc5c8a5dd177",
+      "candidate_lf_sha256": "152372c23027aa858580870572120bccf8b10ae8d4f4513b347edc5c8a5dd177",
+      "historical_raw_sha256": "eba11cfd661da2b9d578f9a4ab23b8b641b43200a6fcc4c79a7292b81caa6a4b",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/errors.py",
+      "server_raw_sha256": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+      "server_lf_sha256": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+      "candidate_lf_sha256": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+      "historical_raw_sha256": "08cbce3e16accae7938e3b21a52d047c0359ed7fc451deae412cea12f844e6c3",
+      "matches_historical_raw": false,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_client.py",
+      "server_raw_sha256": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
+      "server_lf_sha256": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+      "candidate_lf_sha256": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+      "historical_raw_sha256": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py",
+      "server_raw_sha256": "ed7e5e21efa3b1dbbebecd950ae2a12839ca4a242ebbfcb4a22effdfea16ffdc",
+      "server_lf_sha256": "12f2b6806a3a07261b08c6c8fd2e905010901b11a9de8133dbe58d4665b2adb0",
+      "candidate_lf_sha256": "12f2b6806a3a07261b08c6c8fd2e905010901b11a9de8133dbe58d4665b2adb0",
+      "historical_raw_sha256": "ed7e5e21efa3b1dbbebecd950ae2a12839ca4a242ebbfcb4a22effdfea16ffdc",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py",
+      "server_raw_sha256": "2b563e95d1fa9b81e8bf65f4fa171df59ce67f9b435ed90e81ba10ad8ce62f13",
+      "server_lf_sha256": "031e07e27a371db70c531097dc16996d3f06074667aec04316f26b6327e9594b",
+      "candidate_lf_sha256": "031e07e27a371db70c531097dc16996d3f06074667aec04316f26b6327e9594b",
+      "historical_raw_sha256": "2b563e95d1fa9b81e8bf65f4fa171df59ce67f9b435ed90e81ba10ad8ce62f13",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/utils/util.py",
+      "server_raw_sha256": "445fc1b342f9719d31121a034adf99ef6bbb4022d8726490dd34073d5bbae8f3",
+      "server_lf_sha256": "aea281fb12477398637ba3bd6f6eb84165bf5e55574c678ef0e9659341995827",
+      "candidate_lf_sha256": "aea281fb12477398637ba3bd6f6eb84165bf5e55574c678ef0e9659341995827",
+      "historical_raw_sha256": "445fc1b342f9719d31121a034adf99ef6bbb4022d8726490dd34073d5bbae8f3",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "main/xiaozhi-server/plugins_func/register.py",
+      "server_raw_sha256": "b96778e6aa0acbed95d3fe70c869a091bc140ea0b34c16cb66ec80e48c24a1a8",
+      "server_lf_sha256": "42d30dc366841aacede2cd805c3a5662a1b187b2e19aa155f79a1d15670e9a02",
+      "candidate_lf_sha256": "42d30dc366841aacede2cd805c3a5662a1b187b2e19aa155f79a1d15670e9a02",
+      "historical_raw_sha256": "b96778e6aa0acbed95d3fe70c869a091bc140ea0b34c16cb66ec80e48c24a1a8",
+      "matches_historical_raw": true,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    },
+    {
+      "path": "scripts/check-mcp-offline.py",
+      "server_raw_sha256": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+      "server_lf_sha256": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+      "candidate_lf_sha256": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+      "historical_raw_sha256": "286faa4b2647412bd365bd3580d1ebcc134c0666b12b744cf8b29a35bbf07288",
+      "matches_historical_raw": false,
+      "matches_candidate_content": true,
+      "both_reports_reference_actual_source": true,
+      "server_converted_to_crlf_matches_historical_manifest": true
+    }
+  ],
+  "source_manifest": {
+    "path": "/home/jt/issue12-main6bf-20261112/src/test-manifest.json",
+    "raw_sha256": "88264bbff3844688cef3ae770851ef27f606b266ac96a3547be92184fccb510e",
+    "lf_sha256": "88264bbff3844688cef3ae770851ef27f606b266ac96a3547be92184fccb510e"
+  },
+  "regressions": {
+    "installed01": {
+      "run": 81,
+      "pass": 81,
+      "fail": 0,
+      "error": 0,
+      "skip": 0,
+      "sdk": "installed",
+      "python": "3.10.22",
+      "installed_metadata": {
+        "mcp": "2.3.0",
+        "mcp-types": "2.3.0",
+        "httpx2": "2.14.0",
+        "httpx": "0.28.1",
+        "openai": "2.8.1",
+        "anyio": "4.16.0"
+      },
+      "network": "synthetic sessions/transports; Python connection/DNS/UDP/process guards (not an OS sandbox)",
+      "guard_denials": {},
+      "real_mcp_requests": 0,
+      "real_model_requests": 0,
+      "remote_cancellation_verified": false,
+      "case_ids_unique": true
+    },
+    "installed02": {
+      "run": 81,
+      "pass": 81,
+      "fail": 0,
+      "error": 0,
+      "skip": 0,
+      "sdk": "installed",
+      "python": "3.10.22",
+      "installed_metadata": {
+        "mcp": "2.3.0",
+        "mcp-types": "2.3.0",
+        "httpx2": "2.14.0",
+        "httpx": "0.28.1",
+        "openai": "2.8.1",
+        "anyio": "4.16.0"
+      },
+      "network": "synthetic sessions/transports; Python connection/DNS/UDP/process guards (not an OS sandbox)",
+      "guard_denials": {},
+      "real_mcp_requests": 0,
+      "real_model_requests": 0,
+      "remote_cancellation_verified": false,
+      "case_ids_unique": true
+    }
+  },
+  "discovery": {
+    "initialize_result": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {
+        "tools": {
+          "listChanged": false
+        },
+        "resources": {
+          "subscribe": false,
+          "listChanged": false
+        }
+      },
+      "serverInfo": {
+        "name": "service-669a396c73",
+        "version": "4.31"
+      }
+    },
+    "tool_name": "ask_knowledge",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "用户要查询的知识库问题，最多300字",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    },
+    "tool_version": "not_exposed",
+    "observation_time": "2026-11-12T04:57:13.470965+00:00",
+    "fresh_remote_discovery": false
+  },
+  "normal_tool": {
+    "started_utc": "2026-11-12T07:51:40.111451+00:00",
+    "ended_utc": "2026-11-12T07:51:41.532895+00:00",
+    "python": "3.10.22",
+    "mcp_distribution": "2.3.0",
+    "probe_sha256": "0dad910f9c9814c68451355b429b582b86a6ddf6789758bdd818b26dfa73289c",
+    "tools_call_submissions": 1,
+    "model_requests": 0,
+    "tts_requests": 0,
+    "retries": 0,
+    "status": "tool_response_received",
+    "initialization_attempts": 1,
+    "connected_after_initialize": true,
+    "tool_result_summary": {
+      "object_type": "CallToolResult",
+      "is_error": false,
+      "structured_keys": [
+        "answer",
+        "cacheHit",
+        "chunks",
+        "elapsedMs",
+        "generated",
+        "mode",
+        "model",
+        "modelCalled",
+        "note",
+        "returned",
+        "sources",
+        "status",
+        "topK"
+      ],
+      "content_blocks": 6,
+      "business_complete": null,
+      "observed_labels": {
+        "status": "ok",
+        "mode": "chunks",
+        "generated": false,
+        "modelCalled": false,
+        "model": "",
+        "returned": 5,
+        "topK": 5,
+        "cacheHit": false,
+        "elapsedMs": 408
+      },
+      "sources_count": 5
+    },
+    "cleanup_completed": true,
+    "connected_after_cleanup": false,
+    "worker_reference_cleared": true,
+    "candidate_mcp_source_matches": {
+      "main/xiaozhi-server/core/providers/tools/server_mcp/__init__.py": true,
+      "main/xiaozhi-server/core/providers/tools/server_mcp/errors.py": true,
+      "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_client.py": true,
+      "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py": true,
+      "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py": true
+    },
+    "probe_files_matching_report_hash": [
+      {
+        "path": "/home/jt/issue12-cleanup79-20261112/live-client-tool.py",
+        "sha256": "0dad910f9c9814c68451355b429b582b86a6ddf6789758bdd818b26dfa73289c",
+        "contains_fixed_public_question": true
+      }
+    ]
+  },
+  "behaviour": {
+    "status": "cases_completed",
+    "cleanup_completed": true,
+    "cases": [
+      {
+        "case": "no_hit",
+        "question_chars": 13,
+        "calls": 1,
+        "outcome": "returned",
+        "result": {
+          "is_error": false,
+          "content_blocks": 6,
+          "observed": {
+            "status": "ok",
+            "mode": "chunks",
+            "generated": false,
+            "modelCalled": false,
+            "model": "",
+            "returned": 5,
+            "topK": 5,
+            "cacheHit": false,
+            "elapsedMs": 256,
+            "note": "返回完整存储切片；不代表完整文档。跨片条款或表格请沿neighbors读取，复杂图表以原图核对。"
+          },
+          "sources_count": 5,
+          "chunks_count": 5
+        }
+      },
+      {
+        "case": "too_long",
+        "question_chars": 301,
+        "calls": 1,
+        "outcome": "raised",
+        "result": {}
+      },
+      {
+        "case": "empty",
+        "question_chars": 0,
+        "calls": 1,
+        "outcome": "raised",
+        "result": {}
+      }
+    ]
+  },
+  "invalid_input": {
+    "status": "completed",
+    "cleanup_completed": true,
+    "cases": [
+      {
+        "case": "too_long",
+        "question_chars": 301,
+        "calls": 1,
+        "outcome": "raised",
+        "error_type": "MCPError",
+        "code": -32602
+      },
+      {
+        "case": "empty",
+        "question_chars": 0,
+        "calls": 1,
+        "outcome": "raised",
+        "error_type": "MCPError",
+        "code": -32602
+      }
+    ]
+  },
+  "historical_hash_discrepancy": "Two A2 report hashes differ from historical document strings. Current files were re-read and checked; historical immutability is not established.",
+  "remote_cancellation": "unknown",
+  "new_mcp_calls": 0,
+  "new_model_calls": 0,
+  "new_tts_calls": 0,
+  "regression_rerun": false,
+  "service_restarts": 0,
+  "business_database_writes": 0,
+  "physical_device_actions": 0
+}
