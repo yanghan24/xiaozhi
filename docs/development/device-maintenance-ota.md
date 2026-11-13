@@ -21,7 +21,7 @@
     "flash_size": 16777216,
     "chip_info": {"model": 18, "revision": 302},
     "application": {"version": "2.2.6", "elf_sha256": "<64 lowercase hex>"},
-    "board": {"type": "esp32-p4-wifi6-touch-lcd"},
+    "board": {"type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3"},
     "ota": {"label": "ota_0", "state": "valid"},
     "partition_table": []
   },
