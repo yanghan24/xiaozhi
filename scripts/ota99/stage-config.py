@@ -36,7 +36,7 @@ parser.add_argument('--public-config', type=Path, required=True)
 parser.add_argument('--output', type=Path, required=True)
 parser.add_argument('--api-image')
 parser.add_argument('--web-image')
-parser.add_argument('--voice-image', default='sha256:4cf6a3006dc8274e4dd9b9bba1f15748be52b3cd3e7e0eb3ff11208ba4bd08d6')
+parser.add_argument('--voice-image', required=True)
 args = parser.parse_args()
 for image in [args.api_image, args.web_image, args.voice_image]:
     if image is not None and not re.fullmatch(r'sha256:[a-f0-9]{64}', image):
