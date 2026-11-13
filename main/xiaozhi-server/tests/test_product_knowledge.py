@@ -1,9 +1,13 @@
 """Product tool behavior through the handler; only MCP SDK/transport is doubled.
 
 Run with unittest on the isolated Ubuntu backend image and synthetic config.
+The isolation fixture supplies data/.mcp_server_settings.json with a single
+SSE service at https://unapproved.example.invalid/sse to catch global fallback.
+No real credentials or service configuration may be mounted into this run.
 """
 import asyncio
 import copy
+import threading
 import unittest
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
@@ -26,12 +30,15 @@ class Authority:
     def __init__(self):
         self.allowed = True
         self.subject = SUBJECT
+        self.on_check = None
 
     def check_scope(self, grant):
         if not self.allowed:
             raise VoiceDenied()
 
     def request(self, action, body):
+        if action == "check" and self.on_check:
+            self.on_check()
         return {"allowed": self.allowed, "permission_version": 7,
                 "authorization_subject": self.subject}
 
@@ -47,11 +54,16 @@ class MCPService:
         self.init_error = None
         self.before_result = None
         self.knowledge_name = "ask_knowledge"
+        self.before_close = None
 
     @asynccontextmanager
     async def transport(self, url, **kwargs):
         self.connections.append(url)
-        yield object(), object()
+        try:
+            yield object(), object()
+        finally:
+            if self.before_close:
+                await self.before_close()
 
     def session(self, **kwargs):
         service = self
@@ -269,6 +281,85 @@ class ProductKnowledgeTests(unittest.IsolatedAsyncioTestCase):
             "name": "ask_knowledge", "arguments": {"question": QUESTION}}, turn_id="turn-1")
         self.assertEqual(response.action, Action.ERROR)
         self.assertEqual(self.service.calls, [])
+
+    async def test_permission_check_cannot_allow_a_turn_invalidated_while_it_waits(self):
+        handler = await self.start()
+        # The external authority request runs in a worker thread. A new turn
+        # can become current before the permission response comes back.
+        self.authority.on_check = lambda: setattr(self.conn, "current_turn", "turn-2")
+        response = await handler.handle_llm_function_call(self.conn, {
+            "name": "ask_knowledge", "arguments": {"question": QUESTION}}, turn_id="turn-1")
+        self.assertEqual(response.action, Action.NONE)
+        self.assertEqual(self.service.calls, [])
+
+    async def test_contract_limit_and_json_arguments_are_forwarded_once(self):
+        handler = await self.start()
+        response = await handler.handle_llm_function_call(self.conn, {
+            "name": "ask_knowledge", "arguments": '{"question":"' + "问" * 300 + '"}'},
+            turn_id="turn-1")
+        self.assertEqual(response.action, Action.REQLLM)
+        self.assertEqual(self.service.calls, [("ask_knowledge", {"question": "问" * 300})])
+
+    async def test_protocol_error_or_malformed_result_never_reaches_model_continuation(self):
+        handler = await self.start()
+        for result in [CallToolResult(content=[], isError=True),
+                       CallToolResult(content=[]), {"isError": False, "content": []}, None]:
+            with self.subTest(result=result):
+                self.service.result = result
+                response = await handler.handle_llm_function_call(self.conn, {
+                    "name": "ask_knowledge", "arguments": {"question": QUESTION}}, turn_id="turn-1")
+                self.assertEqual(response.action, Action.ERROR)
+                self.assertEqual(response.response, "知识库查询失败，请稍后再试。")
+                self.assertIsNone(response.result)
+        self.assertEqual(len(self.service.calls), 4)
+
+    async def test_cancelled_call_propagates_without_retry(self):
+        handler = await self.start()
+        self.service.error = asyncio.CancelledError()
+        with self.assertRaises(asyncio.CancelledError):
+            await handler.handle_llm_function_call(self.conn, {
+                "name": "ask_knowledge", "arguments": {"question": QUESTION}}, turn_id="turn-1")
+        self.assertEqual(len(self.service.calls), 1)
+
+    async def test_legacy_handler_keeps_global_service_and_tool_discovery(self):
+        del self.conn.product_voice_gate
+        self.conn.config = {"Intent": {"function_call": {"functions": []}},
+                            "selected_module": {"Intent": "function_call"}}
+        self.conn.intent_type = "function_call"
+        handler = await self.start()
+        self.assertEqual(self.service.connections, ["https://unapproved.example.invalid/sse"])
+        names = [entry["function"]["name"] for entry in handler.get_functions()]
+        self.assertIn("ask_knowledge", names)
+        self.assertIn("unapproved_tool", names)
+
+    async def test_close_during_permission_check_cannot_reexpose_pending_tools(self):
+        handler = await self.start()
+        checking = threading.Event()
+        checked = threading.Event()
+        closing = asyncio.Event()
+        closed = asyncio.Event()
+
+        def permission_wait():
+            checking.set()
+            checked.wait(2)
+
+        async def close_wait():
+            closing.set()
+            await closed.wait()
+
+        self.authority.on_check = permission_wait
+        self.service.before_close = close_wait
+        exposure = asyncio.create_task(asyncio.to_thread(handler.get_functions))
+        self.assertTrue(await asyncio.to_thread(checking.wait, 2))
+        cleanup = asyncio.create_task(handler.cleanup())
+        try:
+            await asyncio.wait_for(closing.wait(), 2)
+            checked.set()
+            self.assertEqual(await asyncio.wait_for(exposure, 2), [])
+        finally:
+            checked.set()
+            closed.set()
+            await cleanup
 
 
 if __name__ == "__main__":

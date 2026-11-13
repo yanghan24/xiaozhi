@@ -143,7 +143,7 @@ class UnifiedToolHandler:
     @property
     def knowledge_status(self):
         """Advisory readiness; exposure and execution still recheck live permission."""
-        if (self.product_scope is not None and self.finish_init and self.product_scope.matches()
+        if (self.product_scope is not None and not self._closed and self.finish_init and self.product_scope.matches()
                 and self.server_mcp_executor.has_tool("ask_knowledge")):
             return "available"
         return "unavailable"
@@ -162,7 +162,7 @@ class UnifiedToolHandler:
                 self.conn.product_voice_gate.check()
             except VoiceDenied:
                 return []
-            if self.product_scope.matches() and self.server_mcp_executor.has_tool("ask_knowledge"):
+            if self.knowledge_status == "available":
                 return self.product_scope.functions()
             return []
         return self.tool_manager.get_function_descriptions()
@@ -249,7 +249,7 @@ class UnifiedToolHandler:
 
     async def _product_call_is_current(self, turn_id):
         def current():
-            return (turn_id is not None and self.finish_init and self.product_scope.matches()
+            return (turn_id is not None and not self._closed and self.finish_init and self.product_scope.matches()
                     and self.conn.product_turn_is_current(turn_id))
         if not current():
             return False
