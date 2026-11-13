@@ -49,3 +49,11 @@ B 最新签收已为同一源码版本。本次如使用该候选，应记录为
 - [10:49:24 状态](evidence/2026-11-13-issue18/issue18-current-public.json)：B仍ready/许可24/归属7，维护模块SHA与候选一致；重建后暂为 `no_unique_session`，采集启动后需重新唤醒并核对当前会话。
 
 本轮没有下发OTA、补发凭据或修改归属。部署与短时下载准备已完成，实际安装、自动重启与身份保持尚待硬件侧配合验证。
+
+## 11:02 硬件就绪确认与11:05下发前复查
+
+用户明确授权本轮下发，并转述硬件核验：当前2.2.6/12f2ff1应用读回及运行ELF与归档一致；活动槽ota_1、地址0x410000、VALID且CRC有效；NVS仅env/cache变化，身份/凭据/device_ctrl保持，已保存新备份；bootloader、分区表、OTA选择及保护区域与归档一致。Fedora串口持续采集中，具体本轮日志路径尚待补充。这些是用户转述的现场证据，不是服务器独立Flash读回。
+
+11:03:41/11:05:15服务器复查发现另一项更新已将语音切换为 `xiaozhi-product-voice:asr-switch`。B仍ready/许可24/归属7，但维护status为 `no_unique_session`。没有生成新下载链接或下发OTA，已请现场再次唤醒B。
+
+11:04:31在该实际镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897` 的隔离容器重跑维护套件16项通过；维护模块仍为本PR的SHA `3c1a9a6c25044f207e3034cf786dfd60d638f2edb6849f0b5f274507d50b0e5d`，product_voice模块已更新为 `b288c42f686c3c2acf0adfe08acc06fea897ac322d4ad6b723780dedb5bfec74`。保留该更新，不回退现网。私有 `dispatch-runtime-verified.json` 固定本次已验证镜像，实际下发脚本必须再次匹配该ID。硬件就绪记录保留用户报告的11:02时间，不用后续写文件时间延长就绪窗口。

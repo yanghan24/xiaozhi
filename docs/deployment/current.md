@@ -1,5 +1,7 @@
 # 当前部署与公网入口
 
+2026-11-13 11:05（Asia/Hong_Kong）[#18下发前只读复查](../verification/2026-11-13-issue18-ota-preparation.md)发现现网已由后续任务切换为 `xiaozhi-product-voice:asr-switch`，实际镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897`。该镜像保留 #18 维护路径更新，16项隔离维护回归通过；本任务没有执行这次镜像切换。B许可24/归属7，尚未下发OTA。
+
 2026-11-13 10:49（Asia/Hong_Kong）最新维护更新：[#18准备与部署记录](../verification/2026-11-13-issue18-ota-preparation.md)确认现网语音更新为 `xiaozhi-product-voice:issue18-12f2ff1`，基于现场实际 `rtasr-3739aad` 镜像，仅增加新固件精确维护路径。API与身份数据不变；新路径短时HTTPS下载验证后已撤销，尚未向B下发OTA。下方更早的签收及部署说明保留历史范围。
 
 本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 10:05（Asia/Hong_Kong），本次[服务器签收](../verification/2026-11-13-issue13-server-closeout.md)确认 API/语音镜像和运行产物；历史部署说明如下，API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按[PR #79 修复部署记录](../verification/2026-11-12-pr79-deployment.md)更新维护通道的异常／取消分类及最终会话检查，保留原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
@@ -34,7 +36,7 @@
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
 | 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:1b50709` |
-| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:issue18-12f2ff1`，镜像ID `sha256:1267d4cd09a8142ea135d6c3d2a8ad2401beacc7ac3f5d8f02c43c4ddd086a0e`；2026-11-13 10:47基于现网 `rtasr-3739aad` 仅更新维护路径，源码改动 `77746a4`，原配置和提示词保留；详见上方 #18 证据 |
+| 产品语音 | `xiaozhi-pr26-voice` / `xiaozhi-product-voice:asr-switch`，镜像ID `sha256:66045ff8230ad09d705c938c380a50ab26f19e9e4469aaf5761aab942a066897`；11:05只读复查，保留 #18 的维护路径更新；此前10:47的 `issue18-12f2ff1` 镜像已被后续任务替代，详见上方证据 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
