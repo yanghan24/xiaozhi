@@ -26,13 +26,15 @@
 
 多存储备份不等于跨 MySQL/SQLite 原子快照：部署窗口先停止新发布，等待活动派发工作器结束，再做协调备份。恢复备份不得覆盖后续未知操作来允许重发。已有真实下发时保留兼容 API、下载路由/密钥及原锁，先逐台核对；服务回退不回退设备固件。
 
-## 上线仍需完成的具体配置
+## 已暂存的具体配置与上线剩余条件
 
-生产 Compose 为 `/home/jt/pr26-deployment-885918d/private/compose.json`，服务名为 `product-api`、`product-voice`、`product-web`。只在最终候选固定后准备当前文件的最小 delta：
+生产 Compose 为 `/home/jt/pr26-deployment-885918d/private/compose.json`，服务名为 `product-api`、`product-voice`、`product-web`。[stage-config.py](../../scripts/ota99/stage-config.py) 已从现场当前文件生成最小 delta，暂存在 **`/home/jt/ota99-config-stage-2249e3c-v2`**（0700、root 私有），没有安装到生产路径。[配置摘要](evidence/2026-11-13-ota99-preparation/staged-config.json)固定原始/候选配置 hash 和镜像；API/UI 未最终固定，所以 `deployable=false`。
 
-1. API 加入 `product.ota.bridge-url=http://product-voice:8097/internal/product-ota/v1/control`、独立 bridge/download 秘密和 `download-origin=https://bridge.hncig.cn:18443`；原身份/ASR配置保持。语音配置相同 bridge 秘密、origin、端口和持久 `/app/data/product-ota` 0700 目录。现网语音连接两个私有 Docker 网络；绑定 `0.0.0.0` 会被两网可达，不能宣称单网隔离。需明确选择私网绑定方案，禁止发布主机端口或公网 bridge 路由。
-2. 公网 TLS 仅新增严格格式的签名 artifact GET 路由，适配真实别名 `product-api`，关闭查询参数日志及临时缓存。保留现有路由/证书及精确可信代理 `172.26.0.7`（应用前重新核对实际 IP）。管理页面仍只在私有 SSH 隧道入口；套用已验证的精确导入路由超时配置，不能只验证绕过代理的直连端口。
-3. 以最终 API JAR/UI 和本组合语音候选准备具体差异、生成两个独立秘密、生产私有备份及完整恢复参数。当前尚未生成或改动任何生产秘密、目录、配置或最终 API/UI 镜像。审批应针对届时可审阅的具体产物/配置，不把本准备记录当作上线批准。
+1. 暂存 API 加入 `product.ota.bridge-url=http://product-voice:8097/internal/product-ota/v1/control`、独立 bridge/download 秘密和 `download-origin=https://bridge.hncig.cn:18443`；保留当前实际 Spring 配置，语音配置同一 bridge 秘密及 origin。两个新秘密只生成在暂存区，尚未启用。Compose 将语音 identity 网络 IPv4 固定为现场当前 `172.26.0.4`，bridge 仅监听此地址 `8097`，不监听另一 application 网络地址、不发布主机端口；生成器核对实际网络/地址及 #14 基底，不符则拒绝。部署前仍须再次核对该地址由当前语音独占，替换同一服务后保持固定地址。持久 `/app/data/product-ota` 对应的 root 所有 0700 目录仍须在部署窗口创建。
+2. 暂存公网 TLS 仅新增严格格式的签名 artifact GET 路由，适配真实别名 `product-api`，明确转发 HTTPS/真实入口地址，关闭查询参数日志及临时缓存；原有路由/证书及精确可信代理保留。暂存管理配置仅新增精确 firmware 导入路径的 300 秒读取期限，沿用现有动态上游，其他请求仍为 30 秒。管理页面仍在私有 SSH 隧道入口。
+3. Ubuntu `docker compose config --quiet` 以及两个临时、无主机端口的 Nginx 容器 `nginx -t` 均通过；测试仅为语法/DNS解析，没有对后端发请求或加载生产服务的新配置。初次生成器因现场管理配置缩进不同而安全拒绝，改成匹配现有 location 行后在新目录重跑成功；旧空目录保留，不覆盖现场文件。
+
+最终 API JAR/UI 固定后，用生成器的 `--api-image`/`--web-image` 参数建立最终暂存版本，核对当前原始配置/镜像 hash、生产私有备份、密钥安装及回退参数；不得直接把当前 `deployable=false` 暂存文件当作上线包。审批针对具体最终产物/配置，本记录不是上线批准。配置验证未代替实际 TLS 签名下载和完整后台登录导航验收。
 
 ## 指定设备与验收边界
 

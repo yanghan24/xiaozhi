@@ -19,8 +19,8 @@ cp "$source_root/main/xiaozhi-server/tests/test_product_ota_bridge.py" "$output/
 docker cp xiaozhi-pr26-voice:/app/core/websocket_server.py "$output/build/main/xiaozhi-server/core/websocket_server.py"
 cd "$output/build"
 echo 'a1dc1452f70694ad84cbb1f3cf073cfe46038950c45ccb295f5f5e49dd6bb047  main/xiaozhi-server/core/websocket_server.py' | sha256sum -c -
-git apply --check "$source_root/scripts/ota99/websocket-lifecycle.patch"
-git apply "$source_root/scripts/ota99/websocket-lifecycle.patch"
+git apply --unidiff-zero --check "$source_root/scripts/ota99/websocket-lifecycle.patch"
+git apply --unidiff-zero "$source_root/scripts/ota99/websocket-lifecycle.patch"
 cp "$source_root/main/xiaozhi-server/core/product_ota_bridge.py" main/xiaozhi-server/core/
 printf 'FROM %s\nCOPY main/xiaozhi-server/core/ /app/core/\n' "$baseline" > Dockerfile
 docker build --network none -t xiaozhi-product-voice:ota99-2249e3c . > "$output/build.log" 2>&1
