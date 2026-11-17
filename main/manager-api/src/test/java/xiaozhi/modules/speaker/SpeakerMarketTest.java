@@ -48,7 +48,7 @@ class SpeakerMarketTest {
             try(var output=exchange.getResponseBody()) { output.write(body); }
         });
         server.start();
-        market=new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","","",""));
+        market=new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""));
     }
     @AfterEach void stop() { server.stop(0); }
     private String signed(String subject,String audience) throws Exception {

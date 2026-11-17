@@ -11,7 +11,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 class SpeakerDevicesTest {
     private final JdbcTemplate db = mock(JdbcTemplate.class);
     private final SpeakerDevices devices = new SpeakerDevices(db,
-            new SpeakerSettings(true,"https://aimarket.hncig.cn/oidc","","","",""),
+            new SpeakerSettings(true,"https://aimarket.hncig.cn/oidc","","",""),
             mock(PlatformTransactionManager.class));
     @Test void rejectsSelfReportedIdentityAndInvalidCredentials() {
         var failure = assertThrows(SpeakerFailure.class, () -> devices.authenticate("Bearer short","device-a"));

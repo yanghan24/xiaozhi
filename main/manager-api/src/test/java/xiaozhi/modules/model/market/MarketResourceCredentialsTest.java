@@ -11,7 +11,7 @@ class MarketResourceCredentialsTest {
     SpeakerMarket market=mock(SpeakerMarket.class);
     SpeakerCrypto crypto=mock(SpeakerCrypto.class);
     MarketResourceCredentials service=new MarketResourceCredentials(grants,market,crypto,
-            new SpeakerSettings(true,"https://aimarket.hncig.cn/oidc","device-client","","",""));
+            new SpeakerSettings(true,"https://aimarket.hncig.cn/oidc","device-client","",""));
     Map<String,Object> grant() {
         return new HashMap<>(Map.of("token_status","active","credential_status","active","credential_cipher","cipher",
                 "credential_base","https://aimarket.hncig.cn"));

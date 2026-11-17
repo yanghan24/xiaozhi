@@ -82,6 +82,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     private final AgentTagService agentTagService;
     private final CorrectWordFileService correctWordFileService;
     private final AgentSnapshotService agentSnapshotService;
+    @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketModelBindings marketBindings;
 
     @Override
     public PageData<AgentEntity> adminAgentList(Map<String, Object> params) {
@@ -544,6 +545,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         if (!b) {
             throw new RenException(ErrorCode.LLM_INTENT_PARAMS_MISMATCH);
         }
+        marketSelections(existingEntity);
         this.updateById(existingEntity);
         if (createSnapshot) {
             agentSnapshotService.createSnapshot(agentId, "config");
@@ -580,6 +582,20 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
      * @param intentModelId 意图识别id
      * @return T 匹配 : F 不匹配
      */
+    private void marketSelections(AgentEntity agent) {
+        var selected=new java.util.LinkedHashMap<String,String>();
+        selected.put("LLM",agent.getLlmModelId());selected.put("ASR",agent.getAsrModelId());
+        selected.put("VAD",agent.getVadModelId());selected.put("TTS",agent.getTtsModelId());
+        selected.put("VLLM",agent.getVllmModelId());selected.put("SLM",agent.getSlmModelId());
+        selected.put("Intent",agent.getIntentModelId());selected.put("Memory",agent.getMemModelId());
+        if(selected.values().stream().filter(java.util.Objects::nonNull).anyMatch(id->id.startsWith("MARKET_"))) {
+            try { marketBindings.validateSelections(selected); }
+            catch(xiaozhi.modules.speaker.SpeakerFailure unavailable) {
+                throw new RenException("所选 AI 集市模型尚未启用、已不可用或不符合用途，请检查模型配置及集市目录");
+            }
+        }
+    }
+
     private boolean validateLLMIntentParams(String llmModelId, String intentModelId) {
         if (StringUtils.isBlank(llmModelId)) {
             return true;

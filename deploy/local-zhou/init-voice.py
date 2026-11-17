@@ -30,13 +30,14 @@ try:
                        "mem_model_id='Memory_nomem', intent_model_id='Intent_nointent' "
                        "ORDER BY sort LIMIT 1")
         cursor.execute("UPDATE sys_params SET param_value='true' WHERE param_code='server.auth.enabled'")
+        cursor.execute("UPDATE sys_params SET param_value='ws://127.0.0.1:8000/xiaozhi/v1/' WHERE param_code='server.websocket'")
     connection.commit()
 finally:
     connection.close()
 cache = redis.Redis(host='172.16.18.104', port=16380,
     password=os.environ['SPRING_DATA_REDIS_PASSWORD'], db=0)
 cache.delete('server:config')
-cache.hdel('sys:params', 'server.auth.enabled')
+cache.hdel('sys:params', 'server.auth.enabled', 'server.websocket')
 configuration = {
     'server': {'ip': '0.0.0.0', 'port': 8000, 'http_port': 8003,
                'vision_explain': 'http://127.0.0.1:18003/mcp/vision/explain'},

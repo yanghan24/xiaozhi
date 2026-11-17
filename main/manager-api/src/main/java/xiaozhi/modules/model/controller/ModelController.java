@@ -43,6 +43,7 @@ public class ModelController {
     private final ModelConfigService modelConfigService;
     private final ConfigService configService;
     private final AgentTemplateService agentTemplateService;
+    private final xiaozhi.modules.model.market.MarketModelBindings marketBindings;
 
     @GetMapping("/names")
     @Operation(summary = "获取所有模型名称")
@@ -50,7 +51,7 @@ public class ModelController {
     public Result<List<ModelBasicInfoDTO>> getModelNames(@RequestParam String modelType,
             @RequestParam(required = false) String modelName) {
         List<ModelBasicInfoDTO> modelList = modelConfigService.getModelCodeList(modelType, modelName);
-        return new Result<List<ModelBasicInfoDTO>>().ok(modelList);
+        return new Result<List<ModelBasicInfoDTO>>().ok(marketBindings.compatibleChoices(modelList));
     }
 
     @GetMapping("/llm/names")
@@ -58,7 +59,7 @@ public class ModelController {
     @RequiresPermissions("sys:role:normal")
     public Result<List<LlmModelBasicInfoDTO>> getLlmModelCodeList(@RequestParam(required = false) String modelName) {
         List<LlmModelBasicInfoDTO> llmModelCodeList = modelConfigService.getLlmModelCodeList(modelName);
-        return new Result<List<LlmModelBasicInfoDTO>>().ok(llmModelCodeList);
+        return new Result<List<LlmModelBasicInfoDTO>>().ok(marketBindings.compatibleChoices(llmModelCodeList));
     }
 
     @GetMapping("/{modelType}/provideTypes")

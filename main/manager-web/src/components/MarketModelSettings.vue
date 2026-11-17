@@ -34,7 +34,6 @@
               :label="selection + '（当前不可选）'" :value="selection" disabled />
             <el-option v-for="model in options" :key="model.publicId" :label="model.name || model.publicId" :value="model.publicId">
               <span>{{ model.name || model.publicId }}</span>
-              <el-tag v-if="modelType === 'llm' && !model.capabilities.includes('tools')" size="mini" class="model-hint">仅普通聊天</el-tag>
             </el-option>
           </el-select>
           <div v-if="capabilityLabels.length" class="capability-tags">
@@ -83,7 +82,7 @@ export default {
       if (!model) return [];
       if (this.modelType === "asr") return ["流式听写", "单轮不超过 60 秒"];
       const names = { streaming: "流式输出", tools: "工具调用", vision: "图片理解", "structured-output": "结构化输出" };
-      return Object.keys(names).filter(key => model.capabilities.includes(key)).map(key => names[key]);
+      return Object.keys(names).filter(key => (model.capabilities || []).includes(key) && (model.verifiedCapabilities || []).includes(key)).map(key => names[key]);
     },
     supported() { return ["llm", "vllm", "asr", "intent", "memory"].includes(this.modelType); },
     selectedAvailable() { return this.options.some(model => model.publicId === this.selection); },
@@ -96,7 +95,7 @@ export default {
       if (this.modelType === "intent") return "此处配置独立意图模型。工具调用模式可继续在小智系统中选择，并复用主大语言模型。";
       if (this.modelType === "memory") return "使用集市模型生成摘要记忆，记忆的保存和使用仍由小智负责。";
       if (this.modelType === "vllm") return "仅展示支持当前图片输入方式的视觉模型。";
-      return "仅展示符合流式对话要求的模型；使用设备工具或 MCP 时，还需支持工具调用。";
+      return "仅展示已验证支持流式对话和工具调用的兼容模型。";
     },
   },
   watch: { modelType: { immediate: true, handler() { this.reload(); } } },

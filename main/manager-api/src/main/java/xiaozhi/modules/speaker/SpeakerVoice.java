@@ -15,18 +15,14 @@ public class SpeakerVoice {
     private final SpeakerCrypto crypto;
     private final SpeakerGrants grants;
     private final SpeakerAgents agents;
+    private final xiaozhi.modules.sys.service.VoiceServiceEndpoints endpoints;
     @jakarta.annotation.Resource private SpeakerConversations conversations;
-    public SpeakerVoice(JdbcTemplate db,SpeakerSettings settings,SpeakerCrypto crypto,SpeakerGrants grants,SpeakerAgents agents) {
-        this.db=db;this.settings=settings;this.crypto=crypto;this.grants=grants;this.agents=agents;
+    public SpeakerVoice(JdbcTemplate db,SpeakerSettings settings,SpeakerCrypto crypto,SpeakerGrants grants,SpeakerAgents agents,xiaozhi.modules.sys.service.VoiceServiceEndpoints endpoints) {
+        this.db=db;this.settings=settings;this.crypto=crypto;this.grants=grants;this.agents=agents;this.endpoints=endpoints;
     }
     public Map<String,Object> ticket(Map<String,Object> device) {
         agents.configurationId();
-        java.net.URI url;
-        try { url=java.net.URI.create(settings.voiceUrl()); }
-        catch(Exception invalid) { throw new SpeakerFailure(503,"VOICE_NOT_CONFIGURED"); }
-        if(!"/xiaozhi/v1/".equals(url.getPath()) || url.getHost()==null || url.getUserInfo()!=null || url.getQuery()!=null || url.getFragment()!=null
-                || !("wss".equals(url.getScheme()) || "ws".equals(url.getScheme()) && "127.0.0.1".equals(url.getHost())))
-            throw new SpeakerFailure(503,"VOICE_NOT_CONFIGURED");
+        String voiceUrl=endpoints.deviceUrl();
         long now=System.currentTimeMillis();String value;long expiry;
         var existing=db.queryForList("SELECT token_cipher,expires_at_ms FROM speaker_voice_ticket WHERE device_id=? AND credential_hash=? "
                 + "AND binding_version=? AND permission_version=? AND expires_at_ms>? ORDER BY expires_at_ms DESC LIMIT 1",device.get("device_id"),
@@ -36,7 +32,7 @@ public class SpeakerVoice {
             db.update("INSERT INTO speaker_voice_ticket(token_hash,token_cipher,device_id,credential_hash,binding_version,permission_version,expires_at_ms) VALUES (?,?,?,?,?,?,?)",
                     hash(value),crypto.encrypt(value),device.get("device_id"),device.get("credential_hash"),device.get("binding_version"),device.get("permission_version"),expiry);
         } else {value=crypto.decrypt(existing.getFirst().get("token_cipher").toString());expiry=number(existing.getFirst(),"expires_at_ms");}
-        return Map.of("url",settings.voiceUrl(),"token",value,"expires_at_ms",expiry,"protocol_version",1,"permission_version",device.get("permission_version"));
+        return Map.of("url",voiceUrl,"token",value,"expires_at_ms",expiry,"protocol_version",1,"permission_version",device.get("permission_version"));
     }
     public Object action(String action,Map<String,String> body) {
         settings.requireEnabled();

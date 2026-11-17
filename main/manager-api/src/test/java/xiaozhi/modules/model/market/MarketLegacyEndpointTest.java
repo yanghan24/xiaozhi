@@ -13,9 +13,9 @@ class MarketLegacyEndpointTest {
     @Test void genericModelMutationsCannotBypassMarketSelectionAndCacheValidation() {
         var models=mock(ModelConfigService.class);var config=mock(ConfigService.class);
         var templates=mock(AgentTemplateService.class);
-        var controller=new ModelController(mock(ModelProviderService.class),mock(TimbreService.class),models,config,templates);
+        var controller=new ModelController(mock(ModelProviderService.class),mock(TimbreService.class),models,config,templates,mock(MarketModelBindings.class));
         assertNotEquals(0,controller.enableModelConfig("MARKET_LLM",1).getCode());
         assertNotEquals(0,controller.setDefaultModel("MARKET_ASR").getCode());
-        verifyNoInteractions(models,config,templates);
+        verifyNoInteractions(models,config,templates,mock(MarketModelBindings.class));
     }
 }

@@ -8,24 +8,27 @@
             <div v-if="!embedded" class="operation-header">
               <h2 v-if="!embedded" class="page-title">{{ $t('serverSideManager.pageTitle') }}</h2>
             </div>
-            <el-card class="server-list-card">
-              <div v-for="(item, index) in paramsList" :key="index" class="server-list" v-loading="loading">
+            <el-card class="server-list-card" v-loading="loading">
+              <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon />
+              <div class="service-toolbar"><el-button size="small" plain icon="el-icon-refresh" :disabled="loading" @click="fetchParams">刷新列表</el-button></div>
+              <el-empty v-if="!paramsList.length && !loading && !loadError" description="尚未配置语音服务，请在系统参数中设置 server.websocket" />
+              <div v-for="item in paramsList" :key="item.address" class="server-list" v-loading="item.pending">
                 <div class="server-card">
                   <div class="server-info">
                     <span class="server-label">{{ $t('serverSideManager.wsAddress') }}</span>
                     <span class="server-value">{{ item.address }}</span>
+                    <span v-if="item.managementAddress" class="management-address">后台运维地址：{{ item.managementAddress }}</span>
                   </div>
                   <el-button class="copy-button" type="text" size="small" @click="copyAddress(item.address)">{{ $t('common.copyAddress') }}</el-button>
                 </div>
                 <el-divider />
                 <div class="header-actions">
-                  <CustomButton icon="el-icon-refresh-right" size="small" @click="emitAction(item, actionMap.restart)">{{
+                  <CustomButton :disabled="item.pending" icon="el-icon-refresh-right" size="small" @click="emitAction(item, actionMap.restart)">{{
                     $t('serverSideManager.restart') }}</CustomButton>
-                  <CustomButton icon="el-icon-setting" size="small" type="confirm" @click="emitAction(item, actionMap.update_config)">
+                  <CustomButton :disabled="item.pending" icon="el-icon-setting" size="small" type="confirm" @click="emitAction(item, actionMap.update_config)">
                     {{ $t('serverSideManager.updateConfig') }}
                   </CustomButton>
                 </div>
-                <el-empty v-if="paramsList.length === 0 && !loading" :description="$t('common.noData')"></el-empty>
               </div>
             </el-card>
           </el-card>
@@ -51,6 +54,7 @@ export default {
     return {
       paramsList: [],
       loading: false,
+      loadError: "",
     };
   },
   created() {
@@ -77,19 +81,18 @@ export default {
   methods: {
     fetchParams() {
       this.loading = true;
+      this.loadError = "";
       Api.admin.getWsServerList(
         {},
         ({ data }) => {
           this.loading = false;
           if (data.code === 0) {
-            this.paramsList = data.data.map(item => ({ address: item }));
+            this.paramsList = data.data.map(item => ({ ...item, pending: false }));
           } else {
-            this.$message.error({
-              message: data.msg || this.$t('serverSideManager.getServerListFailed'),
-              showClose: true
-            });
+            this.loadError = data.msg || this.$t('serverSideManager.getServerListFailed');
           }
-        }
+        },
+        () => { this.loading = false; this.loadError = '无法获取服务配置，请检查后台连接后刷新列表'; }
       );
     },
     emitAction(rowItem, actionItem) {
@@ -100,11 +103,13 @@ export default {
         confirmButtonText: actionItem.confirmText,
         cancelButtonText: this.$t('common.cancel')
       }).then(() => {
+        this.$set(rowItem, "pending", true);
         Api.admin.sendWsServerAction({
           targetWs: rowItem.address,
           action: actionItem.value
         }, ({ data }) => {
-          if (data.code !== 0) {
+          this.$set(rowItem, "pending", false);
+          if (data.code !== 0 || data.data !== true) {
             this.$message.error({
               message: data.msg || this.$t('serverSideManager.operationFailed'),
               showClose: true
@@ -112,11 +117,11 @@ export default {
             return;
           }
           this.$message.success({
-            message: actionItem.value === 'restart' ? this.$t('serverSideManager.restartSuccess') : this.$t('serverSideManager.updateConfigSuccess'),
+            message: actionItem.value === 'restart' ? '语音服务已确认重启请求，请稍后确认服务恢复' : this.$t('serverSideManager.updateConfigSuccess'),
             showClose: true
           })
-        })
-      })
+        }, () => { this.$set(rowItem, 'pending', false); this.$message.error('管理操作未获确认，请检查服务状态后再决定是否重试'); })
+      }).catch(() => {})
     },
     copyAddress(address) {
       navigator.clipboard.writeText(address).then(() => {
@@ -270,5 +275,11 @@ export default {
   font-size: 14px;
   color: #5778ff;
 }
+.service-toolbar { display: flex; justify-content: flex-end; }
+.server-info { flex: 1; min-width: 0; }
+.server-card { gap: 16px; }
+.management-address { margin-top: 8px; color: #909399; font-size: 12px; overflow-wrap: anywhere; }
+.server-value { overflow-wrap: anywhere; }
+.header-actions { gap: 10px; }
 @import "@/styles/embeddedManagement.scss";
 </style>

@@ -13,7 +13,7 @@ class SpeakerCryptoTest {
         Path key=directory.resolve("identity.key");
         Files.writeString(key,Base64.getEncoder().encodeToString(new byte[32]));
         Files.setPosixFilePermissions(key,PosixFilePermissions.fromString("rw-------"));
-        return new SpeakerCrypto(new SpeakerSettings(true,"https://aimarket.hncig.cn/oidc",client,key.toString(),"",""));
+        return new SpeakerCrypto(new SpeakerSettings(true,"https://aimarket.hncig.cn/oidc",client,key.toString(),""));
     }
     @Test void encryptsWithFreshIvAndAuthenticatesApplication() throws Exception {
         var crypto=cipher("app-one");
