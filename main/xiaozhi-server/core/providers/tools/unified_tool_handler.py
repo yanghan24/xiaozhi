@@ -150,10 +150,14 @@ class UnifiedToolHandler:
 
     @property
     def knowledge_prompt(self):
+        if self.config.get('_speaker_product'):
+            return ''
         return PRODUCT_KNOWLEDGE_PROMPT + (
             "" if self.knowledge_status == "available" else KNOWLEDGE_UNAVAILABLE)
 
     def get_functions(self) -> List[Dict[str, Any]]:
+        if self.config.get('_speaker_product'):
+            return []
         """获取所有工具的函数描述"""
         if self.product_scope is not None:
             if not self.finish_init or not self.product_scope.matches():

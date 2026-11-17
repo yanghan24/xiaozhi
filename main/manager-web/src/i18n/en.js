@@ -14,7 +14,7 @@ export default {
   'header.voiceResourceManagement': 'Voice Resource',
   'header.userManagement': 'Users',
   'header.otaManagement': 'OTA Management',
-  'header.paramDictionary': 'More',
+  'header.paramDictionary': 'System settings',
   'header.paramManagement': 'Params Management',
   'header.dictManagement': 'Dict Management',
   'header.agentTemplate': 'Default Role Templates', // 添加这一行

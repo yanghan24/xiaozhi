@@ -122,6 +122,10 @@ class ProductConversation:
                 return
             self.guard(turn_id)
             conn.product_voice_gate.check()
+            turn_access = None
+            if conn.config.get('_speaker_product'):
+                turn_access = conn.product_voice_gate.model_access()
+                self.apply_role(turn_access.get('agent'))
             with self.lock:
                 self.guard(turn_id)
                 conn.dialogue.put(Message(role='user', content=query))
@@ -141,7 +145,7 @@ class ProductConversation:
             # Buffer the decision text until we know whether knowledge is required.
             if functions:
                 stream = conn.llm.response_with_functions(
-                    conn.session_id, messages, functions=functions, turn_guard=guard)
+                    conn.session_id, messages, functions=functions, turn_guard=guard, turn_access=turn_access)
                 for content, fragments in stream:
                     guard()
                     if content:
@@ -149,7 +153,7 @@ class ProductConversation:
                     if fragments:
                         conn._merge_tool_calls(calls, fragments)
             else:
-                for content in conn.llm.response(conn.session_id, messages, turn_guard=guard):
+                for content in conn.llm.response(conn.session_id, messages, turn_guard=guard, turn_access=turn_access):
                     guard()
                     answer.append(content)
             guard()
@@ -174,7 +178,7 @@ class ProductConversation:
                     messages.extend([{'role': 'assistant', 'tool_calls': [tool_call]},
                                      {'role': 'tool', 'tool_call_id': call['id'], 'content': result.result}])
                     conn.logger.info('Product turn {} grounded continuation started', turn_id)
-                    for content in conn.llm.response(conn.session_id, messages, turn_guard=guard):
+                    for content in conn.llm.response(conn.session_id, messages, turn_guard=guard, turn_access=turn_access):
                         guard()
                         answer.append(content)
                         self._speech(turn_id, SentenceType.MIDDLE, content)
@@ -202,3 +206,16 @@ class ProductConversation:
                     self._speech(turn_id, SentenceType.LAST)
                 except VoiceDenied:
                     pass
+
+    def apply_role(self, role):
+        """Called only at the next turn, never by a background configuration watcher."""
+        if not isinstance(role, dict) or not all(isinstance(role.get(field), str) and role[field]
+                for field in ('signature', 'prompt', 'tts_voice', 'llm_model')):
+            raise ModelUnavailable('Default role unavailable')
+        with self.lock:
+            conn = self.conn
+            if conn.config.get('_speaker_role_signature') != role['signature']:
+                conn.dialogue.dialogue.clear()
+                conn.change_system_prompt(role['prompt'])
+                conn.tts.voice = role['tts_voice']
+                conn.config['_speaker_role_signature'] = role['signature']

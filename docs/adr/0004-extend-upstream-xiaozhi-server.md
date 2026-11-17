@@ -13,3 +13,5 @@ status: accepted
 ## 2026-11-10 接入范围调整
 
 本期将规范通智能体接入替换为 [MCP 知识库问答](../planning/mcp-knowledge-scope-2026-11-10.md)，沿用默认 Edge TTS；智能体接入留待后续需求。本 ADR 采用上游工程二次开发的决定、许可要求及设备管理职责不变。
+
+2026-11-17：第一阶段范围以 [ADR-0010](0010-speaker-device-authorization.md) 为准，先完成设备授权与默认角色，不携带历史固定知识库提示词/工具。沿用 Vue/Java/Python 工程及组件是本次实现选择，不要求保留有问题的旧功能设计。

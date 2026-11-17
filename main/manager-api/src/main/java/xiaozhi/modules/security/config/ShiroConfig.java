@@ -80,6 +80,9 @@ public class ShiroConfig {
          * role：拥有某个角色权限才能访问
          */
         Map<String, String> filterMap = new LinkedHashMap<>();
+        // Speaker device routes authenticate their own hardware identity, never a management session.
+        filterMap.put("/speaker/v1/**", "anon");
+        filterMap.put("/internal/speaker-voice/v2/*", "anon");
         filterMap.put("/admin/product-ota/**", "productOtaAdmin");
         filterMap.put("/ota-artifacts/*/*.bin", "anon");
         filterMap.put("/device-delivery/v1/authorize", "deliveryAdmin");

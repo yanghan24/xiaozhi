@@ -164,8 +164,11 @@ class MarketASR(ASRProviderBase):
                 (parsed.scheme == 'http' and parsed.hostname in ('127.0.0.1', 'localhost')))):
             raise TranscriptionUnavailable()
         scheme = 'wss' if parsed.scheme == 'https' else 'ws'
+        model = access.get('asr_model', 'rtasr-llm')
+        if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_./:-]{0,127}', model):
+            raise TranscriptionUnavailable()
         url = parsed._replace(scheme=scheme, path=parsed.path.rstrip('/') +
-            '/asr/xfyun/rtasr-llm', query='model=rtasr-llm&lang=autodialect&audio_encode=pcm_s16le&samplerate=16000').geturl()
+            '/asr/xfyun/rtasr-llm', query=urlencode({'model': model, 'lang': 'autodialect', 'audio_encode': 'pcm_s16le', 'samplerate': '16000'})).geturl()
         return url, {'Authorization': 'Bearer ' + access['api_key']}, access
 
     async def _transcribe(self, pcm):

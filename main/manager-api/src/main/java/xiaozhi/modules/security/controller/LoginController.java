@@ -18,7 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import xiaozhi.common.constant.Constant;
 import xiaozhi.common.exception.ErrorCode;
@@ -48,11 +48,13 @@ import xiaozhi.modules.sys.vo.SysDictDataItem;
  * 登录控制层
  */
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/user")
 @Tag(name = "登录管理")
 public class LoginController {
+    @org.springframework.beans.factory.annotation.Value("${speaker.enabled:false}")
+    private boolean speakerAdminOnly;
     private final SysUserService sysUserService;
     private final SysUserTokenService sysUserTokenService;
     private final CaptchaService captchaService;
@@ -108,6 +110,9 @@ public class LoginController {
         if (!PasswordUtils.matches(login.getPassword(), userDTO.getPassword())) {
             throw new RenException(ErrorCode.ACCOUNT_PASSWORD_ERROR);
         }
+        if (speakerAdminOnly && !Integer.valueOf(1).equals(userDTO.getSuperAdmin())) {
+            throw new RenException(ErrorCode.UNAUTHORIZED);
+        }
         return sysUserTokenService.createToken(userDTO.getId());
     }
 
@@ -125,6 +130,7 @@ public class LoginController {
     @PostMapping("/register")
     @Operation(summary = "注册")
     public Result<Void> register(@RequestBody LoginDTO login) {
+        if (speakerAdminOnly) throw new RenException(ErrorCode.USER_REGISTER_DISABLED);
         if (!sysUserService.getAllowUserRegister()) {
             throw new RenException(ErrorCode.USER_REGISTER_DISABLED);
         }
@@ -234,7 +240,8 @@ public class LoginController {
                 .getValueObject(Constant.SysMSMParam.SERVER_ENABLE_MOBILE_REGISTER.getValue(), Boolean.class));
         config.put("version", Constant.VERSION);
         config.put("year", "©" + Calendar.getInstance().get(Calendar.YEAR));
-        config.put("allowUserRegister", sysUserService.getAllowUserRegister());
+        config.put("allowUserRegister", !speakerAdminOnly && sysUserService.getAllowUserRegister());
+        config.put("speakerMode", speakerAdminOnly);
         List<SysDictDataItem> list = sysDictDataService.getDictDataByType(Constant.DictType.MOBILE_AREA.getValue());
         config.put("mobileAreaList", list);
         config.put("beianIcpNum", sysParamsService.getValue(Constant.SysBaseParam.BEIAN_ICP_NUM.getValue(), true));
