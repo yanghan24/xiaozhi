@@ -1,0 +1,22 @@
+{
+  "observed_at": "20261113T024835Z",
+  "https_download_prepared": true,
+  "access": "15-minute signed bearer URL; possession grants download; intended recipient B, not hardware-authenticated at download",
+  "private_download_material": "/home/jt/issue18-p4-ota-20261113/download-private.json",
+  "expires_unix": 1794539015,
+  "size": 4003072,
+  "sha256": "7cb0c36077d42d9b64f09727e176c83f6ca2f281abb04d988982dc82e30b8f8c",
+  "local_tls_download_hash_verified": true,
+  "missing_or_bad_signature_http": 403,
+  "expired_signature_http": 410,
+  "external_18443_verified": true,
+  "device_dispatched": false,
+  "rollback_config": "/home/jt/issue18-p4-ota-20261113/https-20261113T024835Z/nginx-before.conf",
+  "nginx_config_sha256": "ded8f5b84f7e24fa1a06cc78be06bd5184021f23aec5b45f0e1b301df21f643e",
+  "external_download_sha256_verified": true,
+  "external_unsigned_http": 403,
+  "external_check_at": "2026-11-13T02:48:42.434667+00:00",
+  "external_route": "Ubuntu via public domain18443, TLS verified; not device reachability proof",
+  "release_tag": "firmware/p4-2.2.6-12f2ff1-silent-interrupt-rc1",
+  "metadata_note": "Removed inherited historical package_revision=2; hash/size refer to 12f2ff1."
+}

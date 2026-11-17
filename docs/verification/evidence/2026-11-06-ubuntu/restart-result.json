@@ -1,0 +1,91 @@
+{
+  "status": "passed",
+  "scope": "compose_service_restart",
+  "host_reboot_tested": false,
+  "containers": [
+    {
+      "id": "703115ade66d3ac1155dbf66d80024e07e96709e79d51f4f65a55130237c5284",
+      "service": "voice",
+      "image_id": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "started_at": "2026-11-06T09:10:54.409594858Z",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/home/jt/xiaozhi-ubuntu-test/.runtime/voice/data",
+          "destination": "/app/data"
+        },
+        {
+          "type": "bind",
+          "source": "/home/jt/xiaozhi-ubuntu-test/.runtime/voice/logs",
+          "destination": "/app/tmp"
+        }
+      ],
+      "before_started_at": "2026-11-06T09:10:54.409594858Z",
+      "after_started_at": "2026-11-06T09:17:43.674110704Z",
+      "running": true,
+      "same_image_and_mounts": true
+    },
+    {
+      "id": "24abbe393906868ce15bdb26f4f9ed3240e5fb05f348aec8c4bb599fdb0e84f7",
+      "service": "web",
+      "image_id": "sha256:bebb0deaf0fdcea397a227cdd2b8ddda4a052c6c174c3419f0004564db437516",
+      "started_at": "2026-11-06T09:06:46.246895948Z",
+      "mounts": [],
+      "before_started_at": "2026-11-06T09:06:46.246895948Z",
+      "after_started_at": "2026-11-06T09:17:32.720821275Z",
+      "running": true,
+      "same_image_and_mounts": true
+    },
+    {
+      "id": "37d11e5f3a3fb9ab650d332e0656b21d4ba90f7a5d3a0cd99fd6b93adecc00e4",
+      "service": "api",
+      "image_id": "sha256:3b4ea5cfbe509b8e1835cfa5e18b02b934ad04dd0a80a4580c913bf83f39b569",
+      "started_at": "2026-11-06T09:06:45.981960176Z",
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "/var/lib/docker/volumes/xiaozhi-ubuntu-test_uploads/_data",
+          "destination": "/app/uploadfile"
+        }
+      ],
+      "before_started_at": "2026-11-06T09:06:45.981960176Z",
+      "after_started_at": "2026-11-06T09:17:32.444526925Z",
+      "running": true,
+      "same_image_and_mounts": true
+    },
+    {
+      "id": "4beda8efb2d0a83d9408e4e10fe388545494ac11ac3cd9931e441ce0abb31e52",
+      "service": "redis",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "started_at": "2026-11-06T09:06:35.203321984Z",
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "/var/lib/docker/volumes/xiaozhi-ubuntu-test_redis-data/_data",
+          "destination": "/data"
+        }
+      ],
+      "before_started_at": "2026-11-06T09:06:35.203321984Z",
+      "after_started_at": "2026-11-06T09:17:26.664969892Z",
+      "running": true,
+      "same_image_and_mounts": true
+    },
+    {
+      "id": "959e975da4ac400ac8d4c785b0cc873894ef6d711ee811894b2eae4e67118f3b",
+      "service": "mysql",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "started_at": "2026-11-06T09:06:35.216557915Z",
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "/var/lib/docker/volumes/xiaozhi-ubuntu-test_mysql-data/_data",
+          "destination": "/var/lib/mysql"
+        }
+      ],
+      "before_started_at": "2026-11-06T09:06:35.216557915Z",
+      "after_started_at": "2026-11-06T09:17:26.664921292Z",
+      "running": true,
+      "same_image_and_mounts": true
+    }
+  ]
+}

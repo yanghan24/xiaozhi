@@ -1,0 +1,100 @@
+{
+  "recorded_at": "2026-11-12T04:22:14.940787+00:00",
+  "result": "ready_state_normal_factory_reset_passed",
+  "hardware": {
+    "source": "human user relaying hardware team confirmation; original Flash/NVS/UART remain private",
+    "hardware_observation_time": "not supplied; recorded after user confirmation",
+    "application_nvs_and_device_ctrl_privately_backed_up": true,
+    "cancel_no_reboot": true,
+    "cancel_wifi_remained_working": true,
+    "confirmed_reset_reboot_and_provisioning_reported": true,
+    "wifi_reprovision_successful": true,
+    "target_elf": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+    "target_elf_matches": true,
+    "active_slot": "ota_1",
+    "application_identity_access_credential_and_entire_device_ctrl_match_backup": true,
+    "qr_original_account_normal": true,
+    "complete_voice_response_normal": true,
+    "raw_hardware_logs_independently_reviewed_by_server_agent": false
+  },
+  "server_snapshot_before": "/home/jt/issue42-p4-ota-20261112/20261112T033820Z",
+  "server_snapshot_after": "/home/jt/issue42-p4-ota-20261112/20261112T042120Z",
+  "server_snapshot_after_observed_at": "2026-11-12T04:21:20Z",
+  "b_fields_unchanged": {
+    "credential_hash": true,
+    "admitted": true,
+    "owner_issuer": true,
+    "owner_subject": true,
+    "permission_version": true,
+    "reason": true,
+    "ownership_version": true,
+    "local_enabled": true
+  },
+  "b_state_before": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "19",
+    "ownership_version": "7"
+  },
+  "b_state_after": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "19",
+    "ownership_version": "7"
+  },
+  "server_checks": {
+    "device_set_unchanged": true,
+    "b_owner_unchanged": true,
+    "b_credential_unchanged": true,
+    "b_admission_and_local_permission_unchanged": true,
+    "b_all_recorded_fields_unchanged": true,
+    "current_credential_matches_delivered_recovery": true,
+    "b_single_hardware_mapping": true,
+    "other_devices_unchanged": true,
+    "all_recorded_devices_recovery_rows_and_hardware_mappings_unchanged": true,
+    "services_running_without_restart_or_image_change": true,
+    "b_still_ready": true,
+    "permission_and_ownership_still_19_7": true
+  },
+  "services": {
+    "xiaozhi-pr26-api": {
+      "running": true,
+      "image_unchanged": true,
+      "started_at_unchanged": true
+    },
+    "xiaozhi-pr26-voice": {
+      "running": true,
+      "image_unchanged": true,
+      "started_at_unchanged": true
+    },
+    "issue29-db": {
+      "running": true,
+      "image_unchanged": true,
+      "started_at_unchanged": true
+    },
+    "issue29-redis": {
+      "running": true,
+      "image_unchanged": true,
+      "started_at_unchanged": true
+    },
+    "xiaozhi-ubuntu-test-public-entry-public-entry-1": {
+      "running": true,
+      "image_unchanged": true,
+      "started_at_unchanged": true
+    }
+  },
+  "server_comparison_passed": true,
+  "scope": "normal factory reset from ready state; not all Issue 42 or Issue 13 acceptance criteria",
+  "not_verified_by_this_run": [
+    "disabled-state preservation through factory reset",
+    "physical stop behavior",
+    "abnormal identity loss and complete authorized recovery",
+    "interruption and late-request boundaries",
+    "live 11:20 OTA download/write/automatic restart trace"
+  ],
+  "ota_retry_performed": false,
+  "server_credential_rotation_or_unbind_performed": false,
+  "baseline_and_previous_evidence_preserved": true
+}

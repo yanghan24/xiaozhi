@@ -1,0 +1,26 @@
+{
+  "captured_at_utc": "2026-11-13T06:43:17Z",
+  "device": "P4 B",
+  "steps": [
+    {"step": "wake greeting", "result": "user confirmed complete and understandable audio"},
+    {"step": "ordinary introduction question", "result": "user confirmed complete and understandable audio"},
+    {"step": "social organization registration question", "result": "user confirmed complete and understandable audio"},
+    {"step": "overseas NGO registration and filing question", "result": "user confirmed complete and understandable audio"}
+  ],
+  "user_confirmation": "四步都听到完整、可理解的回答",
+  "server_log_window": {
+    "container": "xiaozhi-pr26-voice",
+    "window": "last 30 minutes captured at 2026-11-13T06:43:17Z",
+    "raw_log_sha256": "06063f4d69d06cfb617f7b810dbdd10288c9c84e4518a4c18860d5e92bd639a7",
+    "redacted_product_events": [
+      ["06:35:46Z", "tts_start", "input_hash", "model_start", "first_audio", "tts_stop"],
+      ["06:36:16Z", "tts_start", "input_hash", "model_start", "first_audio", "tts_stop"],
+      ["06:36:45Z", "tts_start", "input_hash", "model_start", "knowledge_start", "knowledge_complete", "knowledge_result_hash", "first_audio", "tts_stop"],
+      ["06:38:11Z", "tts_start", "input_hash", "model_start", "knowledge_start", "knowledge_complete", "knowledge_result_hash", "first_audio", "tts_stop"],
+      ["06:42:17Z", "tts_start", "input_hash", "model_start", "first_audio", "tts_stop"]
+    ],
+    "knowledge_turns": 2,
+    "audio_dispatch_turns": 5
+  },
+  "boundary": "The server record retains event metadata and hashes only; it does not retain the raw ASR transcript, tool result body or recording. Server events corroborate dispatch and tool counts. The physical playback conclusion comes from the user's direct B confirmation."
+}

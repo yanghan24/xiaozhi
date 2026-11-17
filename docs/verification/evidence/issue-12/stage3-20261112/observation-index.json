@@ -1,0 +1,52 @@
+{
+  "schema": "issue12-stage3-observation-index-v1",
+  "evidence_kind": "manual summary of browser terminal observations; not original server JSON",
+  "server_root": "/home/jt/issue12-stage3-discovery-20261112",
+  "original_reports_copied_to_local": false,
+  "discovery": {
+    "server_path": "discovery01/discovery.json",
+    "sha256": "a8ac41feb034101973e42ab07a83de232f25eb40dadaab06e36ff04ce8dd6d10",
+    "bytes": 2045,
+    "status": "discovered",
+    "protocol_version": "2024-11-05",
+    "server_version": "4.31",
+    "tool_version_exposed": false,
+    "tool": "ask_knowledge",
+    "required": ["question"],
+    "question_type": "string",
+    "question_min_length": 1,
+    "question_max_length": 300,
+    "additional_properties": false
+  },
+  "direct_tool": {
+    "server_path": "tool01/discovery.json",
+    "sha256": "33227ae4d1519e74149a874aa31770489fcd76373014a50f61d7bdf5a5b09941",
+    "bytes": 34687,
+    "status": "tool_response_received",
+    "mcp_is_error": false,
+    "business_status": "ok",
+    "mode": "chunks",
+    "generated": false,
+    "model_called": false,
+    "sources_count": 5,
+    "content_blocks": 6,
+    "returned": 5,
+    "top_k": 5,
+    "cache_hit": false,
+    "server_elapsed_ms": 398,
+    "business_complete": null,
+    "original_text_and_resource_identifiers_included": false
+  },
+  "operation_counts": {
+    "real_sse_sessions": 2,
+    "tools_call_submissions": 1,
+    "model_requests": 0,
+    "tts_requests": 0,
+    "retries": 0
+  },
+  "count_basis": "client operation and server-report observation, not billing telemetry",
+  "real_model_chain_verified": false,
+  "historical_incomplete_verified": false,
+  "account_matrix_verified": false,
+  "remote_cancellation_verified": false
+}

@@ -1,0 +1,78 @@
+{
+  "observed_at_utc": "2026-11-11T08:07:21.496369+00:00",
+  "source_base": "00896abbb266bf5d2dda90a49b71ea7bb95c1a6f",
+  "source_commit": "f03d98d67a0262b64ca72db1f97010675310a45c",
+  "source_commits": [
+    "6983bb589ed173c537a2fdd865d7953a771fe18f",
+    "f03d98d67a0262b64ca72db1f97010675310a45c"
+  ],
+  "toolchain": {
+    "idf": "v5.5.5",
+    "target": "esp32p4",
+    "minimum_revision": 301,
+    "maximum_revision": 399
+  },
+  "builds": {
+    "board_type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+    "product": {
+      "sha256": "39bee941c4babf31e2c9819509ddfd5e003c4bf8f97bc15f9b9b6a2879997767",
+      "elf_sha256": "89acbe49ad649b4732f85d4a81a6b1a7201dba6fded4998009d3534bc84dbb07",
+      "min_revision": 301,
+      "max_revision": 399
+    },
+    "maintenance": {
+      "sha256": "fa98219626bee420de3c25674bfb32f42e4aafb2e550589c56c93195c2826bea",
+      "elf_sha256": "c56cc8e2d76d651b0794f8251e386cefccec7adaff2e03909d5b2052914e6e51",
+      "min_revision": 301,
+      "max_revision": 399
+    },
+    "product_elf_sha256": "89acbe49ad649b4732f85d4a81a6b1a7201dba6fded4998009d3534bc84dbb07",
+    "partition_table_sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5"
+  },
+  "product_verification": {
+    "checks": {
+      "product_config": true,
+      "maintenance_disabled": true,
+      "application_size_optimization": true,
+      "product_sources": true,
+      "no_maintenance_source": true,
+      "dashboard_and_control_linked": true,
+      "no_maintenance_entrypoint": true,
+      "identity_erase_guard": true,
+      "preserved_16mb_layout": true,
+      "image_fits_both_slots": true
+    },
+    "image_bytes": 3998384,
+    "smallest_app_partition_bytes": 4128768,
+    "remaining_bytes": 130384,
+    "sha256": "39bee941c4babf31e2c9819509ddfd5e003c4bf8f97bc15f9b9b6a2879997767"
+  },
+  "changed_generated_config_keys": {
+    "product": [],
+    "maintenance": []
+  },
+  "tests": {
+    "ctest": {
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python_unittest": {
+      "passed": 43,
+      "failed": 0,
+      "skipped": 0
+    },
+    "environment": "local firmware host tests; no backend or Ubuntu protocol tests in this run"
+  },
+  "reviews": {
+    "standards": "no findings",
+    "spec": "two findings fixed in f03d98d; follow-up review has no findings"
+  },
+  "backend_pr": {
+    "number": 63,
+    "head": "7738647759689d8a345a0f563b103467ae0b3c68",
+    "state": "OPEN",
+    "draft": true,
+    "deployed_in_this_run": false
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "deployable": false,
+  "production_mutations": 0,
+  "binding": {
+    "network": "issue29-test",
+    "ipv4_address": "172.26.0.4",
+    "port": 8097,
+    "host_port_published": false
+  },
+  "before_images": {
+    "api": "sha256:e3453400512165dbf1be0ab6c4fcc2c579d94801dec614f1bbafdf40ed5b9add",
+    "voice": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+    "web": "sha256:f65f2c801760610d31a8fdb6bb1f45182bcd9cf451690caf8b06dcbaadef1434"
+  },
+  "candidate_images": {
+    "api": null,
+    "voice": "sha256:4cf6a3006dc8274e4dd9b9bba1f15748be52b3cd3e7e0eb3ff11208ba4bd08d6",
+    "web": null
+  },
+  "before_sha256": {
+    "compose.json": "4ecb4a1f5ce4eec96cb65190ed779cc5b61d48e894a58ecce5492c8863b51c75",
+    "manager-nginx.conf": "ba3d92b3c8c549c99b679d4421d7f7ce537e84bab50e055798fac415f253073e",
+    "public-nginx.conf": "a6b02ae379a65e821561463e03c3aa8af4d6c3b29fa7a3024dd74c7551af07a8"
+  },
+  "staged_sha256": {
+    "compose.json": "e2ea97fb2ce879e478e08dd2dfad494cb43e28b52e6809e80496fc1c27dad4c8",
+    "manager-nginx.conf": "c116229ec047a03c01a8b855288afdb5ebe416b3d9540ef9bcbfbf8fde6f9b7f",
+    "public-nginx.conf": "ce409fb86b5ea52a32841a7b584a1ac2322837871ce48b3b1198f07806885542"
+  },
+  "still_required": [
+    "final tested API/web images",
+    "approved deployment window",
+    "coordinated private production backup",
+    "install keys and create root-owned 0700 voice-data/product-ota",
+    "normal TLS and signed download boundary verification after deployment"
+  ],
+  "compose_syntax": true,
+  "manager_nginx_syntax": true,
+  "public_nginx_syntax": true,
+  "syntax_test_ports_published": false
+}

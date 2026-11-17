@@ -1,0 +1,371 @@
+{
+  "schema": "issue12-offline-diagnostics-v1",
+  "sdk": "installed",
+  "group": "all",
+  "python": "3.10.22",
+  "installed_metadata": {
+    "mcp": "2.3.0",
+    "mcp-types": "2.3.0",
+    "httpx2": "2.14.0",
+    "httpx": "0.28.1",
+    "openai": "2.8.1",
+    "anyio": "4.16.0"
+  },
+  "network": "synthetic sessions/transports; Python connection/DNS/UDP/process guards (not an OS sandbox)",
+  "guard_denials": {},
+  "request_count_basis": "synthetic injected IO, not upstream telemetry",
+  "real_mcp_requests": 0,
+  "real_model_requests": 0,
+  "real_schema_verified": false,
+  "account_authorization_verified": false,
+  "remote_cancellation_verified": false,
+  "connection_chat_timeout_seam_passed": true,
+  "voice_guard_synthetic_authority_passed": true,
+  "run": 81,
+  "pass": 81,
+  "fail": 0,
+  "error": 0,
+  "skip": 0,
+  "cases": [
+    {
+      "id": "__main__.ExistingBehavior.test_call_before_initialize_raises",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_call_options_are_passed_to_the_session",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_cleanup_closes_worker_and_transport",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_default_transport_is_sse_not_streamable_http",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_discovered_synthetic_schema_is_preserved",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_executor_forwards_incomplete_markers_without_classification",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_executor_maps_other_exception_to_error",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_executor_not_initialized_returns_error",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_executor_only_maps_registered_notfound_error_to_notfound",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_executor_rejects_explicit_mcp_error_before_model_continuation",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_executor_strips_mcp_prefix",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_local_cancellation_propagates_without_retry",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_manager_failure_submits_once_without_retry_wait",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_manager_first_initialize_has_ten_second_deadline",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_manager_success_submits_once",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_sanitized_name_maps_back_to_original",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_separate_clients_do_not_share_session_objects",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_sse_headers_and_custom_timeouts_are_forwarded",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_sse_timeout_defaults_are_forwarded",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_stdio_is_replaced_without_spawning_a_process",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_streamable_http_requires_explicit_choice",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExistingBehavior.test_unknown_manager_tool_is_rejected",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_executor_exception_is_not_echoed_in_public_response",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_executor_value_error_is_not_echoed_in_public_response",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_initialization_failure_is_not_reported_as_connected",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_progress_text_does_not_leak_into_logs",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_server_notification_does_not_leak_into_logs",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_tool_arguments_do_not_leak_into_logs",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_tool_timeout_is_not_automatically_replayed",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_uncertain_failure_is_not_automatically_replayed",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.RequiredBehavior.test_upstream_exception_does_not_leak_into_logs",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_available_reconnect_config_does_not_trigger_replay",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_client_call_cancel_propagates_to_synthetic_session",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_empty_tool_list_preserves_empty_availability",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_executor_cancellation_is_not_rewritten_as_error",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_failure_does_not_enter_a_retry_sleep_or_cleanup_path",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_http_status_labels_are_generic_errors_not_credit_verdicts",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_initialization_is_idempotent_while_running",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_manager_init_timeout_does_not_register_client",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_manager_passes_client_read_timeout_default_as_unspecified",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_result_payloads_are_forwarded_without_a_completion_verdict",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedBehavior.test_shutdown_clears_worker_connection_state",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_call_after_cleanup_has_controlled_error",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_client_worker_error_is_not_logged_verbatim",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_discovery_failure_propagates_and_is_not_connected",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_executor_does_not_forward_none_as_a_tool_result",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_manager_init_error_is_not_logged_verbatim",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_no_reconnect_initialization_or_exception_logging_after_failed_call",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_sanitized_tool_name_collision_is_rejected",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ExtendedRequirements.test_successful_reconnect_does_not_authorize_unknown_replay",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_ended_gate_makes_no_new_authority_request",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_guarded_socket_checks_every_send_and_rejects_after_exit",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_invalid_scope_subject_and_order_fail_closed",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_model_access_uses_each_gates_own_session",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_permission_version_change_ends_gate",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_rejected_generation_fails_closed",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_unavailable_rejection_store_fails_closed",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_valid_scope_passes_local_format_and_quarantine_guard",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.LocalVoiceGuard.test_wrong_model_or_missing_key_receipt_ends_gate",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.ToolTimeoutObservation.test_timed_out_tool_keeps_running_but_late_result_is_not_appended",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_cancelled_initializer_does_not_publish_partial_tools",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_cancelled_manager_cleanup_keeps_unfinished_clients_for_retry",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_cleanup_while_discovery_pending_releases_initialize",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_closed_manager_cannot_submit_even_when_cleanup_reference_remains",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_concurrent_initialize_shares_one_worker_and_ready_result",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_conflicting_error_aliases_are_rejected",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_failed_pending_cleanup_retains_reference_until_retry",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_initialize_after_cleanup_builds_fresh_session",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_initialize_converts_timedelta_to_sdk_seconds",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_malformed_protocol_result_and_render_error_are_safe",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_manager_cleanup_during_initialize_blocks_late_registration",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_no_unfinished_worker_after_normal_cleanup",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_real_client_pending_worker_reference_survives_caller_cancel",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_real_client_pending_worker_reference_survives_cleanup_deadline",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_same_tool_in_another_server_does_not_overwrite_registration",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_sdk_numeric_timeout_dispatch_uses_real_memory_streams_when_installed",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_snake_case_mcp_error_is_rejected",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_structured_only_protocol_result_can_continue_without_business_verdict",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_successful_cleanup_removes_client_and_tool_registry",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_successful_pending_cleanup_removes_manager_reference",
+      "status": "pass"
+    },
+    {
+      "id": "__main__.FixedRegression.test_upstream_value_error_is_execution_error_not_tool_not_found",
+      "status": "pass"
+    }
+  ],
+  "source_sha256": {
+    "scripts/check-mcp-offline.py": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/__init__.py": "152372c23027aa858580870572120bccf8b10ae8d4f4513b347edc5c8a5dd177",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/errors.py": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_client.py": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py": "0dfce4a98522cc8958bd05546ac033bf329c3510334579ff2c3f9c572eabf661",
+    "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py": "fd230c3ab75150d3e1fad2b8701e90957fd2328bfbe4d0b2259d0a72152f7cc5",
+    "main/xiaozhi-server/plugins_func/register.py": "42d30dc366841aacede2cd805c3a5662a1b187b2e19aa155f79a1d15670e9a02",
+    "main/xiaozhi-server/core/providers/tools/base/__init__.py": "fdf1fe9d27cf517f0e462c547cbae9fbb8c6e6f3402350b1ed6a666754bc0e27",
+    "main/xiaozhi-server/core/providers/tools/base/tool_executor.py": "361c6d7e163bb8ed5bb00c1138e5c2126284870d1d0a1aa3b8fab5dba9a50e26",
+    "main/xiaozhi-server/core/providers/tools/base/tool_types.py": "5cac336143c085ff3ecc724f9d98bdd41aa4fd6ce93c5c3f8b169957a4977a19",
+    "main/xiaozhi-server/core/utils/util.py": "aea281fb12477398637ba3bd6f6eb84165bf5e55574c678ef0e9659341995827",
+    "main/xiaozhi-server/core/connection.py": "83da0cf6704610eebfe7eb02ad7f000bf19c7635cc7c336fafc90e24e13b187f",
+    "main/xiaozhi-server/core/product_voice.py": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c",
+    "main/xiaozhi-server/core/product_rejections.py": "7ce6eae345d40e6cec91e00ae3fc020fd1b6c5c38b4e934dbce4d2cbf5bb1f23"
+  }
+}

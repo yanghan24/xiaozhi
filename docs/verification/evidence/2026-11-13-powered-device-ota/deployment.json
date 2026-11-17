@@ -1,0 +1,25 @@
+{
+  "deployed_utc": "2026-11-13T11:12:08.851542+00:00",
+  "source_commit": "a285acc3cd904aa567b01814b39b5da4f888dde8",
+  "api_image_before": "sha256:cb7c7d1774c3d8dae13402e0c9f1656903c5eb1077f7b87c8fff14f655e72c7b",
+  "api_image_after": "sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5",
+  "web_image_before": "sha256:4bd43d3269f1c6156fce2186d7cd3173b2f0d1291cc506787bbffc29b011b5df",
+  "web_image_after": "sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2",
+  "jar_sha256": "513064a0351ebb535108eac8a7047988ab875a56706ecce238b318c0707b46ab",
+  "web_tar_sha256": "2be7380ae2c08e4ac7fb42c13b1040327201a791d21300a1e2fdf49f4ce1b728",
+  "voice_image_preserved": "sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686",
+  "identity_delivery_firmware_operations_unchanged": true,
+  "private_configuration_unchanged": true,
+  "dependency_containers_preserved": true,
+  "ota_sent": false,
+  "checks": {
+    "discovery": 200,
+    "maintenance_anonymous": 401,
+    "maintenance_wrong_method": 403,
+    "maintenance_oversize": 413,
+    "management_private": 404,
+    "bridge_private": 404,
+    "unsigned_artifact": 404
+  },
+  "backup": "/home/jt/powered-device-ota-20261113/rollout/backup"
+}

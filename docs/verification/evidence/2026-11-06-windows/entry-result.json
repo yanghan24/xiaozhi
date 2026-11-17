@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "scope": "host_loopback_entry",
+  "device_network_tested": false,
+  "checks": [
+    {
+      "path": "/",
+      "http": 404
+    },
+    {
+      "path": "/xiaozhi/user/pub-config",
+      "http": 404
+    },
+    {
+      "path": "/xiaozhi/admin/params",
+      "http": 404
+    },
+    {
+      "path": "/xiaozhi/config/server-base",
+      "http": 404
+    },
+    {
+      "path": "/xiaozhi/ota/",
+      "method": "POST",
+      "http": 200,
+      "activation_code_length": 6,
+      "device_id": "02:3c:a5:23:9d:6a",
+      "client_id": "entry-probe-3ca5239d6a7347dbabff8dd5eaeebd5b"
+    },
+    {
+      "path": "/xiaozhi/ota/activate",
+      "method": "POST",
+      "http": 202
+    },
+    {
+      "path": "/xiaozhi/v1/",
+      "http": 200
+    }
+  ],
+  "temporary_activation": "unbound; expires using upstream activation TTL"
+}

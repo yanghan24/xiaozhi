@@ -1,0 +1,18 @@
+{
+  "recorded_at": "2026-11-12T03:39:23.881462+00:00",
+  "source": "human user relaying hardware team confirmation",
+  "scope": "B after target firmware installation, before factory reset",
+  "user_confirmation": "QR account normal; complete voice response normal",
+  "qr_account_normal": true,
+  "complete_voice_response_normal": true,
+  "intervening_unbind_and_rebind_confirmed_by_user": true,
+  "permission_version_before": "17",
+  "permission_version_after": "19",
+  "ownership_version_before": "5",
+  "ownership_version_after": "7",
+  "final_owner_and_credential_unchanged": true,
+  "other_devices_unchanged": true,
+  "live_ota_trace_obtained": false,
+  "ota_retry_performed": false,
+  "factory_reset_verified": false
+}

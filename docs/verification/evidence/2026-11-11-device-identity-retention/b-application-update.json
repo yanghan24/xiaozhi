@@ -1,0 +1,20 @@
+{
+  "device_alias": "B",
+  "source_commit": "f03d98d",
+  "original_application_matches_archived_00896ab": true,
+  "original_product_sha256": "753f42d89f2253a999041f41f66fc61d057a7a12f729f97afdf4547b9f9a0aa7",
+  "product_sha256": "39bee941c4babf31e2c9819509ddfd5e003c4bf8f97bc15f9b9b6a2879997767",
+  "product_elf_sha256": "89acbe49ad649b4732f85d4a81a6b1a7201dba6fded4998009d3534bc84dbb07",
+  "application_readback_verified": true,
+  "nvs_unchanged_during_application_write": true,
+  "protected_prefix_and_assets_unchanged": true,
+  "active_slot": "ota_0",
+  "physical_flash_bytes": 33554432,
+  "physical_revision": 302,
+  "boot_report_received": true,
+  "p4_hardware_matches_b": true,
+  "network_hardware_matches_b": true,
+  "stable_device_matches_b": true,
+  "running_elf_matches_candidate": true,
+  "network_connected": true
+}

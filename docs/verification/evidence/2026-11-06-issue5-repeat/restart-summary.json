@@ -1,0 +1,52 @@
+{
+  "status": "passed",
+  "at": "2026-11-06T10:46:07.526350+00:00",
+  "host": "192.168.168.114",
+  "scope": "compose_service_restart",
+  "containers": [
+    {
+      "service": "voice",
+      "id": "703115ade66d3ac1155dbf66d80024e07e96709e79d51f4f65a55130237c5284",
+      "image": "sha256:30cc7d741a54babdd753cb60ffeb5b1c85d61b94d49ad499c0d420cd62af4fa7",
+      "before_started_at": "2026-11-06T09:17:43.674110704Z",
+      "after_started_at": "2026-11-06T10:45:45.859276377Z",
+      "same_image_and_mounts": true
+    },
+    {
+      "service": "web",
+      "id": "24abbe393906868ce15bdb26f4f9ed3240e5fb05f348aec8c4bb599fdb0e84f7",
+      "image": "sha256:bebb0deaf0fdcea397a227cdd2b8ddda4a052c6c174c3419f0004564db437516",
+      "before_started_at": "2026-11-06T09:17:32.720821275Z",
+      "after_started_at": "2026-11-06T10:45:34.900620391Z",
+      "same_image_and_mounts": true
+    },
+    {
+      "service": "api",
+      "id": "37d11e5f3a3fb9ab650d332e0656b21d4ba90f7a5d3a0cd99fd6b93adecc00e4",
+      "image": "sha256:3b4ea5cfbe509b8e1835cfa5e18b02b934ad04dd0a80a4580c913bf83f39b569",
+      "before_started_at": "2026-11-06T09:17:32.444526925Z",
+      "after_started_at": "2026-11-06T10:45:34.629544394Z",
+      "same_image_and_mounts": true
+    },
+    {
+      "service": "redis",
+      "id": "4beda8efb2d0a83d9408e4e10fe388545494ac11ac3cd9931e441ce0abb31e52",
+      "image": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "before_started_at": "2026-11-06T09:17:26.664969892Z",
+      "after_started_at": "2026-11-06T10:45:28.869281615Z",
+      "same_image_and_mounts": true
+    },
+    {
+      "service": "mysql",
+      "id": "959e975da4ac400ac8d4c785b0cc873894ef6d711ee811894b2eae4e67118f3b",
+      "image": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "before_started_at": "2026-11-06T09:17:26.664921292Z",
+      "after_started_at": "2026-11-06T10:45:28.872428506Z",
+      "same_image_and_mounts": true
+    }
+  ],
+  "manager_parameter_retained": true,
+  "jetlinks_running": false,
+  "host_reboot_tested": false,
+  "hardware_playback": "not_run"
+}

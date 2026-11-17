@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-11-11T05:35:22.451132+00:00",
+  "device_alias": "B",
+  "permission_version": 4,
+  "audio_stopped": true,
+  "sql_sha256": "559a14c4f11c6570c4479f8034ebea81a38bf1c36ec2987c4a04d911bca0c7fe",
+  "result": {
+    "stopped_ack_count": "1",
+    "minimum_revision": "5",
+    "maximum_revision": "5",
+    "latest_stopped_ack_ms": "1794374372519"
+  }
+}

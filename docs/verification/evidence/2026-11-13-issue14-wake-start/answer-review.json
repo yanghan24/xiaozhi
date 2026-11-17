@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-11-13",
+  "reviewer": "independent physical_answer_review agent",
+  "scope": "Read-only semantic review of the two physical B knowledge answers recorded in knowledge-semantic-observation.json, with historical actual MCP tool text used only as supporting context.",
+  "verdict": "topic_and_visible_conditions_pass_current_retrieval_fidelity_unverified",
+  "actual_answer_defects_found": [],
+  "current_tool_returned_text_audited": false,
+  "acceptance_or_closeout_decision": "not_made_by_this_review",
+  "inputs": {
+    "current_observation": "knowledge-semantic-observation.json",
+    "current_observation_ended_utc": "2026-11-13T04:40:55.383125Z",
+    "historical_review": "../2026-11-13-issue14-live/relevance-final.json",
+    "historical_actual_dialogues": [
+      {
+        "file": "knowledge1-dialogue-private.json",
+        "private_directory": "/home/jt/issue14-live-20261113/results/live-20261113T040205Z",
+        "sha256_verified": "7fb2280c4148fed616e4be62b7dc48f954ca067ad236c9f3a8c453f1191bc0a0",
+        "inspected_message_index": 2,
+        "inspected_message_role": "tool"
+      },
+      {
+        "file": "knowledge2-dialogue-private.json",
+        "private_directory": "/home/jt/issue14-live-20261113/results/live-20261113T040205Z",
+        "sha256_verified": "f51f083724b336e23e36d31ac331d8d1c73fca0c4a8c507cb6f6a27b5c46fdba",
+        "inspected_message_index": 2,
+        "inspected_message_role": "tool"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "knowledge1",
+      "topic": "成立社会团体",
+      "topic_relevance": "pass",
+      "recognition_limit": "ASR retained the topic but omitted the application-question opening; this is a manual semantic mapping, not an exact fixed-question match.",
+      "visible_answer_assessment": "回答涉及主管单位审查、发起人申请登记、法人条件和筹备活动限制，均与主题相关。明确说明归档范围不等于法定必交材料清单或固定程序，未重现把归档资料硬拼成申请指南的问题。未发现明显事实或条件错误。",
+      "historical_public_tool_quotes_supporting_core_claims": [
+        "成立社会团体，应当经其业务主管单位审查同意，由发起人向登记管理机关申请登记。",
+        "成立社会团体，应当经其业务主管单位审查同意，并依照本条例的规定进行登记。",
+        "社会团体应当具备法人条件。",
+        "筹备期间不得开展筹备以外的活动。"
+      ],
+      "archive_material_context": "Historical actual tool text includes the title 社会团体登记文件材料归档范围 and a subsection on 筹备成立文件材料. This supports the answer's distinction between an archive scope and an application checklist.",
+      "current_tool_result_sha256": "e847c95bc6c3e392a976b2079de0d46ba6444f28cd99ef568909060cea365cec",
+      "current_claim_to_returned_text_mapping": "unverified; current body was not retained and has no historical hash match"
+    },
+    {
+      "name": "knowledge2",
+      "topic": "境外非政府组织的登记和备案",
+      "topic_relevance": "pass",
+      "recognition_limit": "ASR includes unrelated prefix noise but explicitly retains the foreign-NGO registration-and-filing topic; this is a manual semantic mapping, not an exact fixed-question match.",
+      "visible_answer_assessment": "回答保留代表机构登记与临时活动备案两条有条件路径；禁止句的引导语为未登记且未备案，没有将单独未登记代表机构变成无条件禁令。未发现明显主体、条件或逻辑关系错误。",
+      "historical_public_tool_quotes_supporting_core_claims": [
+        "境外非政府组织在中国境内开展活动，应当依法登记设立代表机构；未登记设立代表机构需要在中国境内开展临时活动的，应当依法备案。",
+        "境外非政府组织未登记设立代表机构、开展临时活动未经备案的，不得在中国境内开展或者变相开展活动，不得委托、资助或者变相委托、资助中国境内任何单位和个人在中国境内开展活动。"
+      ],
+      "claims_not_substantiated_by_inspected_historical_tool_text": [
+        "境外非政府组织应当自业务主管单位同意之日起三十日内，向登记管理机关申请设立代表机构登记。",
+        "登记管理机关应当自受理申请之日起六十日内作出准予登记或者不予登记的决定。"
+      ],
+      "deadline_assessment": "The inspected historical tool message contains none of 三十日、六十日、30日、60日. No current tool body is available to establish whether these two spoken claims were retrieved in this physical turn. This is an evidence gap, not a demonstrated factual error or proof of unsupported generation.",
+      "current_tool_result_sha256": "31eb44d03691c2ef70573401b58c1d9a7d60b752d6e66bf7bb131be074915388",
+      "current_claim_to_returned_text_mapping": "unverified; current body was not retained and has no historical hash match"
+    }
+  ],
+  "transport_and_playback_context": {
+    "source": "current observation and direct user confirmation relayed by root",
+    "each_answer_has": [
+      "automatic ask_knowledge start and completion",
+      "REQLLM action and grounded-continuation event",
+      "first audio and TTS stop events",
+      "user report of complete and understandable playback"
+    ],
+    "interpretation": "These establish the observed continuation/playback chain in their respective evidence scope. They do not by themselves establish fidelity to the missing current retrieval text. This reviewer did not independently listen to audio."
+  },
+  "limitations": [
+    "No claim is made that the actual tool-returned text for either current physical B turn was audited. Historical tool result bodies differ in hash and cannot substitute for it.",
+    "Historical support is limited to the actual saved 04:02 tool text and does not establish every claim in the later physical answers.",
+    "No external verification of legal currency, local rules or completeness was performed. These short answers are not assessed as full application guides.",
+    "Both question mappings are semantic judgements over imperfect ASR; strict fixed-question matching remains false in the input evidence.",
+    "Ordinary-question recheck and overall #14 acceptance are handled by the root task."
+  ],
+  "actions": {
+    "new_model_or_MCP_calls": 0,
+    "external_legal_or_web_research": false,
+    "github_issue_14_read_only": true,
+    "backend_tests": 0,
+    "product_modifications_or_service_restarts": 0,
+    "historical_private_evidence_access": "Authorized read through the encrypted credential runner; output restricted to file hashes, message roles and relevant public-law excerpts."
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "started_at": "2026-11-10T07:37:53.838690+00:00",
+  "system": "Linux-5.11.0-27-generic-x86_64-with-glibc2.29",
+  "route": "explicit_proxy",
+  "scope": "anonymous_source_read_only",
+  "tls_verification": true,
+  "authorization_sent": false,
+  "sources": [
+    {
+      "model": "dwd_icon",
+      "variable": "temperature_2m",
+      "metadata_attempts": [
+        {
+          "attempt": 1,
+          "at": "2026-11-10T07:37:54.097512+00:00",
+          "url": "https://openmeteo.s3.amazonaws.com/data/dwd_icon/static/meta.json",
+          "http": 200,
+          "etag": "\"314edc1e293c0bb77768d13b1b11e4a8\"",
+          "last_modified": "Tue, 10 Nov 2026 04:30:27 GMT",
+          "content_range": null,
+          "bytes": 595,
+          "sha256": "6e686139f7e28918a20adc525b3442c0424f6be7c0d862970e435c470fffdb27",
+          "elapsed_s": 1.0642,
+          "ok": true
+        }
+      ],
+      "metadata": {
+        "chunk_time_length": 253,
+        "crs_wkt": "GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-90.0,-180.0,90.0,179.75]]]",
+        "data_end_time": 1794920400,
+        "last_run_availability_time": 1794282414,
+        "last_run_initialisation_time": 1794268800,
+        "last_run_modification_time": 1794282414,
+        "temporal_resolution_seconds": 3600,
+        "update_interval_seconds": 21600
+      },
+      "listing_attempts": [
+        {
+          "attempt": 1,
+          "at": "2026-11-10T07:37:55.161845+00:00",
+          "url": "https://openmeteo.s3.amazonaws.com/?list-type=2&prefix=data%2Fdwd_icon%2Ftemperature_2m%2F&max-keys=1",
+          "http": 200,
+          "etag": null,
+          "last_modified": null,
+          "content_range": null,
+          "bytes": 658,
+          "sha256": "640015cc8cf068fe3d54e7504b739fa0940fdea711a53265f1be2571fdcc20eb",
+          "elapsed_s": 1.0617,
+          "ok": true
+        }
+      ],
+      "range_attempts": [
+        {
+          "attempt": 1,
+          "at": "2026-11-10T07:37:56.225829+00:00",
+          "url": "https://openmeteo.s3.amazonaws.com/data/dwd_icon/temperature_2m/chunk_1850.om",
+          "http": 206,
+          "etag": "\"6b7c0f6bb54bcaef2994d9693c4a0827-49\"",
+          "last_modified": "Fri, 15 Dec 2023 15:59:22 GMT",
+          "content_range": "bytes 0-4095/403856851",
+          "bytes": 4096,
+          "sha256": "81d957ca219438e8d84d6f42a7b0e5998e25c4643e80504ea2f011cf81faf67c",
+          "elapsed_s": 1.1718,
+          "ok": true
+        }
+      ],
+      "ok": true
+    },
+    {
+      "model": "cams_global",
+      "variable": "pm2_5",
+      "metadata_attempts": [
+        {
+          "attempt": 1,
+          "at": "2026-11-10T07:37:57.397702+00:00",
+          "url": "https://openmeteo.s3.amazonaws.com/data/cams_global/static/meta.json",
+          "http": 200,
+          "etag": "\"a2f21f619a78f9fc11a23a8b97930d39\"",
+          "last_modified": "Mon, 09 Nov 2026 22:08:04 GMT",
+          "content_range": null,
+          "bytes": 594,
+          "sha256": "95ac91ae46c9b33571b96122507d98b562eb8b7663618b79147b734bfa3ce6bb",
+          "elapsed_s": 1.1234,
+          "ok": true
+        }
+      ],
+      "metadata": {
+        "chunk_time_length": 217,
+        "crs_wkt": "GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-90.0,-180.0,90.0,179.6]]]",
+        "data_end_time": 1794661200,
+        "last_run_availability_time": 1794262077,
+        "last_run_initialisation_time": 1794225600,
+        "last_run_modification_time": 1794262077,
+        "temporal_resolution_seconds": 3600,
+        "update_interval_seconds": 43200
+      },
+      "listing_attempts": [
+        {
+          "attempt": 1,
+          "at": "2026-11-10T07:37:58.521269+00:00",
+          "url": "https://openmeteo.s3.amazonaws.com/?list-type=2&prefix=data%2Fcams_global%2Fpm2_5%2F&max-keys=1",
+          "http": 200,
+          "etag": null,
+          "last_modified": null,
+          "content_range": null,
+          "bytes": 632,
+          "sha256": "d5ea3f3a585f43f4c947a54369c79d3b37e73040d201a58b2f4694d62e099ea6",
+          "elapsed_s": 1.026,
+          "ok": true
+        }
+      ],
+      "range_attempts": [
+        {
+          "attempt": 1,
+          "at": "2026-11-10T07:37:59.547528+00:00",
+          "url": "https://openmeteo.s3.amazonaws.com/data/cams_global/pm2_5/chunk_2124.om",
+          "http": 206,
+          "etag": "\"f843df3299a26a75695514d674368e2c-5\"",
+          "last_modified": "Thu, 23 Jan 2025 09:16:55 GMT",
+          "content_range": "bytes 0-4095/38067568",
+          "bytes": 4096,
+          "sha256": "ccd2d6de65f8f84e5afa2403790557d98f138838c55b5390e0b142505a16fb4e",
+          "elapsed_s": 1.2453,
+          "ok": true
+        }
+      ],
+      "ok": true
+    }
+  ],
+  "limitations": [
+    "Not a local forecast response or capacity result",
+    "Range object is the first lexicographic object, possibly historical",
+    "Last-Modified is object publication time, not observation time"
+  ],
+  "local_dns_addresses": [
+    "16.15.32.185",
+    "52.92.193.137",
+    "52.92.240.225"
+  ],
+  "finished_at": "2026-11-10T07:38:00.792864+00:00",
+  "ok": true
+}

@@ -1,0 +1,14 @@
+{
+  "device_alias": "B",
+  "operation": "b-independent-reset",
+  "reset_requested": true,
+  "flash_written": false,
+  "identity_written": false,
+  "boot_report_received": true,
+  "p4_hardware_matches_b": true,
+  "network_hardware_matches_b": true,
+  "stable_device_matches_b": true,
+  "running_elf_matches_candidate": true,
+  "network_connected": true,
+  "product_elf_sha256": "89acbe49ad649b4732f85d4a81a6b1a7201dba6fded4998009d3534bc84dbb07"
+}

@@ -1,0 +1,27 @@
+{
+  "at": "2026-11-10T16:24:20.842893+00:00",
+  "only_exact_test_fixtures_deleted": true,
+  "device_id_sha256": [
+    "bf026afd459bff0e173d64d730aaabed81d94a8499c12c692a017045ee72bf31",
+    "9ff30572cd103eeba0e4ffc0c05332371b1f5d679ab5ef7319820b25bf7a02bb"
+  ],
+  "before_counts_device_request_token_browser_device_session": [
+    2,
+    3,
+    17,
+    1
+  ],
+  "after_counts_device_request_token_browser_device_session": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "customer_authorization_modified": false,
+  "customer_browser_modified": false,
+  "only_flows_linked_to_exact_test_requests_deleted": true,
+  "business_services_restarted_by_cleanup": false,
+  "recording_scope": "synthetic WAV; decoded output audio hashed in memory",
+  "temporary_device_is_not_physical_speaker_acceptance": true,
+  "cleanup_source_sha256": "dc5774ddae566ac79a45b326405634250c768862a3f33fcf74e6252865f209fd"
+}

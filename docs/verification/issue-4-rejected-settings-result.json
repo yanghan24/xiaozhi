@@ -1,0 +1,23 @@
+{
+  "started_at": "2026-11-06T03:48:23.065859+00:00",
+  "status": "failed",
+  "checks": [
+    {
+      "name": "voice service HTTP boundary",
+      "status": "passed",
+      "request": {
+        "method": "GET",
+        "url": "http://voice:8000/xiaozhi/v1/"
+      },
+      "response": {
+        "http": 200,
+        "body": "Server is running"
+      }
+    }
+  ],
+  "scope": "device_protocol",
+  "audio_inference": "not_run",
+  "hardware_playback": "not_run",
+  "error": "Real service credentials did not retrieve the server configuration",
+  "finished_at": "2026-11-06T03:48:23.078799+00:00"
+}

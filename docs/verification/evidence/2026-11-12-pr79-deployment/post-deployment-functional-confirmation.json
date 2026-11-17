@@ -1,0 +1,20 @@
+{
+  "recorded_on": "2026-11-12",
+  "timezone": "Asia/Hong_Kong",
+  "source": "direct user confirmation in the PR #83 review request",
+  "user_statement": "我已唤醒b，确认原账号，并完成一次完整回答",
+  "actual_hardware_operation_time_provided": false,
+  "device": "B",
+  "after_voice_deployment": "xiaozhi-product-voice:pr79-f830a8c",
+  "hardware_results": {
+    "device_awakened": true,
+    "original_account_confirmed": true,
+    "one_complete_voice_answer_confirmed": true
+  },
+  "server_evidence": "post-functional-server-state.json",
+  "server_independently_observed_audio": false,
+  "raw_uart_or_audio_collected": false,
+  "ota_resent": false,
+  "api_or_ubuntu_host_restart_acceptance_claimed": false,
+  "issue42_or_issue13_complete": false
+}

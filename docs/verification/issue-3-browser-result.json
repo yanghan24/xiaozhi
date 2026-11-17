@@ -1,0 +1,27 @@
+{
+  "at": "2026-11-05T04:43:15.700Z",
+  "base": "http://127.0.0.1:18002",
+  "observations": [
+    {
+      "check": "valid captcha with wrong password rejected",
+      "result": "pass",
+      "code": 10004
+    },
+    {
+      "check": "administrator logged in through the browser",
+      "result": "pass"
+    },
+    {
+      "check": "test configuration saved through the browser",
+      "result": "pass",
+      "marker": "baseline.acceptance.1793853793879",
+      "value": "manager-write-read-verified"
+    },
+    {
+      "check": "configuration read back after full page reload",
+      "result": "pass",
+      "marker": "baseline.acceptance.1793853793879",
+      "value": "manager-write-read-verified"
+    }
+  ]
+}

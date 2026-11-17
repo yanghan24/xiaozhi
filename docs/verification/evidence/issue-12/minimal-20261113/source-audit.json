@@ -1,0 +1,116 @@
+{
+  "kind": "local-static-source-audit",
+  "observed_at": "2026-11-13T01:38:55.071201+00:00",
+  "candidate_code_commit": "6538c2b1e731901201976a743ab0321eb6ac4354",
+  "comparison_base": "6bf7620ea5ac6fc9dd7b852cb9cd26387bc96f80",
+  "historical_manifest": "docs/verification/evidence/issue-12/main6bf81-20261112/source-manifest.json",
+  "historical_manifest_raw_sha256": "500f8efce3fc726e77fb72d6065d8f7f276cbf5ae98b600834095017d7bd9745",
+  "historical_manifest_base_commit_field": "b448aa080ba057f8e48383adf6501daa4df32011",
+  "historical_baseline_explanation": "See docs/verification/2026-11-12-mcp-6bf7620-recheck.md; preserve historical metadata as recorded.",
+  "comparison": "Current checkout is LF; reproduce historical CRLF hash per file. Raw hashes differ; normalized source content matches.",
+  "file_count": 14,
+  "content_matches": 14,
+  "backend_tests_run_this_session": false,
+  "server_validation_performed_this_session": false,
+  "historical_server_reports_retrieved_this_session": false,
+  "files": [
+    {
+      "path": "main/xiaozhi-server/core/connection.py",
+      "current_raw_sha256": "83da0cf6704610eebfe7eb02ad7f000bf19c7635cc7c336fafc90e24e13b187f",
+      "current_lf_sha256": "83da0cf6704610eebfe7eb02ad7f000bf19c7635cc7c336fafc90e24e13b187f",
+      "historical_raw_sha256": "0c29dac3bdaea8cff0bc7964852b9f267986d7862a520b49d3c2d93d05c18832",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/product_rejections.py",
+      "current_raw_sha256": "7ce6eae345d40e6cec91e00ae3fc020fd1b6c5c38b4e934dbce4d2cbf5bb1f23",
+      "current_lf_sha256": "7ce6eae345d40e6cec91e00ae3fc020fd1b6c5c38b4e934dbce4d2cbf5bb1f23",
+      "historical_raw_sha256": "cf19c9dc93b84150ac668a4d6633a05dcde5af0644b869d71d39ad66485213a7",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/product_voice.py",
+      "current_raw_sha256": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c",
+      "current_lf_sha256": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c",
+      "historical_raw_sha256": "d17517c031fbf842027220da25b2cc515ada11c959c53042d05c4872971f3f27",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/base/__init__.py",
+      "current_raw_sha256": "fdf1fe9d27cf517f0e462c547cbae9fbb8c6e6f3402350b1ed6a666754bc0e27",
+      "current_lf_sha256": "fdf1fe9d27cf517f0e462c547cbae9fbb8c6e6f3402350b1ed6a666754bc0e27",
+      "historical_raw_sha256": "04e13360c8c8bd197a2ff1e5eea73c753538fb764bf791d823497c9370aa2a2b",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/base/tool_executor.py",
+      "current_raw_sha256": "361c6d7e163bb8ed5bb00c1138e5c2126284870d1d0a1aa3b8fab5dba9a50e26",
+      "current_lf_sha256": "361c6d7e163bb8ed5bb00c1138e5c2126284870d1d0a1aa3b8fab5dba9a50e26",
+      "historical_raw_sha256": "e7a372a4572452312ddff864b5e45784b576e5d457bfc0fe7b1e114ff9a69e57",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/base/tool_types.py",
+      "current_raw_sha256": "5cac336143c085ff3ecc724f9d98bdd41aa4fd6ce93c5c3f8b169957a4977a19",
+      "current_lf_sha256": "5cac336143c085ff3ecc724f9d98bdd41aa4fd6ce93c5c3f8b169957a4977a19",
+      "historical_raw_sha256": "7f5adb1d40efcc59ecc0f712a9ecb7310d982919faf1ca0dcfa6dc224d0a5fbf",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/__init__.py",
+      "current_raw_sha256": "152372c23027aa858580870572120bccf8b10ae8d4f4513b347edc5c8a5dd177",
+      "current_lf_sha256": "152372c23027aa858580870572120bccf8b10ae8d4f4513b347edc5c8a5dd177",
+      "historical_raw_sha256": "eba11cfd661da2b9d578f9a4ab23b8b641b43200a6fcc4c79a7292b81caa6a4b",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/errors.py",
+      "current_raw_sha256": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+      "current_lf_sha256": "0e51a45138aed2f46f684ad4222d8f8f978496581707965022bdafbea1001163",
+      "historical_raw_sha256": "08cbce3e16accae7938e3b21a52d047c0359ed7fc451deae412cea12f844e6c3",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_client.py",
+      "current_raw_sha256": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+      "current_lf_sha256": "7bf1eb82e2fbbad9932d2dfc956376025925136149eb2f55efb827f0dd581c06",
+      "historical_raw_sha256": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_executor.py",
+      "current_raw_sha256": "12f2b6806a3a07261b08c6c8fd2e905010901b11a9de8133dbe58d4665b2adb0",
+      "current_lf_sha256": "12f2b6806a3a07261b08c6c8fd2e905010901b11a9de8133dbe58d4665b2adb0",
+      "historical_raw_sha256": "ed7e5e21efa3b1dbbebecd950ae2a12839ca4a242ebbfcb4a22effdfea16ffdc",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/providers/tools/server_mcp/mcp_manager.py",
+      "current_raw_sha256": "031e07e27a371db70c531097dc16996d3f06074667aec04316f26b6327e9594b",
+      "current_lf_sha256": "031e07e27a371db70c531097dc16996d3f06074667aec04316f26b6327e9594b",
+      "historical_raw_sha256": "2b563e95d1fa9b81e8bf65f4fa171df59ce67f9b435ed90e81ba10ad8ce62f13",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/core/utils/util.py",
+      "current_raw_sha256": "aea281fb12477398637ba3bd6f6eb84165bf5e55574c678ef0e9659341995827",
+      "current_lf_sha256": "aea281fb12477398637ba3bd6f6eb84165bf5e55574c678ef0e9659341995827",
+      "historical_raw_sha256": "445fc1b342f9719d31121a034adf99ef6bbb4022d8726490dd34073d5bbae8f3",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "main/xiaozhi-server/plugins_func/register.py",
+      "current_raw_sha256": "42d30dc366841aacede2cd805c3a5662a1b187b2e19aa155f79a1d15670e9a02",
+      "current_lf_sha256": "42d30dc366841aacede2cd805c3a5662a1b187b2e19aa155f79a1d15670e9a02",
+      "historical_raw_sha256": "b96778e6aa0acbed95d3fe70c869a091bc140ea0b34c16cb66ec80e48c24a1a8",
+      "current_converted_to_crlf_matches_historical": true
+    },
+    {
+      "path": "scripts/check-mcp-offline.py",
+      "current_raw_sha256": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+      "current_lf_sha256": "8faad45fdbc5b5139aa8e4d1cdb9a05bbb802d3c2da1ff6539a0421290db7612",
+      "historical_raw_sha256": "286faa4b2647412bd365bd3580d1ebcc134c0666b12b744cf8b29a35bbf07288",
+      "current_converted_to_crlf_matches_historical": true
+    }
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "source_commit": "d702543179ee26086773366e95c46b135b68e9f3",
+  "merged_main": "2e5f1fbd8390dabd2d707f649dc111cbcf22aab9",
+  "recorded_at_utc": "2026-11-11T04:37:53.030778+00:00",
+  "environment": "Ubuntu 192.168.168.114, isolated Compose xiaozhi-pr26-d702543",
+  "java": {
+    "tests": 321,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "device_control": [
+      {
+        "name": "xiaozhi.modules.devicecontrol.DeviceControlHttpTest",
+        "tests": "17",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      }
+    ]
+  },
+  "python": {
+    "voice": {
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "real authority handshake",
+            "late output blocked",
+            "other device unaffected",
+            "old and cross-device tokens rejected",
+            "query fallback rejected"
+          ]
+        },
+        {
+          "result": "pass",
+          "checks": [
+            "actual WebSocketServer and ConnectionHandler",
+            "model response through Edge adapter to binary audio",
+            "late external TTS output blocked",
+            "multiple connections closed",
+            "legacy auth disabled and whitelist cannot bypass",
+            "direct qwen SSE content only",
+            "balance failure preserves grant",
+            "signout blocks new model requests"
+          ]
+        }
+      ]
+    },
+    "asr": {
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "device Opus -> asynchronous ASR -> model -> TTS audio",
+            "temporary WAV fetched with correct format",
+            "completed and revoked URLs unavailable",
+            "pending ASR cannot call model/TTS after signout"
+          ]
+        }
+      ]
+    },
+    "key-rejection": {
+      "exit_code": 0,
+      "results": []
+    },
+    "rejection-delivery-503": {
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "fault": "503",
+          "checks": [
+            "peer output blocked before delivery",
+            "fresh process stays quarantined",
+            "unrelated account allowed",
+            "closed source session does not lose delivery",
+            "relogin cannot bypass old permission quarantine",
+            "explicit resume only restores target",
+            "recovery commits rejection",
+            "no repeated resource request",
+            "duplicate at capacity is harmless",
+            "capacity fault survives restart"
+          ]
+        }
+      ]
+    },
+    "rejection-delivery-timeout": {
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "fault": "timeout",
+          "checks": [
+            "peer output blocked before delivery",
+            "fresh process stays quarantined",
+            "unrelated account allowed",
+            "closed source session does not lose delivery",
+            "relogin cannot bypass old permission quarantine",
+            "explicit resume only restores target",
+            "recovery commits rejection",
+            "no repeated resource request",
+            "duplicate at capacity is harmless",
+            "capacity fault survives restart"
+          ]
+        }
+      ]
+    },
+    "rejection-delivery-lost_ack": {
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "fault": "lost_ack",
+          "checks": [
+            "peer output blocked before delivery",
+            "fresh process stays quarantined",
+            "unrelated account allowed",
+            "closed source session does not lose delivery",
+            "relogin cannot bypass old permission quarantine",
+            "explicit resume only restores target",
+            "recovery commits rejection",
+            "no repeated resource request",
+            "duplicate at capacity is harmless",
+            "capacity fault survives restart"
+          ]
+        }
+      ]
+    }
+  },
+  "firmware_compatibility": [
+    "device control host tests passed",
+    "actual state: PASS",
+    "actual created: PASS",
+    "actual retried: PASS",
+    "blocked remains blocked: PASS",
+    "actual ACK: PASS",
+    "1ms mismatch rejected: PASS"
+  ],
+  "firmware_input_hashes": [
+    "08fd576e4c1956b5fa5fe0292c13124980a401ec983c888e67696885f311c543  /home/jt/pr26-firmware-check/firmware-pr26.tar",
+    "8804ea7ffe89211749b09b8d326a7134ff51a0ca25e9e9207c7806231c290ff1  /home/jt/pr26-firmware-check/build/compatibility"
+  ],
+  "api_jar_sha256": "30f7a9f1cce7af1504d96e6f3845d1706a00ff46b87d967ee0c3202cfe9d78d6",
+  "test_images": {
+    "xiaozhi-manager-api-tests:pr26-d702543": {
+      "id": "sha256:aa6f65744cf7723e20be07edb4a5a466582e2237879d2b158aded1b95ce80a40",
+      "revision": "d702543179ee26086773366e95c46b135b68e9f3"
+    },
+    "xiaozhi-product-voice-test:d702543": {
+      "id": "sha256:464b850856aad582e28c21aa25dcc8f5e989fe7f177fa03e2960461b179cb0c3",
+      "revision": "d702543179ee26086773366e95c46b135b68e9f3"
+    }
+  },
+  "deployment_observed": {
+    "xiaozhi-pr26-api": {
+      "image": "xiaozhi-product-api:1468eeb",
+      "started_at": "2026-11-11T02:51:31.984631539Z",
+      "container_unchanged": true
+    },
+    "xiaozhi-pr26-voice": {
+      "image": "xiaozhi-product-voice:prompt-7f10cbd",
+      "started_at": "2026-11-11T03:46:30.60462619Z",
+      "container_unchanged": true
+    },
+    "xiaozhi-pr26-web": {
+      "image": "xiaozhi-manager-web:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "started_at": "2026-11-10T13:20:21.849439255Z",
+      "container_unchanged": true
+    }
+  },
+  "scope_limits": [
+    "External model and Edge transport controlled in Python regressions.",
+    "Existing fixed firmware binaries rerun, not newly built or flashed.",
+    "Physical-device acceptance is separate and not asserted by this artifact.",
+    "No product deployment or restart in this run."
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "source_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "images": [
+    {
+      "tag": "xiaozhi-manager-api-tests:6e354edf292c3df14fd783c5dc7314a4402e3b74",
+      "runtime_image_id": "sha256:eb34d2c926cf2793d63ea4145af43869a5657db33870141cca93bef14a308b8e",
+      "rootfs_layers": [
+        "sha256:a8346d259389bc6221b4f3c61bad4e48087c5b82308e8f53ce703cfc8333c7b3",
+        "sha256:9468e932783fdd298c638c0735dbb376687233baac511dc62fa2f9a87dc09ac2",
+        "sha256:62224745d04936bc0ade6ffa50e9ec16dafe681715b531181072d90c8e8db46a",
+        "sha256:23a3862c56b0314964a985db96c4eb6b8d71359bbd40017294d950dd13a05eda",
+        "sha256:388fad1ed1d1c1cbe2304996954f61bddb2456a75f9c7bb3a8a1dc0102e0772a",
+        "sha256:6fcd171e65b3dbc59db8a9eb91e8b7e90e96c383460dab52cc34a3fb04f1b4c3",
+        "sha256:7ea0e58b39bfcf6d4d0b5b513838e0e1db5e44373e1b9405179e3d6b260a529d",
+        "sha256:bedd02a370150bdcd7a155e9298bc8e76afb8e36ee5bdc61765e6abd31821cf5",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        "sha256:d0901fa3c1360a4a69dbfc53c93e213a7b9c0de3124136bdb4fedae8b35915d5",
+        "sha256:e40d8a6a4959e1ae74499fa627330007469ef248f72aab81a320fe124baa546d",
+        "sha256:7cf70156e1c94e6d291b69bfd0c5e2baf1a0679b8342cf7b90d17fccdd6e911f",
+        "sha256:f9afcde685a10aae917a346b3d1a8329310b17f9d25c7efb644b058dc37b509f",
+        "sha256:5c86ad71638a6fc1f3a4143cfc496d1bf7f89fccda148373b8642e8a1c639db2",
+        "sha256:20307a07441795862196c1fd4c5a5be52b7968c347548c64a5bb27e5a059b340",
+        "sha256:7c6379c26c781f2ad104ee35de32f2c85f232315ca842bfb2d7681871ce7dfda"
+      ],
+      "platform": "linux/amd64",
+      "exported_config_id": "sha256:57965572db3e41796eff350cabfcd2bf3ea886377fdd5973f587758557980cf4"
+    },
+    {
+      "tag": "xiaozhi-voice-tests:local-20261106-netmirror",
+      "runtime_image_id": "sha256:a88b5ad0376fd760a5f1ab4a7818ed926f5a39477316531f4a36533edef160a6",
+      "rootfs_layers": [
+        "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+        "sha256:3c19f04e7db6642e808e1ad229c0d877d42865f2cb1af1ddc9f9bd10217113b6",
+        "sha256:09b830de5fb0a5a54f1050a5c4cd5f9ac999b4692506df84ba85c925f1a8a0fd",
+        "sha256:a403b3f684d654bd6ccba458f4e7d1aa7b3ca642fb8297c07b913f83fa4b809a",
+        "sha256:ece489f8cd9ed72333c1ffc998916fbc1518cb8c7642578603b3efa33ce4db0d",
+        "sha256:51a8d300f37ecae54d6cebe714794f44968bdc8763012220aae861285dcc0887",
+        "sha256:0687bf8ea6ddaa5128991e2985e49a94c3b6ecbda2cd20488302ad0a3b89e244",
+        "sha256:b74c500a642b0e51b4a367df2a3439e3c050cc0c5ce47c08d31282a20d09d122",
+        "sha256:d67359a3efea32b0b05dccfd3d5693d68d0efed99e93a97ea7554d770d16f9fb",
+        "sha256:3f192563fb0bcdb008f58141a760b74941651e4e0b5dbba11a9d59bc1f22c622",
+        "sha256:74521a64ba3938932e0ffd277bd50ea375cae42775214ccca8bf06d498c3ff3a",
+        "sha256:95449fee23a02c35aacaaf4a3f771b5c935099300f765c39b4b1489eb34a5a5a"
+      ],
+      "platform": "linux/amd64",
+      "exported_config_id": "sha256:21464a54bb40cf94cf5c9bdac95891a623da6bc11efcf4c9300fbccd26c043e0"
+    }
+  ],
+  "execution_host": "192.168.168.114"
+}

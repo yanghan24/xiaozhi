@@ -1,0 +1,14 @@
+{
+  "backup_current_verified": true,
+  "capture_running": true,
+  "log_reference": "User hardware confirmation 2026-11-13 11:02 +08:00: Fedora /dev/ttyACM0 continuous UART; exact capture path pending",
+  "source_commit": "12f2ff1b3e224ff012bdce95799ebf19740dcd11",
+  "current_slot": "ota_1",
+  "current_slot_address": "0x410000",
+  "ota_state": "VALID",
+  "ota_crc_valid": true,
+  "nvs_change_scope": "env/cache only; identity, credential, device_ctrl unchanged; fresh backup saved",
+  "boot_materials_match_archive": true,
+  "source": "user-transmitted hardware results; not independently read by Windows server agent",
+  "reported_at": "2026-11-13T11:02:00+08:00"
+}

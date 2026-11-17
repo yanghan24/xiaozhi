@@ -1,0 +1,89 @@
+{
+  "observed_at": "20261112T032045Z",
+  "private_snapshot": "/home/jt/issue42-p4-ota-20261112/20261112T032045Z",
+  "read_only": true,
+  "b_located_by_unique_delivered_recovery_and_hardware_mapping": true,
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "17",
+    "ownership_version": "5",
+    "has_owner": "1"
+  },
+  "device_count": 2,
+  "other_device_snapshots_saved": true,
+  "services": {
+    "xiaozhi-pr26-api": {
+      "image": "xiaozhi-product-api:1b50709",
+      "running": true,
+      "started": "2026-11-12T03:13:39.656388819Z",
+      "mounts": [
+        {
+          "source": "/home/jt/pr26-deployment-885918d/private/oidc-client.json",
+          "target": "/private/oidc-client.json"
+        },
+        {
+          "source": "/home/jt/pr26-deployment-885918d/private/identity.key",
+          "target": "/private/identity.key"
+        },
+        {
+          "source": "/home/jt/pr26-deployment-885918d/private/device-delivery/encryption-key",
+          "target": "/run/secrets/device-delivery-key"
+        }
+      ]
+    },
+    "xiaozhi-pr26-voice": {
+      "image": "xiaozhi-product-voice:p4-maintenance-20261112",
+      "running": true,
+      "started": "2026-11-12T03:14:09.377698598Z",
+      "mounts": [
+        {
+          "source": "/home/jt/pr26-deployment-885918d/private/voice-data",
+          "target": "/app/data"
+        },
+        {
+          "source": "/home/jt/pr26-deployment-885918d/private/voice-logs",
+          "target": "/app/tmp"
+        }
+      ]
+    },
+    "issue29-db": {
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "running": true,
+      "started": "2026-11-12T02:51:28.32525526Z",
+      "mounts": [
+        {
+          "source": "/var/lib/docker/volumes/e94af520247041c87a219b9f3267a33d5cdd312f973806b29988744221de671d/_data",
+          "target": "/var/lib/mysql"
+        }
+      ]
+    },
+    "issue29-redis": {
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "running": true,
+      "started": "2026-11-12T02:51:27.984403759Z",
+      "mounts": [
+        {
+          "source": "/var/lib/docker/volumes/f2967b082d49f9d5bd37a15d6dda53c84d46a4a0bf245927ac8f0c37777a98ae/_data",
+          "target": "/data"
+        }
+      ]
+    },
+    "xiaozhi-ubuntu-test-public-entry-public-entry-1": {
+      "image": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "running": true,
+      "started": "2026-11-12T02:51:28.817270192Z",
+      "mounts": [
+        {
+          "source": "/home/jt/xiaozhi-ubuntu-test/.runtime/public-entry/nginx-tls.conf",
+          "target": "/etc/nginx/conf.d/default.conf"
+        },
+        {
+          "source": "/home/jt/.local/share/xiaozhi-public-entry/tls",
+          "target": "/etc/nginx/tls"
+        }
+      ]
+    }
+  }
+}

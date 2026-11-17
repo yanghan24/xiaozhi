@@ -1,0 +1,95 @@
+{
+  "firmware_source": "00896abbb266bf5d2dda90a49b71ea7bb95c1a6f",
+  "product_sha256": "753f42d89f2253a999041f41f66fc61d057a7a12f729f97afdf4547b9f9a0aa7",
+  "server_pr": 52,
+  "server_code_candidate": "87839aa2da1abd076702d6c191182f30402fbe73",
+  "physical_devices": 2,
+  "complete_delivery": {
+    "local_phase": "delivered",
+    "backend_status": "delivered",
+    "same_registration_operation": true,
+    "same_independent_identity": true,
+    "same_usb_write_operation": true,
+    "completion_replay_preserved_verified_and_completed_timestamps": true,
+    "final_boot_identity_network_and_elf_verified": true,
+    "different_device_id_from_first": true,
+    "different_credential_from_first": true,
+    "different_p4_from_first": true,
+    "different_c6_from_first": true,
+    "original_application_backup": false
+  },
+  "controlled_real_process_interruptions": {
+    "registration": {
+      "actual_process_exit": 73,
+      "durable_phase_before_resume": "registering",
+      "passed": true
+    },
+    "usb-commit": {
+      "actual_process_exit": 73,
+      "durable_phase_before_resume": "writing",
+      "passed": true
+    },
+    "completion": {
+      "actual_process_exit": 73,
+      "durable_phase_before_resume": "verifying",
+      "passed": true
+    }
+  },
+  "uncompleted_delivery_control_access": {
+    "status": 403,
+    "code": "DEVICE_NOT_ADMITTED"
+  },
+  "cross_credential_checks": [
+    {
+      "case": "first-with-second-credential",
+      "status": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "rejected": true
+    },
+    {
+      "case": "second-with-first-credential",
+      "status": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "rejected": true
+    },
+    {
+      "case": "second-with-invalid-credential",
+      "status": 401,
+      "code": "INVALID_DEVICE_CREDENTIAL",
+      "rejected": true
+    }
+  ],
+  "first_unchanged_throughout_observed_samples": {
+    "permission_version": 9,
+    "revision": 17,
+    "binding_state": "bound",
+    "use_permission": "allowed",
+    "reason": "ready"
+  },
+  "second_after_binding": {
+    "permission_version": 3,
+    "revision": 4,
+    "use_permission": "allowed",
+    "both_audible_user_confirmed": true
+  },
+  "second_after_local_sign_out": {
+    "permission_version": 4,
+    "revision": 6,
+    "use_permission": "blocked",
+    "second_stopped_first_audible_user_confirmed": true
+  },
+  "second_after_targeted_recovery": {
+    "permission_version": 5,
+    "revision": 7,
+    "use_permission": "allowed",
+    "both_audible_user_confirmed": true
+  },
+  "limits": {
+    "original_application_backup_omitted_by_user": true,
+    "physical_power_cut_not_tested": true,
+    "server_ack_history_not_independently_verified": true,
+    "deployed_server_sha_not_independently_verified": true,
+    "ubuntu_full_server_regression_not_executed_here": true,
+    "earlier_single_reboot_cause_unresolved": true
+  }
+}

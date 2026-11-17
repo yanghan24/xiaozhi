@@ -1,0 +1,268 @@
+{
+  "revision": "b670a17c88ea86b5396c56785e776845fd93d82a",
+  "api_image": "sha256:238c68cc9f1207eea0b8ac5cadd2afd254d24e5731a7ff9f7ca423a275944673",
+  "tested_and_deployed_jar_sha256": "45af02bb8df6b174440d4b18389a8b64af0cec1d1fdc0374c181c682fad496f7",
+  "backup_before": "/home/jt/pr26-deployment-885918d/private/backups/20261111T020505Z",
+  "backup_after": "/home/jt/pr26-deployment-885918d/private/backups/20261111T020526Z",
+  "backup_contains_long_lived_credentials": true,
+  "backup_excludes_conversation_and_audio": true,
+  "balance_enabled": true,
+  "balance_scope_confirmation": "User explicitly confirmed existing client balance:read is checked; no independent admin-session verification",
+  "historical_account_reconsent": "May be required; not performed",
+  "nginx_sha256": "72ba0185d071c00f88408266d8e4e71150c774386573115593cdae020509ab3f",
+  "regression": {
+    "revision": "b670a17c88ea86b5396c56785e776845fd93d82a",
+    "totals": {
+      "tests": 342,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "delivery_tests": 16,
+    "voice_tests": "17",
+    "speaker_test_names": [
+      "productOtaOnlyDiscoversControlAndNeverIssuesLegacyVoiceCredentials",
+      "refreshFailureSharesReplacementBarrierAndStopsDevicesBeforeRelogin(String)[1]",
+      "refreshFailureSharesReplacementBarrierAndStopsDevicesBeforeRelogin(String)[2]",
+      "delayedRejectionAfterReloginStopsOldPermissionsButNotNewExplicitResume",
+      "resumeRequiresOriginalOwnerAndCurrentGrantGeneration",
+      "speakerSignOutStopsOnlyItAndCannotReplayAfterRecovery",
+      "rejectedKeyStopsSharedDevicesAndOldGenerationCannotStopReplacement",
+      "voiceAuthorityRejectsLegacyTokensAndExistingSessionAfterSignOut",
+      "accountLookupDoesNotBlockOrLeakAcrossSignOut",
+      "sharedGrantFailureStopsEnabledDevicesButKeepsSignedOutDeviceSignedOut(String)[1]",
+      "sharedGrantFailureStopsEnabledDevicesButKeepsSignedOutDeviceSignedOut(String)[2]",
+      "internalAuthorityRejectsMissingKeyMalformedAndUnsupportedBodies",
+      "explicitOwnerResumeEnablesOnlyTargetAndIssuesBoundedVoiceCredentials",
+      "deviceReadsOnlyItsCurrentOwnersLiveMarketAccount",
+      "unavailableBalanceDoesNotInventPointsOrStopVoice(String)[1]",
+      "unavailableBalanceDoesNotInventPointsOrStopVoice(String)[2]",
+      "accessRefreshDoesNotSignOutAnOtherwiseValidModelGrant"
+    ],
+    "integration_guard": "passed"
+  },
+  "public_preflight": {
+    "observed_at": "2026-11-11T02:05:50.092139+00:00",
+    "origin": "https://bridge.hncig.cn:18443",
+    "tls_verification": true,
+    "real_credentials_used": false,
+    "devices_registered": false,
+    "flash_accessed": false,
+    "checks": 24,
+    "failures": 0,
+    "results": [
+      {
+        "name": "OTA health",
+        "http": 200,
+        "expected_http": 200,
+        "passed": true
+      },
+      {
+        "name": "voice HTTP health",
+        "http": 200,
+        "expected_http": 200,
+        "passed": true
+      },
+      {
+        "name": "OTA public discovery",
+        "http": 200,
+        "expected_http": 200,
+        "passed": true
+      },
+      {
+        "name": "legacy OTA activation blocked",
+        "http": 403,
+        "expected_http": 403,
+        "passed": true
+      },
+      {
+        "name": "control state anonymous",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+        "passed": true
+      },
+      {
+        "name": "control state unissued credential",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+        "passed": true
+      },
+      {
+        "name": "control request anonymous",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+        "passed": true
+      },
+      {
+        "name": "control ACK anonymous",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+        "passed": true
+      },
+      {
+        "name": "delivery query anonymous",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "TOOL_AUTH_REQUIRED",
+        "passed": true
+      },
+      {
+        "name": "delivery query unissued tool",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "TOOL_AUTH_REQUIRED",
+        "passed": true
+      },
+      {
+        "name": "tool authorize invalid login",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "OPERATOR_AUTH_REQUIRED",
+        "passed": true
+      },
+      {
+        "name": "device-check unissued credential",
+        "http": 401,
+        "expected_http": 401,
+        "protocol_code": "INVALID_DEVICE_CREDENTIAL",
+        "passed": true
+      },
+      {
+        "name": "ready anonymous",
+        "http": 401,
+        "expected_http": 401,
+        "passed": true
+      },
+      {
+        "name": "unissued audio URL",
+        "http": 404,
+        "expected_http": 404,
+        "passed": true
+      },
+      {
+        "name": "internal voice API blocked",
+        "http": 404,
+        "expected_http": 404,
+        "passed": true
+      },
+      {
+        "name": "management config blocked",
+        "http": 404,
+        "expected_http": 404,
+        "passed": true
+      },
+      {
+        "name": "management login blocked",
+        "http": 404,
+        "expected_http": 404,
+        "passed": true
+      },
+      {
+        "name": "unknown delivery route blocked",
+        "http": 404,
+        "expected_http": 404,
+        "passed": true
+      },
+      {
+        "name": "malformed operation ID blocked",
+        "http": 404,
+        "expected_http": 404,
+        "passed": true
+      },
+      {
+        "name": "authorize wrong method blocked",
+        "http": 403,
+        "expected_http": 403,
+        "passed": true
+      },
+      {
+        "name": "operation query wrong method blocked",
+        "http": 403,
+        "expected_http": 403,
+        "passed": true
+      },
+      {
+        "name": "delivery body over 4KB blocked",
+        "http": 413,
+        "expected_http": 413,
+        "passed": true
+      },
+      {
+        "name": "WSS rejects anonymous connection",
+        "upgrade_http": 101,
+        "close_code": 1008,
+        "passed": true
+      },
+      {
+        "name": "WSS rejects invalid credential",
+        "upgrade_http": 101,
+        "close_code": 1008,
+        "passed": true
+      }
+    ]
+  },
+  "public_rejections": {
+    "checks": 20,
+    "failures": 0,
+    "credentials_used": false,
+    "devices_registered": false
+  },
+  "public_settings": {
+    "checks": 9,
+    "failures": 0,
+    "tls_verification": true,
+    "real_devices_modified": false,
+    "balance_scope_confirmation": "user confirmed existing client scope enabled on 2026-11-11",
+    "results": [
+      {
+        "check": "account anonymous",
+        "http": 401,
+        "passed": true
+      },
+      {
+        "check": "sign-out anonymous",
+        "http": 401,
+        "passed": true
+      },
+      {
+        "check": "account wrong method",
+        "http": 403,
+        "passed": true
+      },
+      {
+        "check": "sign-out wrong method",
+        "http": 403,
+        "passed": true
+      },
+      {
+        "check": "scan missing request handled by API",
+        "http": 404,
+        "passed": true
+      },
+      {
+        "check": "OIDC callback invalid state rejected",
+        "http": 303,
+        "passed": true
+      },
+      {
+        "check": "permanent flashing credential preserved",
+        "http": 404,
+        "passed": true
+      },
+      {
+        "check": "revocation preserved",
+        "http": 401,
+        "passed": true
+      },
+      {
+        "check": "flashing cannot access admin listing",
+        "http": 401,
+        "passed": true
+      }
+    ]
+  }
+}

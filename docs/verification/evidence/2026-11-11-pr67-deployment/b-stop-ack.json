@@ -1,0 +1,9 @@
+{
+  "query_commit": "0d737f9b34deb524cf4d748d006620b1935df5d7",
+  "query_sha256": "786412b93a187d17b3aa5da4c3b1eec0ee2deee4cbba5394810d7ee62f7aca81",
+  "observed_at": "2026-11-11T09:17:12.151606+00:00",
+  "api_image": "xiaozhi-product-api:1b50709",
+  "api_revision": "1b50709fd1cadfad966b12d4afedf78b1f279aa6",
+  "read_only_transaction": true,
+  "result_tsv": "device_alias\tadmitted\tbound\tlocal_enabled\treason\tpermission_version\townership_version\trevision\nB\t1\t1\t1\tready\t14\t3\t20\nrevision\tpermission_version\taudio_stopped\treceived_at_ms\n18\t13\t1\t1794387969231\n20\t14\t0\t1794388045332\n"
+}

@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "execution_host": "192.168.168.114",
+  "java": {
+    "tests": 206,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "mandatory_integration_checks": [
+      {
+        "test_class": "xiaozhi.modules.device.DeviceTest",
+        "executed": 2
+      },
+      {
+        "test_class": "xiaozhi.modules.model.service.impl.ModelConfigPersistenceTest",
+        "executed": 3
+      },
+      {
+        "test_class": "xiaozhi.modules.sys.loginControllerTest",
+        "executed": 3
+      }
+    ]
+  },
+  "python": {
+    "summary": "129 passed, 5 skipped in 134.33s (0:02:14)"
+  },
+  "test_images_manifest": "regression-images.json",
+  "raw_logs_retained_privately": true
+}

@@ -1,0 +1,28 @@
+{
+  "operation": "deploy_structured_request_logging",
+  "before_utc": "2026-11-10T04:37:26.715966+00:00",
+  "container": "xiaozhi-issue6-market-bridge",
+  "started_at_before": "2026-11-10T03:11:56.80222292Z",
+  "counters_before": {
+    "asr_submitted": 211,
+    "asr_succeeded": 20,
+    "llm_submitted": 21,
+    "llm_succeeded": 21,
+    "failures": 191,
+    "active": 0,
+    "published_audio": 0
+  },
+  "sha256_before": "2fd9278c1b6600f04d56c777a6bb64675f26a6584c0e5e2f456568f5aa8bdef5",
+  "after_utc": "2026-11-10T04:37:29.333334+00:00",
+  "started_at_after": "2026-11-10T04:37:27.257647401Z",
+  "counters_after": {
+    "asr_submitted": 0,
+    "asr_succeeded": 0,
+    "llm_submitted": 0,
+    "llm_succeeded": 0,
+    "failures": 0,
+    "active": 0,
+    "published_audio": 0
+  },
+  "sha256_after": "eefa9701b45b0ada1041543a3ff96309d3bac7a8062919b010473c9cf72e7099"
+}

@@ -1,0 +1,20 @@
+{
+  "observed_at": "20261113T031020Z",
+  "operation_id": "198bf4223d1740cb95fd1ea9dbf314c7",
+  "server_journal_status": "reserved_result_unknown",
+  "b": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "24",
+    "ownership_version": "7"
+  },
+  "b_business_state_unchanged": true,
+  "other_device_business_state_unchanged": true,
+  "recovery_records_unchanged": true,
+  "delivery_mapping_unchanged": true,
+  "current_credential_http_status": 200,
+  "current_credential_code": "OK",
+  "installation_confirmed": false,
+  "upgrade_resent": false
+}

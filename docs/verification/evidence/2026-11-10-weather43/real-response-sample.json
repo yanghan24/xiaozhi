@@ -1,0 +1,115 @@
+{
+  "index": 0,
+  "city": "Changsha",
+  "scheduled_after_s": 0.0,
+  "generator_lateness_s": 0.005421679001301527,
+  "queue_s": 1.521129161119461e-05,
+  "end_to_end_s": 0.34756284300237894,
+  "outcome": "success",
+  "calls": [
+    {
+      "kind": "weather",
+      "path": "/v1/forecast?latitude=28.2282&longitude=112.9388&forecast_hours=6&timeformat=unixtime&timezone=GMT&elevation=nan&cell_selection=nearest&hourly=temperature_2m%2Crelative_humidity_2m%2Cweather_code&models=gfs013",
+      "http": 200,
+      "bytes": 488,
+      "data": {
+        "latitude": 28.174423,
+        "longitude": 112.96875,
+        "generationtime_ms": 1.1557340621948242,
+        "utc_offset_seconds": 0,
+        "timezone": "GMT",
+        "timezone_abbreviation": "GMT",
+        "elevation": 57.0,
+        "hourly_units": {
+          "time": "unixtime",
+          "temperature_2m": "°C",
+          "relative_humidity_2m": "%",
+          "weather_code": "wmo code"
+        },
+        "hourly": {
+          "time": [
+            1794294000,
+            1794297600,
+            1794301200,
+            1794304800,
+            1794308400,
+            1794312000
+          ],
+          "temperature_2m": [
+            14.8,
+            14.5,
+            14.1,
+            13.8,
+            13.7,
+            13.6
+          ],
+          "relative_humidity_2m": [
+            34,
+            37,
+            40,
+            41,
+            42,
+            43
+          ],
+          "weather_code": [
+            2,
+            3,
+            3,
+            3,
+            3,
+            3
+          ]
+        }
+      },
+      "outcome": "success",
+      "elapsed_s": 0.263693
+    },
+    {
+      "kind": "air_quality",
+      "path": "/v1/air-quality?latitude=28.2282&longitude=112.9388&forecast_hours=6&timeformat=unixtime&timezone=GMT&elevation=nan&cell_selection=nearest&hourly=pm2_5%2Cpm10&domains=cams_global",
+      "http": 200,
+      "bytes": 389,
+      "data": {
+        "latitude": 28.200005,
+        "longitude": 112.899994,
+        "generationtime_ms": 12.499213218688965,
+        "utc_offset_seconds": 0,
+        "timezone": "GMT",
+        "timezone_abbreviation": "GMT",
+        "hourly_units": {
+          "time": "unixtime",
+          "pm2_5": "μg/m³",
+          "pm10": "μg/m³"
+        },
+        "hourly": {
+          "time": [
+            1794294000,
+            1794297600,
+            1794301200,
+            1794304800,
+            1794308400,
+            1794312000
+          ],
+          "pm2_5": [
+            24.2,
+            24.7,
+            27.9,
+            41.6,
+            55.2,
+            61.2
+          ],
+          "pm10": [
+            24.5,
+            25.0,
+            28.2,
+            42.3,
+            56.7,
+            63.6
+          ]
+        }
+      },
+      "outcome": "success",
+      "elapsed_s": 0.334334
+    }
+  ]
+}

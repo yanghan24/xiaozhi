@@ -1,0 +1,9 @@
+{
+  "observed_at": "20261113T024744Z",
+  "voice_image": "xiaozhi-product-voice:issue18-12f2ff1",
+  "image_id": "sha256:1267d4cd09a8142ea135d6c3d2a8ad2401beacc7ac3f5d8f02c43c4ddd086a0e",
+  "only_voice_recreated": true,
+  "device_business_state_unchanged": true,
+  "upgrade_sent": false,
+  "rollback_reference": "/home/jt/issue18-p4-ota-20261113/deploy-20261113T024744Z/compose-before.json"
+}

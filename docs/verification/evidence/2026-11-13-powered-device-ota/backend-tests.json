@@ -1,0 +1,10 @@
+{
+  "totals": {
+    "tests": 432,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "failed_tests": [],
+  "reports_directory": ".runtime/reports-20261113T110816Z"
+}

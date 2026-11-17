@@ -1,0 +1,75 @@
+{
+    "observed_at":  "2026-11-13T02:05:53.480411+00:00",
+    "device_alias":  "B",
+    "account_alias":  "B-original-owner-unchanged-from-PR87",
+    "state":  {
+                  "admitted":  "1",
+                  "local_enabled":  "1",
+                  "reason":  "ready",
+                  "permission_version":  "24",
+                  "ownership_version":  "7"
+              },
+    "checks":  {
+                   "same_B_device_owner_hardware":  true,
+                   "current_recovery_delivered":  true,
+                   "device_verified":  true,
+                   "ready":  true,
+                   "current_accepted_old_rejected":  true,
+                   "tested_runtime_sources_equal_deployed_regression":  true,
+                   "running_jar_matches_362_test_artifact":  true,
+                   "test_project_not_running":  true,
+                   "business_snapshot_unchanged":  true
+               },
+    "protocol":  [
+                     {
+                         "credential":  "current",
+                         "http_status":  200,
+                         "code":  "OK"
+                     },
+                     {
+                         "credential":  "predecessor",
+                         "http_status":  401,
+                         "code":  "INVALID_DEVICE_CREDENTIAL"
+                     }
+                 ],
+    "services":  {
+                     "xiaozhi-pr26-api":  {
+                                              "image":  "xiaozhi-product-api:1b50709",
+                                              "id":  "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+                                              "started_at":  "2026-11-12T03:13:39.656388819Z",
+                                              "running":  true
+                                          },
+                     "xiaozhi-pr26-voice":  {
+                                                "image":  "xiaozhi-product-voice:pr79-f830a8c",
+                                                "id":  "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+                                                "started_at":  "2026-11-12T06:50:32.021169588Z",
+                                                "running":  true
+                                            }
+                 },
+    "running_jar_sha256":  "24eedf38b764c60a94d90392651f76db502333faac5c51f91dc8040fb506b24a",
+    "special_test":  {
+                         "report":  "/home/jt/issue13-acceptance-b448aa0/.runtime/pr52/surefire-reports/TEST-xiaozhi.modules.customer.CustomerSecretExposureHttpTest.xml",
+                         "sha256":  "2c667632afed202c36f60a40b2c49f98b3fa1a1cc8147fc701d50ebbf955d3bc",
+                         "tests":  1,
+                         "failures":  0,
+                         "errors":  0,
+                         "skipped":  0,
+                         "target_present":  true,
+                         "exit_code":  0,
+                         "image":  "sha256:aaa966851a1a7a16f5d6a953a0f8b37c80080454cc2cb6f7d579f213eeb1e251",
+                         "source_baseline":  "b448aa0",
+                         "runtime_source_files_compared":  516,
+                         "test_source_lf_sha256":  "312d40b54a6e734292afb767f170655d74d22aa24f79954a14dea85a58932285"
+                     },
+    "transport":  "Ubuntu LAN443, official hostname and verified TLS; no public18443 claim",
+    "firmware_last_readback":  "a30f6a8 / ELF 364a1d6f; 2026-11-12 22:53 HKT; not fresh measurement",
+    "service_restarts":  0,
+    "business_writes":  0,
+    "firmware_user_confirmation":  {
+                                       "date":  "2026-11-13",
+                                       "statement":  "已刷入 12f2ff1",
+                                       "commit":  "12f2ff1b3e224ff012bdce95799ebf19740dcd11",
+                                       "source":  "User reply in server acceptance chat",
+                                       "fresh_flash_readback":  false
+                                   }
+}

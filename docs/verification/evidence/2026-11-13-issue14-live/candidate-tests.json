@@ -1,0 +1,108 @@
+{
+  "source_commit": "5f01f35fb156463cbedf7dd1737256419d69267d",
+  "image_id": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
+  "run": "/home/jt/issue14-live-20261113/results/candidate-20261113T040147Z",
+  "exit_code": 0,
+  "unit_tests": {
+    "tests": 66,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "integration_cases": [
+    {
+      "result": "pass",
+      "scenario": "happy",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "ordinary",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "other-owner",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "tool-error",
+      "model_requests": 1,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "listen-start",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "abort-new-turn",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "revoked",
+      "late_model_and_tts_requests": 0,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "empty-answer",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "init-failed",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "device-tools",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    }
+  ],
+  "raw_sha256": {
+    "empty-answer.txt": "45954e91618dc3f5f64e22f30e65ad035be982464d97d101ce45fef5c01a83de",
+    "init-failed.txt": "df5314e1aa89bddcb1d17f3ecc009c972cce8462b4b11122513bb7811494ea71",
+    "tool-error.txt": "0d7a2ac27796c81db130da96325f1dfc5970eb1fc201fa6dc9ebd2566e358828",
+    "units.txt": "b1f904cf2bed718ee49ae95dbc27dbe62fda02d25b9331aeea60473dd85882bf",
+    "revoked.txt": "15de9127ea7515fff0fc6cc02938c565fc2a32af8e906db64f0688f4fb5d37c3",
+    "ordinary.txt": "40fccb32cd646001301c91e59e93e8a00f804825594ab1b10d3be4d418af1330",
+    "listen-start.txt": "700bc8b0e51c9c165a5c28b79a5064d4a092dee94ee26b59287807316f12143e",
+    "exit-code.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "other-owner.txt": "9a2a88cebe15215f286d2d9e18e4fd103d68015065da6af26fd32ae95e3e012b",
+    "candidate-image.txt": "3ceeead9829fad613ee3f00e1c8d62f25c0952a92999e00793c1381ee5ade6e4",
+    "abort-new-turn.txt": "3450712daaf408e90c18f851aa26bd0966c6d73f32b8198f32319637108e5f4e",
+    "happy.txt": "9eb0f7308332c0a26c292f7286381b843c3d3a9e62fce761078e3564f6d660e2",
+    "device-tools.txt": "bb2b09ad9720001831346973666d43db6ab561ce368c3b321ec61539b95dd256"
+  }
+}

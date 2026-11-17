@@ -1,0 +1,153 @@
+{
+  "image_id": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+  "run": "/home/jt/issue14-wake-repro-20261113/candidate/run-20261113T042709Z",
+  "unit_tests": {
+    "tests": 66,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "integration_cases": [
+    {
+      "result": "pass",
+      "scenario": "abort-new-turn",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "device-tools",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "empty-answer",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "happy",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "init-failed",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "listen-start",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "ordinary",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "other-owner",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "revoked",
+      "late_model_and_tts_requests": 0,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "tool-error",
+      "model_requests": 1,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "wake-abort-start",
+      "model_requests": 2,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "wake-start-twice",
+      "model_requests": 2,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "result": "pass",
+      "scenario": "wake-start",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    }
+  ],
+  "raw_sha256": {
+    "abort-new-turn.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "abort-new-turn.log": "daf8b14dfc2aaa160b342e91dc0a681f67c2b37333109f18e8bc735ea7ff28ec",
+    "device-tools.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "device-tools.log": "f637527ea19701fd468dbaccc114ed360a661e78dfd7356b202141a3e4a26151",
+    "empty-answer.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "empty-answer.log": "8777037a71d3a1d66412e2eb074e1518f4d82920b86765a1d87592e340f7aabb",
+    "happy.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "happy.log": "4acb0377b116ccf63de71d536dc490f9af772238aac02158a9d6deaef760a92d",
+    "image-modules.sha256": "51f72c3dfe6b0987167084449844a199d8ebc96df61f74778c1e648c09323625",
+    "init-failed.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "init-failed.log": "cc62c0f0fe73416fa16a7d6883b1f466f5316b0d85e213ec249dc8ebd617cd8f",
+    "listen-start.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "listen-start.log": "4d9cdd6ef77fd255548258386e59a57ddefae15042b2e2a41b372544793a914d",
+    "ordinary.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "ordinary.log": "71426d5fec521aec296c95c1459a1dbc78f749ced225704ba15e1038424fcdc1",
+    "other-owner.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "other-owner.log": "15a988c8cf99eae393172d2a18df2343055a303b7a95b5f67e8fe374384d1b37",
+    "revoked.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "revoked.log": "31c6209dc64c8178d2f2ca661d88dc8375912bb57e7435fee63c53277ca727a0",
+    "tool-error.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "tool-error.log": "72890fb9f09231f831fc704767bdf9451951fb684fc36bc6e08176a5dfd43e71",
+    "units.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "units.json": "bd5b8c229853d916c4eeff6c150d8d0701e594f830d6e842e2da519cb7f4d4f5",
+    "units.log": "8a2b2cde7e9683a25dce0ec68f2e1aad8e83aa1a0d4b65cab688f4a401bd8896",
+    "wake-abort-start.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "wake-abort-start.log": "ce6a47ad0d6f7d16bf1f541736577d084af9f0e28f5466d6f36e0647bffe725a",
+    "wake-start-twice.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "wake-start-twice.log": "969815b263e19e20074f43080b84e5610e03c5c917fdf1fe4490b4e49210e01c",
+    "wake-start.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "wake-start.log": "bea8755baf317b4f25eac7a0900e7b6b8f0b6c8258287efc7df9f8d8ae4b2c19"
+  },
+  "test_script_sha256": "6fe995a7a09e6d4e21b4de6656a575981db4fa7e1917fcc2c4dbba6988c264f7",
+  "source_module_sha256": {
+    "core/handle/receiveAudioHandle.py": "21a294028a8e7901214e86ea36564501b8149ca75066086c65d53f53746e265e",
+    "core/handle/textHandler/listenMessageHandler.py": "95e1bbaef47124b5c295b335cfcb165513c1296de9ab319755900efe98eac348",
+    "core/product_chat.py": "f57e4980a3e99311e66ce4bb586c625ab7398dbda197d0d3c957eb78f2586bc9"
+  }
+}

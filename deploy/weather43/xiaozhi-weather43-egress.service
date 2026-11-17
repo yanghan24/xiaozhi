@@ -1,0 +1,25 @@
+[Unit]
+Description=Xiaozhi weather43 independent egress
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jt
+Group=jt
+ExecStart=/home/jt/.local/libexec/weather43/mihomo -d /home/jt/.local/state/weather43-egress -f /home/jt/.config/xiaozhi-weather43/config.yaml
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/jt/.local/state/weather43-egress
+MemoryMax=268435456
+CPUQuota=50%
+LimitNOFILE=8192
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

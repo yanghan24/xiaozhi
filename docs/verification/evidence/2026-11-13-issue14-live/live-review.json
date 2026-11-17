@@ -1,0 +1,9 @@
+{
+  "result": "pass",
+  "image_id": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
+  "reviewed_answers_and_fragments": true,
+  "live_summary_path": "/home/jt/issue14-live-20261113/results/live-20261113T040205Z/live-summary.json",
+  "live_summary_sha256": "3a869e663453ae92be6f6d88cfe44a8ab90198a888a6ecd64a9f4aa5a012f6b0",
+  "independent_review_sha256": "6a45fd7568756579eab9a9244755da3cd4d334ca58671b55125a15d1ae5689d1",
+  "physical_device_acceptance": false
+}

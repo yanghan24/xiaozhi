@@ -1,0 +1,11 @@
+{
+  "name": "xiaozhi-manager-browser-check",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node check.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.56.1"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "result": "pass",
+  "run": "/home/jt/issue14-deployment-runs/20261113T040609.305642Z",
+  "image": "xiaozhi-product-voice:issue14-5f01f35",
+  "image_id": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
+  "rollback_wrapper": "/home/jt/issue14-rollback-20261113T040609.305642Z.sh",
+  "only_voice_recreated": true,
+  "nginx_graceful_reload": true,
+  "private_prompt_and_other_config_preserved": true,
+  "device_business_state_unchanged": true,
+  "maintenance_journals_unchanged": true,
+  "asr_provider": "market",
+  "asr_revision": "5",
+  "postchecks": {
+    "credential_http": 200,
+    "discovery_http": 200,
+    "websocket_upgrade": 101,
+    "unauthenticated_close": 1008,
+    "transport": "Ubuntu local443 with verified official-domain TLS and public18443 Host"
+  },
+  "model_calls_by_script": 0,
+  "mcp_calls_by_script": 0,
+  "ota_sent": false,
+  "physical_acceptance": false,
+  "postcheck_resume_reason": "Environment list order changed; exact key/value maps equal"
+}

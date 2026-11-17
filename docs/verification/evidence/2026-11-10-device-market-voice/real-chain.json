@@ -1,0 +1,11 @@
+{
+  "asr_http": 200,
+  "asr_seconds": 2.28,
+  "asr_nonempty": true,
+  "llm_http": 200,
+  "llm_done": true,
+  "llm_nonempty": true,
+  "edge_tts_decoded": true,
+  "tts_bytes": 26640,
+  "physical_device_test": false
+}

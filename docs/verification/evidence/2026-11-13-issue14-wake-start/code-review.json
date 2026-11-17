@@ -1,0 +1,23 @@
+{
+  "base_commit": "b7278d9546bff7d31501f16cd8eb858d66c3b009",
+  "scope": "Three wake-turn production modules and the WebSocket regression script",
+  "standards": {
+    "documented_violations": 0,
+    "correctness_blockers": 0,
+    "heuristic_findings": [
+      {
+        "severity": "low",
+        "kind": "Duplicated Code",
+        "description": "Wake and tool cancellation fixtures repeat the short hello-response barrier.",
+        "disposition": "Accepted for this focused regression; both sequences remain explicit and use the same timeout."
+      }
+    ]
+  },
+  "spec": {
+    "actionable_defects": 0,
+    "scope_creep": false,
+    "physical_acceptance": "pending"
+  },
+  "review_method": "Separate independent Standards and Spec reviewers; backend tests performed separately on Ubuntu",
+  "physical_device_playback_proven_by_review": false
+}

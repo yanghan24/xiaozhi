@@ -1,0 +1,170 @@
+{
+  "environment": "Ubuntu 192.168.168.114; Docker --network none, read-only production sources; external authority/model/MCP/Edge endpoints are fixtures",
+  "source_commit_before_review_fix": "8a9f243544ae47924af15a48e1541a82593f2512",
+  "source_commit_after_review_fix": "c418994bbb29909cb234ad1fe81bf54d4548ee29",
+  "real_mcp_sdk": "2.3.0",
+  "python": "3.10.22",
+  "physical_device_test": false,
+  "real_external_requests": 0,
+  "input": "WebSocket listen/detect text (not microphone)",
+  "passed": 10,
+  "failed": 0,
+  "cases": [
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/abort-new-turn-tests.txt",
+      "sha256": "d8ed304e97b98d3ab1ea440a2f4e4cab09547fa78a9203bf117b5f69976a5235",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "abort-new-turn",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/empty-answer-tests.txt",
+      "sha256": "31a07bfd9daa139c955faec52b2a0c3a54f61cc26a5d918c923cd1118124239f",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "empty-answer",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/happy-tests.txt",
+      "sha256": "62df6781ef55e8cec31c41c080289aed9baff95cfcf866c4988a6c459c8e96b8",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "happy",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/init-failed-tests.txt",
+      "sha256": "cd522179d1c77100925bdd16bf1a3cd0b60f696f21402ecf89719bd575c34d5a",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "init-failed",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/listen-start-tests.txt",
+      "sha256": "0417846ffe7b11d75e30f4374be769d851cd4af28b3938a588f2257fc008878b",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "listen-start",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/ordinary-tests.txt",
+      "sha256": "d7758d43cc8698b7336b8ce7bf090ccb84e786f52dd9deaa696237e9ca75f7bf",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "ordinary",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/other-owner-tests.txt",
+      "sha256": "d0856eb965afc5bce1e3327aba888e6886de22b768456bd5ccc573d0c986d689",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "other-owner",
+      "model_requests": 1,
+      "tool_requests": 0,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/revoked-tests.txt",
+      "sha256": "3fe9d0f17941167fb3028b3d950ff814cc3a9c6a07fbedbc1f5bb27380602bb1",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "revoked",
+      "late_model_and_tts_requests": 0,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T023814Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023814Z/tool-error-tests.txt",
+      "sha256": "2241cea4f3a467f3bcc5a1dc3445a2cf25c78953cbabc93439c7502bc1a93239",
+      "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+      "result": "pass",
+      "scenario": "tool-error",
+      "model_requests": 1,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    },
+    {
+      "run": "20261113T024324Z",
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T024324Z/device-tools-tests.txt",
+      "sha256": "97e8eb6c7f190181210aa32c922a5b449f798a8dcd5c897f40f711630f3e768d",
+      "source_archive_sha256": "8d4f8e287159d040eb91a2bce30a97c66eb8db26ae8c3cf37c4659461b11b64a",
+      "result": "pass",
+      "scenario": "device-tools",
+      "model_requests": 2,
+      "tool_requests": 1,
+      "audio": true,
+      "real_external_requests": 0
+    }
+  ],
+  "red_evidence": [
+    {
+      "run": "20261113T022617Z",
+      "case": "automatic knowledge absent",
+      "exit_code": 1,
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T022617Z/tests.txt",
+      "sha256": "c78f0620b9b807cbf256bcabf477745d90cb8682e8917e2e265e5bde8e1abfb3",
+      "source_archive_sha256": "9edd11560292b637a82d391385c0ea87a126f15e56e588a5cde21526cf138830",
+      "failure": "AssertionError: Expected one automatic MCP query through product entry"
+    },
+    {
+      "run": "20261113T023334Z",
+      "case": "listen start allowed stale continuation",
+      "exit_code": 1,
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023334Z/tests.txt",
+      "sha256": "7a1dd0b6bb8f4e1105290b5d137cf8a8f59c810715220cdda9e50bb5398f5841",
+      "source_archive_sha256": "2d1e86cee288bf1cd862bd408251775e049509b3e4de5ba462072ab37c3d3855",
+      "failure": "AssertionError: listen/start allowed obsolete model continuation"
+    },
+    {
+      "run": "20261113T023638Z",
+      "case": "empty model had no feedback",
+      "exit_code": 1,
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T023638Z/empty-answer-tests.txt",
+      "sha256": "ca16266ede055f41371cfbf4e3961db5e1bcf701b5c76a980244609bafbadbc9",
+      "source_archive_sha256": "683df00f85c48cf18a2fbbf1539661427fa8f75a051bf80b007eeeaae9c1c2f6",
+      "failure": "AssertionError: Empty model answer had no spoken failure feedback"
+    },
+    {
+      "run": "20261113T024259Z",
+      "case": "device MCP discovery threw AttributeError",
+      "exit_code": 1,
+      "log": "/home/jt/issue14-integration-20261113/results/20261113T024259Z/device-tools-tests.txt",
+      "sha256": "5b0aee57017df353286c5e0e5aa73f8f13d00804db09b0bf99cd9c7606aaac8b",
+      "source_archive_sha256": "06d45077186ba1dda5be4147a81773d1dec22d987816e6e6ce4f6ecaeea0c0cb",
+      "failure": "AssertionError: [\"'UnifiedToolHandler' object has no attribute 'tool_manager'\"]"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "primary350": {
+    "weather": {
+      "entries": 350,
+      "unique_returned_model_grids": 339,
+      "model_runs": [
+        1794312000
+      ],
+      "source_metadata_sha256": [
+        "dd8ec13b395247ffd3b18a3ea248356e32421f765580b978c681c82581b19a95"
+      ],
+      "all_entries_match_latest_observed_run_sha_and_have_grid": true
+    },
+    "air_quality": {
+      "entries": 350,
+      "unique_returned_model_grids": 339,
+      "model_runs": [
+        1794312000
+      ],
+      "source_metadata_sha256": [
+        "756474068e6ecab6520e2e6aa12fc921cf1a85986d0ad007dfd8c0b37d9fe0cd"
+      ],
+      "all_entries_match_latest_observed_run_sha_and_have_grid": true
+    }
+  },
+  "cold1000": {
+    "weather": {
+      "entries": 1000,
+      "unique_returned_model_grids": 939,
+      "model_runs": [
+        1794290400
+      ],
+      "source_metadata_sha256": [
+        "ebe092a4abda762e35a403c827b3c9405f2ad76b1832451ee4c4f257022a790a"
+      ]
+    },
+    "air_quality": {
+      "entries": 1000,
+      "unique_returned_model_grids": 942,
+      "model_runs": [
+        1794268800
+      ],
+      "source_metadata_sha256": [
+        "57dfc7ba119126a42f7161357a42da797ce27cb2f78f4b0c4f88692ded25c7fd"
+      ]
+    }
+  },
+  "cold50": {
+    "weather": {
+      "entries": 50,
+      "unique_returned_model_grids": 48,
+      "model_runs": [
+        1794290400
+      ],
+      "source_metadata_sha256": [
+        "ebe092a4abda762e35a403c827b3c9405f2ad76b1832451ee4c4f257022a790a"
+      ]
+    },
+    "air_quality": {
+      "entries": 50,
+      "unique_returned_model_grids": 47,
+      "model_runs": [
+        1794268800
+      ],
+      "source_metadata_sha256": [
+        "57dfc7ba119126a42f7161357a42da797ce27cb2f78f4b0c4f88692ded25c7fd"
+      ]
+    }
+  }
+}

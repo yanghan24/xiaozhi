@@ -1,0 +1,67 @@
+{
+  "verified_at": "2026-11-12T05:08:39.072860+00:00",
+  "merged_commit": "7864e254a69167c309b59256afe72de3c5a77c90",
+  "merged_tree_identical_to_reviewed_head": true,
+  "candidate_regression": {
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "network": "none",
+    "imports_from_candidate_image": true
+  },
+  "services": {
+    "xiaozhi-pr26-api": {
+      "image": "xiaozhi-product-api:1b50709",
+      "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
+      "running": true,
+      "started_at": "2026-11-12T03:13:39.656388819Z"
+    },
+    "xiaozhi-pr26-voice": {
+      "image": "xiaozhi-product-voice:pr79-f830a8c",
+      "image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
+      "running": true,
+      "started_at": "2026-11-12T04:58:41.212323763Z"
+    },
+    "issue29-db": {
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "running": true,
+      "started_at": "2026-11-12T02:51:28.32525526Z"
+    },
+    "issue29-redis": {
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "running": true,
+      "started_at": "2026-11-12T02:51:27.984403759Z"
+    },
+    "xiaozhi-ubuntu-test-public-entry-public-entry-1": {
+      "image": "xiaozhi-offline-nginx:1.27.4-20261106",
+      "image_id": "sha256:1ff4bb4faebcfb1f7e01144fa9904a570ab9bab88694457855feb6c6bba3fa07",
+      "running": true,
+      "started_at": "2026-11-12T02:51:28.817270192Z"
+    }
+  },
+  "only_voice_recreated": true,
+  "b_state": {
+    "admitted": "1",
+    "local_enabled": "1",
+    "reason": "ready",
+    "permission_version": "19",
+    "ownership_version": "7",
+    "has_owner": "1",
+    "recovery_status": "delivered",
+    "credential_matches_delivered_recovery": "1"
+  },
+  "maintenance_status": {
+    "status": "current",
+    "mcp_ready": true
+  },
+  "recorded_device_state_unchanged": true,
+  "original_operation_unchanged": true,
+  "live_compose_matches_tested_candidate": true,
+  "api_restart_performed": false,
+  "ubuntu_host_restart_performed": false,
+  "physical_voice_acceptance_performed": false,
+  "ota_sent": false
+}

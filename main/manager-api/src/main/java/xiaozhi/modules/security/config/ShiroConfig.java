@@ -1,0 +1,157 @@
+package xiaozhi.modules.security.config;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.apache.shiro.session.mgt.SessionManager;
+import org.apache.shiro.spring.LifecycleBeanPostProcessor;
+import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
+import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
+import org.apache.shiro.web.config.ShiroFilterConfiguration;
+import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
+import org.apache.shiro.web.mgt.WebSecurityManager;
+import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Role;
+
+import jakarta.servlet.Filter;
+import xiaozhi.modules.security.oauth2.Oauth2Filter;
+import xiaozhi.modules.security.oauth2.Oauth2Realm;
+import xiaozhi.modules.security.secret.ServerSecretFilter;
+import xiaozhi.modules.sys.service.SysParamsService;
+
+/**
+ * Shiro的配置文件
+ * Copyright (c) 人人开源 All rights reserved.
+ * Website: https://www.renren.io
+ */
+@Configuration
+public class ShiroConfig {
+
+    @Bean
+    public DefaultWebSessionManager sessionManager() {
+        DefaultWebSessionManager sessionManager = new DefaultWebSessionManager();
+        sessionManager.setSessionValidationSchedulerEnabled(false);
+        sessionManager.setSessionIdUrlRewritingEnabled(false);
+
+        return sessionManager;
+    }
+
+    @Bean("securityManager")
+    public WebSecurityManager securityManager(Oauth2Realm oAuth2Realm, SessionManager sessionManager) {
+        DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
+        securityManager.setRealm(oAuth2Realm);
+        securityManager.setSessionManager(sessionManager);
+        securityManager.setRememberMeManager(null);
+        return securityManager;
+    }
+
+    @Bean("shiroFilter")
+    public static ShiroFilterFactoryBean shirFilter(@Lazy WebSecurityManager securityManager,
+            @Lazy SysParamsService sysParamsService,
+            @Lazy xiaozhi.modules.devicecontrol.DeviceControlService deviceControlService) {
+        ShiroFilterConfiguration config = new ShiroFilterConfiguration();
+        config.setFilterOncePerRequest(true);
+
+        ShiroFilterFactoryBean shiroFilter = new ShiroFilterFactoryBean();
+        shiroFilter.setSecurityManager(securityManager);
+        shiroFilter.setShiroFilterConfiguration(config);
+
+        Map<String, Filter> filters = new HashMap<>();
+        // oauth过滤
+        filters.put("oauth2", new Oauth2Filter());
+        filters.put("deliveryAdmin", new xiaozhi.modules.devicecontrol.DeviceDeliveryAdminFilter());
+        filters.put("productOtaAdmin", new xiaozhi.modules.devicecontrol.DeviceDeliveryAdminFilter(false));
+        filters.put("deviceCredential", new xiaozhi.modules.devicecontrol.DeviceCredentialFilter(deviceControlService));
+        // 服务密钥过滤
+        filters.put("server", new ServerSecretFilter(sysParamsService));
+        shiroFilter.setFilters(filters);
+
+        // 添加Shiro的内置过滤器
+        /*
+         * anon：无需认证就可以访问
+         * authc：必须认证了才能让问
+         * user：必须拥有，记住我功能，才能访问
+         * perms：拥有对某个资源的权限才能访问
+         * role：拥有某个角色权限才能访问
+         */
+        Map<String, String> filterMap = new LinkedHashMap<>();
+        filterMap.put("/admin/product-ota/**", "productOtaAdmin");
+        filterMap.put("/ota-artifacts/*/*.bin", "anon");
+        filterMap.put("/device-delivery/v1/authorize", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/recoveries", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/recoveries/*", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/recoveries/*/complete", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/credentials", "deliveryAdmin");
+        filterMap.put("/device-delivery/v1/credentials/*/revoke", "deliveryAdmin");
+        // Tool grants and pending device credentials have separate, bounded validation.
+        filterMap.put("/device-delivery/v1/operations", "anon");
+        filterMap.put("/device-delivery/v1/operations/*", "anon");
+        filterMap.put("/device-delivery/v1/operations/*/complete", "anon");
+        filterMap.put("/device-delivery/v1/device-check", "anon");
+        filterMap.put("/device-control/**", "deviceCredential");
+        // Private endpoint checks its separate service credential and current permission.
+        filterMap.put("/internal/device-voice/v1/*", "anon");
+        // Customer identity has its own browser/CSRF/OIDC validation. Never
+        // authenticate these sessions as management users.
+        filterMap.put("/bind/*", "anon");
+        filterMap.put("/customer/binding-flows", "anon");
+        filterMap.put("/customer/binding-flows/*", "anon");
+        filterMap.put("/customer/v1/binding-flows", "anon");
+        filterMap.put("/customer/v1/binding-flows/*", "anon");
+        filterMap.put("/customer/v1/binding-flows/*/confirm", "anon");
+        filterMap.put("/customer/v1/binding-flows/*/open-account", "anon");
+        filterMap.put("/customer/v1/device-sessions/*/sign-out", "anon");
+        filterMap.put("/customer/v1/device-operations/*", "anon");
+        filterMap.put("/customer/oidc/callback", "anon");
+        filterMap.put("/customer/oidc/backchannel-logout", "anon");
+        filterMap.put("/customer/results/*", "anon");
+        filterMap.put("/customer/devices/*", "anon");
+        filterMap.put("/customer/identity-error/*", "anon");
+        filterMap.put("/ota/**", "anon");
+        filterMap.put("/otaMag/download/**", "anon");
+        filterMap.put("/webjars/**", "anon");
+        filterMap.put("/druid/**", "anon");
+        filterMap.put("/v3/api-docs/**", "anon");
+        filterMap.put("/doc.html", "anon");
+        filterMap.put("/favicon.ico", "anon");
+        filterMap.put("/user/captcha", "anon");
+        filterMap.put("/user/smsVerification", "anon");
+        filterMap.put("/user/login", "anon");
+        filterMap.put("/user/refresh", "anon");
+        filterMap.put("/user/pub-config", "anon");
+        filterMap.put("/user/register", "anon");
+        filterMap.put("/user/retrieve-password", "anon");
+        // 将config路径使用server服务过滤器
+        filterMap.put("/config/**", "server");
+        filterMap.put("/device/address-book/call", "server");
+        filterMap.put("/agent/chat-history/report", "server");
+        filterMap.put("/agent/chat-history/download/**", "anon");
+        filterMap.put("/agent/chat-summary/**", "server");
+        filterMap.put("/agent/chat-title/**", "server");
+        filterMap.put("/agent/play/**", "anon");
+        filterMap.put("/voiceClone/play/**", "anon");
+        filterMap.put("/**", "oauth2");
+        shiroFilter.setFilterChainDefinitionMap(filterMap);
+
+        return shiroFilter;
+    }
+
+    @Bean("lifecycleBeanPostProcessor")
+    public static LifecycleBeanPostProcessor lifecycleBeanPostProcessor() {
+        return new LifecycleBeanPostProcessor();
+    }
+
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public static AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor(
+            @Lazy WebSecurityManager securityManager) {
+        AuthorizationAttributeSourceAdvisor advisor = new AuthorizationAttributeSourceAdvisor();
+        advisor.setSecurityManager(securityManager);
+        return advisor;
+    }
+}

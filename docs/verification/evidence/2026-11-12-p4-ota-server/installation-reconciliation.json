@@ -1,0 +1,26 @@
+{
+  "observed_at": "2026-11-12T03:33:41.701577+00:00",
+  "operation_id": "e029d00a3ade4616adebfce862108b73",
+  "result": "target_installation_verified_by_hardware_readback_report",
+  "hardware": {
+    "reported_by": "human user relaying hardware team confirmation",
+    "hardware_observation_window": "2026-11-12 11:28\u201311:30 Asia/Hong_Kong",
+    "running_elf_sha256": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+    "product_sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+    "active_slot_before": "ota_0",
+    "active_slot_after": "ota_1",
+    "slot_state": "VALID",
+    "crc_valid": true,
+    "full_product_readback_matches": true,
+    "reset_boot_networked": true,
+    "hardware_identity_access_credential_and_device_ctrl_unchanged": true,
+    "live_download_write_automatic_restart_trace_captured": false,
+    "qr_and_full_voice_verified": false
+  },
+  "server_snapshot_before": "/home/jt/issue42-p4-ota-20261112/20261112T031954Z",
+  "server_snapshot_after": "/home/jt/issue42-p4-ota-20261112/20261112T033309Z",
+  "all_recorded_devices_owner_credential_permission_recoveries_and_hardware_mapping_unchanged": true,
+  "retry_performed": false,
+  "original_transport_record_preserved": true,
+  "factory_reset_verified": false
+}

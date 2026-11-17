@@ -1,0 +1,9 @@
+{
+  "totals": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "reports_directory": ".runtime/interop-reports-20261113T110905Z"
+}

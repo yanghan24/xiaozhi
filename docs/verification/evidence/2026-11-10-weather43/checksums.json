@@ -1,0 +1,10 @@
+{
+  "ubuntu-sources-before.json": "3c4aafa28da4e01baaa29a21f8beab42adc0cfcc1ec1a17c1571dfd70d4baba0",
+  "ubuntu-gfs-sources.json": "b0b15cdc5e22f7b97d861c14ee5f2812558f394e3aa9002391e0e50557697be9",
+  "ubuntu-sources-after.json": "16363df1de8662670ba06faacb79add29f095ed9e604616a9df3932ac16ef552",
+  "environment-and-results.json": "3697ec4d95a51ecd197c7a276df41ed2e79bdab208e8d45a8d4c1121a15dd54e",
+  "image-verification.json": "de1794c036553fdfcf27fe42ff1fe8c87dbc844ec558a305042f5cdff4f74e0d",
+  "cleanup.json": "c81a98f037a2ff4f6ebcc674346cc2ed702d23580d3362efdaf7bab926ab5f56",
+  "real-response-sample.json": "be762204b4efa65eae108f08215f09b791232c43c382720e9680d517c53aa15f",
+  "raw-results.tar.gz": "55e07ba91f6d9dc212914ab7fac7dc1302073ff05a652c9549b6230bd66b232b"
+}

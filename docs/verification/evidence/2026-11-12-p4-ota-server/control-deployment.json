@@ -1,0 +1,11 @@
+{
+  "observed_at": "20261112T031407Z",
+  "voice_image": "xiaozhi-product-voice:p4-maintenance-20261112",
+  "maintenance_socket_ready": true,
+  "only_voice_recreated": true,
+  "device_owner_credential_permission_recovery_and_hardware_mapping_unchanged": true,
+  "api_image": "xiaozhi-product-api:1b50709",
+  "rollback_compose": "/home/jt/issue42-p4-ota-20261112/control-20261112T031407Z/compose-before.json",
+  "control_scope": "B only, root Unix socket, current authenticated product session and permission",
+  "upgrade_sent": false
+}

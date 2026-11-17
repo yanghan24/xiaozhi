@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "marker": "baseline.acceptance.1793956177540",
+  "value": "manager-write-read-verified",
+  "same_saved_configuration": true,
+  "existing_admin_session_valid": true
+}

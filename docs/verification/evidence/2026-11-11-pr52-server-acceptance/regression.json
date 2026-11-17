@@ -1,0 +1,259 @@
+{
+  "completed_at": "2026-11-11T04:39:52.152948+00:00",
+  "revision": "1468eeb0ec0962e6a2862274f79471d3f7699e00",
+  "totals": {
+    "tests": 349,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "integration_guard": true,
+  "exit_code": 0,
+  "suites": [
+    {
+      "name": "xiaozhi.common.redis.RedisSerializationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.common.utils.JsonUtilsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerIdentityHttpTest",
+      "tests": 43,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerProfileDisplayTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.agent.typehandler.ContextProviderListTypeHandlerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.model.service.impl.ModelConfigPersistenceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.common.utils.SensitiveDataUtilsTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.service.impl.DeviceAutoUpdateTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.sys.loginControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.knowledge.rag.KnowledgeBaseAdapterFactoryTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.config.service.impl.ConfigServiceImplTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.devicecontrol.DeviceDeliveryHttpTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.model.service.impl.ModelConfigServiceImplTest",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.DeviceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.security.config.ShiroConfigTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.service.impl.DeviceAddressBookServiceImplTest",
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerBindingRestartTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.timbre.service.impl.TimbreServiceImplTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.service.impl.DeviceTimeSerializationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.common.utils.AESUtilsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.agent.service.impl.AgentSnapshotServiceImplTest",
+      "tests": 59,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.service.impl.DeviceServiceImplTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.sys.service.impl.SysParamsServiceImplTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.controller.DeviceControllerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerVoiceDisabledHttpTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.devicecontrol.DeviceControlHttpTest",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.device.service.impl.MqttGatewayAuthorizationTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerBindingHttpTest",
+      "tests": 39,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerVoicePermissionHttpTest",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.agent.service.impl.AgentSnapshotRedactionRunnerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.common.service.impl.BaseServiceImplTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.correctword.service.impl.CorrectWordFileServiceImplTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.agent.dto.AgentUpdateDTOTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerIdentityRestartTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "xiaozhi.modules.sys.service.impl.SysDictDataServiceImplTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ]
+}

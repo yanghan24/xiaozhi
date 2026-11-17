@@ -1,0 +1,22 @@
+CREATE TABLE dc_ota_operation (
+ operation_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+ preview_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+ request_key CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ operator_id BIGINT NOT NULL,
+ device_id VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ active_device VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NULL UNIQUE,
+ firmware_id CHAR(32) NOT NULL,
+ artifact_sha256 CHAR(64) NOT NULL,
+ target_version VARCHAR(32) NOT NULL,
+ target_elf_sha256 CHAR(64) NOT NULL,
+ snapshot TEXT NOT NULL,
+ status VARCHAR(40) NOT NULL,
+ reason VARCHAR(64) NOT NULL,
+ observation_status VARCHAR(32) NOT NULL DEFAULT 'unobserved',
+ observed_at_ms BIGINT NULL,
+ created_at_ms BIGINT NOT NULL,
+ updated_at_ms BIGINT NOT NULL,
+ download_expires BIGINT NOT NULL,
+ UNIQUE KEY ota_request(operator_id,request_key),
+ INDEX ota_device(device_id,created_at_ms)
+);

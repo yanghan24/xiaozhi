@@ -1,0 +1,124 @@
+{
+  "recorded_date": "2026-11-10",
+  "timezone": "Asia/Shanghai",
+  "device_ref": "P4-01",
+  "scope": "physical_device_ui_recovery_and_voice_observation",
+  "sources": {
+    "firmware": "现场 recovery-manifest.json、device-after.json",
+    "ui_check": "现场 ui-regression-diagnosis.json",
+    "voice": "现场 observation-20261110T042409Z.json、user-confirmation.json",
+    "historical_server_restart": "现场 evidence/voice-after-service-restart.json；仅用户转述"
+  },
+  "firmware": {
+    "source_revision": "f639dd332dd603e3b9ec7c00bd888a97b9770baa",
+    "version": "2.2.6",
+    "build_date": "Nov 10 2026",
+    "build_time": "11:39:23",
+    "idf_version": "v5.5.5",
+    "image_sha256": "fdf422a87cde8d2962d33f0b7189711d1eb23d9c2c849fb8e6766efab958a077",
+    "image_elf_sha256": "5ca22431212c46cadf02f77ac7b20f16c68f1d979d8b21596f97518c64b104c1",
+    "image_bytes": 4081632,
+    "app_offset": 131072,
+    "app_partition_bytes": 4128768,
+    "free_bytes": 47136,
+    "min_chip_revision": 301,
+    "max_chip_revision": 399,
+    "configuration_changes_from_original_custom_build": [
+      "OTA_URL"
+    ],
+    "ota_url": "https://bridge.hncig.cn:18443/xiaozhi/ota/"
+  },
+  "ui_comparison": {
+    "original_build_ui_check": "passed",
+    "voice_test_build_ui_check": "failed_missing_dashboard_and_logo_sources_and_symbols",
+    "configuration_keys_changed_from_original_custom_build": [
+      "OTA_URL"
+    ],
+    "recovery_dashboard_source_in_build": true,
+    "recovery_logo_source_in_build": true,
+    "recovery_telemetry_source_in_build": true,
+    "recovery_binary_ui_check": "passed_dashboard_and_logo_compiled_and_linked",
+    "main_source_list_matches_original_custom_build": true
+  },
+  "flash": {
+    "flash_completed": true,
+    "flash_write_hash_verified": true,
+    "device_readback_verified": true
+  },
+  "device_readback": {
+    "application_matches_recovery_image": true,
+    "partition_table_matches_device": true,
+    "wifi_settings_preserved": true,
+    "device_uuid_preserved": true,
+    "partition_table_preserved": true,
+    "ota_boot_records_preserved": true,
+    "assets_partition_preserved": true,
+    "cached_websocket_url": "wss://bridge.hncig.cn:18443/xiaozhi/v1/",
+    "idle_after_recovery": true
+  },
+  "voice_observation": {
+    "observation_started_utc": "2026-11-10T04:24:09.169956+00:00",
+    "device_reset_command_sent": false,
+    "host_injected_speech": false,
+    "stt_texts": [
+      "请用一句话介绍你自己"
+    ],
+    "reply_sentence_parts_observed": [
+      "我是你的声音助手",
+      "负责把想法变成简洁、温暖、靠谱的回答"
+    ],
+    "speaking_returned_to_listening_observed": true,
+    "timing_scope": "设备串口观察时间，不是服务器 ASR/LLM/TTS 独立耗时"
+  },
+  "user_confirmation": {
+    "user_feedback": {
+      "original_home_ui": "已恢复",
+      "voice_reply": "回复语音完整"
+    },
+    "ui_restoration_confirmed_by_user": true,
+    "voice_playback_complete_confirmed_by_user": true,
+    "server_restart_repeated_on_this_ui_build": false,
+    "error_message_screen_check_reconfirmed": null
+  },
+  "model_configuration": {
+    "source": "服务器侧此前配置报告，由用户转述；本次没有独立读取服务器",
+    "ASR": "集市 Qwen ASR",
+    "LLM": "qwen3.8-flash",
+    "TTS": "Edge TTS"
+  },
+  "historical_baseline_image_restart": {
+    "applies_to_image_sha256": "e22af020b6373f1fddde3bc9282ba4671f2f422d21cdebd57aa59400a26eea7b",
+    "source_revision": "9bb2785aaec77346f473d1c932eca25743ed2d42",
+    "build_time": "09:59:40",
+    "device_restart_observed_local_time": "2026-11-10T11:14:51+08:00",
+    "device_restart_voice_user_feedback": "仍能回答",
+    "server_result_source": "用户转述现场与服务器侧重启复验结果",
+    "reactivation_required": false,
+    "recognition_normal": true,
+    "complete_audio_playback_normal": true,
+    "server_reported_calls_after_restart": {
+      "ASR": {
+        "successful": 2,
+        "failed": 0
+      },
+      "LLM": {
+        "successful": 2,
+        "failed": 0
+      }
+    },
+    "server_restart_time": null,
+    "server_components_restarted": null,
+    "server_versions_before_and_after": null,
+    "applies_to_current_recovery_image": false
+  },
+  "not_collected_for_current_image": [
+    "server_source_revision_and_runtime_image_ids",
+    "server_session_and_audio_delivery_correlation",
+    "server_provider_call_counts",
+    "server_restart_reverification",
+    "conversation_latency_measurements",
+    "server_resource_observations",
+    "current_ports_firewall_and_wifi_isolation_checks"
+  ],
+  "publication_scope": "脱敏报告摘要；不含完整设备身份、凭据、原始日志、录音、设备配置或固件二进制"
+}

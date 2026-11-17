@@ -1,0 +1,402 @@
+{
+  "result": "greeting_observation_only",
+  "collected_at": "2026-11-13T04:35:51.579797Z",
+  "device_alias": "B",
+  "b_scope_matches": true,
+  "observed_B_sessions": 1,
+  "mapped_fixed_greeting_turn_count": 4,
+  "greeting_turns": [
+    {
+      "observation_index": 1,
+      "input_log_at": "2026-11-13T04:33:27.736442807Z",
+      "model_started_count": 1,
+      "model_started_at": "2026-11-13T04:33:27.736865944Z",
+      "first_audio_send_completed_count": 1,
+      "first_audio_send_completed_at": "2026-11-13T04:33:41.199673124Z",
+      "tts_stop_send_completed_count": 1,
+      "tts_stop_send_completed_at": "2026-11-13T04:33:57.123938812Z",
+      "audio_frames": 249,
+      "turn_failed_count": 0,
+      "input_to_first_audio_seconds": 13.463,
+      "input_to_stop_seconds": 29.387,
+      "physical_playback_from_server_logs": "unverified"
+    },
+    {
+      "observation_index": 2,
+      "input_log_at": "2026-11-13T04:34:09.398727311Z",
+      "model_started_count": 1,
+      "model_started_at": "2026-11-13T04:34:09.399346292Z",
+      "first_audio_send_completed_count": 1,
+      "first_audio_send_completed_at": "2026-11-13T04:34:11.826239086Z",
+      "tts_stop_send_completed_count": 0,
+      "tts_stop_send_completed_at": null,
+      "audio_frames": null,
+      "turn_failed_count": 0,
+      "input_to_first_audio_seconds": 2.428,
+      "input_to_stop_seconds": null,
+      "physical_playback_from_server_logs": "unverified"
+    },
+    {
+      "observation_index": 3,
+      "input_log_at": "2026-11-13T04:34:24.782017546Z",
+      "model_started_count": 1,
+      "model_started_at": "2026-11-13T04:34:24.782401639Z",
+      "first_audio_send_completed_count": 1,
+      "first_audio_send_completed_at": "2026-11-13T04:34:27.664139702Z",
+      "tts_stop_send_completed_count": 0,
+      "tts_stop_send_completed_at": null,
+      "audio_frames": null,
+      "turn_failed_count": 0,
+      "input_to_first_audio_seconds": 2.882,
+      "input_to_stop_seconds": null,
+      "physical_playback_from_server_logs": "unverified"
+    },
+    {
+      "observation_index": 4,
+      "input_log_at": "2026-11-13T04:34:31.842638626Z",
+      "model_started_count": 1,
+      "model_started_at": "2026-11-13T04:34:31.842888368Z",
+      "first_audio_send_completed_count": 1,
+      "first_audio_send_completed_at": "2026-11-13T04:34:37.364962747Z",
+      "tts_stop_send_completed_count": 0,
+      "tts_stop_send_completed_at": null,
+      "audio_frames": null,
+      "turn_failed_count": 0,
+      "input_to_first_audio_seconds": 5.522,
+      "input_to_stop_seconds": null,
+      "physical_playback_from_server_logs": "unverified"
+    }
+  ],
+  "event_sequence": [
+    {
+      "at_utc": "2026-11-13T04:33:27.691576508Z",
+      "event": "protocol_listen",
+      "state": "detect",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        1
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:33:27.717500988Z",
+      "event": "tts_start_send_completed",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:33:27.736442807Z",
+      "event": "greeting_input",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:33:27.736865944Z",
+      "event": "model decision started",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:33:27.742127091Z",
+      "event": "protocol_listen",
+      "state": "start",
+      "mode": "auto",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        1
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:33:41.016050857Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:33:41.199673124Z",
+      "event": "first_audio_send_completed",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:33:43.207641109Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 22
+    },
+    {
+      "at_utc": "2026-11-13T04:33:57.123938812Z",
+      "event": "tts_stop_send_completed",
+      "greeting_observation_index": 1,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 249
+    },
+    {
+      "at_utc": "2026-11-13T04:33:57.177245019Z",
+      "event": "protocol_listen",
+      "state": "start",
+      "mode": "auto",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        1
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:07.562390623Z",
+      "event": "protocol_listen",
+      "state": "stop",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:09.340928429Z",
+      "event": "protocol_listen",
+      "state": "detect",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:09.367423168Z",
+      "event": "tts_start_send_completed",
+      "greeting_observation_index": 2,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:34:09.386758282Z",
+      "event": "protocol_listen",
+      "state": "start",
+      "mode": "auto",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:09.398727311Z",
+      "event": "greeting_input",
+      "greeting_observation_index": 2,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:09.399346292Z",
+      "event": "model decision started",
+      "greeting_observation_index": 2,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:11.659067403Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 2,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:34:11.826239086Z",
+      "event": "first_audio_send_completed",
+      "greeting_observation_index": 2,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:13.529019624Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 2,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 20
+    },
+    {
+      "at_utc": "2026-11-13T04:34:20.113766465Z",
+      "event": "protocol_abort",
+      "state": "other_or_absent",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:24.726947816Z",
+      "event": "protocol_listen",
+      "state": "detect",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2,
+        3
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:24.752205519Z",
+      "event": "tts_start_send_completed",
+      "greeting_observation_index": 3,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:34:24.771778935Z",
+      "event": "protocol_listen",
+      "state": "start",
+      "mode": "auto",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2,
+        3
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:24.782017546Z",
+      "event": "greeting_input",
+      "greeting_observation_index": 3,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:24.782401639Z",
+      "event": "model decision started",
+      "greeting_observation_index": 3,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:27.525910167Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 3,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:34:27.664139702Z",
+      "event": "first_audio_send_completed",
+      "greeting_observation_index": 3,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:29.887254321Z",
+      "event": "protocol_abort",
+      "state": "other_or_absent",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:31.803225062Z",
+      "event": "protocol_listen",
+      "state": "detect",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:31.821020806Z",
+      "event": "tts_start_send_completed",
+      "greeting_observation_index": 4,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:34:31.836141401Z",
+      "event": "protocol_listen",
+      "state": "start",
+      "mode": "auto",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "at_utc": "2026-11-13T04:34:31.842638626Z",
+      "event": "greeting_input",
+      "greeting_observation_index": 4,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:31.842888368Z",
+      "event": "model decision started",
+      "greeting_observation_index": 4,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:37.216155670Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 4,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 0
+    },
+    {
+      "at_utc": "2026-11-13T04:34:37.364962747Z",
+      "event": "first_audio_send_completed",
+      "greeting_observation_index": 4,
+      "session_binding": "explicit_mapped_B_session"
+    },
+    {
+      "at_utc": "2026-11-13T04:34:39.476280358Z",
+      "event": "tts_sentence_start_send_completed",
+      "greeting_observation_index": 4,
+      "session_binding": "explicit_mapped_B_session",
+      "audio_frames": 22
+    },
+    {
+      "at_utc": "2026-11-13T04:34:44.261095759Z",
+      "event": "protocol_abort",
+      "state": "other_or_absent",
+      "mode": "other_or_absent",
+      "session_binding": "explicit_mapped_B_session",
+      "near_greeting_observation_indexes": [
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "raw_log_sha256": "24ad5f5ff6a68e89e7bc5b3a7173f3af49d262b87499092ba6390b9e5f7fe4bf",
+  "source_versions": {
+    "voice_image": "xiaozhi-product-voice:issue14-wake-69398b3",
+    "voice_image_id": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
+    "voice_started_at": "2026-11-13T04:32:14.520271114Z",
+    "source_commit": "69398b3c0c134529790d719d8ff27f8a452545a9",
+    "runtime_source_hashes_match_manifest": true,
+    "asr_provider": "market",
+    "asr_revision": "5"
+  },
+  "three_question_acceptance": false,
+  "fixed_question_cases": {
+    "ordinary": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    },
+    "knowledge1": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    },
+    "knowledge2": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    }
+  },
+  "listen_state_mode_attribution": "Only explicit session fields prove B; unscoped protocol lines are temporal context only",
+  "server_send_completion_is_not_device_playback_receipt": true,
+  "user_confirmation_source": "Root reports user confirmed complete greeting and roughly within 10 seconds; separate from server timestamps",
+  "actions": {
+    "service_changes": 0,
+    "model_calls": 0,
+    "knowledge_calls": 0,
+    "ota_calls": 0
+  }
+}

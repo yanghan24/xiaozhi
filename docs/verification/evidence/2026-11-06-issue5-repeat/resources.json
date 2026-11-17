@@ -1,0 +1,11 @@
+{
+  "host": "192.168.168.114",
+  "scope": "idle_after_service_restart",
+  "docker_stats": [
+    "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"1.95%\",\"Container\":\"xiaozhi-ubuntu-test-api-1\",\"ID\":\"37d11e5f3a3f\",\"MemPerc\":\"35.97%\",\"MemUsage\":\"322.3MiB / 896MiB\",\"Name\":\"xiaozhi-ubuntu-test-api-1\",\"NetIO\":\"418kB / 227kB\",\"PIDs\":\"35\"}",
+    "{\"BlockIO\":\"0B / 53.2kB\",\"CPUPerc\":\"0.00%\",\"Container\":\"xiaozhi-ubuntu-test-voice-1\",\"ID\":\"703115ade66d\",\"MemPerc\":\"18.43%\",\"MemUsage\":\"118MiB / 640MiB\",\"Name\":\"xiaozhi-ubuntu-test-voice-1\",\"NetIO\":\"104kB / 36.4kB\",\"PIDs\":\"11\"}",
+    "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.00%\",\"Container\":\"xiaozhi-ubuntu-test-web-1\",\"ID\":\"24abbe393906\",\"MemPerc\":\"7.56%\",\"MemUsage\":\"7.262MiB / 96MiB\",\"Name\":\"xiaozhi-ubuntu-test-web-1\",\"NetIO\":\"52.1kB / 23.4kB\",\"PIDs\":\"9\"}",
+    "{\"BlockIO\":\"442kB / 19.7MB\",\"CPUPerc\":\"0.59%\",\"Container\":\"xiaozhi-ubuntu-test-mysql-1\",\"ID\":\"959e975da4ac\",\"MemPerc\":\"20.43%\",\"MemUsage\":\"130.8MiB / 640MiB\",\"Name\":\"xiaozhi-ubuntu-test-mysql-1\",\"NetIO\":\"93kB / 282kB\",\"PIDs\":\"40\"}",
+    "{\"BlockIO\":\"106kB / 53.2kB\",\"CPUPerc\":\"0.99%\",\"Container\":\"xiaozhi-ubuntu-test-redis-1\",\"ID\":\"4beda8efb2d0\",\"MemPerc\":\"2.27%\",\"MemUsage\":\"4.367MiB / 192MiB\",\"Name\":\"xiaozhi-ubuntu-test-redis-1\",\"NetIO\":\"48kB / 97.4kB\",\"PIDs\":\"6\"}"
+  ]
+}

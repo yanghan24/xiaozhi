@@ -1,0 +1,31 @@
+{
+  "observed_at_utc": "2026-11-11T09:25:48.058617+00:00",
+  "device_alias": "B",
+  "installed_source": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+  "product_sha256": "0947b2a879a5ed3e5390796f55997706b189707a8593383049957fbc3514db4f",
+  "product_elf_sha256": "a04fda6db5e0feb4ea5c81d174fd44ecb606ae6a6cd3af6c1d40d4ee67683419",
+  "current_application_backed_up_and_matches_artifact": true,
+  "current_nvs_backed_up": true,
+  "protected_prefix_and_assets_match_recovery": true,
+  "reviewed_identity_and_recovery_sources_unchanged": true,
+  "product_build_checks": {
+    "product_config": true,
+    "maintenance_disabled": true,
+    "application_size_optimization": true,
+    "product_sources": true,
+    "no_maintenance_source": true,
+    "dashboard_and_control_linked": true,
+    "no_maintenance_entrypoint": true,
+    "identity_erase_guard": true,
+    "preserved_16mb_layout": true,
+    "image_fits_both_slots": true
+  },
+  "same_device_id_after_reset": true,
+  "same_hardware_pair_after_reset": true,
+  "running_elf_matches_current_artifact": true,
+  "network_connected_after_reset": true,
+  "original_recovery_still_current_and_delivered": true,
+  "flash_written": false,
+  "identity_written": false,
+  "credentials_rotated": false
+}

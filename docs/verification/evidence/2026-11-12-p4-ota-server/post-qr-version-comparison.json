@@ -1,0 +1,22 @@
+{
+  "observed_at": "2026-11-12T03:35:43.246213+00:00",
+  "before": "/home/jt/issue42-p4-ota-20261112/20261112T033309Z",
+  "after": "/home/jt/issue42-p4-ota-20261112/20261112T033507Z",
+  "b_changed_fields": {
+    "credential_hash": false,
+    "admitted": false,
+    "owner_issuer": false,
+    "owner_subject": false,
+    "permission_version": true,
+    "reason": false,
+    "ownership_version": true,
+    "local_enabled": false
+  },
+  "b_owner_unchanged": true,
+  "b_credential_unchanged": true,
+  "b_permission_version_before": "17",
+  "b_permission_version_after": "19",
+  "b_ownership_version_before": "5",
+  "b_ownership_version_after": "7",
+  "other_devices_unchanged": true
+}

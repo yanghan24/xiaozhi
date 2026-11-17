@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "run": "live-20261113T035711Z",
+  "candidate_source_commit": "5b11dd3b43481f6db05a8bac46b604e8d6054370",
+  "knowledge_prompt_commit": "9b34670b90cf57c3691dc15f503f697dc29296b2",
+  "reviewer": "independent issue14_asr_compatibility agent",
+  "complete": true,
+  "scope": "对两道固定公开问题的实际检索片段与实际回答作只读语义审查。未发起额外模型或知识库请求；不评价原汇编现行性、全量法律完整性或物理音频验收。",
+  "overall": "material_grounding_finding_in_knowledge2",
+  "deployment_decision": "not_made_by_this_review",
+  "cases": [
+    {
+      "name": "knowledge1",
+      "question": "怎么申请成立社会团体",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          42,
+          36
+        ],
+        "indirectly_relevant_ordinals": [
+          424
+        ],
+        "peripheral_ordinals": [
+          425,
+          427
+        ],
+        "explanation": "42支持主管单位审查、发起人申请登记和筹备活动限制；36支持法人条件与登记范围；424为登记文件材料归档范围；425和427主要为后续变更、备案和年检记录。"
+      },
+      "answer_grounding": {
+        "status": "core_supported_with_qualification",
+        "supported": [
+          "主管单位审查同意后由发起人申请成立登记、筹备期间不得开展其他活动，直接对应42。",
+          "没有附加前一轮遗漏必要条件的免登记例外，也没有从归档目录推导强制两阶段审批程序。",
+          "未返回会员人数/资金条件的43片段时，没有填入固定数值。"
+        ],
+        "material_unsupported_duties": [],
+        "qualifications": [
+          {
+            "id": "K1-archive-as-qualified-material-reference",
+            "answer_claim": "从现有资料看，申请阶段通常涉及这些材料……成立登记阶段还会涉及……",
+            "source_ordinal": 424,
+            "source_boundary": "原文标题明确为社会团体登记文件材料归档范围，不能单独证明当前申请人的具体提交要求。",
+            "assessment": "回答没有说必须提交或完整清单，并明确具体材料、顺序、时限以现行指南为准，因此不宜等同旧版明确伪造强制义务。但把归档清单概括为申请材料参考仍需说明来源性质，不能给全部细节充分有据的无保留结论。",
+            "independent_peer_review": "grounding_edge_review 子审独立同意此分级：有保留但依据不充分的资料概括，不足以定性为重大新增强制义务。"
+          }
+        ]
+      },
+      "source_evidence": {
+        "filename": "knowledge1-dialogue-private.json",
+        "sha256": "2348c99242f3219e0b96056fff85314d78bab1e6c1c2a5d5bed328682915fc7e",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          42,
+          424,
+          36,
+          425,
+          427
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    },
+    {
+      "name": "knowledge2",
+      "question": "境外非政府组织的登记和备案",
+      "retrieval_relevance": {
+        "status": "pass",
+        "directly_relevant_ordinals": [
+          305,
+          331,
+          313,
+          326
+        ],
+        "supporting_ordinals": [
+          341
+        ],
+        "explanation": "305提供登记与临时备案两条路径；313提供中方合作单位的临时活动备案机关、材料、期限及紧急情况；326提供活动结束后报送；331为程序公开，341为相关责任。"
+      },
+      "answer_grounding": {
+        "status": "material_finding",
+        "supported": [
+          "前轮无条件或禁令已改成未登记代表机构且临时活动又未经备案，不再排除已依法备案的临时活动路径。",
+          "15日前备案及赈灾、救援紧急情况例外、备案材料、最长一年和延长重新备案，均有313支持。",
+          "活动结束后30日内报送活动和资金使用情况对应326；代表机构完整条件及材料未覆盖时明确说明缺口。"
+        ],
+        "findings": [
+          {
+            "id": "K2-filing-authority-location-replaced",
+            "severity": "material",
+            "source_ordinal": 313,
+            "source_text": "境外非政府组织开展临时活动，中方合作单位应当按照国家规定办理审批手续，并在开展临时活动十五日前向其所在地的登记管理机关备案。",
+            "answer_claim": "临时活动通常由中方合作单位先按规定办理审批手续，并在开展活动15日前，向活动所在地登记管理机关备案。",
+            "assessment": "原文其所在地承接办理主体中方合作单位；回答替换为活动所在地。这两个地点可能不同，改变了明确的办理机关管辖对象，属于实质依据偏差。",
+            "counterexample": "中方合作单位位于甲地、临时活动位于乙地时，片段指向中方合作单位所在地甲地，回答却指向活动所在地乙地。"
+          }
+        ]
+      },
+      "source_evidence": {
+        "filename": "knowledge2-dialogue-private.json",
+        "sha256": "68dc1330beccecc8142246d13c9fa8ce109b8320b25059a0bc4feb9b657105c4",
+        "result_status": "ok",
+        "generated": false,
+        "modelCalled": false,
+        "returned": 5,
+        "source_ordinals": [
+          305,
+          331,
+          313,
+          341,
+          326
+        ],
+        "document_title": "社会组织工作资料汇编（2026年）.docx"
+      }
+    }
+  ],
+  "generic_followup_recommendations": [
+    "办理指导中的主体、指代对象、受理机关、地点、时间和例外须逐项保持；不得把某主体所在地替换成活动地等相近概念。无法准确解析指代时保留关键原句并说明需核对，不自行补定。",
+    "概括归档目录时明确说明它只是归档材料参考，不能证明当前提交清单；保留本轮已给出的现行指南限制。"
+  ],
+  "comparison_to_prior_run": "前轮两题的免登记条件遗漏和错误或禁令均已消失。本轮第一题主要剩资料性质说明不足，第二题出现了不同的、可直接改变用户办理行动的地点替换错误。",
+  "reviewed_utc": "2026-11-13T04:01:07.500368+00:00",
+  "transport_acceptance": "Not assessed. Complete saved dialogue supports this semantic review and does not imply successful TTS stop receipt or physical playback."
+}

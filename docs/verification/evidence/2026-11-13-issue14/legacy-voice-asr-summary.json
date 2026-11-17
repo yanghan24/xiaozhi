@@ -1,0 +1,128 @@
+{
+  "candidate": "Parent issue14 integration source archive with final audio integration; no new deployment. The archive includes work in progress, so source hashes are the authoritative tested identity.",
+  "source_archive_sha256": "61a30e36cca92f7ce4aa664f42e237d562fcf621730d31c3fccf28bf7aaea2e4",
+  "python_image": "sha256:a0ce61af271cd24539236f0e069c062902bd153fb0d78cd237b28348a31e92c5",
+  "authority": "Retained compiled real Java CustomerVoiceHarness and isolated MySQL/Redis from issue13-integration. This run did not rebuild Java or run its full test suite.",
+  "isolation": "Fresh harness and fixtures per script, private issue13-integration network, no host ports. Actual production Python modules and queues/codecs/sockets are used. Only external model/ASR HTTP and Edge transport are controlled. No B, real business API/key, real model/MCP/Edge service, or deployment touched.",
+  "source_sha256": {
+    "core/connection.py": "2f07f5a6611a88893066b1007642ab6ccbbaee9402421dace5dd1755899a0763",
+    "core/product_voice.py": "1d85b884b3f667ff31525d97df0eedfc3015c07be50dea7e064873f01e1d438c",
+    "core/product_chat.py": "af03a540a70b35e11b273e031efb960eeb41d94b82b364ea043470308e96bd7b",
+    "core/product_knowledge.py": "2d9a539b158fa9a9e4901861286fd6ce78b3c26efa23b0e1c4a794a4567d715f",
+    "core/product_asr.py": "de0cc982d4a0fe49518c61f04fb6ce9843b4d4ca4afd44381fa8690764bbd4a9",
+    "core/product_rejections.py": "7ce6eae345d40e6cec91e00ae3fc020fd1b6c5c38b4e934dbce4d2cbf5bb1f23",
+    "core/handle/receiveAudioHandle.py": "4cc5a81e2555e984bffee41bac8886e24490e20790cdcaa24f58c22d81ae4eb0",
+    "core/handle/textHandler/listenMessageHandler.py": "a816c3baea523c92be56e1edc8affac009a32e298d706c7e89b42c2c51c06a37",
+    "core/handle/abortHandle.py": "442fd52071c8966cdadab21685e328782ed7af43f7c974d3c72a0299b90cc091",
+    "core/providers/asr/base.py": "fe069768506a68f77806561bf47c5ec24d16ac4975efece77533143451c8f17c",
+    "core/providers/tts/base.py": "af2006bb76e0bb66a24ae764ac33eb106035d0ea55d239a48caa149750a6f96f",
+    "core/handle/sendAudioHandle.py": "eb97abd405ef6eca831d4db6daa768ace5eb7594ea0050df1bba44f7de2bcaf0"
+  },
+  "script_sha256": {
+    "check-product-voice.py": "29ec5e6e2546898f4adac77d81802cc6680ca0f21dd50116ba3782807b344a4c",
+    "check-product-asr.py": "435954f731899b5b674ccd23bda021dd1e1f3d109c7c8786c673e1a36c1178cc"
+  },
+  "rounds": [
+    {
+      "round": "voice",
+      "path": "/home/jt/issue14-model-20261113/integration-regressions01/voice",
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "real authority handshake",
+            "late output blocked",
+            "other device unaffected",
+            "old and cross-device tokens rejected",
+            "query fallback rejected"
+          ]
+        },
+        {
+          "result": "pass",
+          "checks": [
+            "actual WebSocketServer and ConnectionHandler",
+            "model response through Edge adapter to binary audio",
+            "late external TTS output blocked",
+            "multiple connections closed",
+            "legacy auth disabled and whitelist cannot bypass",
+            "direct qwen SSE content only",
+            "balance failure preserves grant",
+            "signout blocks new model requests"
+          ]
+        }
+      ],
+      "artifact_sha256": {
+        "console.txt": "06a8564c9745a0270b05ca9f8a4923d607abd7723ac4bbc6921c37c35d6a8fe5",
+        "exit-code.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "round": "asr",
+      "path": "/home/jt/issue14-model-20261113/integration-regressions01/asr",
+      "exit_code": 0,
+      "results": [
+        {
+          "result": "pass",
+          "checks": [
+            "device Opus -> asynchronous ASR -> model -> TTS audio",
+            "temporary WAV fetched with correct format",
+            "completed and revoked URLs unavailable",
+            "pending ASR cannot call model/TTS after signout"
+          ]
+        }
+      ],
+      "artifact_sha256": {
+        "console.txt": "363fc5c76fd0e93aff4f86ede3b6152fe47f3ef488929a853d5528970f9bc9df",
+        "exit-code.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    }
+  ],
+  "preflight": {
+    "checks": {
+      "all_stopped": true,
+      "no_host_ports": true,
+      "db_target_is_isolated": true,
+      "redis_target_is_isolated": true,
+      "runner_starts_idle": true,
+      "same_isolated_network": true,
+      "compiled_harness_present": true
+    },
+    "runner_command_is_sleep": true,
+    "harness_artifacts": {
+      "target/browser-classpath.txt": "e279496e53582cc2e121da997354a922cbc20abd8403140c74d052c71af90b74",
+      "target/test-classes/xiaozhi/modules/customer/CustomerVoiceHarness.class": "3bdebd395c5803bd89c41f0a23eb9bfe49940af6903a023640ee71bf569e2e66",
+      "target/test-classes/xiaozhi/modules/customer/ControlledMarket.class": "0844d9d415d4b2e387ebe603df86071c88db8fc178b17d7ce988150c6c400a39"
+    }
+  },
+  "java_artifacts": {
+    "target/classes": {
+      "files": 645,
+      "tree_sha256": "1e06b538c10ab320b7ff23787aefe82d5cbe4e30685ac07016ea6bcff2810d41"
+    },
+    "target/test-classes": {
+      "files": 55,
+      "tree_sha256": "d494bcbccdb4cfbbbddd28c34041c401aa0644e6e30007f78996f1dedc384326"
+    },
+    "src/main": {
+      "files": 502,
+      "tree_sha256": "1cf7f5bee5bbe580d86996226d702af77e824b6b81346df639a424d334c01267"
+    },
+    "src/test": {
+      "files": 40,
+      "tree_sha256": "83235dd2a88b1996a4e989dfc3c99d46cb744d329d606ec940a17d63e51c27d3"
+    }
+  },
+  "restored_container_states": [
+    "/issue13-db exited",
+    "/issue13-redis exited",
+    "/issue13-runner exited",
+    "/issue13-proxy exited"
+  ],
+  "supporting_sha256": {
+    "preflight.json": "ebd946b8e5617d54f35e74ebdf738c3af205165091721d2eabff64795bdcf970",
+    "java-artifacts.json": "7ba79f9fbb68165f48eeac6125327270f2416a1378f17f42be84ff74787eee09",
+    "final-container-state.txt": "e26564e1f563d1477f4f455f2bbc948c02eaa26948d9f75928da23bb768463a5"
+  },
+  "private_evidence": "Fixtures and Java harness logs stay in server round directories and are excluded from the evidence archive."
+}

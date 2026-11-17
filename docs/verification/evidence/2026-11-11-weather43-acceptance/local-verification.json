@@ -1,0 +1,47 @@
+{
+  "verified_at": "2026-11-10T22:01:48.832616+00:00",
+  "archive_sha256": "da4647480ff0034b4e78c2c79b8a3aed834951eeb803032f4faac6fa9fe34b1a",
+  "archive_bytes": 22152891,
+  "verified_regular_members": 395,
+  "all_member_bytes_and_sha256_match_manifest": true,
+  "no_links_absolute_or_parent_paths": true,
+  "network_counts_latency_and_failed_streak_independently_recounted": true,
+  "network_error_rows": [
+    {
+      "at": "2026-11-10T16:43:22.773426+00:00",
+      "model": "ncep_gfs013",
+      "path": "/data/ncep_gfs013/static/meta.json",
+      "http": null,
+      "error": "timeout",
+      "elapsed_s": 15.385792644694448
+    },
+    {
+      "at": "2026-11-10T16:43:38.159285+00:00",
+      "model": "ncep_gfs013",
+      "path": "/data/ncep_gfs013/temperature_2m/chunk_1036.om",
+      "http": null,
+      "error": "URLError",
+      "elapsed_s": 15.009637878742069
+    },
+    {
+      "at": "2026-11-10T16:43:53.168956+00:00",
+      "model": "cams_global",
+      "path": "/data/cams_global/static/meta.json",
+      "http": null,
+      "error": "URLError",
+      "elapsed_s": 15.012042323127389
+    },
+    {
+      "at": "2026-11-10T16:44:08.181058+00:00",
+      "model": "cams_global",
+      "path": "/data/cams_global/pm2_5/chunk_2297.om",
+      "http": null,
+      "error": "URLError",
+      "elapsed_s": 14.961442930623889
+    }
+  ],
+  "source_egress_restart_counts": [
+    "0"
+  ],
+  "scope": "local integrity and raw evidence analysis only; actual service tests ran on Ubuntu"
+}

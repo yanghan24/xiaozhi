@@ -1,0 +1,437 @@
+{
+  "at": "2026-11-10T16:25:43.737936+00:00",
+  "scope": "completed local 50-way node; source update observation still pending",
+  "offered": 36550,
+  "counts": {
+    "fresh": 35961,
+    "stale": 0,
+    "loading_or_unavailable": 589,
+    "failure": 0,
+    "timeout": 0
+  },
+  "profiles": [
+    {
+      "name": "acceptance50-r1/burst50-cities1-round1",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 1,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.0355629469268024,
+        "p95": 0.042942365631461143,
+        "p99": 0.043694492895156145,
+        "max": 0.043694492895156145
+      },
+      "elapsed_s": 2.6052041077055037,
+      "raw_sha256": "12f7ed67bf545f13b50692c691638afe6576e68bb3dd0d1975c83fb915609716"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities1-round2",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 1,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.02683747885748744,
+        "p95": 0.032497853972017765,
+        "p99": 0.032698134891688824,
+        "max": 0.032698134891688824
+      },
+      "elapsed_s": 1.931507100816816,
+      "raw_sha256": "5ee193a8cc1253c22db9b4cd18160360a7dc8f174c293a809532f45972cb54c2"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities1-round3",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 1,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.038432995323091745,
+        "p95": 0.04121277993544936,
+        "p99": 0.04141252534464002,
+        "max": 0.04141252534464002
+      },
+      "elapsed_s": 1.8922046972438693,
+      "raw_sha256": "b6ca55d1aee8f7efe3ffef6aaad642723194898f08873f46dd90c02eab196216"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities10-round1",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 10,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.026086658239364624,
+        "p95": 0.03180525731295347,
+        "p99": 0.03202705830335617,
+        "max": 0.03202705830335617
+      },
+      "elapsed_s": 1.9542839899659157,
+      "raw_sha256": "32b7e3c3c1b77e371eb4f198e5ffea231980987f2e5a6c0237c4b144dbb7aa79"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities10-round2",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 10,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.024783549830317497,
+        "p95": 0.028908937703818083,
+        "p99": 0.02910113800317049,
+        "max": 0.02910113800317049
+      },
+      "elapsed_s": 1.9288242501206696,
+      "raw_sha256": "044ff1cd0ae1775a243d0914b8d5dc0ce3201a4312d7b964a636b413deda0156"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities10-round3",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 10,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.031172280199825764,
+        "p95": 0.03611434483900666,
+        "p99": 0.036465825978666544,
+        "max": 0.036465825978666544
+      },
+      "elapsed_s": 1.9626468122005463,
+      "raw_sha256": "575c7ada5c09d261354c492f9c2f03b3bfc081dfd7caf86abb774b2fc5340180"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities50-round1",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 50,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.029376241844147444,
+        "p95": 0.03607012191787362,
+        "p99": 0.036494695115834475,
+        "max": 0.036494695115834475
+      },
+      "elapsed_s": 1.9455503839999437,
+      "raw_sha256": "1bf30bf41ba221f9faf90fb41caeb0b4e7220743ed9e6455e5372713686c78ca"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities50-round2",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 50,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.024654101114720106,
+        "p95": 0.02934917015954852,
+        "p99": 0.029687867034226656,
+        "max": 0.029687867034226656
+      },
+      "elapsed_s": 1.9218173110857606,
+      "raw_sha256": "6aec5df1ee5ed8d43322166da631e945d70f8fcab5b2b4c54ba5e62a539763e5"
+    },
+    {
+      "name": "acceptance50-r1/burst50-cities50-round3",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 50,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.025719775818288326,
+        "p95": 0.032587619964033365,
+        "p99": 0.03314960282295942,
+        "max": 0.03314960282295942
+      },
+      "elapsed_s": 1.9563560029491782,
+      "raw_sha256": "912cabc6ca2bde54d7536b7832682090a7ac620a65d312e5fce77145f198a3ea"
+    },
+    {
+      "name": "acceptance50-r1/cold-50-first-ack",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 50,
+      "offered": 50,
+      "counts": {
+        "fresh": 0,
+        "stale": 0,
+        "loading_or_unavailable": 50,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.03226595604792237,
+        "p95": 0.03420968214049935,
+        "p99": 0.034355072770267725,
+        "max": 0.034355072770267725
+      },
+      "elapsed_s": 2.61846706783399,
+      "raw_sha256": "b975cb3738a7807eb902c6bd7c8fcb72b2581e1fa28f67a81c8e1579518661f2"
+    },
+    {
+      "name": "acceptance50-r1/cold-50-warm-final",
+      "scenario": "burst",
+      "devices": 50,
+      "cities": 50,
+      "offered": 50,
+      "counts": {
+        "fresh": 50,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.02463616617023945,
+        "p95": 0.03286337200552225,
+        "p99": 0.03336184425279498,
+        "max": 0.03336184425279498
+      },
+      "elapsed_s": 2.6174726891331375,
+      "raw_sha256": "4ceeca6b9bcd562864678295d43370c7b4bb1993eb6eeca629c29be0c964ca9d"
+    },
+    {
+      "name": "acceptance50-r1/cold-50-waves-30min",
+      "scenario": "waves",
+      "devices": 50,
+      "cities": 50,
+      "offered": 18000,
+      "counts": {
+        "fresh": 17461,
+        "stale": 0,
+        "loading_or_unavailable": 539,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.02729359595105052,
+        "p95": 0.036351680755615234,
+        "p99": 0.045923126861453056,
+        "max": 0.31473246589303017
+      },
+      "elapsed_s": 1800.0127576920204,
+      "raw_sha256": "6e622bf6e9280d99abb4672f2ed91d4118368db89f292e6549ebcc62e5456314",
+      "resources": {
+        "sample_count": 321,
+        "docker_stats_errors": 0,
+        "host_cpu_busy_percent_over_sample_window": 3.5848279760931976,
+        "host_available_memory_kib_min": 12816344,
+        "host_disk_free_bytes_min": 433479503872,
+        "host_disk_free_fraction_min": 0.8227923685763004,
+        "interface": "ens160",
+        "shared_host_network_received_bytes": 40880500,
+        "shared_host_network_sent_bytes": 4069227,
+        "shared_host_disk": {
+          "device": "sda",
+          "sample_window_s": 1796.165744044818,
+          "reads": 219,
+          "writes": 78810,
+          "read_bytes": 12554240,
+          "written_bytes": 646963200,
+          "mean_iops": 43.99872353763588,
+          "sampled_interval_iops_max": 200.28032612429433,
+          "sampled_interval_read_bytes_per_s_max": 2234402.7835754957,
+          "sampled_interval_written_bytes_per_s_max": 6432311.220428242,
+          "sampled_in_progress_max": 1,
+          "scope": "Shared host block-device activity; not an isolated storage benchmark"
+        },
+        "cache_logical_file_bytes_max": 8589934080,
+        "cache_allocated_bytes_max": 8589950976
+      }
+    },
+    {
+      "name": "acceptance50-r1/warm50-waves-30min",
+      "scenario": "waves",
+      "devices": 50,
+      "cities": 50,
+      "offered": 18000,
+      "counts": {
+        "fresh": 18000,
+        "stale": 0,
+        "loading_or_unavailable": 0,
+        "failure": 0,
+        "timeout": 0
+      },
+      "latency_s": {
+        "p50": 0.027383077889680862,
+        "p95": 0.036276725586503744,
+        "p99": 0.05172374099493027,
+        "max": 0.3037971528246999
+      },
+      "elapsed_s": 1800.012747196015,
+      "raw_sha256": "0255f7fce9d284bc6037bcdb1c31fc9763df38bffa57a7fdac422bbfeab4fcf3",
+      "resources": {
+        "sample_count": 321,
+        "docker_stats_errors": 0,
+        "host_cpu_busy_percent_over_sample_window": 3.5466418316350485,
+        "host_available_memory_kib_min": 12879268,
+        "host_disk_free_bytes_min": 442100805632,
+        "host_disk_free_fraction_min": 0.8391565593441667,
+        "interface": "ens160",
+        "shared_host_network_received_bytes": 4443866,
+        "shared_host_network_sent_bytes": 2480302,
+        "shared_host_disk": {
+          "device": "sda",
+          "sample_window_s": 1794.8225040887482,
+          "reads": 2,
+          "writes": 75373,
+          "read_bytes": 8192,
+          "written_bytes": 584974336,
+          "mean_iops": 41.99579614601988,
+          "sampled_interval_iops_max": 179.1523578230397,
+          "sampled_interval_read_bytes_per_s_max": 730.9119977685157,
+          "sampled_interval_written_bytes_per_s_max": 1983837.3060860643,
+          "sampled_in_progress_max": 1,
+          "scope": "Shared host block-device activity; not an isolated storage benchmark"
+        },
+        "cache_logical_file_bytes_max": 8589934080,
+        "cache_allocated_bytes_max": 8590049280
+      }
+    }
+  ],
+  "cold_fill_seconds": 67.58917841361836,
+  "cold_health": {
+    "http": 200,
+    "data": {
+      "status": "ok",
+      "started_at": "2026-11-10T15:54:11.408026+00:00",
+      "runtime_source_sha256": "e5f02fa806d8ded433791647f4bd588e9bf070610bbdc2aaeb873b2abe13fb2e",
+      "cache_entries": 100,
+      "pending": 0,
+      "pending_by_kind": {
+        "weather": 0,
+        "air_quality": 0
+      },
+      "metrics": {
+        "requests": 700,
+        "scheduled": 300,
+        "coalesced": 946,
+        "queue_full": 0,
+        "engine_calls": 100,
+        "engine_failures": 0,
+        "metadata_calls": 104,
+        "metadata_revalidations": 0,
+        "persisted_updates": 100,
+        "refresh_failures": 200,
+        "restored_entries": 0,
+        "source_changes": 0
+      },
+      "scope": "isolated_feasibility_service",
+      "model_source_errors": {},
+      "recent_errors": []
+    }
+  },
+  "cold_cgroup": {
+    "weather43-cold-engine": {
+      "usage": 148226048,
+      "max_usage": 148602880,
+      "limit": 8589934592,
+      "failcnt": null,
+      "stats": {
+        "cache": 128815104,
+        "total_cache": 128815104,
+        "total_inactive_file": 128139264,
+        "inactive_file": 128139264
+      }
+    },
+    "weather43-recovery-fixture": {
+      "usage": 31162368,
+      "max_usage": 31342592,
+      "limit": 268435456,
+      "failcnt": null,
+      "stats": {
+        "cache": 1486848,
+        "total_cache": 1486848,
+        "total_inactive_file": 1351680,
+        "inactive_file": 1351680
+      }
+    }
+  },
+  "cold_model_grid_coverage": {
+    "weather": {
+      "entries": 50,
+      "unique_returned_model_grids": 48,
+      "model_runs": [
+        1794290400
+      ]
+    },
+    "air_quality": {
+      "entries": 50,
+      "unique_returned_model_grids": 47,
+      "model_runs": [
+        1794268800
+      ]
+    }
+  },
+  "business_api_voice_versions_and_start_times_unchanged": true,
+  "listen_counter_delta": {
+    "ListenOverflows": 0,
+    "ListenDrops": 0,
+    "TCPBacklogDrop": 0
+  },
+  "runner_sha256": "cc05ea66310d10c244b07d442fcb7347f7cb27d65795c4973e5fa2f9e8ec70ed",
+  "runner_matches_current_source": true,
+  "all_raw_counts_and_latencies_verified": true
+}

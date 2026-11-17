@@ -1,0 +1,21 @@
+{
+  "observed_at": "20261112T030718Z",
+  "package_revision": 2,
+  "https_download_prepared": true,
+  "access": "15-minute signed bearer URL; possession grants download; intended recipient B, not hardware-authenticated at download",
+  "private_download_material": "/home/jt/issue42-p4-ota-20261112/download-private.json",
+  "expires_unix": 1794454482,
+  "size": 4003072,
+  "sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+  "local_tls_download_hash_verified": true,
+  "missing_or_bad_signature_http": 403,
+  "expired_signature_http": 410,
+  "external_18443_verified": true,
+  "device_dispatched": false,
+  "rollback_config": "/home/jt/issue42-p4-ota-20261112/https-20261112T030718Z/nginx-before.conf",
+  "nginx_config_sha256": "57875c626e9fdedfedf919c783e72b5191caa290d90de3f8bed578a022a2f30c",
+  "external_download_sha256_verified": true,
+  "external_unsigned_http": 403,
+  "external_check_at": "2026-11-12T03:19:43.894005+00:00",
+  "external_route": "Ubuntu through temporary loopback CONNECT proxy; TLS certificate validation enabled"
+}

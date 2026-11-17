@@ -1,0 +1,51 @@
+{
+  "device_mac": "10:bd:a3:80:72:80",
+  "hardware_factory_mac": "80:f1:b2:d7:8e:a5",
+  "firmware": "2.2.6",
+  "agent": {
+    "id": "8d47067dedd14d8bb04fa48f7edf5731",
+    "agentName": "issue-6-esp32-p4-test",
+    "asrModelId": "e3db62e78430a4d7ec5774f41b593402",
+    "llmModelId": "0957f97dd55e902ba5dcf92b01d67cc4",
+    "ttsModelId": "TTS_EdgeTTS",
+    "vadModelId": "VAD_SileroVAD",
+    "intentModelId": "Intent_nointent",
+    "memModelId": "Memory_nomem",
+    "chatHistoryConf": 0,
+    "systemPrompt": "You are a helpful voice assistant. Answer in concise, natural Chinese, usually one or two sentences."
+  },
+  "model_ids": {
+    "ASR": "e3db62e78430a4d7ec5774f41b593402",
+    "LLM": "0957f97dd55e902ba5dcf92b01d67cc4"
+  },
+  "billing_account": "Previously funded market test account, explicitly selected by user; no identity or credential exported",
+  "bridge_counters_since_last_container_start": {
+    "asr_submitted": 73,
+    "asr_succeeded": 13,
+    "llm_submitted": 13,
+    "llm_succeeded": 13,
+    "failures": 60,
+    "active": 0,
+    "published_audio": 0
+  },
+  "captured_at_utc": "2026-11-10T03:27:30.764219+00:00",
+  "test_expires_at_utc": "2026-11-11T03:07:23.001351+00:00",
+  "physical_user_confirmations": [
+    {
+      "round": "first",
+      "requested_question": "请用一句话介绍你自己",
+      "transcript_visible": true,
+      "full_answer_audible": true,
+      "error_prompt": false,
+      "exact_wallclock": "not captured"
+    },
+    {
+      "round": "after_service_and_device_restart",
+      "requested_question": "请告诉我一加一等于几",
+      "reactivation_required": false,
+      "transcript_visible": true,
+      "full_answer_audible": true,
+      "exact_wallclock": "not captured"
+    }
+  ]
+}

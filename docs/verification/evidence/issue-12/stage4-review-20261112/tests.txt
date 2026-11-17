@@ -1,0 +1,114 @@
+test_call_before_initialize_raises (issue12_offline_review.ExistingBehavior.test_call_before_initialize_raises) ... ok
+test_call_options_are_passed_to_the_session (issue12_offline_review.ExistingBehavior.test_call_options_are_passed_to_the_session) ... ok
+test_cleanup_closes_worker_and_transport (issue12_offline_review.ExistingBehavior.test_cleanup_closes_worker_and_transport) ... ok
+test_default_transport_is_sse_not_streamable_http (issue12_offline_review.ExistingBehavior.test_default_transport_is_sse_not_streamable_http) ... ok
+test_discovered_synthetic_schema_is_preserved (issue12_offline_review.ExistingBehavior.test_discovered_synthetic_schema_is_preserved) ... ok
+test_executor_forwards_incomplete_markers_without_classification (issue12_offline_review.ExistingBehavior.test_executor_forwards_incomplete_markers_without_classification) ... ok
+test_executor_maps_other_exception_to_error (issue12_offline_review.ExistingBehavior.test_executor_maps_other_exception_to_error) ... ok
+test_executor_not_initialized_returns_error (issue12_offline_review.ExistingBehavior.test_executor_not_initialized_returns_error) ... ok
+test_executor_only_maps_registered_notfound_error_to_notfound (issue12_offline_review.ExistingBehavior.test_executor_only_maps_registered_notfound_error_to_notfound) ... ok
+test_executor_rejects_explicit_mcp_error_before_model_continuation (issue12_offline_review.ExistingBehavior.test_executor_rejects_explicit_mcp_error_before_model_continuation) ... ok
+test_executor_strips_mcp_prefix (issue12_offline_review.ExistingBehavior.test_executor_strips_mcp_prefix) ... ok
+test_local_cancellation_propagates_without_retry (issue12_offline_review.ExistingBehavior.test_local_cancellation_propagates_without_retry) ... ok
+test_manager_failure_submits_once_without_retry_wait (issue12_offline_review.ExistingBehavior.test_manager_failure_submits_once_without_retry_wait) ... ok
+test_manager_first_initialize_has_ten_second_deadline (issue12_offline_review.ExistingBehavior.test_manager_first_initialize_has_ten_second_deadline) ... ok
+test_manager_success_submits_once (issue12_offline_review.ExistingBehavior.test_manager_success_submits_once) ... ok
+test_sanitized_name_maps_back_to_original (issue12_offline_review.ExistingBehavior.test_sanitized_name_maps_back_to_original) ... ok
+test_separate_clients_do_not_share_session_objects (issue12_offline_review.ExistingBehavior.test_separate_clients_do_not_share_session_objects) ... ok
+test_sse_headers_and_custom_timeouts_are_forwarded (issue12_offline_review.ExistingBehavior.test_sse_headers_and_custom_timeouts_are_forwarded) ... ok
+test_sse_timeout_defaults_are_forwarded (issue12_offline_review.ExistingBehavior.test_sse_timeout_defaults_are_forwarded) ... ok
+test_stdio_is_replaced_without_spawning_a_process (issue12_offline_review.ExistingBehavior.test_stdio_is_replaced_without_spawning_a_process) ... ok
+test_streamable_http_requires_explicit_choice (issue12_offline_review.ExistingBehavior.test_streamable_http_requires_explicit_choice) ... ok
+test_unknown_manager_tool_is_rejected (issue12_offline_review.ExistingBehavior.test_unknown_manager_tool_is_rejected) ... ok
+test_executor_exception_is_not_echoed_in_public_response (issue12_offline_review.RequiredBehavior.test_executor_exception_is_not_echoed_in_public_response) ... ok
+test_executor_value_error_is_not_echoed_in_public_response (issue12_offline_review.RequiredBehavior.test_executor_value_error_is_not_echoed_in_public_response) ... ok
+test_initialization_failure_is_not_reported_as_connected (issue12_offline_review.RequiredBehavior.test_initialization_failure_is_not_reported_as_connected) ... ok
+test_progress_text_does_not_leak_into_logs (issue12_offline_review.RequiredBehavior.test_progress_text_does_not_leak_into_logs) ... ok
+test_server_notification_does_not_leak_into_logs (issue12_offline_review.RequiredBehavior.test_server_notification_does_not_leak_into_logs) ... ok
+test_tool_arguments_do_not_leak_into_logs (issue12_offline_review.RequiredBehavior.test_tool_arguments_do_not_leak_into_logs) ... ok
+test_tool_timeout_is_not_automatically_replayed (issue12_offline_review.RequiredBehavior.test_tool_timeout_is_not_automatically_replayed) ... ok
+test_uncertain_failure_is_not_automatically_replayed (issue12_offline_review.RequiredBehavior.test_uncertain_failure_is_not_automatically_replayed) ... ok
+test_upstream_exception_does_not_leak_into_logs (issue12_offline_review.RequiredBehavior.test_upstream_exception_does_not_leak_into_logs) ... ok
+test_available_reconnect_config_does_not_trigger_replay (issue12_offline_review.ExtendedBehavior.test_available_reconnect_config_does_not_trigger_replay) ... ok
+test_client_call_cancel_propagates_to_synthetic_session (issue12_offline_review.ExtendedBehavior.test_client_call_cancel_propagates_to_synthetic_session) ... ok
+test_empty_tool_list_preserves_empty_availability (issue12_offline_review.ExtendedBehavior.test_empty_tool_list_preserves_empty_availability) ... ok
+test_executor_cancellation_is_not_rewritten_as_error (issue12_offline_review.ExtendedBehavior.test_executor_cancellation_is_not_rewritten_as_error) ... ok
+test_failure_does_not_enter_a_retry_sleep_or_cleanup_path (issue12_offline_review.ExtendedBehavior.test_failure_does_not_enter_a_retry_sleep_or_cleanup_path) ... ok
+test_http_status_labels_are_generic_errors_not_credit_verdicts (issue12_offline_review.ExtendedBehavior.test_http_status_labels_are_generic_errors_not_credit_verdicts) ... ok
+test_initialization_is_idempotent_while_running (issue12_offline_review.ExtendedBehavior.test_initialization_is_idempotent_while_running) ... ok
+test_manager_init_timeout_does_not_register_client (issue12_offline_review.ExtendedBehavior.test_manager_init_timeout_does_not_register_client) ... ok
+test_manager_passes_client_read_timeout_default_as_unspecified (issue12_offline_review.ExtendedBehavior.test_manager_passes_client_read_timeout_default_as_unspecified) ... ok
+test_result_payloads_are_forwarded_without_a_completion_verdict (issue12_offline_review.ExtendedBehavior.test_result_payloads_are_forwarded_without_a_completion_verdict) ... ok
+test_shutdown_clears_worker_connection_state (issue12_offline_review.ExtendedBehavior.test_shutdown_clears_worker_connection_state) ... ok
+test_call_after_cleanup_has_controlled_error (issue12_offline_review.ExtendedRequirements.test_call_after_cleanup_has_controlled_error) ... ok
+test_client_worker_error_is_not_logged_verbatim (issue12_offline_review.ExtendedRequirements.test_client_worker_error_is_not_logged_verbatim) ... ok
+test_discovery_failure_propagates_and_is_not_connected (issue12_offline_review.ExtendedRequirements.test_discovery_failure_propagates_and_is_not_connected) ... ok
+test_executor_does_not_forward_none_as_a_tool_result (issue12_offline_review.ExtendedRequirements.test_executor_does_not_forward_none_as_a_tool_result) ... ok
+test_manager_init_error_is_not_logged_verbatim (issue12_offline_review.ExtendedRequirements.test_manager_init_error_is_not_logged_verbatim) ... ok
+test_no_reconnect_initialization_or_exception_logging_after_failed_call (issue12_offline_review.ExtendedRequirements.test_no_reconnect_initialization_or_exception_logging_after_failed_call) ... ok
+test_sanitized_tool_name_collision_is_rejected (issue12_offline_review.ExtendedRequirements.test_sanitized_tool_name_collision_is_rejected) ... ok
+test_successful_reconnect_does_not_authorize_unknown_replay (issue12_offline_review.ExtendedRequirements.test_successful_reconnect_does_not_authorize_unknown_replay) ... ok
+test_ended_gate_makes_no_new_authority_request (issue12_offline_review.LocalVoiceGuard.test_ended_gate_makes_no_new_authority_request) ... ok
+test_guarded_socket_checks_every_send_and_rejects_after_exit (issue12_offline_review.LocalVoiceGuard.test_guarded_socket_checks_every_send_and_rejects_after_exit) ... ok
+test_invalid_scope_subject_and_order_fail_closed (issue12_offline_review.LocalVoiceGuard.test_invalid_scope_subject_and_order_fail_closed) ... ok
+test_model_access_uses_each_gates_own_session (issue12_offline_review.LocalVoiceGuard.test_model_access_uses_each_gates_own_session) ... ok
+test_permission_version_change_ends_gate (issue12_offline_review.LocalVoiceGuard.test_permission_version_change_ends_gate) ... ok
+test_rejected_generation_fails_closed (issue12_offline_review.LocalVoiceGuard.test_rejected_generation_fails_closed) ... ok
+test_unavailable_rejection_store_fails_closed (issue12_offline_review.LocalVoiceGuard.test_unavailable_rejection_store_fails_closed) ... ok
+test_valid_scope_passes_local_format_and_quarantine_guard (issue12_offline_review.LocalVoiceGuard.test_valid_scope_passes_local_format_and_quarantine_guard) ... ok
+test_wrong_model_or_missing_key_receipt_ends_gate (issue12_offline_review.LocalVoiceGuard.test_wrong_model_or_missing_key_receipt_ends_gate) ... ok
+test_timed_out_tool_keeps_running_but_late_result_is_not_appended (issue12_offline_review.ToolTimeoutObservation.test_timed_out_tool_keeps_running_but_late_result_is_not_appended) ... ok
+test_cancelled_initializer_does_not_publish_partial_tools (issue12_offline_review.FixedRegression.test_cancelled_initializer_does_not_publish_partial_tools) ... ok
+test_cancelled_manager_cleanup_keeps_unfinished_clients_for_retry (issue12_offline_review.FixedRegression.test_cancelled_manager_cleanup_keeps_unfinished_clients_for_retry) ... ok
+test_cleanup_while_discovery_pending_releases_initialize (issue12_offline_review.FixedRegression.test_cleanup_while_discovery_pending_releases_initialize) ... ok
+test_closed_manager_cannot_submit_even_when_cleanup_reference_remains (issue12_offline_review.FixedRegression.test_closed_manager_cannot_submit_even_when_cleanup_reference_remains) ... ok
+test_concurrent_initialize_shares_one_worker_and_ready_result (issue12_offline_review.FixedRegression.test_concurrent_initialize_shares_one_worker_and_ready_result) ... ok
+test_conflicting_error_aliases_are_rejected (issue12_offline_review.FixedRegression.test_conflicting_error_aliases_are_rejected) ... ok
+test_initialize_after_cleanup_builds_fresh_session (issue12_offline_review.FixedRegression.test_initialize_after_cleanup_builds_fresh_session) ... ok
+test_malformed_protocol_result_and_render_error_are_safe (issue12_offline_review.FixedRegression.test_malformed_protocol_result_and_render_error_are_safe) ... ok
+test_manager_cleanup_during_initialize_blocks_late_registration (issue12_offline_review.FixedRegression.test_manager_cleanup_during_initialize_blocks_late_registration) ... ok
+test_no_unfinished_worker_after_normal_cleanup (issue12_offline_review.FixedRegression.test_no_unfinished_worker_after_normal_cleanup) ... ok
+test_real_client_pending_worker_reference_survives_caller_cancel (issue12_offline_review.FixedRegression.test_real_client_pending_worker_reference_survives_caller_cancel) ... FAIL
+test_real_client_pending_worker_reference_survives_cleanup_deadline (issue12_offline_review.FixedRegression.test_real_client_pending_worker_reference_survives_cleanup_deadline) ... FAIL
+test_same_tool_in_another_server_does_not_overwrite_registration (issue12_offline_review.FixedRegression.test_same_tool_in_another_server_does_not_overwrite_registration) ... ok
+test_snake_case_mcp_error_is_rejected (issue12_offline_review.FixedRegression.test_snake_case_mcp_error_is_rejected) ... ok
+test_structured_only_protocol_result_can_continue_without_business_verdict (issue12_offline_review.FixedRegression.test_structured_only_protocol_result_can_continue_without_business_verdict) ... ok
+test_successful_cleanup_removes_client_and_tool_registry (issue12_offline_review.FixedRegression.test_successful_cleanup_removes_client_and_tool_registry) ... ok
+test_upstream_value_error_is_execution_error_not_tool_not_found (issue12_offline_review.FixedRegression.test_upstream_value_error_is_execution_error_not_tool_not_found) ... ok
+
+======================================================================
+FAIL: test_real_client_pending_worker_reference_survives_caller_cancel (issue12_offline_review.FixedRegression.test_real_client_pending_worker_reference_survives_caller_cancel)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\issue-12\reproduce-cleanup-review.py", line 80, in test_real_client_pending_worker_reference_survives_caller_cancel
+    await exercise(self, True)
+  File "C:\Users\Administrator\Desktop\集团项目\issue-12\reproduce-cleanup-review.py", line 61, in exercise
+    self.assertIs(client._worker_task, worker,
+AssertionError: None is not <Task cancelling name='ServerMCPClientWorker' coro=<ServerMCPClient._worker() running at C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\main\xiaozhi-server\core\providers\tools\server_mcp\mcp_client.py:313> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:448> created at C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\tasks.py:420> : unfinished real client worker reference must survive for retry
+
+======================================================================
+FAIL: test_real_client_pending_worker_reference_survives_cleanup_deadline (issue12_offline_review.FixedRegression.test_real_client_pending_worker_reference_survives_cleanup_deadline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\集团项目\issue-12\reproduce-cleanup-review.py", line 76, in test_real_client_pending_worker_reference_survives_cleanup_deadline
+    await exercise(self, False)
+  File "C:\Users\Administrator\Desktop\集团项目\issue-12\reproduce-cleanup-review.py", line 61, in exercise
+    self.assertIs(client._worker_task, worker,
+AssertionError: None is not <Task cancelling name='ServerMCPClientWorker' coro=<ServerMCPClient._worker() running at C:\Users\Administrator\Desktop\集团项目\xiaozhi\.worktrees\issue-12-mcp-contract\main\xiaozhi-server\core\providers\tools\server_mcp\mcp_client.py:313> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:448> created at C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\asyncio\tasks.py:420> : unfinished real client worker reference must survive for retry
+
+----------------------------------------------------------------------
+Ran 77 tests in 2.262s
+
+FAILED (failures=2)

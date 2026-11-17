@@ -1,0 +1,14 @@
+{
+  "scope": "same_device_persistence",
+  "phase": "verify",
+  "status": "failed",
+  "started_at": "2026-11-06T09:15:37.959173+00:00",
+  "baseline_source": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
+  "checks": [],
+  "audio_inference": "not_run",
+  "hardware_playback": "not_run",
+  "script_sha256": "b2995c55f88d5c89616f9c658b0d6102b848fe266312814c562380f77291457e",
+  "error": "[Errno 2] No such file or directory: '/app/data/persistence-absent.json'",
+  "error_type": "FileNotFoundError",
+  "finished_at": "2026-11-06T09:15:38.028277+00:00"
+}

@@ -1,0 +1,77 @@
+{
+  "source": "read-only database observations; physical actions reported separately by user",
+  "observations": [
+    {
+      "observed_at_utc": "2026-11-11T04:40:18.068499+00:00",
+      "api_image": "xiaozhi-product-api:1468eeb",
+      "voice_image": "xiaozhi-product-voice:prompt-7f10cbd",
+      "devices": [
+        {
+          "device_alias": "device-4f309155",
+          "reason": "ready",
+          "revision": "14",
+          "permission_version": "7",
+          "ack_revision": "14",
+          "ack_permission_version": "7",
+          "audio_stopped": "0",
+          "received_at_ms": "1794371428901",
+          "owner_unchanged": true
+        }
+      ]
+    },
+    {
+      "observed_at_utc": "2026-11-11T04:41:49.464661+00:00",
+      "api_image": "xiaozhi-product-api:1468eeb",
+      "voice_image": "xiaozhi-product-voice:prompt-7f10cbd",
+      "devices": [
+        {
+          "device_alias": "device-4f309155",
+          "reason": "user_signed_out",
+          "revision": "16",
+          "permission_version": "8",
+          "ack_revision": "15",
+          "ack_permission_version": "8",
+          "audio_stopped": "1",
+          "received_at_ms": "1794372036951",
+          "owner_unchanged": true
+        }
+      ]
+    },
+    {
+      "observed_at_utc": "2026-11-11T04:43:11.608045+00:00",
+      "api_image": "xiaozhi-product-api:1468eeb",
+      "voice_image": "xiaozhi-product-voice:prompt-7f10cbd",
+      "devices": [
+        {
+          "device_alias": "device-4f309155",
+          "reason": "user_signed_out",
+          "revision": "16",
+          "permission_version": "8",
+          "ack_revision": "16",
+          "ack_permission_version": "8",
+          "audio_stopped": "1",
+          "received_at_ms": "1794372185929",
+          "owner_unchanged": true
+        }
+      ]
+    },
+    {
+      "observed_at_utc": "2026-11-11T04:44:03.310239+00:00",
+      "api_image": "xiaozhi-product-api:1468eeb",
+      "voice_image": "xiaozhi-product-voice:prompt-7f10cbd",
+      "devices": [
+        {
+          "device_alias": "device-4f309155",
+          "reason": "ready",
+          "revision": "17",
+          "permission_version": "9",
+          "ack_revision": "17",
+          "ack_permission_version": "9",
+          "audio_stopped": "0",
+          "received_at_ms": "1794372205270",
+          "owner_unchanged": true
+        }
+      ]
+    }
+  ]
+}

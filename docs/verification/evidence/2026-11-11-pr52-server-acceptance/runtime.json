@@ -1,0 +1,41 @@
+{
+  "checked_at": "2026-11-11T05:32:59.158954+00:00",
+  "sql_sha256": "087d756019b0e4b7690faccea70467bd98e3bb77897a742095434a4095c0e1e6",
+  "ack": {
+    "stopped_ack_count": "1",
+    "latest_stopped_ack_ms": "1794371255339"
+  },
+  "ack_found": true,
+  "jar_sha256": "fbb10d3d145beea3bbde9f70c3204213d52e96bdef9f1dca55098cc36bee240d",
+  "test_image": "xiaozhi-manager-api-tests:profile-1468eeb",
+  "services": [
+    {
+      "name": "xiaozhi-pr26-api",
+      "image": "xiaozhi-product-api:1468eeb",
+      "image_id": "sha256:a8d952e68545b4e41a0729cde17b6cbfdf37dc3d851eef7748a51558f62adf07",
+      "running": true,
+      "started": "2026-11-11T02:51:31.984631539Z"
+    },
+    {
+      "name": "xiaozhi-pr26-voice",
+      "image": "xiaozhi-product-voice:prompt-7f10cbd",
+      "image_id": "sha256:a0ce61af271cd24539236f0e069c062902bd153fb0d78cd237b28348a31e92c5",
+      "running": true,
+      "started": "2026-11-11T03:46:30.60462619Z"
+    },
+    {
+      "name": "issue29-db",
+      "image": "xiaozhi-offline-mysql:8.0.41-20261106",
+      "image_id": "sha256:1c83f38450c378c8df08cc10dd46400d17a404c68a63cf92ccfb49fb75b9cdfb",
+      "running": true,
+      "started": "2026-11-09T13:49:31.051416348Z"
+    },
+    {
+      "name": "issue29-redis",
+      "image": "xiaozhi-offline-redis:8.0.0-20261106",
+      "image_id": "sha256:67ae465a41237dd99c408c760e5e59a39e8ee00c2bd93095811b699554fab2ed",
+      "running": true,
+      "started": "2026-11-09T13:49:31.28073354Z"
+    }
+  ]
+}

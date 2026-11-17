@@ -1,0 +1,10 @@
+# Use only with the verified 2026-11-06 bundle and its manifest/image check.
+# Docker save/load can lose registry digest references; these tags identify the
+# exported, digest-verified images without requiring a registry connection.
+services:
+  mysql:
+    image: xiaozhi-offline-mysql:8.0.41-20261106
+  redis:
+    image: xiaozhi-offline-redis:8.0.0-20261106
+  device-entry:
+    image: xiaozhi-offline-nginx:1.27.4-20261106

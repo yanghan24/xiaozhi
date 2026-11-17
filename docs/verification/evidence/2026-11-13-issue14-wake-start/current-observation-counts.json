@@ -1,0 +1,52 @@
+{
+  "observed_at": "2026-11-13T04:38:51.804697Z",
+  "window_ended_at": "2026-11-13T04:38:50.933784Z",
+  "b_scope_matches": true,
+  "fixed_question_cases": {
+    "ordinary": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    },
+    "knowledge1": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    },
+    "knowledge2": {
+      "observed_turns": 0,
+      "status": "not_observed"
+    }
+  },
+  "asr_records_in_window": 1,
+  "fixed_question_ASR_text_matches": {
+    "ordinary": 0,
+    "knowledge1": 0,
+    "knowledge2": 0
+  },
+  "nonfixed_ASR_text_records": 1,
+  "ASR_content_hash_uniquely_matching_mapped_B_inputs": 1,
+  "mapped_B_nonfixed_ASR_content_matches": 1,
+  "ASR_session_binding": "unverified; content-hash correlation only unless another source establishes the device",
+  "mapped_B_stages": {
+    "mapped_B_product_inputs": 6,
+    "model_started": 6,
+    "knowledge_started": 1,
+    "knowledge_completed": 1,
+    "grounded_continuation_started": 1,
+    "first_audio_sent": 6,
+    "tts_stop_sent": 2,
+    "turn_failed": 0
+  },
+  "tool_result_hash_records": [
+    {
+      "at_utc": "2026-11-13T04:38:07.872881555Z",
+      "tool_result_sha256": "e847c95bc6c3e392a976b2079de0d46ba6444f28cd99ef568909060cea365cec"
+    }
+  ],
+  "private_raw_log_sha256": "f805a880a19889db92f40e1ef89b214abf5745a5d4e60420557a504a08eba285",
+  "full_answer_private_source": "same raw log: explicit session/turn sentence_start JSON records",
+  "actual_tool_result_body_retained_by_explicit_product_logs": false,
+  "physical_playback_receipt_from_server": false,
+  "three_question_acceptance": false,
+  "production_changes": 0,
+  "new_model_MCP_requests": 0
+}
