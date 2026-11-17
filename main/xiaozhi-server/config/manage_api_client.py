@@ -264,7 +264,7 @@ async def device_session(instance, action, body):
 
 @api_guard(raise_when_closed=True)
 async def get_agent_models(
-    instance, mac_address: str, client_id: str, selected_module: Dict
+    instance, mac_address: str, client_id: str, selected_module: Dict, voice_session=None
 ) -> Optional[Dict]:
     """获取代理模型配置"""
     return await instance._execute_async_request(
@@ -274,6 +274,7 @@ async def get_agent_models(
             "macAddress": mac_address,
             "clientId": client_id,
             "selectedModule": selected_module,
+            "voiceSession": voice_session,
         },
     )
 

@@ -28,6 +28,7 @@ THINKING_DISABLED_MODEL_EXCLUSIONS = {
 class LLMProvider(LLMProviderBase):
     def __init__(self, config):
         self.model_name = config.get("model_name")
+        self.response_format = config.get("response_format") if config.get("source") == "aimarket" else None
         # 可选实例级思考强度: off/disabled/none/disable | low/medium/high | 空/其他=按域名默认
         self.thinking_mode = str(config.get("thinking") or "").strip().lower()
         self.api_key = config.get("api_key")
@@ -77,7 +78,8 @@ class LLMProvider(LLMProviderBase):
         model_key_msg = check_model_key("LLM", self.api_key)
         if model_key_msg:
             logger.bind(tag=TAG).error(model_key_msg)
-        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url, timeout=custom_timeout)
+        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url, timeout=custom_timeout,
+                                    **({"max_retries": 0} if config.get("source") == "aimarket" else {}))
 
     @staticmethod
     def normalize_dialogue(dialogue):
@@ -138,6 +140,8 @@ class LLMProvider(LLMProviderBase):
             if value is not None:
                 request_params[key] = value
 
+        if self.response_format:
+            request_params["response_format"] = self.response_format
         # 禁用思考模式
         self._apply_thinking_disabled(request_params)
 
@@ -184,6 +188,8 @@ class LLMProvider(LLMProviderBase):
             if value is not None:
                 request_params[key] = value
 
+        if self.response_format:
+            request_params["response_format"] = self.response_format
         # 禁用思考模式
         self._apply_thinking_disabled(request_params)
 

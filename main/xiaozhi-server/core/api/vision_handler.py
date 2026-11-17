@@ -3,6 +3,8 @@ import copy
 from aiohttp import web
 from config.logger import setup_logging
 from core.api.base_handler import BaseHandler
+from core.device_session import DeviceSession
+from core.auth import AuthenticationError
 from core.utils.util import get_vision_url, is_valid_image_file
 from core.utils.vllm import create_instance
 from config.config_loader import get_private_config_from_api
@@ -47,9 +49,14 @@ class VisionHandler(BaseHandler):
     async def handle_post(self, request):
         """处理 MCP Vision POST 请求"""
         response = None  # 初始化response变量
+        identity = None
         try:
             # 验证token
-            is_valid, token_device_id = self._verify_auth_token(request)
+            if self.config.get("speaker_identity_enabled"):
+                identity = await DeviceSession.open(request.headers)
+                is_valid, token_device_id = True, request.headers.get("Device-Id", "")
+            else:
+                is_valid, token_device_id = self._verify_auth_token(request)
             if not is_valid:
                 response = web.Response(
                     text=json.dumps(
@@ -108,6 +115,7 @@ class VisionHandler(BaseHandler):
                     current_config,
                     device_id,
                     client_id,
+                    voice_session=identity.session if identity else None,
                 )
 
             select_vllm_module = current_config["selected_module"].get("VLLM")
@@ -139,6 +147,8 @@ class VisionHandler(BaseHandler):
                 text=json.dumps(return_json, separators=(",", ":")),
                 content_type="application/json",
             )
+        except AuthenticationError:
+            response = web.json_response(self._create_error_response("设备登录已失效，请重新登录"), status=401)
         except ValueError as e:
             self.logger.bind(tag=TAG).error(f"MCP Vision POST请求异常: {e}")
             return_json = self._create_error_response(str(e))
@@ -154,6 +164,8 @@ class VisionHandler(BaseHandler):
                 content_type="application/json",
             )
         finally:
+            if identity:
+                await identity.close()
             if response:
                 self._add_cors_headers(response)
             return response

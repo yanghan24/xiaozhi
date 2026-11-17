@@ -78,3 +78,24 @@ ssh -F /run/xiaozhi-access/ssh_config xiaozhi-data104
 ## 环境检查
 
 容器内执行 `python deploy/local-zhou/check-dev.py`，检查网页、API、前端代理、语音 HTTP、104 数据库连接与认证拒绝；不会调用 ASR、模型、MCP 或 TTS。实际初始化和重启验证结果见[本次交付记录](development-20261116.md)。
+
+
+## AI 集市模型接入（第二阶段）
+
+模型配置保留“小智系统”，新增“AI 集市”分组。每种用途保存一个适配配置，远端模型由协议、能力及已验证输入方式筛选，不逐个导入成本地配置。管理员选择并启用后，在完整智能体设置中选用对应的 AI 集市配置；不自动改变默认智能体。
+
+Java 从同一私有 speaker.properties 读取目录应用设置：
+
+```properties
+market.catalog.client-id=<开发环境网站后端 Client ID>
+market.catalog.client-secret-file=/opt/xiaozhi-dev/speaker/market-catalog.secret
+```
+
+Secret 文件为仅 dev 可读的 600 权限文件，宿主私有备份在 runtime/xiaozhi/config/speaker/；不在前端或 Git 配置 Secret。目录令牌仅用于 models:read。
+设备客户端请求 credentials:manage；用户扫码授权后，实际使用集市模型时自动领取并加密保存用户应用专用 Key。个人 Key 不写入模型配置。原版配置请求携带语音会话，按设备归属注入；Java 摘要和标题按原会话的归属账号解析。
+
+ASR 本期仅 spark_zh_iat_new / xfyun_asr_v2，使用已有 PCM/Opus 处理和原版提供者接口，单次不超过 60 秒。其他 ASR、向量/重排、复杂记忆不在本期；TTS、VAD、RAG 保留原配置。
+
+限定验收入口为 deploy/local-zhou/check-market-models.py 和 main/manager-web/scripts/check-market-ui.cjs。前者仅接受 runtime 下、已明确授权的临时模拟设备夹具，临时切换适配和角色后恢复，不能作为日常启动步骤；--live-voice 才会执行真实模型对话，产生用户集市用量。浏览器工具及字体缓存继续使用已有 runtime 卷。真实设备验收仍按 CONTRIBUTING 的独立 Ubuntu 环境规则执行。
+
+结果及提交见[模型接入交付](../../docs/development/ai-market-model-integration-delivery.md)。

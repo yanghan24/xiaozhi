@@ -45,6 +45,8 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
     @Autowired
     private ModelConfigService modelConfigService;
 
+    @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketModelRuntime marketModels;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     /**
@@ -76,10 +78,11 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
 
     @Override
     public String generateSummary(String conversation, String promptTemplate, String modelId) {
-        if (!isAvailable()) {
-            log.warn("LLM服务不可用，无法生成总结");
-            return "LLM服务不可用，无法生成总结";
-        }
+        return generateSummary(conversation,promptTemplate,modelId,null);
+    }
+
+    @Override
+    public String generateSummary(String conversation,String promptTemplate,String modelId,String conversationId) {
 
         try {
             // 从智控台获取LLM模型配置
@@ -97,7 +100,7 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
                 return "未找到可用的LLM模型配置";
             }
 
-            JSONObject configJson = llmConfig.getConfigJson();
+            JSONObject configJson = marketModels.forConversation(llmConfig.getConfigJson(),llmConfig.getModelType(),conversationId);
             String baseUrl = configJson.getStr("base_url");
             String model = configJson.getStr("model_name");
             String apiKey = configJson.getStr("api_key");
@@ -158,10 +161,14 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
             } else {
                 log.error("LLM API调用失败，状态码：{}，响应：{}", response.getStatusCode(), response.getBody());
             }
+        } catch (xiaozhi.modules.speaker.SpeakerFailure failure) {
+            throw failure;
         } catch (Exception e) {
+            if(conversationId!=null) throw new xiaozhi.modules.speaker.SpeakerFailure(503,"MODEL_CALL_UNAVAILABLE");
             log.error("调用LLM服务生成总结时发生异常，modelId: {}", modelId, e);
         }
 
+        if(conversationId!=null) throw new xiaozhi.modules.speaker.SpeakerFailure(503,"MODEL_CALL_UNAVAILABLE");
         return "生成总结失败，请稍后重试";
     }
 
@@ -173,10 +180,11 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
     @Override
     public String generateSummaryWithHistory(String conversation, String historyMemory, String promptTemplate,
             String modelId) {
-        if (!isAvailable()) {
-            log.warn("LLM服务不可用，无法生成总结");
-            return "LLM服务不可用，无法生成总结";
-        }
+        return generateSummaryWithHistory(conversation,historyMemory,promptTemplate,modelId,null);
+    }
+
+    @Override
+    public String generateSummaryWithHistory(String conversation,String historyMemory,String promptTemplate,String modelId,String conversationId) {
 
         try {
             // 从智控台获取LLM模型配置
@@ -192,7 +200,7 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
                 return "未找到可用的LLM模型配置";
             }
 
-            JSONObject configJson = llmConfig.getConfigJson();
+            JSONObject configJson = marketModels.forConversation(llmConfig.getConfigJson(),llmConfig.getModelType(),conversationId);
             String baseUrl = configJson.getStr("base_url");
             String model = configJson.getStr("model_name");
             String apiKey = configJson.getStr("api_key");
@@ -252,10 +260,14 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
             } else {
                 log.error("LLM API调用失败，状态码：{}，响应：{}", response.getStatusCode(), response.getBody());
             }
+        } catch (xiaozhi.modules.speaker.SpeakerFailure failure) {
+            throw failure;
         } catch (Exception e) {
+            if(conversationId!=null) throw new xiaozhi.modules.speaker.SpeakerFailure(503,"MODEL_CALL_UNAVAILABLE");
             log.error("调用LLM服务生成总结时发生异常，modelId: {}", modelId, e);
         }
 
+        if(conversationId!=null) throw new xiaozhi.modules.speaker.SpeakerFailure(503,"MODEL_CALL_UNAVAILABLE");
         return "生成总结失败，请稍后重试";
     }
 
@@ -332,10 +344,11 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
 
     @Override
     public String generateTitle(String conversation, String modelId) {
-        if (!isAvailable()) {
-            log.warn("LLM服务不可用，无法生成标题");
-            return null;
-        }
+        return generateTitle(conversation,modelId,null);
+    }
+
+    @Override
+    public String generateTitle(String conversation,String modelId,String conversationId) {
 
         try {
             ModelConfigEntity llmConfig;
@@ -350,7 +363,7 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
                 return null;
             }
 
-            JSONObject configJson = llmConfig.getConfigJson();
+            JSONObject configJson = marketModels.forConversation(llmConfig.getConfigJson(),llmConfig.getModelType(),conversationId);
             String baseUrl = configJson.getStr("base_url");
             String model = configJson.getStr("model_name");
             String apiKey = configJson.getStr("api_key");
