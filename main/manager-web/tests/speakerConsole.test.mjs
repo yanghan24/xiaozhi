@@ -8,6 +8,10 @@ it('separates customer, hardware and administrator entry points in product mode'
   expect(speakerRedirect('/user-management', true).path).toBe('/speaker-users');
   expect(speakerRedirect('/device-management', true).path).toBe('/speaker-devices');
   expect(speakerRedirect('/home', true).path).toBe('/speaker-agents');
+  expect(speakerRedirect('/role-config', true)).toBeNull();
+  expect(speakerRedirect('/agent-template-management', true)).toBeNull();
+  expect(speakerRedirect('/ota-management', true)).toBeNull();
+  expect(speakerRedirect('/product-ota', true)).toEqual({ path: '/speaker-devices', query: { tab: 'firmware' }, replace: true });
   expect(speakerRedirect('/register', true).path).toBe('/login');
   expect(speakerRedirect('/admin-accounts', true)).toBeNull();
   expect(speakerRedirect('/home', false)).toBeNull();

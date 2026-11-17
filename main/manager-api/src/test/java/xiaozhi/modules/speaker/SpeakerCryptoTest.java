@@ -29,4 +29,10 @@ class SpeakerCryptoTest {
         Files.setPosixFilePermissions(directory.resolve("identity.key"),PosixFilePermissions.fromString("rw-r-----"));
         assertThrows(SpeakerFailure.class,()->crypto.encrypt("token-fixture"));
     }
+    @Test void mcpConfigurationDoesNotDependOnTheMarketClientAndCannotBeUsedAsAnIdentityToken() throws Exception {
+        var one=cipher("app-one");var two=cipher("app-two");
+        String encrypted=one.encryptConfiguration("mcp-header-fixture");
+        assertEquals("mcp-header-fixture",two.decryptConfiguration(encrypted));
+        assertThrows(SpeakerFailure.class,()->one.decrypt(encrypted));
+    }
 }

@@ -11,7 +11,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
 
-/** Backend-only authenticated encryption, bound to the configured identity application. */
+/** Backend-only encryption: identity tokens bind to the app; MCP configuration has its own context. */
 @Component
 public final class SpeakerCrypto {
     private final SpeakerSettings settings;
@@ -32,24 +32,35 @@ public final class SpeakerCrypto {
             return key;
         }
     }
-    private Cipher cipher(int mode, byte[] iv) throws Exception {
+    private Cipher cipher(int mode, byte[] iv, String context) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(mode, new SecretKeySpec(key(),"AES"), new GCMParameterSpec(128,iv));
-        cipher.updateAAD((settings.issuer()+"\n"+settings.clientId()).getBytes(StandardCharsets.UTF_8));
+        cipher.updateAAD(context.getBytes(StandardCharsets.UTF_8));
         return cipher;
     }
     public String encrypt(String value) {
+        return encrypt(value, settings.issuer()+"\n"+settings.clientId());
+    }
+    public String encryptConfiguration(String value) { return "mcp1."+encrypt(value,"xiaozhi:mcp-configuration:v1"); }
+    private String encrypt(String value,String context) {
         try {
             byte[] iv = new byte[12]; new SecureRandom().nextBytes(iv);
             return Base64.getEncoder().encodeToString(iv) + "." + Base64.getEncoder().encodeToString(
-                    cipher(Cipher.ENCRYPT_MODE,iv).doFinal(value.getBytes(StandardCharsets.UTF_8)));
+                    cipher(Cipher.ENCRYPT_MODE,iv,context).doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception failure) { throw new SpeakerFailure(503,"CREDENTIAL_STORAGE_UNAVAILABLE"); }
     }
     public String decrypt(String value) {
+        return decrypt(value,settings.issuer()+"\n"+settings.clientId());
+    }
+    public String decryptConfiguration(String value) {
+        if(!value.startsWith("mcp1.")) throw new SpeakerFailure(503,"CREDENTIAL_STORAGE_UNAVAILABLE");
+        return decrypt(value.substring(5),"xiaozhi:mcp-configuration:v1");
+    }
+    private String decrypt(String value,String context) {
         try {
             String[] parts = value.split("\\.",-1);
             if (parts.length != 2) throw new IllegalArgumentException();
-            return new String(cipher(Cipher.DECRYPT_MODE,Base64.getDecoder().decode(parts[0]))
+            return new String(cipher(Cipher.DECRYPT_MODE,Base64.getDecoder().decode(parts[0]),context)
                     .doFinal(Base64.getDecoder().decode(parts[1])),StandardCharsets.UTF_8);
         } catch (Exception failure) { throw new SpeakerFailure(503,"CREDENTIAL_STORAGE_UNAVAILABLE"); }
     }

@@ -90,8 +90,6 @@ class ConnectionHandler:
         self.common_config = config
         self.config = copy.deepcopy(config)
         self.session_id = str(uuid.uuid4())
-        self.initialization = {"status": "pending", "stage": "configuration"}
-        self.components_initialized = threading.Event()
         self.logger = setup_logging()
         self.server = server  # 保存server实例的引用
 
@@ -175,6 +173,7 @@ class ConnectionHandler:
         # iot相关变量
         self.iot_descriptors = {}
         self.func_handler = None
+        self.configuration_ready = asyncio.Event()
 
         self.cmd_exit = self.config["exit_commands"]
 
@@ -216,9 +215,7 @@ class ConnectionHandler:
                 self.client_ip = real_ip.split(",")[0].strip()
             else:
                 self.client_ip = ws.remote_address[0]
-            self.logger.bind(tag=TAG).info(
-                f"{self.client_ip} conn - device connection accepted"
-            )
+            self.logger.bind(tag=TAG).info(f"{self.client_ip} conn - Device: {self.headers.get('device-id')}")
 
             self.device_id = self.headers.get("device-id", None)
 
@@ -279,6 +276,7 @@ class ConnectionHandler:
 
     async def _save_and_close(self, ws):
         """保存记忆并关闭连接"""
+        history_id = getattr(self, 'history_session_id', self.session_id)
         try:
             # 守护线程1：独立生成标题（不依赖记忆模型）
             # 仅在服务端开启 chat_history 上报时才触发标题生成，
@@ -290,7 +288,7 @@ class ConnectionHandler:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                         loop.run_until_complete(
-                            generate_and_save_chat_title(self.session_id)
+                            generate_and_save_chat_title(history_id)
                         )
                     except Exception as e:
                         self.logger.bind(tag=TAG).error(f"生成标题失败: {e}")
@@ -312,7 +310,7 @@ class ConnectionHandler:
                         asyncio.set_event_loop(loop)
                         loop.run_until_complete(
                             self.memory.save_memory(
-                                self.dialogue.dialogue, self.session_id
+                                self.dialogue.dialogue, history_id
                             )
                         )
                     except Exception as e:
@@ -382,9 +380,6 @@ class ConnectionHandler:
             # 入口处直接解码PCM，避免VAD和ASR重复解码
             pcm_frame = self._decode_opus_packet(message)
             if pcm_frame:
-                if getattr(self, 'product_voice_gate', None) is not None and self.asr_audio_queue.qsize() >= 100:
-                    await self.websocket.close(code=1009, reason='Audio input backlog')
-                    return
                 self.asr_audio_queue.put(pcm_frame)
 
     async def _process_mqtt_audio_message(self, message):
@@ -610,31 +605,14 @@ class ConnectionHandler:
 
     def _initialize_components(self):
         try:
-            if self.stop_event.is_set():
-                return
             if self.tts is None:
                 self.tts = self._initialize_tts()
-            if self.stop_event.is_set():
-                return
-            gate = getattr(self, 'product_voice_gate', None)
-            if gate is not None:
-                original_speak = self.tts.text_to_speak
-                async def guarded_speak(*args, **kwargs):
-                    turn_id = getattr(self.tts, 'current_sentence_id', None)
-                    self.product_turn_guard(turn_id)
-                    await gate.check_async()
-                    self.product_turn_guard(turn_id)
-                    audio = await original_speak(*args, **kwargs)
-                    self.product_turn_guard(turn_id)
-                    return audio
-                self.tts.text_to_speak = guarded_speak
             # 打开语音合成通道
-            # This runs in the component worker; propagate asynchronous setup failures.
-            asyncio.run_coroutine_threadsafe(
+            opened_tts = asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
-            ).result(timeout=30)
-            if self.stop_event.is_set():
-                return
+            )
+            if getattr(self, 'identity_session', None):
+                opened_tts.result(timeout=15)
             if self.need_bind:
                 self.bind_completed_event.set()
                 return
@@ -662,9 +640,11 @@ class ConnectionHandler:
             # 初始化声纹识别
             self._initialize_voiceprint()
             # 打开语音识别通道
-            asyncio.run_coroutine_threadsafe(
+            opened_asr = asyncio.run_coroutine_threadsafe(
                 self.asr.open_audio_channels(self), self.loop
-            ).result(timeout=30)
+            )
+            if getattr(self, 'identity_session', None):
+                opened_asr.result(timeout=15)
 
             """加载记忆"""
             self._initialize_memory()
@@ -678,13 +658,12 @@ class ConnectionHandler:
             self._inject_tool_call_fewshot()
 
         except Exception as e:
-            self._fail_initialization("components")
             self.logger.bind(tag=TAG).error(f"实例化组件失败: {e}")
+            if getattr(self, 'identity_session', None):
+                raise
 
     def _init_prompt_enhancement(self):
-        if getattr(self, 'product_voice_gate', None) is not None:
-            # Direct model mode has no weather, location or external context calls.
-            return
+
         # 更新上下文信息
         self.prompt_manager.update_context_info(self, self.client_ip)
         enhanced_prompt = self.prompt_manager.build_enhanced_prompt(
@@ -703,8 +682,6 @@ class ConnectionHandler:
         负样本（直接回答示例）放在动态 system 之后、紧挨真实用户消息，
         确保模型在处理用户消息前最后看到的是"不调工具"的行为模式。
         """
-        if getattr(self, 'product_voice_gate', None) is not None:
-            return
         if self.intent_type != "function_call":
             return
         if not hasattr(self, "func_handler") or self.func_handler is None:
@@ -816,33 +793,23 @@ class ConnectionHandler:
         except Exception as e:
             self.logger.bind(tag=TAG).warning(f"声纹识别初始化失败: {str(e)}")
 
-    def _fail_initialization(self, stage):
-        # Keep the first failure without exposing configuration or credentials.
-        if self.initialization["status"] != "failed":
-            self.initialization = {"status": "failed", "stage": stage}
-
     async def _background_initialize(self):
         """在后台初始化配置和组件（完全不阻塞主循环）"""
         try:
             # 异步获取差异化配置
             await self._initialize_private_config_async()
+            if getattr(self, 'identity_session', None) and self.need_bind:
+                await self.close()
+                return
+            if getattr(self, 'identity_session', None):
+                await self.identity_session.configuration_loaded(self)
             # 在线程池中初始化组件
-            if self.initialization["status"] != "failed":
-                self.initialization = {"status": "pending", "stage": "components"}
-            await self.loop.run_in_executor(self.executor, self._initialize_components)
-            if self.need_bind:
-                self._fail_initialization("binding")
-            elif any(module is None for module in (self.vad, self.asr, self.tts, self.llm, self.memory, self.intent)):
-                self._fail_initialization("providers")
-            elif self.initialization["status"] != "failed":
-                self.initialization = {"status": "ready", "stage": "providers"}
+            future = self.executor.submit(self._initialize_components)
+            await asyncio.wrap_future(future)
+            self.configuration_ready.set()
         except Exception as e:
-            self._fail_initialization("components")
             self.logger.bind(tag=TAG).error(f"后台初始化失败: {e}")
-        finally:
-            self.components_initialized.set()
-            # Initialization can finish after a disconnect or readiness timeout.
-            if self.stop_event.is_set():
+            if getattr(self, 'identity_session', None):
                 await self.close()
 
     async def _initialize_private_config_async(self):
@@ -858,6 +825,10 @@ class ConnectionHandler:
                 self.headers.get("device-id"),
                 self.headers.get("client-id", self.headers.get("device-id")),
             )
+            if getattr(self, 'identity_session', None) and (
+                not isinstance(private_config, dict) or not private_config.get('configuration_revision')
+            ):
+                raise RuntimeError('Full agent configuration required')
             private_config["delete_audio"] = bool(self.config.get("delete_audio", True))
             private_config["tts_timeout"] = self.config.get("tts_timeout", 15)
             self.logger.bind(tag=TAG).info(
@@ -874,7 +845,6 @@ class ConnectionHandler:
             private_config = {}
         except Exception as e:
             self.need_bind = True
-            self._fail_initialization("configuration")
             self.logger.bind(tag=TAG).error(f"异步获取差异化配置失败: {e}")
             private_config = {}
 
@@ -885,8 +855,12 @@ class ConnectionHandler:
             False,
         )
 
-        init_vad = check_vad_update(self.common_config, private_config)
-        init_asr = check_asr_update(self.common_config, private_config)
+        if getattr(self, 'identity_session', None):
+            init_vad = 'VAD' in private_config
+            init_asr = 'ASR' in private_config
+        else:
+            init_vad = check_vad_update(self.common_config, private_config)
+            init_asr = check_asr_update(self.common_config, private_config)
 
         if init_vad:
             self.config["VAD"] = private_config["VAD"]
@@ -954,6 +928,10 @@ class ConnectionHandler:
                 ] = expanded_functions
         if private_config.get("prompt", None) is not None:
             self.config["prompt"] = private_config["prompt"]
+        if private_config.get('configuration_revision') is not None:
+            self.config['configuration_revision'] = private_config['configuration_revision']
+        if private_config.get('memory_scope') is not None:
+            self.memory_scope = private_config['memory_scope']
         # 获取声纹信息
         if private_config.get("voiceprint", None) is not None:
             self.config["voiceprint"] = private_config["voiceprint"]
@@ -965,6 +943,8 @@ class ConnectionHandler:
             self.chat_history_conf = int(private_config["chat_history_conf"])
         if private_config.get("mcp_endpoint", None) is not None:
             self.config["mcp_endpoint"] = private_config["mcp_endpoint"]
+        if private_config.get('mcp_servers') is not None:
+            self.config['mcp_servers'] = private_config['mcp_servers']
         if private_config.get("context_providers", None) is not None:
             self.config["context_providers"] = private_config["context_providers"]
 
@@ -990,8 +970,9 @@ class ConnectionHandler:
                 init_intent,
             )
         except Exception as e:
-            self._fail_initialization("providers")
             self.logger.bind(tag=TAG).error(f"初始化组件失败: {e}")
+            if getattr(self, 'identity_session', None):
+                raise
             modules = {}
         if modules.get("tts", None) is not None:
             self.tts = modules["tts"]
@@ -1006,12 +987,54 @@ class ConnectionHandler:
         if modules.get("memory", None) is not None:
             self.memory = modules["memory"]
 
+    async def reload_agent_configuration(self):
+        """Rebuild the original providers only at an idle turn boundary."""
+        self.configuration_ready.clear()
+        if hasattr(self, 'history_session_id'):
+            asyncio.create_task(self._finish_role_history(
+                self.memory, list(self.dialogue.dialogue), self.history_session_id, self.chat_history_conf))
+        if self.func_handler:
+            await self.func_handler.cleanup()
+        self.func_handler = None
+        self.load_function_plugin = False
+        self.intent_type = 'nointent'
+        for provider in (self.tts, self.asr):
+            if provider:
+                await provider.close()
+        if self.vad and hasattr(self.vad, 'release_conn_resources'):
+            self.vad.release_conn_resources(self)
+        self.clear_queues()
+        self.reset_audio_states()
+        self.dialogue.dialogue.clear()
+        self.introduced_speakers.clear()
+        self.system_introduced_speakers.clear()
+        self.config = copy.deepcopy(self.common_config)
+        self.prompt_manager = PromptManager(self.config, self.logger)
+        self.voiceprint_provider = None
+        self.vad = self.asr = self.tts = self.llm = self.memory = self.intent = None
+        await self._initialize_private_config_async()
+        if self.need_bind:
+            raise RuntimeError('Agent configuration unavailable')
+        await self.identity_session.configuration_loaded(self)
+        await asyncio.wrap_future(self.executor.submit(self._initialize_components))
+        self.configuration_ready.set()
+
+    async def _finish_role_history(self, memory, messages, history_id, history_enabled):
+        try:
+            await asyncio.wait_for(asyncio.to_thread(self.report_queue.join), 5)
+            if memory:
+                await memory.save_memory(messages, history_id)
+            if history_enabled:
+                await generate_and_save_chat_title(history_id)
+        except Exception:
+            self.logger.bind(tag=TAG).warning('Previous role history finalization unavailable')
+
     def _initialize_memory(self):
         if self.memory is None:
             return
         """初始化记忆模块"""
         self.memory.init_memory(
-            role_id=self.device_id,
+            role_id=self.memory_scope if hasattr(self, 'memory_scope') else self.device_id,
             llm=self.llm,
             summary_memory=self.config.get("summaryMemory", None),
             save_to_file=not self.read_config_from_api,
@@ -1049,16 +1072,6 @@ class ConnectionHandler:
                 self.logger.bind(tag=TAG).info("使用主LLM作为意图识别模型")
 
     def _initialize_intent(self):
-        if getattr(self, 'product_voice_gate', None) is not None:
-            self.intent_type = 'function_call'
-            self.func_handler = UnifiedToolHandler(self)
-            future = asyncio.run_coroutine_threadsafe(self.func_handler._initialize(), self.loop)
-            try:
-                future.result(timeout=30)
-            except Exception:
-                future.cancel()
-                asyncio.run_coroutine_threadsafe(self.func_handler.cleanup(), self.loop).result(timeout=25)
-            return
         if self.intent is None:
             return
         self.intent_type = self.config["Intent"][
@@ -1112,16 +1125,7 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def product_turn_is_current(self, turn_id):
-        return self.product_conversation.current(turn_id)
-
-    def product_turn_guard(self, turn_id):
-        self.product_conversation.guard(turn_id)
-
-    def chat(self, query, depth=0, *, turn_id=None):
-        gate = getattr(self, "product_voice_gate", None)
-        if gate is not None:
-            return self.product_conversation.chat(query, turn_id)
+    def chat(self, query, depth=0):
         # 保存当前任务的sentence_id到局部变量，避免被新任务覆盖
         current_sentence_id = None
 
@@ -1594,11 +1598,11 @@ class ConnectionHandler:
 
         self.logger.bind(tag=TAG).info("聊天记录上报线程已退出")
 
-    def _process_report(self, type, text, audio_data, report_time):
+    def _process_report(self, type, text, audio_data, report_time, history_session_id=None):
         """处理上报任务"""
         try:
             # 执行异步上报（在事件循环中运行）
-            asyncio.run(report(self, type, text, audio_data, report_time))
+            asyncio.run(report(self, type, text, audio_data, report_time, history_session_id))
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"上报处理异常: {e}")
         finally:
@@ -1739,7 +1743,7 @@ class ConnectionHandler:
             for q in [
                 self.tts.tts_text_queue,
                 self.tts.tts_audio_queue,
-                self.report_queue,
+                *([] if getattr(self, 'identity_session', None) else [self.report_queue]),
             ]:
                 if not q:
                     continue

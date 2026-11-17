@@ -33,21 +33,14 @@ class ListenTextMessageHandler(TextMessageHandler):
                 f"客户端拾音模式：{conn.client_listen_mode}"
             )
         if msg_json["state"] == "start":
-            if getattr(conn, 'product_voice_gate', None) is not None and conn.asr is not None:
-                conn.asr.cancel()
-                conn.product_conversation.listen_started()
+            if getattr(conn, 'identity_session', None):
+                await conn.identity_session.before_turn(conn)
             # 设备从播放模式切回录音模式,清除所有音频状态和缓冲区
             conn.reset_audio_states()
         elif msg_json["state"] == "stop":
             # 收到stop但asr未初始化，跳过处理
             if conn.asr is None:
                 return
-
-            if getattr(conn, 'product_voice_gate', None) is not None:
-                # Drain already received PCM before snapshotting this utterance.
-                while conn.asr_audio_queue.unfinished_tasks:
-                    await conn.product_voice_gate.check_async()
-                    await asyncio.sleep(.01)
 
             conn.client_voice_stop = True
             if conn.asr.interface_type == InterfaceType.STREAM:
@@ -116,7 +109,7 @@ class ListenTextMessageHandler(TextMessageHandler):
                     conn.just_woken_up = True
                     # 上报纯文字数据（复用ASR上报功能，但不提供音频数据）
                     enqueue_asr_report(conn, "嘿，你好呀", [])
-                    await startToChat(conn, "嘿，你好呀", wakeup=True)
+                    await startToChat(conn, "嘿，你好呀")
                 else:
                     conn.just_woken_up = True
                     # 上报纯文字数据（复用ASR上报功能，但不提供音频数据）

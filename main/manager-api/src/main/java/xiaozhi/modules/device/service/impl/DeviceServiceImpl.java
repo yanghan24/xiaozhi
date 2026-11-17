@@ -511,7 +511,8 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         return code;
     }
 
-    private DeviceReportRespDTO.Firmware buildFirmwareInfo(String type, String currentVersion) {
+    @Override
+    public DeviceReportRespDTO.Firmware buildFirmwareInfo(String type, String currentVersion) {
         if (StringUtils.isBlank(type)) {
             return null;
         }

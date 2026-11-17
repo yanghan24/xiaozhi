@@ -21,6 +21,10 @@ public interface ConfigService {
      */
     Map<String, Object> getAgentModels(String macAddress, Map<String, String> selectedModule);
 
+    Map<String, Object> getAgentConfiguration(String agentId, Map<String, String> selectedModule);
+
+    List<String> getAgentCorrectWords(String agentId);
+
     /**
      * 获取智能体替换词
      *

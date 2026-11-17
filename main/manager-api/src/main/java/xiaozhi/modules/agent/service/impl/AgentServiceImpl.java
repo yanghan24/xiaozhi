@@ -19,7 +19,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.repository.IRepository;
 
 import cn.hutool.core.collection.CollUtil;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import xiaozhi.common.constant.Constant;
 import xiaozhi.common.exception.ErrorCode;
 import xiaozhi.common.exception.RenException;
@@ -63,8 +63,11 @@ import xiaozhi.modules.sys.enums.SuperAdminEnum;
 import xiaozhi.modules.timbre.service.TimbreService;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> implements AgentService {
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerMcp speakerMcp;
+    @org.springframework.beans.factory.annotation.Value("${speaker.enabled:false}")
+    private boolean speakerMode;
     private final AgentDao agentDao;
     private final AgentTagDao agentTagDao;
     private final TimbreService timbreModelService;
@@ -215,10 +218,14 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         if (agentDao.selectByIdForUpdate(agentId) == null) {
             return;
         }
+        if (speakerMode && agentDao.isSpeakerDefault(agentId)) {
+            throw new RenException("当前默认智能体不能删除，请先切换默认智能体");
+        }
         deviceService.deleteByAgentId(agentId);
         agentChatHistoryService.deleteByAgentId(agentId, true, true);
         agentPluginMappingService.deleteByAgentId(agentId);
         agentContextProviderService.deleteByAgentId(agentId);
+        if (speakerMode) speakerMcp.removeAgent(agentId);
         correctWordFileService.deleteMappingsByAgentId(agentId);
         agentTagService.deleteAgentTags(agentId);
         agentSnapshotService.deleteByAgentId(agentId);
@@ -228,7 +235,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     @Override
     public List<AgentDTO> getUserAgents(Long userId, String keyword, String searchType) {
         QueryWrapper<AgentEntity> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_id", userId).orderByDesc("created_at");
+        queryWrapper.eq(!(speakerMode && isCurrentUserSuperAdmin()), "user_id", userId).orderByDesc("created_at");
 
         if (StringUtils.isNotBlank(keyword)) {
             queryWrapper.and(w -> {
@@ -287,7 +294,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         dto.setLastConnectedAt(deviceService.getLatestLastConnectionTime(agent.getId()));
 
         // 获取设备数量
-        dto.setDeviceCount(getDeviceCountByAgentId(agent.getId()));
+        dto.setDeviceCount(speakerMode ? agentDao.getSpeakerDeviceCount(agent.getId()) : getDeviceCountByAgentId(agent.getId()));
 
         // 获取标签列表
         List<AgentTagEntity> tags = agentTagDao.selectByAgentId(agent.getId());

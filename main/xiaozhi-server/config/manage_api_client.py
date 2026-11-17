@@ -249,6 +249,20 @@ async def get_server_config(instance) -> Optional[Dict]:
 
 
 @api_guard(raise_when_closed=True)
+async def device_session(instance, action, body):
+    """Bounded identity request at connection/turn boundaries, never an inference proxy."""
+    if action not in ('open', 'check', 'close', 'conversation'):
+        raise ValueError('Invalid identity action')
+    async with instance._build_client() as client:
+        response = await client.post('config/device-session/' + action, json=body, timeout=2)
+        response.raise_for_status()
+        result = response.json()
+        if result.get('code') != 0 or not isinstance(result.get('data'), dict):
+            raise ValueError('Device identity unavailable')
+        return result['data']
+
+
+@api_guard(raise_when_closed=True)
 async def get_agent_models(
     instance, mac_address: str, client_id: str, selected_module: Dict
 ) -> Optional[Dict]:

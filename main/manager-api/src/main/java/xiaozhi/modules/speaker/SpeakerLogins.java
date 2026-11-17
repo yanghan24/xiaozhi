@@ -106,10 +106,25 @@ public class SpeakerLogins {
         String id=row.get("id").toString();
         var received=json.readValue(crypto.decrypt(row.get("tokens_cipher").toString()),SpeakerMarket.Tokens.class);
         if(received.expiresAt()<=System.currentTimeMillis()) { fail(id,"expired","LOGIN_EXPIRED");return; }
-        // Persist identity tokens before obtaining a business Key. A Key outage must not discard successful authorization.
-        String customer=row.get("customer_id")==null ? grants.saveIdentity(received,market.profile(received),id) : row.get("customer_id").toString();
-        var tokens=grants.currentTokens(customer);
-        grants.saveCredential(customer,tokens,market.credential(tokens));
+        // Profile I/O stays outside the lock. Recheck ownership before persisting
+        // tokens: a stale authorization must not overwrite a later user's grant.
+        var profile=row.get("customer_id")==null ? market.profile(received) : null;
+        String customer=devices.transactions.execute(tx -> {
+            var device=devices.load(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
+            var current=db.queryForMap("SELECT * FROM speaker_login WHERE id=? FOR UPDATE",id);
+            if(!"polling".equals(current.get("status")) || !id.equals(device.get("login_id"))
+                    || number(row,"binding_version")!=number(device,"binding_version")) {
+                fail(id,"cancelled","DEVICE_CHANGED");return null;
+            }
+            if(device.get("customer_id")!=null) {
+                var owner=db.queryForMap("SELECT issuer,subject FROM speaker_customer WHERE id=?",device.get("customer_id"));
+                if(!settings.issuer().equals(owner.get("issuer")) || !received.subject().equals(owner.get("subject"))) {
+                    fail(id,"denied","OWNER_REQUIRED");return null;
+                }
+            }
+            return current.get("customer_id")==null ? grants.saveIdentity(received,profile,id) : current.get("customer_id").toString();
+        });
+        if(customer==null) return;
         devices.transactions.executeWithoutResult(tx -> {
             var device=devices.load(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
             if(!id.equals(device.get("login_id")) || number(row,"binding_version")!=number(device,"binding_version")) {
@@ -118,7 +133,7 @@ public class SpeakerLogins {
             if(device.get("customer_id")!=null && !customer.equals(device.get("customer_id"))) {
                 fail(id,"denied","OWNER_REQUIRED");return;
             }
-            if(!SpeakerGrants.usable(grants.grant(customer),System.currentTimeMillis())) throw new SpeakerFailure(503,"CREDENTIAL_PENDING");
+            if(!SpeakerGrants.usable(grants.grant(customer),System.currentTimeMillis())) throw new SpeakerFailure(503,"IDENTITY_PENDING");
             long now=System.currentTimeMillis();
             db.update("UPDATE speaker_device_state SET customer_id=?,use_enabled=TRUE,bound_at_ms=COALESCE(bound_at_ms,?),"
                     + "permission_version=permission_version+1,login_id=NULL WHERE device_id=?",customer,now,row.get("device_id"));

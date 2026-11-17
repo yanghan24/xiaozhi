@@ -50,6 +50,8 @@ public class OTAController {
     private ZoneId productTimeZone;
     private final DeviceService deviceService;
     private final SysParamsService sysParamsService;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerDevices speakerDevices;
+    @jakarta.annotation.Resource private jakarta.servlet.http.HttpServletRequest request;
 
     @Operation(summary = "OTA版本和设备激活状态检查")
     @PostMapping
@@ -57,7 +59,28 @@ public class OTAController {
             @RequestBody DeviceReportReqDTO deviceReportReqDTO,
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
             @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
-        if (productControl || speakerControl) {
+        if (speakerControl) {
+            try {
+                var identity=speakerDevices.authenticate(request.getHeader("Authorization"),deviceId);
+                String board=deviceReportReqDTO.getBoard()==null?null:deviceReportReqDTO.getBoard().getType();
+                String version=deviceReportReqDTO.getApplication()==null?null:deviceReportReqDTO.getApplication().getVersion();
+                var device=speakerDevices.load(identity,false);
+                if(board==null || version==null || board.length()>128 || version.length()>128
+                        || device.get("board_type")!=null && !device.get("board_type").toString().isBlank() && !board.equals(device.get("board_type")))
+                    throw new xiaozhi.modules.speaker.SpeakerFailure(400,"INVALID_DEVICE_REPORT");
+                var result=new DeviceReportRespDTO();
+                result.setFirmware(deviceService.buildFirmwareInfo(board,version));
+                var time=new DeviceReportRespDTO.ServerTime();time.setTimestamp(System.currentTimeMillis());
+                time.setTimeZone(productTimeZone.getId());
+                time.setTimezone_offset(productTimeZone.getRules().getOffset(Instant.now()).getTotalSeconds()/60);
+                result.setServer_time(time);
+                speakerDevices.heartbeat(identity,board,version);
+                return createResponse(result);
+            } catch(xiaozhi.modules.speaker.SpeakerFailure failure) {
+                return ResponseEntity.status(failure.status).contentType(MediaType.APPLICATION_JSON).body(JsonUtils.toJsonString(Map.of("error",failure.getMessage())));
+            }
+        }
+        if (productControl) {
             // Discovery is public; only the independent control credential can obtain voice access.
             long timestamp = System.currentTimeMillis();
             // Firmware expects UTC epoch milliseconds plus a separate offset in minutes.

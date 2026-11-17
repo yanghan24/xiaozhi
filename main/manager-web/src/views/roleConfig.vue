@@ -46,7 +46,7 @@
               <div class="header-actions">
                 <div class="hint-text">
                   <img loading="lazy" src="@/assets/home/info.png" alt="" />
-                  <span>{{ $t("roleConfig.restartNotice") }}</span>
+                  <span>{{ $store.state.pubConfig.speakerMode ? '默认角色配置于下一轮生效' : $t("roleConfig.restartNotice") }}</span>
                 </div>
                 <el-button class="history-btn" @click="showSnapshotDialog = true">
                   {{ $t("roleConfig.snapshotHistory") }}
@@ -101,6 +101,7 @@
                         </div>
                       </div>
                     </el-form-item>
+                    <AgentMcpSettings v-if="$store.state.pubConfig.speakerMode && $route.query.agentId" :agent-id="$route.query.agentId" />
                     <el-form-item class="context-provider-item">
                       <template #label>
                         <el-tooltip :content="$t('roleConfig.tooltip.contextProvider')" placement="top" effect="light" popper-class="custom-tooltip">
@@ -487,6 +488,7 @@
 
 <script>
 import Api from "@/apis/api";
+import AgentMcpSettings from "@/components/AgentMcpSettings.vue";
 import { getServiceUrl } from "@/apis/api";
 import RequestService from "@/apis/httpRequest";
 import FunctionDialog from "@/components/FunctionDialog.vue";
@@ -500,7 +502,7 @@ import VersionFooter from "@/components/VersionFooter.vue";
 
 export default {
   name: "RoleConfigPage",
-  components: { HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
+  components: { AgentMcpSettings, HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
   data() {
     return {
       showContextProviderDialog: false,
