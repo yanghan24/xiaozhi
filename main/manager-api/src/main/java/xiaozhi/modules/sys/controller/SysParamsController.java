@@ -134,27 +134,16 @@ public class SysParamsController {
         if (!paramCode.equals(Constant.SERVER_WEBSOCKET)) {
             return;
         }
-        String[] wsUrls = urls.split("\\;");
-        if (wsUrls.length == 0) {
-            throw new RenException(ErrorCode.WEBSOCKET_URLS_EMPTY);
-        }
-        for (String url : wsUrls) {
-            if (StringUtils.isNotBlank(url)) {
-                // 检查是否包含localhost或127.0.0.1
-                if (url.contains("localhost") || url.contains("127.0.0.1")) {
-                    throw new RenException(ErrorCode.WEBSOCKET_URL_LOCALHOST);
-                }
-
-                // 验证WebSocket地址格式
-                if (!WebSocketValidator.validateUrlFormat(url)) {
-                    throw new RenException(ErrorCode.WEBSOCKET_URL_FORMAT_ERROR);
-                }
-
-                // 测试WebSocket连接
-                if (!WebSocketValidator.testConnection(url)) {
-                    throw new RenException(ErrorCode.WEBSOCKET_CONNECTION_FAILED);
-                }
-            }
+        String[] wsUrls = urls.split(";", -1);
+        if (wsUrls.length == 0) throw new RenException(ErrorCode.WEBSOCKET_URLS_EMPTY);
+        for (String value : wsUrls) {
+            String url=value.strip();
+            try {
+                var uri=java.net.URI.create(url);
+                boolean scheme="wss".equals(uri.getScheme()) || "ws".equals(uri.getScheme()) && "127.0.0.1".equals(uri.getHost());
+                if(!scheme || uri.getHost()==null || !"/xiaozhi/v1/".equals(uri.getPath()) || uri.getUserInfo()!=null
+                        || uri.getQuery()!=null || uri.getFragment()!=null) throw new IllegalArgumentException();
+            } catch(Exception invalid) { throw new RenException(ErrorCode.WEBSOCKET_URL_FORMAT_ERROR); }
         }
     }
 

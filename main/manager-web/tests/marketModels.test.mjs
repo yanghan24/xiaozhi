@@ -47,7 +47,15 @@ describe('one AI Market adapter configuration', () => {
     expect(vm.options.map(m => m.publicId)).toEqual(['vision-model']);
   });
 
-  it('does not fetch or enable out-of-scope model types', async () => {
+  it('only labels capabilities that are declared and verified', async () => {
+    const vm = create(vi.fn((token,type,action) => Promise.resolve(action === 'options'
+      ? { items: [{ publicId: 'checked', capabilities: ['streaming','tools','vision'], verifiedCapabilities: ['streaming','tools'] }] }
+      : { publicId: 'checked', enabled: true })));
+    await settle();
+    expect(vm.capabilityLabels).toEqual(['流式输出','工具调用']);
+  });
+
+  it('does not fetch or enable out-of-scope model types' , async () => {
     const request = vi.fn(() => Promise.resolve({ publicId: '', items: [], enabled: false }));
     const vm = create(request); await settle(); request.mockClear();
     vm.modelType = 'tts'; await Vue.nextTick();

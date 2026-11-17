@@ -85,6 +85,10 @@ class WebSocketServer:
             await asyncio.Future()
 
     async def _handle_connection(self, websocket: websockets.ServerConnection):
+        from core.management import PATH, handle_management
+        if websocket.request.path == PATH:
+            await handle_management(self, websocket)
+            return
         headers = dict(websocket.request.headers)
         if headers.get("device-id", None) is None:
             # 尝试从 URL 的查询参数中获取 device-id

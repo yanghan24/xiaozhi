@@ -34,10 +34,12 @@ class SpeakerRoleDatabaseTest {
         db.queryForMap("SELECT * FROM speaker_runtime WHERE id=1 FOR UPDATE");
         db.update("UPDATE speaker_runtime SET default_agent_id=NULL,configured_agent_id=NULL WHERE id=1");
         Path key=directory.resolve("key");Files.writeString(key,Base64.getEncoder().encodeToString(new byte[32]));Files.setPosixFilePermissions(key,PosixFilePermissions.fromString("rw-------"));
-        var settings=new SpeakerSettings(true,"https://fixture.example/oidc","fixture-client",key.toString(),"ws://127.0.0.1:8000/xiaozhi/v1/","fixture-service-key-12345678901234567890");
+        var settings=new SpeakerSettings(true,"https://fixture.example/oidc","fixture-client",key.toString(),"fixture-service-key-12345678901234567890");
         fullConfiguration=org.mockito.Mockito.mock(SpeakerAgentConfiguration.class);
         var crypto=new SpeakerCrypto(settings);devices=new SpeakerDevices(db,settings,manager);agents=new SpeakerAgents(db,settings,manager,fullConfiguration);
-        grants=new SpeakerGrants(db,settings,crypto,org.mockito.Mockito.mock(SpeakerMarket.class),manager);voice=new SpeakerVoice(db,settings,crypto,grants,agents);
+        grants=new SpeakerGrants(db,settings,crypto,org.mockito.Mockito.mock(SpeakerMarket.class),manager);var endpoints=org.mockito.Mockito.mock(xiaozhi.modules.sys.service.VoiceServiceEndpoints.class);
+        org.mockito.Mockito.when(endpoints.deviceUrl()).thenReturn("ws://127.0.0.1:8000/xiaozhi/v1/");
+        voice=new SpeakerVoice(db,settings,crypto,grants,agents,endpoints);
         mcp=new SpeakerMcp(db,crypto);conversations=new SpeakerConversations(db);
         org.springframework.test.util.ReflectionTestUtils.setField(voice,"conversations",conversations);
         String device="speaker-role-test-"+UUID.randomUUID();var registration=devices.register(device,"角色协议夹具","p4-test",0);

@@ -30,7 +30,8 @@ public final class MarketModelCompatibility {
         if(type.equals("VLLM")) return has(model,"vision")
                 && contains(model.path("verifiedMethods").path("vision"),"chat-image-data-uri");
         if(!Set.of("LLM","Intent","Memory").contains(type) || !has(model,"streaming")) return false;
-        if(type.equals("LLM") || type.equals("Memory")) return true;
+        if(type.equals("LLM")) return has(model,"tools");
+        if(type.equals("Memory")) return true;
         return has(model,"structured-output")
                 && contains(model.path("verifiedMethods").path("structured-output"),"json_object");
     }

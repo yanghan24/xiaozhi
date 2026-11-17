@@ -35,7 +35,7 @@ class SpeakerLoginDatabaseTest {
         db=new JdbcTemplate(source); var manager=new DataSourceTransactionManager(source);
         Path key=directory.resolve("key");Files.writeString(key,Base64.getEncoder().encodeToString(new byte[32]));
         Files.setPosixFilePermissions(key,PosixFilePermissions.fromString("rw-------"));
-        settings=new SpeakerSettings(true,"https://fixture.example/oidc","fixture-"+UUID.randomUUID(),key.toString(),"","");
+        settings=new SpeakerSettings(true,"https://fixture.example/oidc","fixture-"+UUID.randomUUID(),key.toString(),"");
         crypto=new SpeakerCrypto(settings);market=mock(SpeakerMarket.class);devices=new SpeakerDevices(db,settings,manager);
         grants=new SpeakerGrants(db,settings,crypto,market,manager);logins=new SpeakerLogins(db,devices,settings,market,crypto,grants);
         device="speaker-test-"+UUID.randomUUID();

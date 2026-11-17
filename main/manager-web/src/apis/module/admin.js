@@ -139,9 +139,9 @@ export default {
             }).send()
     },
     // 获取ws服务端列表
-    getWsServerList(params, callback) {
+    getWsServerList(params, callback, onError) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/admin/server/server-list`)
+            .url(`${getServiceUrl()}/admin/server/services`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime()
@@ -149,13 +149,11 @@ export default {
             })
             .networkFail((err) => {
                 console.error('获取ws服务端列表失败:', err)
-                RequestService.reAjaxFun(() => {
-                    this.getWsServerList(params, callback)
-                })
+                if (onError) onError(err)
             }).send();
     },
     // 发送ws服务器动作指令
-    sendWsServerAction(data, callback) {
+    sendWsServerAction(data, callback, onError) {
         RequestService.sendRequest()
             .url(`${getServiceUrl()}/admin/server/emit-action`)
             .method('POST')
@@ -165,9 +163,7 @@ export default {
                 callback(res)
             })
             .networkFail((err) => {
-                RequestService.reAjaxFun(() => {
-                    this.sendWsServerAction(data, callback)
-                })
+                if (onError) onError(err)
             }).send();
     }
 

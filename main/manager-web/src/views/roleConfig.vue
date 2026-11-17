@@ -190,12 +190,7 @@
                             class="form-select"
                             @change="handleModelChange('VAD', $event)"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['VAD']"
-                              :key="`option-vad-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['VAD']" :selected="form.model.vadModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -216,12 +211,7 @@
                             class="form-select"
                             @change="handleModelChange('ASR', $event)"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['ASR']"
-                              :key="`option-asr-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['ASR']" :selected="form.model.asrModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -241,12 +231,7 @@
                             class="form-select"
                             @change="handleModelChange('LLM', $event)"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['LLM']"
-                              :key="`option-asr-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['LLM']" :selected="form.model.llmModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -263,12 +248,7 @@
                             :placeholder="$t('roleConfig.pleaseSelect')"
                             class="form-select"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['LLM']"
-                              :key="`option-asr-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['LLM']" :selected="form.model.slmModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -292,13 +272,7 @@
                           class="form-select"
                           @change="handleModelChange(model.type, $event)"
                         >
-                          <el-option
-                            v-for="(item, optionIndex) in modelOptions[model.type]"
-                            v-if="!item.isHidden"
-                            :key="`option-${index}-${optionIndex}`"
-                            :label="item.label"
-                            :value="item.value"
-                          />
+                          <GroupedModelOptions :options="modelOptions[model.type]" :selected="form.model[model.key]" />
                         </el-select>
                         <div v-if="showFunctionIcons(model.type)" class="function-icons">
                           <el-tooltip
@@ -471,6 +445,7 @@
 <script>
 import Api from "@/apis/api";
 import AgentMcpSettings from "@/components/AgentMcpSettings.vue";
+import GroupedModelOptions from "@/components/GroupedModelOptions";
 import { getServiceUrl } from "@/apis/api";
 import RequestService from "@/apis/httpRequest";
 import FunctionDialog from "@/components/FunctionDialog.vue";
@@ -484,7 +459,7 @@ import VersionFooter from "@/components/VersionFooter.vue";
 
 export default {
   name: "RoleConfigPage",
-  components: { AgentMcpSettings, HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
+  components: { GroupedModelOptions, AgentMcpSettings, HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
   data() {
     return {
       showContextProviderDialog: false,

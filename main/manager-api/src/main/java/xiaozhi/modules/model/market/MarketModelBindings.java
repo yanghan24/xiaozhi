@@ -21,6 +21,38 @@ public class MarketModelBindings {
     public List<JsonNode> options(String type) {
         return catalog.list().stream().filter(m->MarketModelCompatibility.supports(type,m)).toList();
     }
+    /** A role cannot save a market adapter which fails the same selection contract. */
+    public void validateSelections(Map<String,String> choices) {
+        var selected=new ArrayList<xiaozhi.modules.model.entity.ModelConfigEntity>();
+        for(var entry:choices.entrySet()) {
+            String id=entry.getValue();
+            if(id==null || !id.startsWith("MARKET_")) continue;
+            var model=models.selectById(id);
+            if(model==null || !Integer.valueOf(1).equals(model.getIsEnabled())) throw new SpeakerFailure(409,"MARKET_MODEL_DISABLED");
+            if(!MarketModelCompatibility.type(entry.getKey()).equals(MarketModelCompatibility.type(model.getModelType())))
+                throw new SpeakerFailure(409,"MARKET_MODEL_INCOMPATIBLE");
+            selected.add(model);
+        }
+        if(selected.isEmpty()) return;
+        var directory=catalog.list();
+        for(var model:selected)
+            MarketModelCompatibility.require(model.getModelType(),model.getConfigJson().getStr("model_name",""),directory,false);
+    }
+    /** Keep system choices available even when the remote catalog cannot be verified. */
+    public <T extends xiaozhi.modules.model.dto.ModelBasicInfoDTO> List<T> compatibleChoices(List<T> choices) {
+        if(choices.stream().noneMatch(m->m.getId().startsWith("MARKET_"))) return choices;
+        List<JsonNode> directory;
+        try { directory=catalog.list(); }
+        catch(SpeakerFailure unavailable) { return choices.stream().filter(m->!m.getId().startsWith("MARKET_")).toList(); }
+        var current=directory;
+        return choices.stream().filter(item->{
+            if(!item.getId().startsWith("MARKET_")) return true;
+            var model=models.selectById(item.getId());
+            return model!=null && Integer.valueOf(1).equals(model.getIsEnabled()) && current.stream().anyMatch(candidate ->
+                    model.getConfigJson().getStr("model_name","").equals(candidate.path("publicId").asText())
+                    && MarketModelCompatibility.supports(model.getModelType(),candidate));
+        }).toList();
+    }
     public Map<String,Object> binding(String type) {
         String kind=MarketModelCompatibility.type(type);var model=models.selectById(id(kind));
         return Map.of("id",id(kind),"modelType",kind,"publicId",model==null?"":model.getConfigJson().getStr("model_name",""),

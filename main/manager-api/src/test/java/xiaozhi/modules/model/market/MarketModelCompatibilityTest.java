@@ -29,6 +29,15 @@ class MarketModelCompatibilityTest {
         assertFalse(MarketModelCompatibility.supports("Intent",m));
         assertTrue(MarketModelCompatibility.supports("Memory",m));
     }
+    @Test void chatOnlyAndUnverifiedToolsNeverBecomeMainLlmChoices() {
+        var plain=model("openai","chat","streaming");
+        assertFalse(MarketModelCompatibility.supports("LLM",plain));
+        assertThrows(SpeakerFailure.class,()->MarketModelCompatibility.require("LLM","changing-model-name",List.of(plain),false));
+        assertTrue(MarketModelCompatibility.supports("Memory",plain));
+        var claimed=model("openai","chat","streaming","tools");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)claimed).set("verifiedCapabilities",json.valueToTree(List.of("chat","streaming")));
+        assertFalse(MarketModelCompatibility.supports("LLM",claimed));
+    }
     @Test void refusesUnverifiedAndOutOfScopeAsrEvenIfPublished() {
         var m=model("xfyun_asr_v2","transcription");
         assertFalse(MarketModelCompatibility.supports("ASR",m));

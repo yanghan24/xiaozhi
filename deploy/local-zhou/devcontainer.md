@@ -99,3 +99,15 @@ ASR 本期仅 spark_zh_iat_new / xfyun_asr_v2，使用已有 PCM/Opus 处理和�
 限定验收入口为 deploy/local-zhou/check-market-models.py 和 main/manager-web/scripts/check-market-ui.cjs。前者仅接受 runtime 下、已明确授权的临时模拟设备夹具，临时切换适配和角色后恢复，不能作为日常启动步骤；--live-voice 才会执行真实模型对话，产生用户集市用量。浏览器工具及字体缓存继续使用已有 runtime 卷。真实设备验收仍按 CONTRIBUTING 的独立 Ubuntu 环境规则执行。
 
 结果及提交见[模型接入交付](../../docs/development/ai-market-model-integration-delivery.md)。
+
+## 语音服务地址与运维（2026-11-17）
+
+设备连接地址统一由系统参数 `server.websocket` 管理，身份状态接口下发地址和短期票据；服务管理使用同一来源。不再使用私有 `speaker.voice-url` 属性。已有环境先将该旧属性的值迁移到参数并清理参数缓存，核对一致后移除旧属性；没有地址时应明确显示未配置，不能默认连接其他环境。开发模拟地址为 `ws://127.0.0.1:8000/xiaozhi/v1/`，真机需要设备可达的 WSS 地址；本改动不构成真机可达性验收。
+
+后台运维使用独立 `/xiaozhi/management/` WebSocket 路径和既有 `server.secret` / Python `manager-api.secret` 服务间认证，不创建临时设备或音频会话。反向代理若只转发 `/xiaozhi/v1/`，需要在部署任务中另行配置运维路径；本次不修改任何部署环境。默认由设备地址的同源运维路径访问。确有内外网差异时，在私有 properties 设置显式映射，例如：
+
+```properties
+speaker.management-url-map={"wss://voice.example/xiaozhi/v1/":"ws://127.0.0.1:8000/xiaozhi/management/"}
+```
+
+映射仅决定后台运维目标，不改变设备连接地址；页面同时显示两者，运行状态标为未检测。管理请求不自动重试；重启返回的是服务端已接受请求，不能等同于重启后健康检查成功。代码更新须配套加载 Java 与 Python 版本；日常角色/模型切换仍使用原有配置版本机制，不必逐次点击更新配置。
