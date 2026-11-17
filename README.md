@@ -3,6 +3,7 @@
 基于上游小智服务端工程开发，接入元筑 AI 集市。已完成管理/设备协议基线与 Ubuntu 部署、重启验证；真实集市与硬件联调继续分别验收，业务范围和职责以 [需求记录](docs/planning/voice-backend-discovery.md)、[领域词汇](GLOSSARY.md)及 [ADR](docs/adr/) 为准。
 
 - [当前部署、公网地址与运行方式](docs/deployment/current.md)
+- [本机独立开发（Dev Container + 104，local-zhou）](deploy/local-zhou/devcontainer.md)，与 114 部署环境分离
 - [本机管理端运行与验证](docs/development/manager-baseline.md)
 - [本期 MCP 知识库接入范围](docs/planning/mcp-knowledge-scope-2026-11-10.md)
 - [首版产品规则收口](docs/planning/product-rules-2026-11-09.md)

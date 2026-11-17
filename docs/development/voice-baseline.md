@@ -1,5 +1,7 @@
 # 本机语音服务与设备协议验证
 
+2026-11-16：独立开发使用[Dev Container 与 104 开发数据库](../../deploy/local-zhou/devcontainer.md)。下文保留历史 Ubuntu 基线及验收范围，不是当前开发机操作入口；当前开发工具和依赖全部在小智开发容器中运行。
+
 本流程保留 #4 的基线操作，并补齐新 clone 的路径和检查凭据更新说明。当前后端服务、回归及设备协议检查统一在 Ubuntu 执行，先读[当前部署与复验](../deployment/ubuntu-isolated-test.md)，复用服务器现有 `.env`、账号和数据卷。下文 Docker/Python 命令在 Ubuntu clone 执行；浏览器登录可在开发电脑经 SSH 隧道完成。协议模拟不依赖集市专用接口或样机，不代表真机验收。
 
 ## 复用已有环境
