@@ -1,0 +1,3 @@
+config XIAOZHI_DEVICE_PROVISIONING
+    bool
+    default y
