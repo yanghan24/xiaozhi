@@ -53,6 +53,7 @@ protected:
     std::function<void()> account_action_;
     std::string binding_uri_;
     std::string binding_purpose_;
+    std::string binding_user_code_;
     int64_t binding_deadline_ms_ = 0;
     int64_t binding_seconds_ = -1;
     bool binding_qr_valid_ = false;

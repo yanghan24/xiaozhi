@@ -15,6 +15,13 @@
 #include "control_model.h"
 #include "control_transport.h"
 #include "device_identity.h"
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+#include "speaker_model.h"
+#include <esp_app_desc.h>
+using ProductControlModel = device_control::SpeakerModel;
+#else
+using ProductControlModel = device_control::Model;
+#endif
 
 namespace {
 int64_t Now() { return esp_timer_get_time() / 1000; }
@@ -31,10 +38,13 @@ std::string RandomKey() {
 }
 }  // namespace
 
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+#include "speaker_runtime.inc"
+#else
 struct DeviceControl::Impl {
     enum class AccountLoad { Empty, Pending, Loaded, Failed };
     std::mutex mutex;
-    device_control::Model model{"", ""};
+    ProductControlModel model{"", ""};
     std::function<void(const DeviceControlView&)> on_changed;
     std::function<void(uint64_t)> on_revoked;
     TaskHandle_t task = nullptr;
@@ -537,6 +547,7 @@ struct DeviceControl::Impl {
         vTaskDelete(nullptr);
     }
 };
+#endif
 
 DeviceControl::DeviceControl() : impl_(std::make_unique<Impl>()) {}
 DeviceControl::~DeviceControl() = default;
@@ -570,14 +581,24 @@ void DeviceControl::SetCallbacks(std::function<void(const DeviceControlView&)> c
     }
     impl_->Wake(false);
 }
-void DeviceControl::Start(const std::string& ota, const std::string& base) {
+void DeviceControl::Start(const std::string& ota, const std::string& discovered_base) {
     device_control::IdentityConfig identity;
     const bool loaded = device_control::LoadDeviceIdentity(identity);
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+    // v2 is selected by firmware configuration, never inferred from a v1 response.
+    (void)discovered_base;
+    const auto base = identity.control_origin + "/xiaozhi/speaker/v1/";
+    const bool trusted = !identity.control_origin.empty() &&
+        device_control::IsTrustedOtaUrl(ota, identity.ota_origin);
+#else
+    const auto& base = discovered_base;
+    const bool trusted = device_control::TrustedDiscovery(ota, base, identity.ota_origin, identity.control_origin);
+#endif
     const auto& id = identity.device_id;
     const auto& credential = identity.credential;
     const bool valid =
         loaded && impl_->timer_ready &&
-        device_control::TrustedDiscovery(ota, base, identity.ota_origin, identity.control_origin);
+        trusted;
     impl_->Wake(true);
     std::function<void(uint64_t)> revoked;
     uint64_t generation = 0;
@@ -594,7 +615,7 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
                 device_control::Url parsed;
                 device_control::ParseUrl(base, parsed);
                 const auto old_generation = impl_->model.View().generation;
-                impl_->model = device_control::Model(id, parsed.Origin());
+                impl_->model = ProductControlModel(id, parsed.Origin());
                 // generation must never be reused after reconfiguration.
                 impl_->model.AdvanceGeneration(old_generation + 1);
             }
@@ -633,7 +654,11 @@ void DeviceControl::NotifyNetwork(bool connected) {
             return;
         // Reconnect must obtain a fresh state before opening a new voice
         // connection, even when the lease had time left at disconnection.
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+        if (impl_->model.Revoke(connected ? "synchronizing" : "network_error")) {
+#else
         if (connected && impl_->model.Revoke("synchronizing")) {
+#endif
             revoked = impl_->on_revoked;
             generation = impl_->model.View().generation;
         }
@@ -728,7 +753,12 @@ void DeviceControl::ShowAccountDetails(bool visible) {
             return;
         impl_->account_details_visible = visible;
         impl_->ResetAccount();
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+        fetch = visible;
+        impl_->refresh = visible;
+#else
         fetch = impl_->account_load == Impl::AccountLoad::Pending;
+#endif
     }
     if (fetch)
         impl_->Wake(true);

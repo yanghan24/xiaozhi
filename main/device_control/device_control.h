@@ -17,6 +17,8 @@ struct DeviceControlView {
     std::string reason = "not_configured";
     std::string verification_uri;
     std::string purpose;
+    std::string user_code;
+    std::string login_status;
     int64_t qr_deadline_ms = 0;
     bool sign_out_pending = false;
 };

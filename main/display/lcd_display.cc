@@ -915,8 +915,13 @@ void LcdDisplay::UpdateBindingCountdown() {
         if (binding_qr_frame_ != nullptr) {
             lv_obj_add_flag(binding_qr_frame_, LV_OBJ_FLAG_HIDDEN);
         }
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+        lv_label_set_text(binding_title_, "二维码已过期");
+        lv_label_set_text(binding_detail_, "请在设置中重新扫码");
+#else
         lv_label_set_text(binding_title_, "二维码已过期，正在更新");
         lv_label_set_text(binding_detail_, "请等待新的二维码");
+#endif
         binding_seconds_ = -1;
         lv_timer_pause(binding_timer_);
         return;
@@ -925,7 +930,9 @@ void LcdDisplay::UpdateBindingCountdown() {
     if (seconds != binding_seconds_) {
         binding_seconds_ = seconds;
         char countdown[128];
-        snprintf(countdown, sizeof(countdown), "请在手机上完成操作  %02lld:%02lld",
+        snprintf(countdown, sizeof(countdown), "%s%s  %02lld:%02lld",
+                 binding_user_code_.empty() ? "请在手机上完成操作" : "Code: ",
+                 binding_user_code_.c_str(),
                  static_cast<long long>(seconds / 60), static_cast<long long>(seconds % 60));
         lv_label_set_text(binding_detail_, countdown);
     }
@@ -952,7 +959,12 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
     }
     const bool can_open_account = view.reason == "ready" || view.reason == "user_signed_out" ||
                                   view.reason == "market_auth_required" ||
-                                  view.reason == "market_auth_pending";
+                                  view.reason == "market_auth_pending"
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+                                  || view.reason == "unbound" || view.reason == "default_agent_required" ||
+                                  view.reason == "voice_not_configured"
+#endif
+                                  ;
     if (can_open_account && account_action_) {
         lv_obj_remove_state(account_button_, LV_STATE_DISABLED);
     } else {
@@ -1009,6 +1021,9 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
     } else if (view.reason == "device_disabled") {
         title = "设备已停用";
         detail = "请联系维护人员";
+    } else if (view.reason == "default_agent_required" || view.reason == "voice_not_configured") {
+        title = "设备尚未配置";
+        detail = "请联系维护人员";
     } else if (view.reason == "not_configured") {
         title = "设备尚未配置";
         detail = "请联系维护人员";
@@ -1029,6 +1044,9 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         detail = "请使用原归属账号登录";
     }
     lv_label_set_text(binding_title_, title);
+    if (view.verification_uri.empty() && (view.login_status == "denied" || view.login_status == "expired" || view.login_status == "failed")) {
+        detail = "请在设置中重新扫码";
+    }
     lv_label_set_text(binding_detail_, detail);
 
     if (!can_show_qr || view.verification_uri.empty()) {
@@ -1074,6 +1092,7 @@ void LcdDisplay::ShowDeviceBinding(const DeviceControlView& view) {
         return;
     }
 
+    binding_user_code_ = view.user_code;
     binding_deadline_ms_ = view.qr_deadline_ms;
     binding_seconds_ = -1;
     if (binding_deadline_ms_ > esp_timer_get_time() / 1000 && binding_qr_frame_ != nullptr) {

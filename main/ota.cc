@@ -122,7 +122,11 @@ esp_err_t Ota::CheckVersion() {
         }
         cJSON_DeleteItemFromObjectCaseSensitive(payload, "device_control_capabilities");
         auto capabilities = cJSON_AddArrayToObject(payload, "device_control_capabilities");
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+        cJSON_AddItemToArray(capabilities, cJSON_CreateNumber(2));
+#else
         cJSON_AddItemToArray(capabilities, cJSON_CreateNumber(1));
+#endif
         auto encoded = cJSON_PrintUnformatted(payload);
         if (encoded == nullptr) {
             cJSON_Delete(payload);

@@ -7,7 +7,7 @@ config OTA_URL
         The application will access this URL to check for new firmwares and server address.
 
 config XIAOZHI_DEVICE_CONTROL
-    bool "Enable registered-device binding and control v1"
+    bool "Enable registered-device binding and control"
     depends on IDF_TARGET_ESP32P4
     default n
     select LV_USE_QRCODE
@@ -17,6 +17,15 @@ config XIAOZHI_DEVICE_CONTROL
         expiring voice permission. Requires private per-device provisioning and
         a trusted HTTPS OTA origin. Missing configuration keeps product voice off.
         Legacy OTA activation, MQTT fallback and stored voice tokens are not used.
+
+config XIAOZHI_SPEAKER_PROTOCOL_V2
+    bool "Use AI Market device authorization protocol v2"
+    depends on XIAOZHI_DEVICE_CONTROL
+    default n
+    help
+        Device login QR/user code and heartbeat use the speaker API. The private
+        identity must explicitly configure the trusted control HTTPS origin.
+        OAuth tokens and business API keys remain on the management server.
 
 config XIAOZHI_ONLINE_DELIVERY
     bool "Verify online device delivery before starting product control"

@@ -459,6 +459,11 @@ void Application::CheckAssetsVersion() {
 }
 
 void Application::CheckNewVersion() {
+#if CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2
+    // Device login and heartbeats have their own trusted origin and must start
+    // even when the optional version check is unavailable.
+    DeviceControl::GetInstance().Start(ota_->GetCheckVersionUrl(), "");
+#endif
     const int MAX_RETRY = 10;
     int retry_count = 0;
     int retry_delay = 10; // Initial retry delay in seconds
