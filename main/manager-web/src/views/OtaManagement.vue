@@ -1,12 +1,12 @@
 <template>
-    <div class="welcome" :class="{ 'ota-embedded': embedded }">
+    <div class="welcome" :class="{ 'ota-embedded': embedded, 'management-embedded': embedded }">
         <HeaderBar v-if="!embedded" />
         <div class="main-wrapper">
             <div class="content-panel">
                 <div class="content-area">
                     <el-card class="params-card" shadow="never">
                         <div class="operation-header">
-                            <h2 class="page-title">{{ $t('otaManagement.firmwareManagement') }}</h2>
+                            <h2 v-if="!embedded" class="page-title">{{ $t('otaManagement.firmwareManagement') }}</h2>
                             <div class="right-operations">
                                 <el-input :placeholder="$t('otaManagement.searchPlaceholder')" v-model="searchName"
                                     class="search-input" @keyup.enter.native="handleSearch" clearable />
@@ -452,4 +452,5 @@ export default {
 :deep(.el-table .el-button--text:hover) {
     color: #5a64b5;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

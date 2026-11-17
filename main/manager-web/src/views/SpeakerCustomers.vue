@@ -12,33 +12,48 @@
       <template slot="operations" slot-scope="scope"><el-button type="text" @click="open(scope.row.id)">用户详情</el-button></template>
     </CustomTable>
     <template slot="dialogs">
-      <el-dialog title="用户详情" :visible.sync="visible" width="900px" @close="closeDetail">
-        <div v-loading="detailLoading">
+      <CustomDialog title="用户详情" :visible.sync="visible" width="960px" class="management-dialog" :footer="false" @close="closeDetail">
+        <div v-loading="detailLoading" class="detail-content">
           <template v-if="detail">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="姓名">{{ detail.display_name || '未提供' }}</el-descriptions-item>
-              <el-descriptions-item label="集市用户名">{{ detail.username || '未提供' }}</el-descriptions-item>
-              <el-descriptions-item label="账号类型">{{ detail.account_type === 'group' ? '集团账号' : detail.account_type === 'ordinary' ? '普通账号' : '未提供' }}</el-descriptions-item>
-              <el-descriptions-item label="积分余额">{{ balanceText(detail) }}</el-descriptions-item>
-              <el-descriptions-item label="组织关系" :span="2">{{ organizationText(detail.organization) }}</el-descriptions-item>
-              <el-descriptions-item label="集市用户标识" :span="2">{{ detail.subject }}</el-descriptions-item>
-              <el-descriptions-item label="身份来源" :span="2">{{ detail.issuer }}</el-descriptions-item>
-              <el-descriptions-item label="资料更新时间">{{ displayTime(detail.profile_updated_at_ms) }}</el-descriptions-item>
-              <el-descriptions-item label="余额查询时间">{{ displayTime(detail.balance_checked_at_ms) }}</el-descriptions-item>
-              <el-descriptions-item label="应用授权">{{ authorizationLabel(detail.authorization) }}</el-descriptions-item>
-              <el-descriptions-item label="关联应用">{{ detail.authorization ? detail.authorization.client_id : '未关联' }}</el-descriptions-item>
-            </el-descriptions>
-            <div class="section-header"><h3>绑定音箱 · {{ detail.devices.length }} 台</h3><CustomButton size="small" :loading="refreshing" @click="refresh">刷新集市资料与积分</CustomButton></div>
-            <el-table :data="detail.devices" max-height="300" border>
-              <el-table-column prop="name" label="音箱名称" />
-              <el-table-column prop="device_id" label="设备标识" />
-              <el-table-column label="在线情况"><template slot-scope="scope"><el-tag :type="scope.row.online ? 'success' : 'info'">{{ scope.row.online ? '在线' : '离线' }}</el-tag></template></el-table-column>
-              <el-table-column label="最近心跳"><template slot-scope="scope">{{ displayTime(scope.row.last_seen_at_ms) }}</template></el-table-column>
-              <el-table-column label="操作"><template slot-scope="scope"><el-button type="text" @click="unbind(scope.row)">解绑</el-button></template></el-table-column>
-            </el-table>
+            <section class="dialog-section">
+              <h3 class="section-heading">基本资料</h3>
+              <el-descriptions :column="2" border class="detail-descriptions">
+                <el-descriptions-item label="姓名">{{ detail.display_name || '未提供' }}</el-descriptions-item>
+                <el-descriptions-item label="集市用户名">{{ detail.username || '未提供' }}</el-descriptions-item>
+                <el-descriptions-item label="账号类型">{{ detail.account_type === 'group' ? '集团账号' : detail.account_type === 'ordinary' ? '普通账号' : '未提供' }}</el-descriptions-item>
+                <el-descriptions-item label="积分余额">{{ balanceText(detail) }}</el-descriptions-item>
+                <el-descriptions-item label="组织关系" :span="2">{{ organizationText(detail.organization) }}</el-descriptions-item>
+              </el-descriptions>
+            </section>
+            <section class="dialog-section">
+              <h3 class="section-heading">集市关联</h3>
+              <el-descriptions :column="2" border class="detail-descriptions">
+                <el-descriptions-item label="集市用户标识" :span="2">{{ detail.subject }}</el-descriptions-item>
+                <el-descriptions-item label="身份来源" :span="2">{{ detail.issuer }}</el-descriptions-item>
+                <el-descriptions-item label="应用授权" :span="2">{{ authorizationLabel(detail.authorization) }}</el-descriptions-item>
+                <el-descriptions-item label="关联应用" :span="2">{{ detail.authorization ? detail.authorization.client_id : '未关联' }}</el-descriptions-item>
+              </el-descriptions>
+            </section>
+            <section class="dialog-section">
+              <h3 class="section-heading">同步信息</h3>
+              <el-descriptions :column="2" border class="detail-descriptions">
+                <el-descriptions-item label="资料更新时间">{{ displayTime(detail.profile_updated_at_ms) }}</el-descriptions-item>
+                <el-descriptions-item label="余额查询时间">{{ displayTime(detail.balance_checked_at_ms) }}</el-descriptions-item>
+              </el-descriptions>
+            </section>
+            <section class="dialog-section">
+              <div class="section-toolbar"><h3 class="section-heading">绑定音箱 · {{ detail.devices.length }} 台</h3><CustomButton size="small" :loading="refreshing" @click="refresh">刷新集市资料与积分</CustomButton></div>
+              <el-table :data="detail.devices" max-height="300" border>
+                <el-table-column prop="name" label="音箱名称" min-width="140" />
+                <el-table-column prop="device_id" label="设备标识" min-width="180" />
+                <el-table-column label="在线情况" width="100"><template slot-scope="scope"><el-tag size="small" :type="scope.row.online ? 'success' : 'info'">{{ scope.row.online ? '在线' : '离线' }}</el-tag></template></el-table-column>
+                <el-table-column label="最近心跳" min-width="180"><template slot-scope="scope">{{ displayTime(scope.row.last_seen_at_ms) }}</template></el-table-column>
+                <el-table-column label="操作" width="80"><template slot-scope="scope"><el-button type="text" @click="unbind(scope.row)">解绑</el-button></template></el-table-column>
+              </el-table>
+            </section>
           </template>
         </div>
-      </el-dialog>
+      </CustomDialog>
     </template>
   </SpeakerPage>
 </template>
@@ -46,9 +61,10 @@
 import SpeakerPage from '@/components/SpeakerPage.vue';
 import CustomTable from '@/components/CustomTable.vue';
 import CustomButton from '@/components/CustomButton.vue';
+import CustomDialog from '@/components/CustomDialog.vue';
 import { adminToken, speakerRequest, displayTime, balanceText, organizationText, requestKey } from '@/apis/speaker';
 export default {
-  components: { SpeakerPage, CustomTable, CustomButton },
+  components: { SpeakerPage, CustomTable, CustomButton, CustomDialog },
   data() { return { keyword: '', items: [], total: 0, page: 1, limit: 10, loading: false, error: '', visible: false, detail: null, detailLoading: false, refreshing: false, detailRequest: 0,
     columns: [{ prop: 'display_name', label: '用户姓名' }, { prop: 'username', label: '集市用户名' }, { prop: 'device_count', label: '绑定音箱' }, { prop: 'online_count', label: '在线音箱' }] }; },
   mounted() { this.load(); if (this.$route.query.id) this.open(this.$route.query.id); },
@@ -73,4 +89,6 @@ export default {
   },
 };
 </script>
-<style scoped>.section-header { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }</style>
+<style lang="scss" scoped>
+@import "@/styles/managementDialog.scss";
+</style>

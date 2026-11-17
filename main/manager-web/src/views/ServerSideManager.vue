@@ -1,12 +1,12 @@
 <template>
-  <div class="welcome">
-    <HeaderBar />
+  <div class="welcome" :class="{ 'management-embedded': embedded }">
+    <HeaderBar v-if="!embedded" />
     <div class="main-wrapper">
       <div class="content-panel">
         <div class="content-area">
           <el-card class="params-card" shadow="never">
-            <div class="operation-header">
-              <h2 class="page-title">{{ $t('serverSideManager.pageTitle') }}</h2>
+            <div v-if="!embedded" class="operation-header">
+              <h2 v-if="!embedded" class="page-title">{{ $t('serverSideManager.pageTitle') }}</h2>
             </div>
             <el-card class="server-list-card">
               <div v-for="(item, index) in paramsList" :key="index" class="server-list" v-loading="loading">
@@ -32,7 +32,7 @@
         </div>
       </div>
     </div>
-    <el-footer>
+    <el-footer v-if="!embedded">
       <version-footer />
     </el-footer>
   </div>
@@ -45,6 +45,7 @@ import HeaderBar from "@/components/HeaderBar.vue";
 import VersionFooter from "@/components/VersionFooter.vue";
 
 export default {
+  props: { embedded: { type: Boolean, default: false } },
   components: { HeaderBar, VersionFooter, CustomButton },
   data() {
     return {
@@ -269,4 +270,5 @@ export default {
   font-size: 14px;
   color: #5778ff;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

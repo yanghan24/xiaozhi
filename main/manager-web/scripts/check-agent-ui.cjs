@@ -43,7 +43,7 @@ const fixture = JSON.parse(fs.readFileSync('/opt/xiaozhi-dev/run/agent-ui-fixtur
     await page.getByText(fixture.mcpName,{exact:true}).waitFor();
     await page.screenshot({path:'/opt/xiaozhi-dev/run/restoration-mcp.png',fullPage:true});
     await page.goto('http://127.0.0.1:8001/#/speaker-devices?tab=firmware');
-    await page.getByRole('tab',{name:'固件与 OTA',exact:true}).waitFor();
+    await page.getByRole('tab',{name:'固件管理',exact:true}).waitFor();
     if (await page.getByRole('tab').count()!==2) throw Error('Duplicate firmware catalogues remain');
     await page.screenshot({path:'/opt/xiaozhi-dev/run/restoration-ota.png',fullPage:true});
     if(errors.length) throw Error('Browser runtime errors: '+errors.join(';'));

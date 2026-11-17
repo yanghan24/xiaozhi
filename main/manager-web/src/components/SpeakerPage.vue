@@ -2,7 +2,7 @@
   <div class="welcome">
     <HeaderBar />
     <div class="main-wrapper"><div class="content-panel"><el-card class="management-card" shadow="never">
-      <div class="operation-header"><h2 class="page-title">{{ title }}</h2><div class="right-operations"><slot name="tools" /></div></div>
+      <div v-if="showTitle || $slots.tools" class="operation-header"><h2 v-if="showTitle" class="page-title">{{ title }}</h2><div class="right-operations"><slot name="tools" /></div></div>
       <slot />
     </el-card></div></div>
     <el-footer height="35px"><VersionFooter /></el-footer>
@@ -12,7 +12,7 @@
 <script>
 import HeaderBar from './HeaderBar.vue';
 import VersionFooter from './VersionFooter.vue';
-export default { name: 'SpeakerPage', components: { HeaderBar, VersionFooter }, props: { title: { type: String, required: true } } };
+export default { name: 'SpeakerPage', components: { HeaderBar, VersionFooter }, props: { title: { type: String, required: true }, showTitle: { type: Boolean, default: true } } };
 </script>
 <style lang="scss" scoped>
 .welcome { min-width: 900px; height: 100vh; display: flex; flex-direction: column; background: #eff4ff; overflow: hidden; }
