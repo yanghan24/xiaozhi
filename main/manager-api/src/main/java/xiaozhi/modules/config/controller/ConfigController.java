@@ -28,6 +28,7 @@ import xiaozhi.modules.config.service.ConfigService;
 @lombok.RequiredArgsConstructor
 public class ConfigController {
     private final ConfigService configService;
+    @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketModelRuntime marketModels;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerSettings speakerSettings;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerVoice speakerVoice;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerAgents speakerAgents;
@@ -53,6 +54,12 @@ public class ConfigController {
             String revision=speakerAgents.configurationRevision();
             var configured=configService.getAgentConfiguration(speakerAgents.configurationId(),dto.getSelectedModule());
             configured.put("mcp_servers",speakerMcp.configuration(revision.split(":",2)[0]));
+            if(marketModels.hasMarket(configured)) {
+                String customer=speakerVoice.customerForSession(dto.getMacAddress(),dto.getVoiceSession());
+                configured=marketModels.configure(configured,customer);
+                if(!customer.equals(speakerVoice.customerForSession(dto.getMacAddress(),dto.getVoiceSession())))
+                    throw new xiaozhi.modules.speaker.SpeakerFailure(403,"VOICE_DENIED");
+            }
             if(!revision.equals(speakerAgents.configurationRevision()))
                 throw new xiaozhi.modules.speaker.SpeakerFailure(409,"AGENT_CHANGED");
             configured.put("configuration_revision",revision);

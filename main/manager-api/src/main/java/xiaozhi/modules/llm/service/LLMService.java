@@ -76,4 +76,13 @@ public interface LLMService {
      * @return 标题（约15字）
      */
     String generateTitle(String conversation, String modelId);
+    default String generateSummary(String conversation,String promptTemplate,String modelId,String conversationId) {
+        return generateSummary(conversation,promptTemplate,modelId);
+    }
+    default String generateSummaryWithHistory(String conversation,String history,String promptTemplate,String modelId,String conversationId) {
+        return generateSummaryWithHistory(conversation,history,promptTemplate,modelId);
+    }
+    default String generateTitle(String conversation,String modelId,String conversationId) {
+        return generateTitle(conversation,modelId);
+    }
 }

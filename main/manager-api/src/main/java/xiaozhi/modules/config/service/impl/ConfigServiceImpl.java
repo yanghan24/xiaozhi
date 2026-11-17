@@ -496,7 +496,7 @@ public class ConfigServiceImpl implements ConfigService {
                 // 如果是Intent类型，且type=intent_llm，则给他添加附加模型
                 if ("Intent".equals(modelTypes[i])) {
                     Map<String, Object> map = moduleConfig;
-                    if ("intent_llm".equals(map.get("type"))) {
+                    if ("intent_llm".equals(map.get("type")) && !"aimarket".equals(map.get("source"))) {
                         intentLLMModelId = (String) map.get("llm");
                         if (StringUtils.isNotBlank(intentLLMModelId) && intentLLMModelId.equals(llmModelId)) {
                             intentLLMModelId = null;
@@ -512,7 +512,7 @@ public class ConfigServiceImpl implements ConfigService {
                 }
                 if ("Memory".equals(modelTypes[i])) {
                     Map<String, Object> map = moduleConfig;
-                    if ("mem_local_short".equals(map.get("type"))) {
+                    if ("mem_local_short".equals(map.get("type")) && !"aimarket".equals(map.get("source"))) {
                         memLocalShortLLMModelId = (String) map.get("llm");
                         if (StringUtils.isNotBlank(memLocalShortLLMModelId)
                                 && memLocalShortLLMModelId.equals(llmModelId)) {

@@ -83,6 +83,12 @@ public class SpeakerVoice {
                 "configuration_revision",revision,"permission_version",device.get("permission_version"),
                 "memory_scope",hash(device.get("customer_id")+":"+device.get("device_id")+":"+revision));
     }
+    public String customerForSession(String id,String session) {
+        if(session==null || !session.matches("[A-Za-z0-9_-]{43}")) throw new SpeakerFailure(401,"VOICE_DENIED");
+        var device=checked("speaker_voice_session","session_hash",hash(session));
+        if(!id.equals(device.get("device_id"))) throw new SpeakerFailure(403,"VOICE_DENIED");
+        return device.get("customer_id").toString();
+    }
     public void requireDevice(String id) {
         var rows=db.queryForList("SELECT s.*,d.admitted FROM speaker_device_state s JOIN dc_device d ON d.device_id=s.device_id WHERE s.device_id=?",id);
         if(rows.size()!=1 || !yes(rows.getFirst().get("admitted")) || !yes(rows.getFirst().get("admin_enabled"))

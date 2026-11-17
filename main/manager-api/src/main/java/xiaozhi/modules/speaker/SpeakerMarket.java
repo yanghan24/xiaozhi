@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 /** AI Market's public device application contract. No website login, callback or client secret. */
 @Component
 public class SpeakerMarket {
-    public static final String SCOPES = "openid profile organization balance:read offline_access";
+    public static final String SCOPES = "openid profile organization balance:read credentials:manage offline_access";
     private final SpeakerSettings settings;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER)

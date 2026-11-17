@@ -37,7 +37,8 @@ class VLLMProvider(VLLMProviderBase):
         model_key_msg = check_model_key("VLLM", self.api_key)
         if model_key_msg:
             logger.bind(tag=TAG).error(model_key_msg)
-        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url,
+                                    **({"max_retries": 0, "timeout": 60} if config.get("source") == "aimarket" else {}))
 
     def response(self, question, base64_image):
         question = question + "(请使用中文回复)"

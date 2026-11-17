@@ -125,6 +125,7 @@ public class ModelController {
     @Operation(summary = "启用/关闭模型配置")
     @RequiresPermissions("sys:role:superAdmin")
     public Result<Void> enableModelConfig(@PathVariable String id, @PathVariable Integer status) {
+        if(id.startsWith("MARKET_")) return new Result<Void>().error("请通过 AI 集市分组管理适配配置");
         ModelConfigEntity entity = modelConfigService.selectById(id);
         if (entity == null) {
             return new Result<Void>().error("模型配置不存在");
@@ -144,6 +145,7 @@ public class ModelController {
     @Operation(summary = "设置默认模型")
     @RequiresPermissions("sys:role:superAdmin")
     public Result<Void> setDefaultModel(@PathVariable String id) {
+        if(id.startsWith("MARKET_")) return new Result<Void>().error("请在智能体中选择 AI 集市配置");
         ModelConfigEntity entity = modelConfigService.selectById(id);
         if (entity == null) {
             return new Result<Void>().error("模型配置不存在");

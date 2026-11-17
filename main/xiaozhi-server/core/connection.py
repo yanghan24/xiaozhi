@@ -824,6 +824,7 @@ class ConnectionHandler:
                 self.config,
                 self.headers.get("device-id"),
                 self.headers.get("client-id", self.headers.get("device-id")),
+                voice_session=getattr(getattr(self, "identity_session", None), "session", None),
             )
             if getattr(self, 'identity_session', None) and (
                 not isinstance(private_config, dict) or not private_config.get('configuration_revision')

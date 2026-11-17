@@ -81,7 +81,7 @@ public class AgentChatSummaryServiceImpl implements AgentChatSummaryService {
 
             // 4. 生成总结（generateSummaryFromMessages方法已包含长度限制逻辑）
             var owned=speakerConversations==null?null:speakerConversations.find(sessionId);
-            String summary = generateSummaryFromMessages(meaningfulMessages, agentId,
+            String summary = generateSummaryFromMessages(meaningfulMessages, agentId, sessionId,
                     owned==null?getCurrentAgentMemory(agentId):speakerConversations.memory(owned.get("memory_scope").toString()));
 
             log.info("成功生成会话 {} 的聊天记录总结，长度: {} 字符", sessionId, summary.length());
@@ -166,7 +166,7 @@ public class AgentChatSummaryServiceImpl implements AgentChatSummaryService {
             }
 
             String slmModelId = getSlmModelId(agentId);
-            String title = llmService.generateTitle(conversation.toString(), slmModelId);
+            String title = llmService.generateTitle(conversation.toString(), slmModelId, sessionId);
 
             if (StringUtils.isNotBlank(title)) {
                 agentChatTitleService.saveOrUpdateTitle(sessionId, title);
@@ -354,7 +354,7 @@ public class AgentChatSummaryServiceImpl implements AgentChatSummaryService {
     /**
      * 从消息生成总结
      */
-    private String generateSummaryFromMessages(List<String> messages, String agentId, String historyMemory) {
+    private String generateSummaryFromMessages(List<String> messages, String agentId, String sessionId, String historyMemory) {
         if (messages.isEmpty()) {
             return "本次对话内容较少，没有需要总结的重要信息。";
         }
@@ -369,7 +369,7 @@ public class AgentChatSummaryServiceImpl implements AgentChatSummaryService {
             // 获取当前智能体的历史记忆
 
             // 调用LLM服务进行智能总结，传递agentId以获取正确的模型配置
-            String summary = callJavaLLMForSummaryWithHistory(conversation.toString(), historyMemory, agentId);
+            String summary = callJavaLLMForSummaryWithHistory(conversation.toString(), historyMemory, agentId, sessionId);
 
             // 应用总结规则：限制最大长度
             if (summary.length() > MAX_SUMMARY_LENGTH) {
@@ -409,16 +409,12 @@ public class AgentChatSummaryServiceImpl implements AgentChatSummaryService {
     /**
      * 调用Java端LLM服务进行智能总结（支持历史记忆合并）
      */
-    private String callJavaLLMForSummaryWithHistory(String conversation, String historyMemory, String agentId) {
+    private String callJavaLLMForSummaryWithHistory(String conversation, String historyMemory, String agentId, String sessionId) {
         try {
             String modelId = getSlmModelId(agentId);
-
-            if (StringUtils.isBlank(modelId)) {
-                log.info("未找到SLM模型，使用默认LLM服务");
-                return llmService.generateSummaryWithHistory(conversation, historyMemory, null, null);
-            }
-
-            String summary = llmService.generateSummaryWithHistory(conversation, historyMemory, null, modelId);
+            var agent = agentService.getAgentById(agentId);
+            if(agent!=null && "MARKET_Memory".equals(agent.getMemModelId())) modelId="MARKET_Memory";
+            String summary = llmService.generateSummaryWithHistory(conversation, historyMemory, null, modelId, sessionId);
 
             if (StringUtils.isNotBlank(summary) && !summary.equals("服务暂不可用") && !summary.equals("总结生成失败")) {
                 return summary;

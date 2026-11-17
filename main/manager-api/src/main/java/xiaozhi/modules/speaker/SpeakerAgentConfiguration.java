@@ -10,6 +10,7 @@ import xiaozhi.modules.model.service.ModelConfigService;
 public class SpeakerAgentConfiguration {
     private final ConfigService configurations;
     private final ModelConfigService models;
+    @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketModelRuntime marketModels;
     public SpeakerAgentConfiguration(ConfigService configurations,ModelConfigService models) {
         this.configurations=configurations;this.models=models;
     }
@@ -28,6 +29,7 @@ public class SpeakerAgentConfiguration {
             if(!noOperation && !Integer.valueOf(1).equals(model.getIsEnabled()))
                 throw new SpeakerFailure(409,"AGENT_MODEL_REQUIRED");
         }
+        if(marketModels!=null) marketModels.validate(config);
         return config;
     }
 }
