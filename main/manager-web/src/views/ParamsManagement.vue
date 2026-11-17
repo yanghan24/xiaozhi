@@ -1,13 +1,13 @@
 <template>
-  <div class="welcome">
-    <HeaderBar />
+  <div class="welcome" :class="{ 'management-embedded': embedded }">
+    <HeaderBar v-if="!embedded" />
     <div class="main-wrapper">
       <div class="content-panel">
         <div class="content-area">
           <el-card class="params-card" shadow="never">
             <div class="operation-header">
               <div class="title-block">
-                <h2 class="page-title">{{ $t('paramManagement.pageTitle') }}</h2>
+                <h2 v-if="!embedded" class="page-title">{{ $t('paramManagement.pageTitle') }}</h2>
                 <span class="total-hint">{{ $t('paramManagement.totalRecords', { total: filteredTotal }) }}</span>
               </div>
               <div class="right-operations">
@@ -191,7 +191,7 @@
       @submit="handleSubmit"
       @cancel="dialogVisible = false"
     />
-    <el-footer>
+    <el-footer v-if="!embedded">
       <version-footer />
     </el-footer>
   </div>
@@ -212,6 +212,7 @@ const SERVER_SUB_ORDER = [
 ];
 
 export default {
+  props: { embedded: { type: Boolean, default: false } },
   components: { HeaderBar, ParamDialog, VersionFooter, CustomButton },
   data() {
     return {
@@ -1061,4 +1062,5 @@ export default {
 :deep(.el-table .el-button--text:hover) {
   color: #5a64b5;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

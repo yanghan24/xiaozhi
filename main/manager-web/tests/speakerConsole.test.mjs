@@ -10,10 +10,14 @@ it('separates customer, hardware and administrator entry points in product mode'
   expect(speakerRedirect('/home', true).path).toBe('/speaker-agents');
   expect(speakerRedirect('/role-config', true)).toBeNull();
   expect(speakerRedirect('/agent-template-management', true)).toEqual({ path: '/speaker-agents', replace: true });
-  expect(speakerRedirect('/ota-management', true)).toBeNull();
+  expect(speakerRedirect('/ota-management', true)).toEqual({ path: '/speaker-devices', query: { tab: 'firmware' }, replace: true });
   expect(speakerRedirect('/product-ota', true)).toEqual({ path: '/speaker-devices', query: { tab: 'firmware' }, replace: true });
   expect(speakerRedirect('/register', true).path).toBe('/login');
-  expect(speakerRedirect('/admin-accounts', true)).toBeNull();
+  expect(speakerRedirect('/admin-accounts', true)).toEqual({ path: '/system-settings', query: { tab: 'accounts' }, replace: true });
+  expect(speakerRedirect('/params-management', true).query.tab).toBe('parameters');
+  expect(speakerRedirect('/dict-management', true).query.tab).toBe('dictionaries');
+  expect(speakerRedirect('/provider-management', true).query.tab).toBe('providers');
+  expect(speakerRedirect('/server-side-management', true).query.tab).toBe('services');
   expect(speakerRedirect('/home', false)).toBeNull();
 });
 it('does not display a failed or missing balance as zero', () => {

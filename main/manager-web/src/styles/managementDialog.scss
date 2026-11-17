@@ -1,0 +1,44 @@
+// Only used by the new MCP, device and customer dialogs; CustomDialog owns the shell.
+.management-dialog {
+  ::v-deep .el-dialog__body { text-align: left; }
+  .dialog-section + .dialog-section { margin-top: 24px; }
+  .section-heading {
+    margin: 0 0 16px;
+    padding-left: 10px;
+    border-left: 3px solid #5778ff;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #334155;
+  }
+  .section-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    .section-heading { margin-bottom: 0; }
+  }
+  .management-form {
+    .el-form-item { margin-bottom: 20px; }
+    .last-form-item { margin-bottom: 0; }
+    .el-select { width: 100%; }
+    ::v-deep .el-form-item__label { color: #475569; }
+  }
+  .switch-field { display: flex; align-items: center; gap: 10px; color: #64748b; }
+  .field-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.7; color: #909399; }
+  .credential-clear { margin-top: 10px; line-height: 24px; }
+  .credential-input ::v-deep .el-textarea__inner { font-family: monospace; line-height: 1.6; }
+  .management-form > .el-alert { margin-top: 24px; }
+  .detail-content { min-height: 120px; }
+  .detail-descriptions {
+    ::v-deep .el-descriptions__table { table-layout: fixed; }
+    ::v-deep .el-descriptions-item__label { width: 130px; color: #64748b; }
+    ::v-deep .el-descriptions-item__content { color: #334155; overflow-wrap: anywhere; }
+  }
+  .detail-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .credential-result-field {
+    margin-top: 20px;
+    label { display: block; margin-bottom: 10px; color: #475569; }
+  }
+}
