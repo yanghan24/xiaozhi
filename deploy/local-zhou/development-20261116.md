@@ -29,7 +29,7 @@
 - 仅重启小智的 MySQL/Redis，再重建小智开发容器：数据库迁移数、管理服务密钥摘要、Redis 临时验证值与语音配置摘要均保持。临时验证键已删除。
 - 104 原有容器的名称/ID/镜像前后相同，没有对 AI 集市服务执行重启或修改。没有将 114 数据或配置接入开发服务。
 - 备份脚本实际生成 MySQL 结构/排除对话表数据的业务备份、开发 Redis RDB 和私有配置，最新目录 `backups/20261116-150041/`；检查 SHA256 清单。未执行恢复演练或安排定时备份。
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
+- 访问认证材料保存在私有位置；生产访问说明已从仓库文档中移除。
 
 脱敏检查结果保存在容器 `/opt/xiaozhi-dev/verification-final.json`、`verification-persistence.json`；完整依赖版本清单为 `python-requirements-installed.txt`。宿主 runtime 的 logs 目录保留镜像构建日志及检查摘要；原始应用日志只在小智 runtime 卷，私有凭据不入 Git。
 

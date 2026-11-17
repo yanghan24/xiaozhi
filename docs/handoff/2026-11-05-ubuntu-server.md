@@ -31,8 +31,8 @@ git status --short --branch
 | 仓库规则与领域职责 | [AGENTS.md](../../AGENTS.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md)、[GLOSSARY.md](../../GLOSSARY.md)、[ADR-0005](../adr/0005-backend-owns-device-management.md) |
 | 管理端基线 | #3 / PR #9 已合并；[运行说明](../development/manager-baseline.md)、[实际验证记录](../verification/issue-3-manager-baseline.md) |
 | 语音与设备协议基线 | #4 / PR #20 已合并，#5 / PR #22 的 Ubuntu 重启持久化复验已通过；[运行说明](../development/voice-baseline.md)、[验证报告](../verification/issue-4-voice-protocol.md)、[复审记录](../verification/issue-4-review.md) |
-| 硬件接入资料 | [硬件负责人提供的核查稿](../../筑音设备接入资料_核查稿_2026-11-06.md)；用户的后续确认见下一节 |
-| 集市接口及规范通 | [资料索引](../development/ai-market-api.md)、[新版原文](<../../元筑AI集市应用接入接口文档(1).md>)、[契约变更核对](../development/ai-market-contract-review-2026-11-06.md) |
+| 硬件接入资料 | 硬件负责人提供的核查稿（历史原文已移除）；用户的后续确认见下一节 |
+| 集市接口及规范通 | [资料索引](../development/ai-market-api.md)、新版原文（历史原文已移除）、[契约变更核对](../development/ai-market-contract-review-2026-11-06.md) |
 | 语音合成调研 | [千问 TTS 官方资料调研](../development/qwen-tts-research.md)；集市实际代理接口和可用凭据仍待取得 |
 | 产品与任务 | [需求记录](../planning/voice-backend-discovery.md)、[基线规格 #2](https://github.com/yanghan24/xiaozhi/issues/2)、[集市首版规格 #10](https://github.com/yanghan24/xiaozhi/issues/10)；当前状态和依赖以 GitHub 为准 |
 
@@ -61,7 +61,7 @@ git status --short --branch
 
 ## 服务器上的管理登录
 
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
+生产访问方式不在仓库文档中记录；本节仅保留历史操作结果。
 
 在电脑保持一个隧道终端：
 

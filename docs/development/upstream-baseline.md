@@ -7,7 +7,7 @@
 
 采用该候选提交，是因为已有需求调查以此版本为依据，而且它包含可直接复用的管理端、设备协议和既有测试。实际构建及管理端验证结果记录在 [验证报告](../verification/issue-3-manager-baseline.md)。硬件资料未齐，固件兼容性仍待真机确认；这不是已通过真机验收的发布版本。
 
-导入使用该提交的 Git archive，仅导入受版本管理的内容，不复制参考工作目录的运行数据或凭据。范围包括 `main/manager-api`、`main/manager-web`、`main/xiaozhi-server`、`main/README*`、`docs/`、MIT 许可和上游三个 Dockerfile；上游根 README 保存为 `README.upstream.md`。移动端、数字人、上游 CI 和自动安装脚本未导入，本任务没有这些运行依赖。本项目原有领域文档、协作配置和 GitHub ruleset 均保留。
+导入使用该提交的 Git archive，仅导入受版本管理的内容，不复制参考工作目录的运行数据或凭据。范围包括 `main/manager-api`、`main/manager-web`、`main/xiaozhi-server`、`main/README*`、`docs/`、MIT 许可和上游三个 Dockerfile；上游根 README 曾保存为 `README.upstream.md`，该副本已于 2026-11-17 按用户要求移除；需要追溯时查阅 Git 历史。移动端、数字人、上游 CI 和自动安装脚本未导入，本任务没有这些运行依赖。本项目原有领域文档、协作配置和 GitHub ruleset 均保留。
 
 本项目新增 `deploy/manager/` 和根 `compose.yaml`，从上述源码分别构建管理 API 和页面，使用独立 MySQL、Redis 和上传文件卷。上游默认将 Nginx 和 Java 放在同一容器中，本地验证拆成两个进程容器，便于分别观察退出状态和资源。构建采用 Java 21、Maven 3.9.9、Node 20.19.0；Node 20 与该提交的前端 CI 一致（上游 Dockerfile 仍使用 Node 18）。
 

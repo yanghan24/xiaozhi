@@ -7,7 +7,7 @@
 - 源码：`/home/timyai/dev/projects/hncig/xiaozhi`，挂载到容器 `/workspace`。
 - 开发容器：`xiaozhi-dev`，镜像 `xiaozhi-dev:local`，用户 `dev`（UID 1000）。
 - 私有配置：`/home/timyai/dev/runtime/xiaozhi/config/dev.env`，权限 600。
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
+- 开发服务器的访问材料单独保存在私有位置，不入库；生产连接方式不记录在本文件。
 - 工具包含 Java 21、Maven 3.9.9、Node 20.19、Python 3.10、Git、OpenSSH、FFmpeg、Opus；工具安装在镜像中。
 - `node_modules`、`dist`、Java `target`、Maven 仓库、npm/pip/Python 缓存、Python 虚拟环境、上传目录及语音运行目录均使用独立 `xiaozhi-dev-*` 命名卷。
 - 容器临时资料、Supervisor 状态及日志使用 runtime 卷 `/opt/xiaozhi-dev`。宿主机只保留源码、必要配置和部署日志。
@@ -64,16 +64,9 @@ python deploy/local-zhou/speaker-simulator.py \
 
 固件构建工具也位于同一容器 runtime 卷：ESP-IDF 5.5.5 在 /opt/xiaozhi-dev/tools/idf-v5.5.5，工具链在 tools/idf-tools，独立 Python 环境在 tools/idf-python。服务端 `bash deploy/local-zhou/build-speaker-firmware.sh` 使用 /opt/xiaozhi-dev/restoration-firmware 的显式同步源码副本（对应兄弟固件 worktree），以官方核心加 sdkconfig.defaults.account 的 P4 4.3 profile 和固定组件锁构建，最多 4 个 Ninja 任务；产物在 /opt/xiaozhi-dev/run/account-p4。编辑兄弟目录后先同步当前改动，不把旧副本当作最新源码。该命令不刷机、不访问 114。新的源码检查/依赖安装命令同样应显式把 TMPDIR 置于 /opt/xiaozhi-dev/run/tmp。
 
-## 独立访问
+## 开发服务器访问
 
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
-
-```sh
-ssh -F /run/xiaozhi-access/ssh_config xiaozhi-data104
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
-```
-
-114 登录不属于日常开发启动步骤。私有 access 目录保存主机指纹、独立配置、认证材料及详细说明，不上传 Git。
+本目录仅记录开发环境。开发服务器认证材料保存在私有位置，不入库。生产账号、命令、跳转链路及私有登录脚本入口不写入仓库文档。
 
 ## 环境检查
 
