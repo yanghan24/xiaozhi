@@ -1142,7 +1142,7 @@ class AgentSnapshotServiceImplTest {
     }
 
     @Test
-    void createAgentPersistsDisplayDefaultsBeforeInitialSnapshot() {
+    void createAgentStartsBlankEvenWhenADefaultTemplateExists() {
         AgentDao agentDao = mock(AgentDao.class);
         TimbreService timbreService = mock(TimbreService.class);
         AgentPluginMappingService pluginMappingService = mock(AgentPluginMappingService.class);
@@ -1170,10 +1170,14 @@ class AgentSnapshotServiceImplTest {
 
         InOrder inOrder = inOrder(agentDao, pluginMappingService, snapshotService);
         inOrder.verify(agentDao).insert(argThat((AgentEntity agent) -> "test123".equals(agent.getAgentName())
-                && "普通话".equals(agent.getTtsLanguage())
+                && agent.getTtsLanguage() == null
+                && agent.getTtsVoiceId() == null && agent.getTtsModelId() == null
+                && agent.getAsrModelId() == null && agent.getLlmModelId() == null
+                && agent.getIntentModelId() == null && agent.getMemModelId() == null
+                && "".equals(agent.getSystemPrompt())
                 && "".equals(agent.getSummaryMemory())
                 && Integer.valueOf(0).equals(agent.getChatHistoryConf())));
-        inOrder.verify(pluginMappingService).saveBatch(any(), eq(IRepository.DEFAULT_BATCH_SIZE));
+        verifyNoInteractions(templateService, timbreService, pluginMappingService, providerService);
         inOrder.verify(snapshotService).createSnapshot(agentId, "initial");
     }
 

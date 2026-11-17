@@ -17,7 +17,6 @@
               let's have a wonderful day!
             </div>
             <div class="add-device-options">
-            <el-button v-if="speakerMode" class="add-device-btn" @click="$router.push('/agent-template-management')">预置角色模板</el-button>
             <div class="search-container">
               <div class="search-wrapper">
                   <el-input
@@ -68,9 +67,9 @@
           </template>
 
           <template v-else>
-            <DeviceItem v-for="(item, index) in devices" :key="item.agentId" :device="item" :feature-status="featureStatus"
-              :administrator-mode="speakerMode" :is-default="item.agentId === defaultAgentId" :default-loading="defaultLoading"
-              @select-default="selectDefault"
+            <DeviceItem v-for="(item, index) in orderedDevices" :key="item.agentId" :device="item" :feature-status="featureStatus"
+              :administrator-mode="speakerMode" :is-default="item.agentId === defaultAgentId" :default-loading="defaultLoading" :copy-loading="copyingAgentId === item.agentId" :copy-disabled="!!copyingAgentId"
+              @select-default="selectDefault" @copy="copyAgent"
               @configure="goToRoleConfig" @deviceManage="handleDeviceManage" @delete="handleDeleteAgent" 
               @chat-history="handleShowChatHistory" />
           </template>
@@ -183,10 +182,17 @@ export default {
       deleteTargetAgentName: '',
       deleteAgentConfirmText: '',
       isDeletingAgent: false,
+      copyingAgentId: null,
     }
   },
 
   computed: {
+    orderedDevices() {
+      if (!this.speakerMode || !this.defaultAgentId) return this.devices;
+      const index = this.devices.findIndex(item => item.agentId === this.defaultAgentId);
+      if (index <= 0) return this.devices;
+      return [this.devices[index], ...this.devices.slice(0, index), ...this.devices.slice(index + 1)];
+    },
     speakerMode() { return this.$store.state.pubConfig.speakerMode === true; },
     ...mapState({
       userInfo: (state) => state.userInfo,
@@ -263,6 +269,22 @@ export default {
       }, (error) => {
         console.error('Failed to fetch agent list:', error);
         this.isLoading = false;
+      });
+    },
+    copyAgent(agent) {
+      if (this.copyingAgentId) return;
+      this.copyingAgentId = agent.agentId;
+      Api.agent.copyAgent(agent.agentId, ({ data }) => {
+        this.copyingAgentId = null;
+        if (data?.code !== 0 || !data.data) {
+          this.$message.error(data?.msg || '复制智能体失败');
+          return;
+        }
+        this.$message.success('智能体已复制，请在副本中编辑配置。');
+        this.$router.push({ path: '/role-config', query: { agentId: data.data } });
+      }, () => {
+        this.copyingAgentId = null;
+        this.$message.error('复制结果未确认，请刷新列表查看后再操作。');
       });
     },
     async fetchDefault() {

@@ -5,6 +5,7 @@ import java.io.Serializable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import jakarta.validation.constraints.Size;
 
 /**
  * 智能体创建DTO
@@ -17,5 +18,6 @@ public class AgentCreateDTO implements Serializable {
 
     @Schema(description = "智能体名称", example = "客服助手")
     @NotBlank(message = "智能体名称不能为空")
+    @Size(max = 64, message = "智能体名称不能超过64个字符")
     private String agentName;
 }

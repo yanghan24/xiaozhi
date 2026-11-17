@@ -6,6 +6,8 @@ import java.util.Date;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -41,6 +43,7 @@ public class AgentEntity {
     private String slmModelId;
 
     @Schema(description = "VLLM模型标识")
+    @TableField(insertStrategy = FieldStrategy.ALWAYS)
     private String vllmModelId;
 
     @Schema(description = "语音合成模型标识")

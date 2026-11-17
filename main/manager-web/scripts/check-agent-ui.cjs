@@ -23,7 +23,7 @@ const fixture = JSON.parse(fs.readFileSync('/opt/xiaozhi-dev/run/agent-ui-fixtur
     await page.locator('.device-item').filter({hasText:fixture.name}).getByText('配置角色', {exact:true}).click();
     await page.waitForURL('**/#/role-config?agentId=*');
     await page.locator('.config-header').getByText(fixture.name, {exact:true}).waitFor();
-    await page.getByText('湾湾小何',{exact:true}).waitFor();
+    if(await page.locator('.template-item').count()) throw Error('Preset template shortcuts remain');
     await page.getByText(fixture.mcpName+'（已停用）',{exact:true}).first().waitFor();
     if(await page.locator('.el-select').count()<5) throw Error('Original model/voice selectors were not restored');
     await page.getByRole('button',{name:'语调发音替换词',exact:true}).click();
@@ -37,8 +37,8 @@ const fixture = JSON.parse(fs.readFileSync('/opt/xiaozhi-dev/run/agent-ui-fixtur
     await page.locator('.agent-snapshot-dialog .el-dialog').waitFor({state:'hidden'});
     await page.screenshot({ path:'/opt/xiaozhi-dev/run/agent-editor.png', fullPage:true, animations:'disabled' });
     await page.goto('http://127.0.0.1:8001/#/agent-template-management');
-    await page.getByText('星际游子',{exact:true}).waitFor();
-    await page.getByText('汪汪队长',{exact:true}).waitFor();
+    await page.waitForURL('**/#/speaker-agents');
+    await page.locator('.device-item').first().waitFor();
     await page.goto('http://127.0.0.1:8001/#/mcp-management');
     await page.getByText(fixture.mcpName,{exact:true}).waitFor();
     await page.screenshot({path:'/opt/xiaozhi-dev/run/restoration-mcp.png',fullPage:true});
