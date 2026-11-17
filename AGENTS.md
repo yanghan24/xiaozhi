@@ -18,6 +18,14 @@ Before editing project files, creating branches or worktrees, committing, pushin
 
 Before planning or running physical-device tests, read the testing environment policy in `CONTRIBUTING.md`.
 
-## Backend validation
+## Development environment
 
-Run backend services, regression tests, and device protocol checks on Ubuntu `192.168.168.114` using SSH user `jt`. The local computer may provide editing, SSH, and browser access. Before looking up public endpoints or deployment versions, or provisioning, testing, or restarting backend services, read [the current deployment entry](docs/deployment/current.md) and its linked evidence. If local deployment documentation is missing or stale, check that entry on GitHub's latest `main` before concluding the information is unavailable.
+Develop and run the frontend, Java API and Python voice service in this project's independent `xiaozhi-dev` Dev Container. Run Git, builds, dependency installation and development/test tools inside that container. Never install development tools or dependencies on the host. Keep dependencies, caches and generated output in `xiaozhi-dev-*` Docker volumes; see [the local development guide](deploy/local-zhou/devcontainer.md).
+
+Development MySQL and Redis run as independent Xiaozhi containers on `172.16.18.104`, with separate accounts, ports and data volumes. Do not use or modify AI Market's databases, Redis, files, containers or configuration. AI Market is a read-only reference. Keep private configuration and access material under `/home/timyai/dev/runtime/xiaozhi/`; never commit secrets. Container temporary files and logs belong under `/opt/xiaozhi-dev`, outside the source bind mount.
+
+## Separate deployed environment
+
+生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
+
+Only when explicitly working on that deployed environment, read [the current deployment entry](docs/deployment/current.md) and linked evidence before looking up endpoints or versions, provisioning, testing or restarting services. If these local documents are missing or stale, check the entry on GitHub's latest `main` first. Physical-device acceptance remains separate from development checks.

@@ -1,0 +1,11 @@
+{
+  "name": "Xiaozhi Development",
+  "dockerComposeFile": "../deploy/local-zhou/dev.compose.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "dev",
+  "overrideCommand": false,
+  "shutdownAction": "none",
+  "forwardPorts": [8000, 8001, 8002, 8003],
+  "postCreateCommand": "sh .devcontainer/setup.sh"
+}
