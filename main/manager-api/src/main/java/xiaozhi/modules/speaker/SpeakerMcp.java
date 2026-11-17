@@ -57,6 +57,9 @@ public class SpeakerMcp {
         return db.queryForList("SELECT service_id FROM speaker_agent_mcp WHERE agent_id=? ORDER BY service_id",agent)
                 .stream().map(row->row.get("service_id")).toList();
     }
+    public void copyAssociations(String source, String target) {
+        db.update("INSERT INTO speaker_agent_mcp(agent_id,service_id) SELECT ?,service_id FROM speaker_agent_mcp WHERE agent_id=?",target,source);
+    }
     public void removeAgent(String agent) { db.update("DELETE FROM speaker_agent_mcp WHERE agent_id=?",agent); }
     @Transactional
     public Object select(String agent,List<String> services) {

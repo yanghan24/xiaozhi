@@ -51,6 +51,8 @@ try:
         agents.append(request('POST','/agent',{'agentName':prefix+'-'+str(operator)},operator=operator))
     assert set(agents) <= {a['id'] for a in request('GET','/agent/list')}
     draft=request('GET','/agent/'+agents[0])
+    assert not draft.get('systemPrompt') and not draft.get('llmModelId') and not draft.get('functions')
+    draft.update({'asrModelId':'ASR_OpenaiASR','vadModelId':'VAD_SileroVAD','llmModelId':'LLM_ChatGLMLLM','ttsModelId':'TTS_EdgeTTS','ttsVoiceId':'TTS_EdgeTTS0001','memModelId':'Memory_nomem'})
     draft['systemPrompt']='我是{{assistant_name}}，仅用于管理界面定向检查。'
     draft['ttsRate']=12;draft['ttsVolume']=55;draft['ttsPitch']=3
     draft['intentModelId']='Intent_nointent'

@@ -153,5 +153,8 @@ public interface AgentService extends BaseService<AgentEntity> {
      */
     String createAgent(AgentCreateDTO dto);
 
+    /** Copy configuration only; the new agent has no device, conversation or user grant state. */
+    String copyAgent(String agentId);
+
 
 }
