@@ -49,10 +49,6 @@ void Display::ClearChatMessages() {
     // Default empty implementation, override in subclasses if needed
 }
 
-void Display::ShowDeviceBinding(const DeviceControlView& view) { (void)view; }
-
-void Display::SetAccountAction(std::function<void()> action) { (void)action; }
-
 void Display::SetTheme(Theme* theme) {
     current_theme_ = theme;
     Settings settings("display", true);

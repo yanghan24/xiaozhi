@@ -1,12 +1,15 @@
 #include "system_reset.h"
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+#include "account/device_account.h"
+#endif
 
-#include <driver/gpio.h>
 #include <esp_log.h>
+#include <nvs_flash.h>
+#include <driver/gpio.h>
 #include <esp_partition.h>
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
-#include <nvs_flash.h>
-#include "device_control/device_identity.h"
+
 
 #define TAG "SystemReset"
 
@@ -37,11 +40,12 @@ void SystemReset::CheckButtons() {
 }
 
 void SystemReset::ResetNvsFlash() {
-#if CONFIG_XIAOZHI_DEVICE_CONTROL
-    ESP_ERROR_CHECK(device_control::ResetUserSettings());
-#else
     ESP_LOGI(TAG, "Resetting NVS flash");
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+    esp_err_t ret = account::DeviceAccount::ResetUserSettings();
+#else
     esp_err_t ret = nvs_flash_erase();
+#endif
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to erase NVS flash");
     }
@@ -49,12 +53,11 @@ void SystemReset::ResetNvsFlash() {
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize NVS flash");
     }
-#endif
 }
 
 void SystemReset::ResetToFactory() {
-#if CONFIG_XIAOZHI_DEVICE_CONTROL
-    // Keep the installed product gate; selecting an older image could bypass it.
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+    // A preference reset keeps this validated firmware and device identity.
     RestartInSeconds(3);
     return;
 #endif

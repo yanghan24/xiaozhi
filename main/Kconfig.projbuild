@@ -1,47 +1,19 @@
 menu "Xiaozhi Assistant"
 
+config XIAOZHI_ACCOUNT
+    bool "Speaker device identity and AI Market scan login"
+    depends on BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    select LV_USE_QRCODE
+    default n
+    help
+        Keep the official runtime and OTA. Add independent identity/heartbeat
+        and scan-login UI, using a privately provisioned per-device identity.
+
 config OTA_URL
     string "Default OTA URL"
     default "https://api.tenclass.net/xiaozhi/ota/"
     help
         The application will access this URL to check for new firmwares and server address.
-
-config XIAOZHI_DEVICE_CONTROL
-    bool "Enable registered-device binding and control"
-    depends on IDF_TARGET_ESP32P4
-    default n
-    select LV_USE_QRCODE
-    select MBEDTLS_CERTIFICATE_BUNDLE
-    help
-        Enable the product's authenticated control API, binding QR screen and
-        expiring voice permission. Requires private per-device provisioning and
-        a trusted HTTPS OTA origin. Missing configuration keeps product voice off.
-        Legacy OTA activation, MQTT fallback and stored voice tokens are not used.
-
-config XIAOZHI_SPEAKER_PROTOCOL_V2
-    bool "Use AI Market device authorization protocol v2"
-    depends on XIAOZHI_DEVICE_CONTROL
-    default n
-    help
-        Device login QR/user code and heartbeat use the speaker API. The private
-        identity must explicitly configure the trusted control HTTPS origin.
-        OAuth tokens and business API keys remain on the management server.
-
-config XIAOZHI_ONLINE_DELIVERY
-    bool "Verify online device delivery before starting product control"
-    depends on XIAOZHI_DEVICE_CONTROL
-    default n
-    help
-        Requires the v1 delivery API. Only starts ordinary product control after
-        the authorized host tool has completed issuance, writing and live device verification.
-
-config XIAOZHI_AMAP_API_KEY
-    string "AMap Web Service API key"
-    default ""
-    help
-        API key used by the standby dashboard for AMap IP location and live
-        weather queries. Keep the default empty in shared configurations and
-        set the key only in the local, Git-ignored sdkconfig file.
 
 choice
     prompt "Flash Assets"
@@ -154,39 +126,11 @@ choice
         bool "Serbian"
 endchoice
 
-choice XIAOZHI_NETWORK_TYPE
-    prompt "Network Type"
-    default XIAOZHI_NETWORK_WIFI
-    help
-        Select the network connection type before choosing the board type.
-        Board Type options are filtered according to this choice.
-
-    config XIAOZHI_NETWORK_WIFI
-        bool "WiFi"
-
-    config XIAOZHI_NETWORK_ETHERNET
-        bool "Ethernet"
-        depends on IDF_TARGET_ESP32P4
-        select ETH_ENABLED
-        select ETH_USE_ESP32_EMAC
-        help
-            Use an onboard Ethernet port for network access.
-            Currently supported board:
-              - Waveshare ESP32-P4-NANO
-endchoice
-
-config XIAOZHI_USE_ETHERNET
-    bool
-    default y if XIAOZHI_NETWORK_ETHERNET
-    default n
-
 choice BOARD_TYPE
     prompt "Board Type"
-    depends on XIAOZHI_NETWORK_WIFI
     default BOARD_TYPE_BREAD_COMPACT_WIFI
     help
         Board type. 开发板类型
-
     config BOARD_TYPE_BREAD_COMPACT_WIFI
         bool "Bread Compact WiFi (面包板)"
         depends on IDF_TARGET_ESP32S3
@@ -277,15 +221,9 @@ choice BOARD_TYPE
     config BOARD_TYPE_LICHUANG_DEV_S3
         bool "立创·实战派 ESP32-S3"
         depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_QUANDONG_S3_DEV
-        bool "全动 ESP32-S3 开发板"
-        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_LICHUANG_DEV_C3
         bool "立创·实战派 ESP32-C3"
         depends on IDF_TARGET_ESP32C3
-    config BOARD_TYPE_RYMCU_BIGSMART
-        bool "RYMCU BigSmart"
-        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_EDA_TV_PRO
         bool "EDA课程案例 EDA-TV-Pro"
         depends on IDF_TARGET_ESP32S3
@@ -313,14 +251,8 @@ choice BOARD_TYPE
     config BOARD_TYPE_MAGICLICK_C3_V2
         bool "神奇按钮 Magiclick_C3_v2"
         depends on IDF_TARGET_ESP32C3
-    config BOARD_TYPE_M5STACK_STOPWATCH
-        bool "M5Stack StopWatch"
-        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_M5STACK_CORE_S3
         bool "M5Stack CoreS3"
-        depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_M5STACK_STICK_S3
-        bool "M5Stack StickS3"
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_M5STACK_CORE_TAB5
         bool "M5Stack Tab5"
@@ -330,9 +262,6 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_M5STACK_ATOM_S3R_ECHO_BASE
         bool "M5Stack AtomS3R + Echo Base"
-        depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_M5STACK_ATOM_S3R_ECHO_PYRAMID
-        bool "M5Stack AtomS3R + Echo Pyramid"
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_M5STACK_ATOM_S3R_CAM_M12_ECHO_BASE
         bool "M5Stack AtomS3R CAM/M12 + Echo Base"
@@ -358,9 +287,6 @@ choice BOARD_TYPE
     config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8
         bool "Waveshare ESP32-S3-Touch-AMOLED-1.8"
         depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8_v2
-        bool "Waveshare ESP32-S3-Touch-AMOLED-1.8-v2"
-        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_43C
         bool "Waveshare ESP32-S3-Touch-AMOLED-1.43C"
         depends on IDF_TARGET_ESP32S3
@@ -373,9 +299,6 @@ choice BOARD_TYPE
     config BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_16
         bool "Waveshare ESP32-C6-Touch-AMOLED-2.16"
         depends on IDF_TARGET_ESP32C6
-    config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_2_16
-        bool "Waveshare ESP32-S3-Touch-AMOLED-2.16"
-        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75
         bool "Waveshare ESP32-S3-Touch-AMOLED-1.75"
         depends on IDF_TARGET_ESP32S3
@@ -384,9 +307,6 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_83
         bool "Waveshare ESP32-S3-Touch-LCD-1.83"
-        depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_WAVESHARE_ESP32_S3_RGB_MATRIX
-        bool "Waveshare ESP32-S3-RGB-Matrix"
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_4B
         bool "Waveshare ESP32-S3-Touch-LCD-4B"
@@ -417,12 +337,6 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32C6
     config BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_1_8
         bool "Waveshare ESP32-C6-Touch-AMOLED-1.8"
-        depends on IDF_TARGET_ESP32C6
-    config BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_LCD_1_54
-        bool "Waveshare ESP32-C6-Touch-LCD-1.54"
-        depends on IDF_TARGET_ESP32C6
-    config BOARD_TYPE_WAVESHARE_ESP32_C6_LCD_0_85
-        bool "Waveshare ESP32-C6-LCD-0.85"
         depends on IDF_TARGET_ESP32C6
     config BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_32
         bool "Waveshare ESP32-S3-Touch-AMOLOED-1.32"
@@ -645,65 +559,6 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32S3
 endchoice
 
-choice XIAOZHI_ETH_BOARD_TYPE
-    prompt "Board Type"
-    depends on XIAOZHI_NETWORK_ETHERNET
-    default ETH_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO
-    help
-        Board type with onboard Ethernet support.
-
-    config ETH_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO
-        bool "Waveshare ESP32-P4-NANO"
-        depends on IDF_TARGET_ESP32P4
-endchoice
-
-menu "Ethernet Configuration"
-    depends on XIAOZHI_NETWORK_ETHERNET
-
-    choice XIAOZHI_ETH_PHY_MODEL
-        prompt "Ethernet PHY Device"
-        default XIAOZHI_ETH_PHY_IP101
-
-        config XIAOZHI_ETH_PHY_IP101
-            bool "IP101/IP101GR"
-            help
-                IP101/IP101GR 10/100M Ethernet PHY, used by Waveshare ESP32-P4-NANO.
-    endchoice
-
-    config XIAOZHI_ETH_MDC_GPIO
-        int "Ethernet SMI MDC GPIO"
-        range 0 54
-        default 31 if ETH_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO
-        default 31
-        help
-            GPIO used by the Ethernet SMI MDC signal.
-
-    config XIAOZHI_ETH_MDIO_GPIO
-        int "Ethernet SMI MDIO GPIO"
-        range 0 54
-        default 52 if ETH_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO
-        default 52
-        help
-            GPIO used by the Ethernet SMI MDIO signal.
-
-    config XIAOZHI_ETH_PHY_ADDR
-        int "Ethernet PHY Address"
-        range -1 31
-        default 1
-        help
-            Set the PHY address according to the board schematic.
-            Use -1 to let the driver search for the PHY address.
-
-    config XIAOZHI_ETH_PHY_RST_GPIO
-        int "Ethernet PHY Reset GPIO"
-        range -1 54
-        default 51 if ETH_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO
-        default -1
-        help
-            GPIO used to reset the Ethernet PHY. Set to -1 if not connected.
-
-endmenu
-
 choice
     depends on BOARD_TYPE_LILYGO_T_DISPLAY_P4
     prompt "Select the screen type"
@@ -859,7 +714,7 @@ choice DISPLAY_STYLE
     config USE_EMOTE_MESSAGE_STYLE
         bool "Emote animation style"
         depends on BOARD_TYPE_ESP_BOX || BOARD_TYPE_ESP_BOX_3 \
-            || BOARD_TYPE_ESP_VOCAT || BOARD_TYPE_LICHUANG_DEV_S3 || BOARD_TYPE_RYMCU_BIGSMART \
+            || BOARD_TYPE_ESP_VOCAT || BOARD_TYPE_LICHUANG_DEV_S3 \
             || BOARD_TYPE_ESP_SENSAIRSHUTTLE
 endchoice
 
@@ -956,13 +811,13 @@ config USE_DEVICE_AEC
     bool "Enable Device-Side AEC"
     default n
         depends on USE_AUDIO_PROCESSOR && (BOARD_TYPE_ESP_BOX_3 || BOARD_TYPE_ESP_BOX || BOARD_TYPE_ESP_BOX_LITE \
-        || BOARD_TYPE_LICHUANG_DEV_S3 || BOARD_TYPE_RYMCU_BIGSMART || BOARD_TYPE_ESP_KORVO2_V3 || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75|| BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75C || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_83\
+        || BOARD_TYPE_LICHUANG_DEV_S3 || BOARD_TYPE_ESP_KORVO2_V3 || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75|| BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75C || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_83\
         || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_2_06 || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_4B || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4B || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 \
         || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_7B \
         || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_3_4C || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4C || BOARD_TYPE_ESP_S3_LCD_EV_Board_2 || BOARD_TYPE_YUNLIAO_S3 \
         || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_7 || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_8 || BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_10_1 \
-        || BOARD_TYPE_ESP_VOCAT || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_3_49 || BOARD_TYPE_WAVESHARE_ESP32_S3_RLCD_4_2 || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_85B || BOARD_TYPE_ZHENGCHEN_CAM || BOARD_TYPE_ZHENGCHEN_CAM_ML307 \
-        || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_4_3C || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_54 || BOARD_TYPE_WAVESHARE_ESP32_S3_LCD_0_85 || BOARD_TYPE_AI_VOX3 || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_43C || BOARD_TYPE_ATK_DNESP32S3_BOX3)
+        || BOARD_TYPE_ESP_VOCAT || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_3_49 || BOARD_TYPE_WAVESHARE_ESP32_S3_RLCD_4_2 || BOARD_TYPE_ZHENGCHEN_CAM || BOARD_TYPE_ZHENGCHEN_CAM_ML307 \
+        || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_4_3C || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_54 || BOARD_TYPE_WAVESHARE_ESP32_S3_LCD_0_85 || BOARD_TYPE_AI_VOX3 || BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_43C)
     help
         To work properly, device-side AEC requires a clean output reference path from the speaker signal and physical acoustic isolation between the microphone and speaker.
 
@@ -1014,49 +869,6 @@ config RECEIVE_CUSTOM_MESSAGE
     default n
     help
         Enable custom message reception, allow the device to receive custom messages from the server (preferably through the MQTT protocol)
-
-menu "IoT Platform HTTP Mirroring"
-
-config IOT_PLATFORM_ENABLE
-    bool "Mirror device status and chat records to IoT platform"
-    default y if BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
-    default n
-    help
-        Send an independent HTTP property heartbeat and voice fact events to the
-        JetLinks integration gateway. This side channel does not replace or
-        modify the Xiaozhi MQTT/WebSocket AI connection.
-
-config IOT_PLATFORM_BASE_URL
-    string "IoT HTTP gateway base URL"
-    default "http://192.168.168.114:1884"
-    depends on IOT_PLATFORM_ENABLE
-
-config IOT_PLATFORM_PRODUCT_ID
-    string "Xiaozhi product ID"
-    default "2115358572383096832"
-    depends on IOT_PLATFORM_ENABLE
-
-config IOT_PLATFORM_DEVICE_ID
-    string "Xiaozhi device ID"
-    default "2115359051913678848"
-    depends on IOT_PLATFORM_ENABLE
-
-config IOT_PLATFORM_HTTP_TOKEN
-    string "Per-device integration HTTP token"
-    default ""
-    depends on IOT_PLATFORM_ENABLE
-    help
-        Bearer token assigned to this Xiaozhi device. Keep this empty in shared
-        source control and configure it only in the local sdkconfig or NVS.
-        The IoT mirror remains inactive while the token is empty.
-
-config IOT_PLATFORM_HEARTBEAT_SECONDS
-    int "Status heartbeat interval (seconds)"
-    range 10 300
-    default 30
-    depends on IOT_PLATFORM_ENABLE
-
-endmenu
 
 menu "Camera Configuration"
     depends on !IDF_TARGET_ESP32

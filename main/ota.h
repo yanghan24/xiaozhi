@@ -9,12 +9,6 @@
 
 class Ota {
 public:
-    struct Validation {
-        std::string artifact_sha256;
-        std::string target_elf_sha256;
-        size_t image_size = 0;
-        int64_t start_deadline_ms = 0;
-    };
     Ota();
     ~Ota();
 
@@ -27,9 +21,7 @@ public:
     bool HasActivationCode() { return has_activation_code_; }
     bool HasServerTime() { return has_server_time_; }
     bool StartUpgrade(std::function<void(int progress, size_t speed)> callback);
-    static bool Upgrade(const std::string& firmware_url,
-                        std::function<void(int progress, size_t speed)> callback,
-                        const Validation* validation = nullptr);
+    static bool Upgrade(const std::string& firmware_url, std::function<void(int progress, size_t speed)> callback);
     void MarkCurrentVersionValid();
 
     const std::string& GetFirmwareVersion() const { return firmware_version_; }
@@ -37,13 +29,11 @@ public:
     const std::string& GetFirmwareUrl() const { return firmware_url_; }
     const std::string& GetActivationMessage() const { return activation_message_; }
     const std::string& GetActivationCode() const { return activation_code_; }
-    const std::string& GetDeviceControlUrl() const { return device_control_url_; }
     std::string GetCheckVersionUrl();
 
 private:
     std::string activation_message_;
     std::string activation_code_;
-    std::string device_control_url_;
     bool has_new_version_ = false;
     bool has_mqtt_config_ = false;
     bool has_websocket_config_ = false;

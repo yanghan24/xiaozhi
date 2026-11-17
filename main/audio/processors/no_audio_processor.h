@@ -1,14 +1,12 @@
 #ifndef DUMMY_AUDIO_PROCESSOR_H
 #define DUMMY_AUDIO_PROCESSOR_H
 
-#include <atomic>
-#include <functional>
-#include <mutex>
 #include <vector>
+#include <functional>
+#include <atomic>
 
-#include "audio_codec.h"
 #include "audio_processor.h"
-#include "processing_audio_buffer.h"
+#include "audio_codec.h"
 
 class NoAudioProcessor : public AudioProcessor {
 public:
@@ -16,24 +14,21 @@ public:
     ~NoAudioProcessor() = default;
 
     void Initialize(AudioCodec* codec, int frame_duration_ms, srmodel_list_t* models_list) override;
-    void Feed(std::vector<int16_t>&& data, uint64_t generation) override;
-    void Start(uint64_t generation) override;
+    void Feed(std::vector<int16_t>&& data) override;
+    void Start() override;
     void Stop() override;
     bool IsRunning() override;
-    void OnOutput(
-        std::function<void(std::vector<int16_t>&& data, uint64_t generation)> callback) override;
-    void OnVadStateChange(
-        std::function<void(bool speaking, uint64_t generation)> callback) override;
+    void OnOutput(std::function<void(std::vector<int16_t>&& data)> callback) override;
+    void OnVadStateChange(std::function<void(bool speaking)> callback) override;
     size_t GetFeedSize() override;
     void EnableDeviceAec(bool enable) override;
 
 private:
     AudioCodec* codec_ = nullptr;
     int frame_samples_ = 0;
-    ProcessingAudioBuffer output_buffer_;
-    std::mutex output_buffer_mutex_;
-    std::function<void(std::vector<int16_t>&& data, uint64_t generation)> output_callback_;
-    std::function<void(bool speaking, uint64_t generation)> vad_state_change_callback_;
+    std::vector<int16_t> output_buffer_;
+    std::function<void(std::vector<int16_t>&& data)> output_callback_;
+    std::function<void(bool speaking)> vad_state_change_callback_;
     std::atomic<bool> is_running_ = false;
 };
 

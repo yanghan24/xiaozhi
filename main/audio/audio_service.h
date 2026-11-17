@@ -6,10 +6,6 @@
 #include <condition_variable>
 #include <chrono>
 #include <mutex>
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <functional>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -22,14 +18,12 @@
 #include "esp_ae_rate_cvt.h"
 #include "esp_audio_types.h"
 
-#include "audio_activity_gate.h"
 #include "audio_codec.h"
 #include "audio_processor.h"
-#include "controlled_audio_access.h"
-#include "ogg_demuxer.h"
 #include "processors/audio_debugger.h"
-#include "protocol.h"
 #include "wake_word.h"
+#include "protocol.h"
+#include "ogg_demuxer.h"
 
 /*
  * There are two types of audio data flow:
@@ -52,10 +46,6 @@
 
 #define AUDIO_POWER_TIMEOUT_MS 15000
 #define AUDIO_POWER_CHECK_INTERVAL_MS 1000
-
-constexpr int kRecorderPcmSampleRate = 16000;
-constexpr int kRecorderPcmChannels = 1;
-constexpr int kRecorderPcmBitsPerSample = 16;
 
 #define AS_EVENT_AUDIO_TESTING_RUNNING      (1 << 0)
 #define AS_EVENT_WAKE_WORD_RUNNING          (1 << 1)
@@ -90,7 +80,6 @@ struct AudioServiceCallbacks {
     std::function<void(const std::string&)> on_wake_word_detected;
     std::function<void(bool)> on_vad_change;
     std::function<void(void)> on_audio_testing_queue_full;
-    std::function<void(const std::string&, uint64_t, uint64_t)> on_playback_text;
 };
 
 
@@ -103,11 +92,7 @@ enum AudioTaskType {
 struct AudioTask {
     AudioTaskType type;
     std::vector<int16_t> pcm;
-    uint32_t timestamp = 0;
-    bool requires_voice_permission = true;
-    uint64_t generation = 0;
-    std::string playback_text;
-    uint64_t connection_id = 0;
+    uint32_t timestamp;
 };
 
 struct DebugStatistics {
@@ -116,25 +101,6 @@ struct DebugStatistics {
     uint32_t encode_count = 0;
     uint32_t playback_count = 0;
 };
-
-enum AudioFocusOwner {
-    kAudioFocusOwnerNone = 0,
-    kAudioFocusOwnerLocalMusic,
-    kAudioFocusOwnerRecorder,
-    kAudioFocusOwnerPromptSound,
-    kAudioFocusOwnerVoiceInteraction,
-    kAudioFocusOwnerCount,
-};
-
-enum AudioFocusResource {
-    kAudioFocusResourceNone = 0,
-    kAudioFocusResourceInput = 1 << 0,
-    kAudioFocusResourceOutput = 1 << 1,
-    kAudioFocusResourceInputOutput = kAudioFocusResourceInput | kAudioFocusResourceOutput,
-};
-
-using AudioFocusLostCallback = std::function<void(AudioFocusOwner owner, uint8_t resources)>;
-using AudioPcmObserver = std::function<void(const int16_t* data, size_t samples, int sample_rate, int channels)>;
 
 class AudioService {
 public:
@@ -149,10 +115,6 @@ public:
     const std::string& GetLastWakeWord() const;
     bool IsVoiceDetected() const { return voice_detected_; }
     bool IsIdle();
-    AudioActivityGate::Lease TryBeginActivity() { return activity_gate_.TryBegin(); }
-    bool ReserveMaintenance();
-    void ReleaseMaintenance() { activity_gate_.Release(); }
-    bool MaintenanceIdle();
     void WaitForPlaybackQueueEmpty();
     bool IsWakeWordRunning() const { return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING; }
     bool IsAudioProcessorRunning() const { return xEventGroupGetBits(event_group_) & AS_EVENT_AUDIO_PROCESSOR_RUNNING; }
@@ -165,41 +127,15 @@ public:
 
     void SetCallbacks(AudioServiceCallbacks& callbacks);
 
-    bool RequestAudioFocus(AudioFocusOwner owner, uint8_t resources,
-        AudioFocusLostCallback on_focus_lost = nullptr);
-    void ReleaseAudioFocus(AudioFocusOwner owner,
-        uint8_t resources = kAudioFocusResourceInputOutput);
-    bool HasAudioFocus(AudioFocusOwner owner, uint8_t resources) const;
-    void NotifyVoiceInteractionStarted();
-    void NotifyVoiceInteractionStopped();
-    bool SetInputPcmObserver(AudioFocusOwner owner, AudioPcmObserver observer);
-    void ClearInputPcmObserver(AudioFocusOwner owner);
-
     bool PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> packet, bool wait = false);
-    bool PushPcmToPlaybackQueue(AudioFocusOwner owner, std::vector<int16_t>&& pcm,
-                                uint64_t generation, bool wait = false);
     std::unique_ptr<AudioStreamPacket> PopPacketFromSendQueue();
-    void PlaySound(const std::string_view& sound, bool requires_voice_permission = false);
+    void PlaySound(const std::string_view& sound);
     bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
     void ResetDecoder();
-    void ApplyControlledAccess(uint64_t generation, bool allowed);
-    // The audio tasks read this fence without dereferencing the protocol owner.
-    void SetVoiceConnection(uint64_t connection_id) { voice_connection_id_.store(connection_id); }
-    // Safe in the control timer callback: revocation never takes a queue/driver lock.
-    void RevokeControlledAccess(uint64_t generation);
-    // Main task only. Returns true after old queues and driver output are stopped.
-    bool StopControlledAudio();
     void SetModelsList(srmodel_list_t* models_list);
 
 private:
     AudioCodec* codec_ = nullptr;
-    AudioActivityGate activity_gate_;
-    ControlledAudioAccess controlled_access_;
-    std::mutex audio_output_mutex_;
-    std::atomic<uint64_t> voice_processing_generation_{0};
-    std::atomic<uint64_t> voice_connection_id_{0};
-    bool IsControlledAllowed(uint64_t generation) const;
-    bool IsOutputCurrent(const AudioTask& task) const;
     AudioServiceCallbacks callbacks_;
     std::unique_ptr<AudioProcessor> audio_processor_;
     std::unique_ptr<WakeWord> wake_word_;
@@ -209,7 +145,6 @@ private:
     std::mutex decoder_mutex_;
     std::mutex input_resampler_mutex_;
     esp_ae_rate_cvt_handle_t input_resampler_ = nullptr;
-    uint64_t input_resampler_generation_ = 0;
     esp_ae_rate_cvt_handle_t output_resampler_ = nullptr;
     
     // Encoder/Decoder state
@@ -249,24 +184,12 @@ private:
     std::chrono::steady_clock::time_point last_input_time_;
     std::chrono::steady_clock::time_point last_output_time_;
 
-    mutable std::mutex audio_focus_mutex_;
-    AudioFocusOwner input_focus_owner_ = kAudioFocusOwnerNone;
-    AudioFocusOwner output_focus_owner_ = kAudioFocusOwnerNone;
-    std::array<AudioFocusLostCallback, kAudioFocusOwnerCount> audio_focus_lost_callbacks_;
-
-    mutable std::mutex input_pcm_observer_mutex_;
-    AudioFocusOwner input_pcm_observer_owner_ = kAudioFocusOwnerNone;
-    AudioPcmObserver input_pcm_observer_;
-
     void AudioInputTask();
     void AudioOutputTask();
     void OpusCodecTask();
-    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm, uint64_t generation);
-    bool IsProcessingAllowed(uint64_t generation) const;
+    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm);
     void SetDecodeSampleRate(int sample_rate, int frame_duration);
     void CheckAndUpdateAudioPowerState();
-    void NotifyInputPcmObserver(const std::vector<int16_t>& data, int sample_rate, int channels,
-                                AudioFocusOwner owner, const AudioPcmObserver& observer);
 };
 
 #endif

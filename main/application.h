@@ -6,20 +6,16 @@
 #include <freertos/task.h>
 #include <esp_timer.h>
 
-#include <atomic>
-#include <deque>
-#include <functional>
-#include <memory>
-#include <mutex>
 #include <string>
+#include <mutex>
+#include <deque>
+#include <memory>
 
+#include "protocol.h"
+#include "ota.h"
 #include "audio_service.h"
-#include "device_control/device_control.h"
-#include "device_control/maintenance_model.h"
 #include "device_state.h"
 #include "device_state_machine.h"
-#include "ota.h"
-#include "protocol.h"
 
 // Main event bits
 #define MAIN_EVENT_SCHEDULE             (1 << 0)
@@ -35,7 +31,7 @@
 #define MAIN_EVENT_START_LISTENING      (1 << 10)
 #define MAIN_EVENT_STOP_LISTENING       (1 << 11)
 #define MAIN_EVENT_STATE_CHANGED        (1 << 12)
-#define MAIN_EVENT_CONTROL_REVOKED (1 << 13)
+
 
 enum AecMode {
     kAecOff,
@@ -108,25 +104,15 @@ public:
     void StopListening();
 
     void Reboot();
-    bool CanRestoreFactorySettings() const;
-    bool RestoreFactorySettings();
     void WakeWordInvoke(const std::string& wake_word);
-    bool UpgradeFirmware(const std::string& url, const std::string& version = "",
-                         const Ota::Validation* validation = nullptr);
-    bool MaintenanceIdle();
-    bool ReserveMaintenance();
-    void ReleaseMaintenance();
-    bool UpgradeMaintenance(const device_control::MaintenanceCommand& command);
+    bool UpgradeFirmware(const std::string& url, const std::string& version = "");
     bool CanEnterSleepMode();
-    void SendMcpMessage(const std::string& payload, uint64_t generation, uint64_t connection_id);
-    void RegisterMcpBroadcastCallback(std::function<void(const std::string&)> callback);
+    void SendMcpMessage(const std::string& payload);
+    void OnAccountUnavailable();
     void SetAecMode(AecMode mode);
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
-    void EndVoiceInteraction();
-    bool EnterStandby();
     AudioService& GetAudioService() { return audio_service_; }
-    uint64_t GetVoiceConnectionId() const { return protocol_ ? protocol_->GetConnectionId() : 0; }
 
     /**
      * Reset protocol resources (thread-safe)
@@ -140,10 +126,6 @@ private:
     ~Application();
 
     std::mutex mutex_;
-    std::mutex maintenance_gate_;
-    bool maintenance_reserved_ = false;
-    bool upgrade_active_ = false;
-    DeviceState maintenance_previous_state_ = kDeviceStateIdle;
     std::deque<std::function<void()>> main_tasks_;
     std::unique_ptr<Protocol> protocol_;
     EventGroupHandle_t event_group_ = nullptr;
@@ -155,27 +137,11 @@ private:
     AudioService audio_service_;
     std::unique_ptr<Ota> ota_;
 
-    std::function<void(const std::string&)> mcp_broadcast_callback_;
-
     bool has_server_time_ = false;
     bool aborted_ = false;
     bool assets_version_checked_ = false;
     bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
-    std::atomic<bool> standby_requested_{false};
-    std::mutex pending_tts_text_mutex_;
-    std::string pending_tts_text_;
-    uint64_t pending_tts_generation_ = 0;
-    uint64_t pending_tts_connection_ = 0;
     int clock_ticks_ = 0;
-    uint64_t acknowledged_permission_version_ = 0;
-    std::atomic<uint64_t> applied_control_generation_{0};
-    bool VoiceAllowed() const;
-    bool VoiceGenerationCurrent(uint64_t generation) const;
-    void ScheduleVoice(uint64_t generation, std::function<void()>&& callback);
-    void ScheduleVoice(uint64_t generation, uint64_t connection_id,
-                       std::function<void()>&& callback);
-    void ApplyDeviceControlView(const DeviceControlView& view);
-    void HandleControlRevoked();
     TaskHandle_t activation_task_handle_ = nullptr;
 
 

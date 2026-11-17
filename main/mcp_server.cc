@@ -11,13 +11,12 @@
 #include <esp_pthread.h>
 
 #include "application.h"
-#include "board.h"
-#include "device_control/device_control.h"
 #include "display.h"
-#include "lvgl_display.h"
-#include "lvgl_theme.h"
 #include "oled_display.h"
+#include "board.h"
 #include "settings.h"
+#include "lvgl_theme.h"
+#include "lvgl_display.h"
 
 #define TAG "MCP"
 
@@ -285,8 +284,10 @@ void McpServer::AddUserOnlyTools() {
     }
 #endif // HAVE_LVGL
 
-    // Assets download url (always registered — Settings storage works regardless of partition layout)
-    AddUserOnlyTool("self.assets.set_download_url", "Set the download url for the assets",
+    // Assets download url
+    auto& assets = Assets::GetInstance();
+    if (assets.partition_valid()) {
+        AddUserOnlyTool("self.assets.set_download_url", "Set the download url for the assets",
             PropertyList({
                 Property("url", kPropertyTypeString)
             }),
@@ -296,6 +297,7 @@ void McpServer::AddUserOnlyTools() {
                 settings.SetString("download_url", url);
                 return true;
             });
+    }
 }
 
 void McpServer::AddTool(McpTool* tool) {
@@ -320,27 +322,12 @@ void McpServer::AddUserOnlyTool(const std::string& name, const std::string& desc
 }
 
 void McpServer::ParseMessage(const std::string& message) {
-    // Local board control servers keep their legacy behavior. Product MCP must
-    // provide the authenticated WebSocket source context explicitly.
-    if (!DeviceControl::GetInstance().Enabled()) {
-        ParseMessage(message, 0, Application::GetInstance().GetVoiceConnectionId());
-    }
-}
-
-void McpServer::ParseMessage(const cJSON* json) {
-    if (!DeviceControl::GetInstance().Enabled()) {
-        ParseMessage(json, 0, Application::GetInstance().GetVoiceConnectionId());
-    }
-}
-
-void McpServer::ParseMessage(const std::string& message, uint64_t generation,
-                             uint64_t connection_id) {
     cJSON* json = cJSON_Parse(message.c_str());
     if (json == nullptr) {
         ESP_LOGE(TAG, "Failed to parse MCP message: %s", message.c_str());
         return;
     }
-    ParseMessage(json, generation, connection_id);
+    ParseMessage(json);
     cJSON_Delete(json);
 }
 
@@ -363,14 +350,7 @@ void McpServer::ParseCapabilities(const cJSON* capabilities) {
     }
 }
 
-void McpServer::ParseMessage(const cJSON* json, uint64_t generation, uint64_t connection_id) {
-    auto& control = DeviceControl::GetInstance();
-    if (control.Enabled() &&
-        (!control.IsVoiceAllowed() || !control.IsCurrentGeneration(generation) ||
-         Application::GetInstance().GetVoiceConnectionId() != connection_id)) {
-        return;
-    }
-
+void McpServer::ParseMessage(const cJSON* json) {
     // Check JSONRPC version
     auto version = cJSON_GetObjectItem(json, "jsonrpc");
     if (version == nullptr || !cJSON_IsString(version) || strcmp(version->valuestring, "2.0") != 0) {
@@ -415,7 +395,7 @@ void McpServer::ParseMessage(const cJSON* json, uint64_t generation, uint64_t co
         std::string message = "{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"" BOARD_NAME "\",\"version\":\"";
         message += app_desc->version;
         message += "\"}}";
-        ReplyResult(id_int, message, generation, connection_id);
+        ReplyResult(id_int, message);
     } else if (method_str == "tools/list") {
         std::string cursor_str = "";
         bool list_user_only_tools = false;
@@ -429,54 +409,50 @@ void McpServer::ParseMessage(const cJSON* json, uint64_t generation, uint64_t co
                 list_user_only_tools = with_user_tools->valueint == 1;
             }
         }
-        GetToolsList(id_int, cursor_str, list_user_only_tools, generation, connection_id);
+        GetToolsList(id_int, cursor_str, list_user_only_tools);
     } else if (method_str == "tools/call") {
         if (!cJSON_IsObject(params)) {
             ESP_LOGE(TAG, "tools/call: Missing params");
-            ReplyError(id_int, "Missing params", generation, connection_id);
+            ReplyError(id_int, "Missing params");
             return;
         }
         auto tool_name = cJSON_GetObjectItem(params, "name");
         if (!cJSON_IsString(tool_name)) {
             ESP_LOGE(TAG, "tools/call: Missing name");
-            ReplyError(id_int, "Missing name", generation, connection_id);
+            ReplyError(id_int, "Missing name");
             return;
         }
         auto tool_arguments = cJSON_GetObjectItem(params, "arguments");
         if (tool_arguments != nullptr && !cJSON_IsObject(tool_arguments)) {
             ESP_LOGE(TAG, "tools/call: Invalid arguments");
-            ReplyError(id_int, "Invalid arguments", generation, connection_id);
+            ReplyError(id_int, "Invalid arguments");
             return;
         }
-        DoToolCall(id_int, std::string(tool_name->valuestring), tool_arguments, generation,
-                   connection_id);
+        DoToolCall(id_int, std::string(tool_name->valuestring), tool_arguments);
     } else {
         ESP_LOGE(TAG, "Method not implemented: %s", method_str.c_str());
-        ReplyError(id_int, "Method not implemented: " + method_str, generation, connection_id);
+        ReplyError(id_int, "Method not implemented: " + method_str);
     }
 }
 
-void McpServer::ReplyResult(int id, const std::string& result, uint64_t generation,
-                            uint64_t connection_id) {
+void McpServer::ReplyResult(int id, const std::string& result) {
     std::string payload = "{\"jsonrpc\":\"2.0\",\"id\":";
     payload += std::to_string(id) + ",\"result\":";
     payload += result;
     payload += "}";
-    Application::GetInstance().SendMcpMessage(payload, generation, connection_id);
+    Application::GetInstance().SendMcpMessage(payload);
 }
 
-void McpServer::ReplyError(int id, const std::string& message, uint64_t generation,
-                           uint64_t connection_id) {
+void McpServer::ReplyError(int id, const std::string& message) {
     std::string payload = "{\"jsonrpc\":\"2.0\",\"id\":";
     payload += std::to_string(id);
     payload += ",\"error\":{\"message\":\"";
     payload += message;
     payload += "\"}}";
-    Application::GetInstance().SendMcpMessage(payload, generation, connection_id);
+    Application::GetInstance().SendMcpMessage(payload);
 }
 
-void McpServer::GetToolsList(int id, const std::string& cursor, bool list_user_only_tools,
-                             uint64_t generation, uint64_t connection_id) {
+void McpServer::GetToolsList(int id, const std::string& cursor, bool list_user_only_tools) {
     const int max_payload_size = 8000;
     std::string json = "{\"tools\":[";
     
@@ -519,8 +495,7 @@ void McpServer::GetToolsList(int id, const std::string& cursor, bool list_user_o
     if (json.back() == '[' && !tools_.empty()) {
         // 如果没有添加任何tool，返回错误
         ESP_LOGE(TAG, "tools/list: Failed to add tool %s because of payload size limit", next_cursor.c_str());
-        ReplyError(id, "Failed to add tool " + next_cursor + " because of payload size limit",
-                   generation, connection_id);
+        ReplyError(id, "Failed to add tool " + next_cursor + " because of payload size limit");
         return;
     }
 
@@ -530,11 +505,10 @@ void McpServer::GetToolsList(int id, const std::string& cursor, bool list_user_o
         json += "],\"nextCursor\":\"" + next_cursor + "\"}";
     }
 
-    ReplyResult(id, json, generation, connection_id);
+    ReplyResult(id, json);
 }
 
-void McpServer::DoToolCall(int id, const std::string& tool_name, const cJSON* tool_arguments,
-                           uint64_t generation, uint64_t connection_id) {
+void McpServer::DoToolCall(int id, const std::string& tool_name, const cJSON* tool_arguments) {
     auto tool_iter = std::find_if(tools_.begin(), tools_.end(), 
                                  [&tool_name](const McpTool* tool) { 
                                      return tool->name() == tool_name; 
@@ -542,7 +516,7 @@ void McpServer::DoToolCall(int id, const std::string& tool_name, const cJSON* to
     
     if (tool_iter == tools_.end()) {
         ESP_LOGE(TAG, "tools/call: Unknown tool: %s", tool_name.c_str());
-        ReplyError(id, "Unknown tool: " + tool_name, generation, connection_id);
+        ReplyError(id, "Unknown tool: " + tool_name);
         return;
     }
 
@@ -566,41 +540,24 @@ void McpServer::DoToolCall(int id, const std::string& tool_name, const cJSON* to
 
             if (!argument.has_default_value() && !found) {
                 ESP_LOGE(TAG, "tools/call: Missing valid argument: %s", argument.name().c_str());
-                ReplyError(id, "Missing valid argument: " + argument.name(), generation,
-                           connection_id);
+                ReplyError(id, "Missing valid argument: " + argument.name());
                 return;
             }
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "tools/call: %s", e.what());
-        ReplyError(id, e.what(), generation, connection_id);
+        ReplyError(id, e.what());
         return;
     }
 
     // Use main thread to call the tool
     auto& app = Application::GetInstance();
-    app.Schedule(
-        [this, id, tool_iter, generation, connection_id, arguments = std::move(arguments)]() {
-            auto& control = DeviceControl::GetInstance();
-            if (control.Enabled() &&
-                (!control.IsVoiceAllowed() || !control.IsCurrentGeneration(generation) ||
-                 Application::GetInstance().GetVoiceConnectionId() != connection_id)) {
-                return;
-            }
-            try {
-                const auto result = (*tool_iter)->Call(arguments);
-                if (!control.Enabled() ||
-                    (control.IsVoiceAllowed() && control.IsCurrentGeneration(generation) &&
-                     Application::GetInstance().GetVoiceConnectionId() == connection_id)) {
-                    ReplyResult(id, result, generation, connection_id);
-                }
-            } catch (const std::exception& e) {
-                ESP_LOGE(TAG, "tools/call: %s", e.what());
-                if (!control.Enabled() ||
-                    (control.IsVoiceAllowed() && control.IsCurrentGeneration(generation) &&
-                     Application::GetInstance().GetVoiceConnectionId() == connection_id)) {
-                    ReplyError(id, e.what(), generation, connection_id);
-                }
-            }
-        });
+    app.Schedule([this, id, tool_iter, arguments = std::move(arguments)]() {
+        try {
+            ReplyResult(id, (*tool_iter)->Call(arguments));
+        } catch (const std::exception& e) {
+            ESP_LOGE(TAG, "tools/call: %s", e.what());
+            ReplyError(id, e.what());
+        }
+    });
 }

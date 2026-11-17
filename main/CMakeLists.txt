@@ -15,8 +15,6 @@ set(SOURCES "audio/audio_codec.cc"
             "led/gpio_led.cc"
             "display/display.cc"
             "display/lcd_display.cc"
-            "display/assets/hncig_logo_i2.c"
-            "display/standby_dashboard.cc"
             "display/oled_display.cc"
             "display/lvgl_display/lvgl_display.cc"
             "display/emote_display.cc"
@@ -28,12 +26,6 @@ set(SOURCES "audio/audio_codec.cc"
             "display/lvgl_display/gif/gifdec.c"
             "display/lvgl_display/jpg/image_to_jpeg.cpp"
             "display/lvgl_display/jpg/jpeg_to_image.c"
-            "storage/sd_card_service.cc"
-            "features/audio_recorder.cc"
-            "features/music_player.cc"
-            "features/pomodoro_timer.cc"
-            "services/environment_service.cc"
-            "services/iot_telemetry_service.cc"
             "protocols/protocol.cc"
             "protocols/mqtt_protocol.cc"
             "protocols/websocket_protocol.cc"
@@ -41,26 +33,16 @@ set(SOURCES "audio/audio_codec.cc"
             "system_info.cc"
             "application.cc"
             "ota.cc"
-            "ota_image_writer.cc"
-            "device_control/device_control.cc"
-            "device_control/maintenance_model.cc"
-            "device_control/maintenance_runtime.cc"
-            "device_control/control_model.cc"
-            "device_control/speaker_model.cc"
-            "device_control/control_http.cc"
-            "device_control/control_transport.cc"
-            "device_control/control_tls.cc"
-            "device_control/identity_config.cc"
-            "device_control/device_identity.cc"
-            "device_control/delivery_model.cc"
-            "device_control/delivery_bootstrap.cc"
             "settings.cc"
             "device_state_machine.cc"
             "assets.cc"
             "main.cc"
             )
 
-set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols" "storage" "features" "services")
+set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols")
+if(CONFIG_XIAOZHI_ACCOUNT)
+    list(APPEND SOURCES "account/account_protocol.cc" "account/device_account.cc" "account/nvs_guard.cc")
+endif()
 
 # Add board common files
 list(APPEND SOURCES
@@ -82,12 +64,6 @@ list(APPEND SOURCES
     "boards/common/sy6970.cc"
     "boards/common/system_reset.cc"
 )
-if(CONFIG_XIAOZHI_USE_ETHERNET)
-    list(APPEND SOURCES "boards/common/ethernet_board.cc")
-endif()
-if(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 AND CONFIG_XIAOZHI_DEVICE_CONTROL)
-    list(APPEND SOURCES "display/fonts/font_puhui_binding_30_4.c")
-endif()
 list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/boards/common)
 
 
@@ -180,23 +156,11 @@ elseif(CONFIG_BOARD_TYPE_LICHUANG_DEV_S3)
     set(BUILTIN_TEXT_FONT font_noto_basic_20_4)
     set(BUILTIN_ICON_FONT font_awesome_20_4)
     set(DEFAULT_EMOJI_COLLECTION noto-emoji_128)
-elseif(CONFIG_BOARD_TYPE_QUANDONG_S3_DEV)
-    set(BOARD_TYPE "quandong-s3-dev")
-    set(BUILTIN_TEXT_FONT font_noto_basic_20_4)
-    set(BUILTIN_ICON_FONT font_awesome_20_4)
-    set(DEFAULT_EMOJI_COLLECTION noto-emoji_128)
 elseif(CONFIG_BOARD_TYPE_LICHUANG_DEV_C3)
     set(BOARD_TYPE "lichuang-c3-dev")
     set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
     set(BUILTIN_ICON_FONT font_awesome_20_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_32)
-elseif(CONFIG_BOARD_TYPE_RYMCU_BIGSMART)
-    set(MANUFACTURER "rymcu")
-    set(BOARD_TYPE "bigsmart")
-    set(BOARD_NAME "rymcu-bigsmart")
-    set(BUILTIN_TEXT_FONT font_noto_basic_20_4)
-    set(BUILTIN_ICON_FONT font_awesome_20_4)
-    set(DEFAULT_EMOJI_COLLECTION noto-emoji_128)
 elseif(CONFIG_BOARD_TYPE_EDA_TV_PRO)
     set(MANUFACTURER "lceda-course-examples")
     set(BOARD_TYPE "eda-tv-pro")
@@ -228,21 +192,11 @@ elseif(CONFIG_BOARD_TYPE_MAGICLICK_C3_V2)
     set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
     set(BUILTIN_ICON_FONT font_awesome_16_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_32)
-elseif(CONFIG_BOARD_TYPE_M5STACK_STOPWATCH)
-    set(BOARD_TYPE "m5stack-stopwatch")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
-    set(BUILTIN_ICON_FONT font_awesome_30_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
 elseif(CONFIG_BOARD_TYPE_M5STACK_CORE_S3)
     set(BOARD_TYPE "m5stack-core-s3")
     set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
     set(BUILTIN_ICON_FONT font_awesome_20_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
-elseif(CONFIG_BOARD_TYPE_M5STACK_STICK_S3)
-    set(BOARD_TYPE "m5stack-stick-s3")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
-    set(BUILTIN_ICON_FONT font_awesome_16_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_32)
 elseif(CONFIG_BOARD_TYPE_M5STACK_CORE_TAB5)
     set(BOARD_TYPE "m5stack-tab5")
     set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
@@ -255,11 +209,6 @@ elseif(CONFIG_BOARD_TYPE_M5STACK_ATOM_S3_ECHO_BASE)
     set(DEFAULT_EMOJI_COLLECTION twemoji_32)
 elseif(CONFIG_BOARD_TYPE_M5STACK_ATOM_S3R_ECHO_BASE)
     set(BOARD_TYPE "atoms3r-echo-base")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
-    set(BUILTIN_ICON_FONT font_awesome_16_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_32)
-elseif(CONFIG_BOARD_TYPE_M5STACK_ATOM_S3R_ECHO_PYRAMID)
-    set(BOARD_TYPE "atoms3r-echo-pyramid")
     set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
     set(BUILTIN_ICON_FONT font_awesome_16_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_32)
@@ -345,12 +294,6 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
     set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
     set(BUILTIN_ICON_FONT font_awesome_30_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8_v2)
-    set(MANUFACTURER "waveshare")
-    set(BOARD_TYPE "esp32-s3-touch-amoled-1.8-v2")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
-    set(BUILTIN_ICON_FONT font_awesome_30_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_1_8)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-c6-touch-amoled-1.8")
@@ -372,12 +315,6 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_06)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_16)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-c6-touch-amoled-2.16")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
-    set(BUILTIN_ICON_FONT font_awesome_30_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_2_16)
-    set(MANUFACTURER "waveshare")
-    set(BOARD_TYPE "esp32-s3-touch-amoled-2.16")
     set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
     set(BUILTIN_ICON_FONT font_awesome_30_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
@@ -417,21 +354,9 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_83)
     set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
     set(BUILTIN_ICON_FONT font_awesome_16_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_RGB_MATRIX)
-    set(MANUFACTURER "waveshare")
-    set(BOARD_TYPE "esp32-s3-rgb-matrix")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)
-    set(BUILTIN_ICON_FONT font_awesome_14_1)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_32)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_85C)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-s3-touch-lcd-1.85c")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
-    set(BUILTIN_ICON_FONT font_awesome_16_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_85B)
-    set(MANUFACTURER "waveshare")
-    set(BOARD_TYPE "esp32-s3-touch-lcd-1.85b")
     set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
     set(BUILTIN_ICON_FONT font_awesome_16_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
@@ -519,25 +444,13 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_1_32)
     set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
     set(BUILTIN_ICON_FONT font_awesome_20_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_32)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_LCD_1_54)
-    set(MANUFACTURER "waveshare")
-    set(BOARD_TYPE "esp32-c6-touch-lcd-1.54")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
-    set(BUILTIN_ICON_FONT font_awesome_20_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_LCD_0_85)
-    set(MANUFACTURER "waveshare")
-    set(BOARD_TYPE "esp32-c6-lcd-0.85")
-    set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
-    set(BUILTIN_ICON_FONT font_awesome_16_4)
-    set(DEFAULT_EMOJI_COLLECTION twemoji_32)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_32)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-s3-touch-amoled-1.32")
     set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
     set(BUILTIN_ICON_FONT font_awesome_20_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_32)
-elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO OR CONFIG_ETH_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO)
+elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-p4-nano")
     set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
@@ -1043,11 +956,6 @@ if(CONFIG_IDF_TARGET_ESP32S3)
 endif()
 
 set(MAIN_PRIV_REQUIRES_EXTRA "")
-if(BOARD_TYPE STREQUAL "m5stack-stick-s3")
-    list(APPEND MAIN_PRIV_REQUIRES_EXTRA
-        m5stack__m5pm1
-    )
-endif()
 if(CONFIG_BOARD_TYPE_ESP_VOCAT)
     list(APPEND MAIN_PRIV_REQUIRES_EXTRA
         espressif__touch_slider_sensor
@@ -1063,17 +971,11 @@ idf_component_register(SRCS ${SOURCES}
                         esp_pm
                         esp_psram
                         esp_netif
-                        esp-tls
-                        http_parser
-                        lwip
-                        json
-                        esp_eth
                         esp_driver_gpio
                         esp_driver_uart
                         esp_driver_spi
                         esp_driver_i2c
                         esp_driver_i2s
-                        esp_driver_sdmmc
                         esp_driver_jpeg
                         esp_driver_ppa
                         esp_app_format
@@ -1083,36 +985,8 @@ idf_component_register(SRCS ${SOURCES}
                         efuse
                         bt
                         fatfs
-                        sdmmc
                         ${MAIN_PRIV_REQUIRES_EXTRA}
                     )
-
-if(CONFIG_XIAOZHI_DEVICE_CONTROL)
-    target_sources(${COMPONENT_LIB} PRIVATE "device_control/nvs_erase_guard.cc")
-    target_link_options(${COMPONENT_LIB} INTERFACE
-        "-Wl,--wrap=nvs_flash_erase" "-Wl,--wrap=nvs_flash_erase_partition")
-    # The existing 16 MB layout has 0x3f0000-byte app slots. Keep the complete
-    # P4 UI and optimize application glue for size; DSP/codec components retain
-    # their existing optimization settings.
-    target_compile_options(${COMPONENT_LIB} PRIVATE -Os)
-    # LVGL and esp_emote_gfx each bundle qrcodegen with the same exported names.
-    # Keep the managed packages intact and namespace LVGL's private copy, including
-    # the two sizing helpers used by our LCD binding screen.
-    idf_component_get_property(DEVICE_CONTROL_LVGL_LIB lvgl__lvgl COMPONENT_LIB)
-    set(DEVICE_CONTROL_QR_SYMBOLS
-        qrcodegen_encodeText qrcodegen_encodeBinary qrcodegen_encodeSegments
-        qrcodegen_encodeSegmentsAdvanced qrcodegen_isAlphanumeric qrcodegen_isNumeric
-        qrcodegen_calcSegmentBufferSize qrcodegen_makeBytes qrcodegen_makeNumeric
-        qrcodegen_makeAlphanumeric qrcodegen_makeEci qrcodegen_getSize
-        qrcodegen_getModule qrcodegen_version2size qrcodegen_getMinFitVersion)
-    set(DEVICE_CONTROL_QR_DEFINITIONS "")
-    foreach(QR_SYMBOL IN LISTS DEVICE_CONTROL_QR_SYMBOLS)
-        list(APPEND DEVICE_CONTROL_QR_DEFINITIONS "${QR_SYMBOL}=xiaozhi_lvgl_${QR_SYMBOL}")
-    endforeach()
-    target_compile_definitions(${DEVICE_CONTROL_LVGL_LIB} PRIVATE ${DEVICE_CONTROL_QR_DEFINITIONS})
-    set_property(SOURCE "display/lcd_display.cc" APPEND PROPERTY
-        COMPILE_DEFINITIONS ${DEVICE_CONTROL_QR_DEFINITIONS})
-endif()
 
 # Use target_compile_definitions to define BOARD_TYPE, BOARD_NAME
 # If BOARD_NAME is empty, use BOARD_TYPE
@@ -1140,7 +1014,6 @@ add_custom_command(
 add_custom_target(lang_header ALL
     DEPENDS ${LANG_HEADER}
 )
-add_dependencies(${COMPONENT_LIB} lang_header)
 
 # Find ESP-SR component dynamically
 find_component_by_pattern("espressif__esp-sr" ESP_SR_COMPONENT ESP_SR_COMPONENT_PATH)
@@ -1308,7 +1181,6 @@ if ("${size}" AND "${offset}")
         # Build default assets based on configuration
         build_default_assets_bin()
         esptool_py_flash_to_partition(flash "assets" "${GENERATED_ASSETS_LOCAL_FILE}")
-        add_dependencies(flash generated_default_assets)
         message(STATUS "Generated default assets flash configured: ${GENERATED_ASSETS_LOCAL_FILE} -> assets partition")
     elseif(CONFIG_FLASH_CUSTOM_ASSETS)
         # Flash custom assets
@@ -1328,4 +1200,18 @@ if ("${size}" AND "${offset}")
     endif()
 else()
     message(STATUS "Assets partition not found, using v1 partition table")
+endif()
+
+if(CONFIG_XIAOZHI_ACCOUNT)
+    target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=nvs_flash_erase" "-Wl,--wrap=nvs_flash_erase_partition")
+    # LVGL and esp_emote_gfx bundle different private QR generators. Namespace
+    # LVGL's copy; keep both managed components and their ABIs intact.
+    idf_component_get_property(ACCOUNT_LVGL_LIB lvgl__lvgl COMPONENT_LIB)
+    foreach(symbol IN ITEMS qrcodegen_encodeText qrcodegen_encodeBinary qrcodegen_encodeSegments
+        qrcodegen_encodeSegmentsAdvanced qrcodegen_isAlphanumeric qrcodegen_isNumeric
+        qrcodegen_calcSegmentBufferSize qrcodegen_makeBytes qrcodegen_makeNumeric
+        qrcodegen_makeAlphanumeric qrcodegen_makeEci qrcodegen_getSize qrcodegen_getModule
+        qrcodegen_version2size qrcodegen_getMinFitVersion)
+        target_compile_definitions(${ACCOUNT_LVGL_LIB} PRIVATE "${symbol}=account_lvgl_${symbol}")
+    endforeach()
 endif()

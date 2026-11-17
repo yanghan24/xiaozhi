@@ -6,58 +6,54 @@
 void NoAudioProcessor::Initialize(AudioCodec* codec, int frame_duration_ms, srmodel_list_t* models_list) {
     codec_ = codec;
     frame_samples_ = frame_duration_ms * 16000 / 1000;
+    output_buffer_.reserve(frame_samples_);
 }
 
-void NoAudioProcessor::Feed(std::vector<int16_t>&& data, uint64_t generation) {
+void NoAudioProcessor::Feed(std::vector<int16_t>&& data) {
+    if (!is_running_ || !output_callback_) {
+        return;
+    }
+
+    // Convert stereo to mono if needed
     if (codec_->input_channels() == 2) {
         for (size_t i = 0, j = 0; i < data.size() / 2; ++i, j += 2) {
-            data[i] = data[j];
+            output_buffer_.push_back(data[j]);
         }
-        data.resize(data.size() / 2);
+    } else {
+        output_buffer_.insert(output_buffer_.end(), data.begin(), data.end());
     }
 
-    std::vector<std::vector<int16_t>> frames;
-    {
-        std::lock_guard<std::mutex> lock(output_buffer_mutex_);
-        if (!is_running_ || !output_callback_ ||
-            generation != output_buffer_.GetSourceGeneration()) {
-            return;
+    // Output complete frames when buffer has enough data
+    while (output_buffer_.size() >= (size_t)frame_samples_) {
+        if (output_buffer_.size() == (size_t)frame_samples_) {
+            output_callback_(std::move(output_buffer_));
+            output_buffer_.clear();
+            output_buffer_.reserve(frame_samples_);
+        } else {
+            output_callback_(std::vector<int16_t>(output_buffer_.begin(), output_buffer_.begin() + frame_samples_));
+            output_buffer_.erase(output_buffer_.begin(), output_buffer_.begin() + frame_samples_);
         }
-        const auto run = output_buffer_.GetGeneration();
-        output_buffer_.Append(run, data.data(), data.size());
-        std::vector<int16_t> frame;
-        while (output_buffer_.PopFrame(run, frame_samples_, frame)) {
-            frames.push_back(std::move(frame));
-        }
-    }
-    for (auto& frame : frames) {
-        output_callback_(std::move(frame), generation);
     }
 }
 
-void NoAudioProcessor::Start(uint64_t generation) {
-    std::lock_guard<std::mutex> lock(output_buffer_mutex_);
-    output_buffer_.Start(generation);
+void NoAudioProcessor::Start() {
     is_running_ = true;
 }
 
 void NoAudioProcessor::Stop() {
-    std::lock_guard<std::mutex> lock(output_buffer_mutex_);
     is_running_ = false;
-    output_buffer_.Stop();
+    output_buffer_.clear();
 }
 
 bool NoAudioProcessor::IsRunning() {
     return is_running_;
 }
 
-void NoAudioProcessor::OnOutput(
-    std::function<void(std::vector<int16_t>&& data, uint64_t generation)> callback) {
+void NoAudioProcessor::OnOutput(std::function<void(std::vector<int16_t>&& data)> callback) {
     output_callback_ = callback;
 }
 
-void NoAudioProcessor::OnVadStateChange(
-    std::function<void(bool speaking, uint64_t generation)> callback) {
+void NoAudioProcessor::OnVadStateChange(std::function<void(bool speaking)> callback) {
     vad_state_change_callback_ = callback;
 }
 
