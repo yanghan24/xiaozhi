@@ -25,11 +25,13 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class VoiceAuthority:
-    def __init__(self, base_url, service_key, state_directory=None):
+    def __init__(self, base_url, service_key, state_directory=None, protocol_version=1):
         parsed = urlparse(base_url)
         if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.query or parsed.fragment or len(service_key) < 32:
             raise ValueError('Product voice requires private authority configuration')
-        self.base = base_url.rstrip('/') + '/internal/device-voice/v1/'
+        self.protocol_version = protocol_version
+        prefix = '/internal/speaker-voice/v2/' if protocol_version == 2 else '/internal/device-voice/v1/'
+        self.base = base_url.rstrip('/') + prefix
         self.key = service_key
         self.rejections = RejectionOutbox(self.base, self.request,
             state_directory or os.environ.get('PRODUCT_VOICE_STATE_DIR', 'data/product-voice'))
@@ -52,8 +54,9 @@ class VoiceAuthority:
             with opener.open(request, timeout=2) as response:
                 if response.status != 200:
                     raise VoiceDenied()
-                payload = response.read(16385)
-                if len(payload) > 16384:
+                limit = 131072 if self.protocol_version == 2 else 16384
+                payload = response.read(limit + 1)
+                if len(payload) > limit:
                     raise VoiceDenied()
                 data = json.loads(payload)
                 if not isinstance(data, dict):
@@ -111,7 +114,8 @@ class VoiceGate:
         self.check()
         try:
             result = self.authority.request('model-access', {'session': self.session})
-            if self.ended.is_set() or result.get('model') != 'qwen3.8-flash' or not result.get('api_key') or not result.get('rejection_receipt'):
+            model = result.get('model')
+            if self.ended.is_set() or not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_./:-]{0,127}', model) or not result.get('api_key') or not result.get('rejection_receipt'):
                 raise VoiceDenied()
             self.authority.check_scope(result, 'authorization_order')
             self.authority.check_scope(self.grant)
@@ -184,7 +188,7 @@ class MarketModel:
         self.gate = gate
 
     def response(self, session_id, dialogue, **kwargs):
-        stream = self._stream(dialogue, turn_guard=kwargs.get('turn_guard'))
+        stream = self._stream(dialogue, turn_guard=kwargs.get('turn_guard'), turn_access=kwargs.get('turn_access'))
         try:
             for content, _ in stream:
                 if content:
@@ -193,12 +197,12 @@ class MarketModel:
             stream.close()
 
     def response_with_functions(self, session_id, dialogue, functions=None, **kwargs):
-        yield from self._stream(dialogue, functions=functions, turn_guard=kwargs.get('turn_guard'))
+        yield from self._stream(dialogue, functions=functions, turn_guard=kwargs.get('turn_guard'), turn_access=kwargs.get('turn_access'))
 
-    def _stream(self, dialogue, functions=None, turn_guard=None):
+    def _stream(self, dialogue, functions=None, turn_guard=None, turn_access=None):
         if turn_guard is not None:
             turn_guard()
-        access = self.gate.model_access()
+        access = turn_access if turn_access is not None else self.gate.model_access()
         body = {'model': access['model'], 'messages': dialogue, 'stream': True}
         if functions:
             body['tools'] = functions

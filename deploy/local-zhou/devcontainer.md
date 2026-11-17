@@ -45,6 +45,23 @@ supervisorctl -c .devcontainer/supervisord.conf restart voice
 
 Supervisor 日志位于 `/opt/xiaozhi-dev/logs/`，只读检查后再摘取脱敏错误。不要向报告复制原始日志或配置。停止服务用 supervisorctl stop；停止容器保留命名卷。不要删除数据库卷或重新生成已使用的密码。
 
+## 第一阶段音箱接入
+
+开发 API 可选加载 `/opt/xiaozhi-dev/speaker/speaker.properties`；默认缺失时不启用新模式。当前独立开发环境已配置 `speaker.enabled=true`、开发专用 device Client ID、独立加密文件和语音服务密钥，私有备份在宿主 runtime/xiaozhi/config/speaker。语音配置保存在原命名卷 data/.config.yaml，启用 product-voice 的 protocol_version=2，使用同容器 API 和独立 speaker-voice 状态目录。不要复制 114 配置，或在新旧语音授权接口之间共用拒绝记录目录。
+
+新入口为 `/#/speaker-agents`、`/#/speaker-users`、`/#/speaker-devices`。仍使用原运营管理员登录；先新增角色并点击“设为默认”才能开始对话。系统不自动选用旧模板，也不开放客户自助注册。
+
+`check-speaker.py` 是本阶段定向联调：仅限 104 小智开发库，创建临时管理员/普通账号/模拟客户和设备，以不可外联的模拟 Key 验证 API 与语音鉴权；结束清理夹具并恢复默认角色。它会重启本容器 API，要求开发库尚未设置初始默认角色；已有实际默认角色后不再运行这一初始化检查。该检查不请求集市授权，不发送音频或调用模型/ASR/TTS/MCP。
+
+`speaker-simulator.py` 以管理员登记后保存的私有设备身份运行，模拟心跳和设备状态，最长 600 秒。`--begin` 才会显式发起一次真实集市设备授权；它输出手机授权地址和核对码，令牌与 Key 不输出。退出模拟器不会退出用户或解绑。请给模拟设备明确的非实机名称，不将模拟在线当作音箱验收。
+
+```sh
+python deploy/local-zhou/speaker-simulator.py \
+  --identity-file /opt/xiaozhi-dev/speaker/development-device.json --begin --duration 600
+```
+
+完整范围与未完成验收条件见[第一阶段检查记录](../../docs/development/speaker-phase1-checks.md)。如需关闭本地新模式，先停止 voice，令私有 speaker.enabled=false，并从 `/opt/xiaozhi-dev/speaker/voice-before-speaker.yaml` 恢复本轮前的本地语音配置，再重启 api 和 voice；保留新增数据库表和密钥，不用删表模拟代码回退。
+
 ## 独立访问
 
 生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。

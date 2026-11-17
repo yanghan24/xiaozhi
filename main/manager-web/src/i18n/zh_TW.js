@@ -14,7 +14,7 @@ export default {
   'header.voiceCloneManagement': '音色克隆',
   'header.voiceResourceManagement': '音色資源',
   'header.otaManagement': 'OTA管理',
-  'header.paramDictionary': '參數字典',
+  'header.paramDictionary': '系統設定',
   'header.paramManagement': '參數管理',
   'header.dictManagement': '字典管理',
   'header.agentTemplate': '預設角色模板',

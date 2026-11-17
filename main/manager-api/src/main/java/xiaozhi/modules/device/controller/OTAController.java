@@ -42,6 +42,8 @@ import xiaozhi.modules.sys.service.SysParamsService;
 public class OTAController {
     @org.springframework.beans.factory.annotation.Value("${device-control.enabled:false}")
     private boolean productControl;
+    @org.springframework.beans.factory.annotation.Value("${speaker.enabled:false}")
+    private boolean speakerControl;
     @org.springframework.beans.factory.annotation.Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}")
     private String productOrigin;
     @org.springframework.beans.factory.annotation.Value("${device-control.time-zone:Asia/Shanghai}")
@@ -55,13 +57,13 @@ public class OTAController {
             @RequestBody DeviceReportReqDTO deviceReportReqDTO,
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
             @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
-        if (productControl) {
+        if (productControl || speakerControl) {
             // Discovery is public; only the independent control credential can obtain voice access.
             long timestamp = System.currentTimeMillis();
             // Firmware expects UTC epoch milliseconds plus a separate offset in minutes.
             var discovery = Map.of(
-                    "device_control", Map.of("version", 1,
-                            "base_url", productOrigin + "/xiaozhi/device-control/v1/"),
+                    "device_control", Map.of("version", speakerControl ? 2 : 1,
+                            "base_url", productOrigin + (speakerControl ? "/xiaozhi/speaker/v1/" : "/xiaozhi/device-control/v1/")),
                     "server_time", Map.of("timestamp", timestamp,
                             "timezone_offset", productTimeZone.getRules().getOffset(Instant.ofEpochMilli(timestamp)).getTotalSeconds() / 60,
                             "timeZone", productTimeZone.getId()));
@@ -87,7 +89,7 @@ public class OTAController {
     public ResponseEntity<String> activateDevice(
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
             @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
-        if (productControl) return ResponseEntity.status(403).header("Cache-Control","no-store").body("Product device control required");
+        if (productControl || speakerControl) return ResponseEntity.status(403).header("Cache-Control","no-store").body("Product device control required");
         if (StringUtils.isBlank(deviceId)) {
             return ResponseEntity.status(202).build();
         }

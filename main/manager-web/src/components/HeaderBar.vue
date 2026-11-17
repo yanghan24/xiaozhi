@@ -8,7 +8,23 @@
       </div>
 
       <!-- 中间导航菜单 -->
-      <div class="header-center">
+      <div v-if="speakerMode" class="header-center">
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/speaker-agents' }" @click="$router.push('/speaker-agents')"><img alt="" src="@/assets/header/robot.png" /><span class="nav-text">智能体管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/speaker-users' }" @click="$router.push('/speaker-users')"><img alt="" src="@/assets/header/user_management.png" /><span class="nav-text">用户管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/speaker-devices' }" @click="$router.push('/speaker-devices')"><img alt="" src="@/assets/header/robot.png" /><span class="nav-text">设备管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/model-config' }" @click="handleRouter('modelConfig')"><img alt="" src="@/assets/header/model_config.png" /><span class="nav-text">模型配置</span></div>
+        <el-dropdown trigger="click" class="equipment-management more-dropdown">
+          <span class="el-dropdown-link"><img alt="" src="@/assets/header/param_management.png" /><span class="nav-text">系统设置</span><i class="el-icon-arrow-down" /></span>
+          <el-dropdown-menu slot="dropdown">
+            <el-dropdown-item @click.native="$router.push('/admin-accounts')">管理员账号</el-dropdown-item>
+            <el-dropdown-item @click.native="handleRouter('paramManagement')">系统参数</el-dropdown-item>
+            <el-dropdown-item @click.native="handleRouter('dictManagement')">字典管理</el-dropdown-item>
+            <el-dropdown-item @click.native="handleRouter('providerManagement')">模型供应商</el-dropdown-item>
+            <el-dropdown-item @click.native="handleRouter('serverSideManagement')">服务管理</el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+      </div>
+      <div v-else class="header-center">
         <div class="equipment-management" :class="{
           'active-tab':
             $route.path === '/home' ||
@@ -227,6 +243,7 @@ export default {
     };
   },
   computed: {
+    speakerMode() { return this.$store.state.pubConfig.speakerMode === true; },
     ...mapState({
       featureStatus: (state) => ({
         voiceClone: state.pubConfig.systemWebMenu?.features?.voiceClone?.enabled, // 音色克隆功能状态

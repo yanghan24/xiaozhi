@@ -14,7 +14,7 @@ export default {
   'header.knowledgeBase': '知识库',
   'header.userManagement': '用户管理',
   'header.otaManagement': 'OTA管理',
-  'header.paramDictionary': '参数字典',
+  'header.paramDictionary': '系统设置',
   'header.paramManagement': '参数管理',
   'header.dictManagement': '字典管理',
   'header.agentTemplate': '默认角色模板',

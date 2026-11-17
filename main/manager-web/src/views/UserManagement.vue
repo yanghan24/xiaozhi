@@ -6,7 +6,7 @@
         <div class="content-area">
           <el-card class="user-card" shadow="never">
             <div class="operation-header">
-              <h2 class="page-title">{{ $t('header.userManagement') }}</h2>
+              <h2 class="page-title">{{ $route.path === '/admin-accounts' ? '管理员账号' : $t('header.userManagement') }}</h2>
               <div class="right-operations">
                 <el-input :placeholder="$t('user.searchPhone')" v-model="searchPhone" class="search-input" clearable
                   @keyup.enter.native="handleSearch" />

@@ -54,7 +54,7 @@ class WebSocketServer:
         self.product_authority = None
         self.product_audio = None
         if self.product_required:
-            self.product_authority = VoiceAuthority(product.get('authority_url') or config.get('manager-api', {}).get('url', ''), product.get('service_key', ''), product.get('state_directory'))
+            self.product_authority = VoiceAuthority(product.get('authority_url') or config.get('manager-api', {}).get('url', ''), product.get('service_key', ''), product.get('state_directory'), product.get('protocol_version', 1))
             self.product_audio = AudioPublication(product.get('asr_audio_base_url', ''))
         modules = initialize_modules(
             self.logger,
@@ -198,6 +198,10 @@ class WebSocketServer:
             from core.providers.memory.nomem.nomem import MemoryProvider
             from core.providers.intent.nointent.nointent import IntentProvider
             config = copy.deepcopy(self.config)
+            speaker_access = await asyncio.to_thread(gate.model_access) if self.product_authority.protocol_version == 2 else None
+            speaker_role = speaker_access.get('agent') if speaker_access else None
+            if speaker_access and not isinstance(speaker_role, dict):
+                raise VoiceDenied()
             # Product identity never falls back to upstream ai_device activation or admin models.
             config['read_config_from_api'] = False
             config.setdefault('selected_module', {}).update({'TTS': 'ProductEdge', 'Memory': 'nomem', 'Intent': 'nointent', 'LLM': 'MarketModel'})
@@ -205,6 +209,13 @@ class WebSocketServer:
             config['Intent'] = {'nointent': {'type': 'nointent'}}
             config['TTS'] = {'ProductEdge': {'type': 'edge', 'voice': 'zh-CN-XiaoxiaoNeural', 'output_dir': 'tmp/'}}
             config['LLM'] = {'MarketModel': {'type': 'market', 'model_name': 'qwen3.8-flash'}}
+            if speaker_role:
+                config['_speaker_product'] = True
+                config['_speaker_role_signature'] = speaker_role['signature']
+                config['prompt'] = speaker_role['prompt']
+                config['TTS']['ProductEdge']['voice'] = speaker_role['tts_voice']
+                config['LLM']['MarketModel']['model_name'] = speaker_role['llm_model']
+                config['product-voice']['knowledge'] = {}
             config['context_providers'] = []
             config['voiceprint'] = {}
             handler = ConnectionHandler(config, self._vad, self._asr, MarketModel(gate), MemoryProvider({}), IntentProvider({}), self)
