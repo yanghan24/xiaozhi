@@ -134,7 +134,9 @@ void DeviceAccount::Apply(const State& next) {
         std::lock_guard<std::mutex> lock(mutex_);
         revoke=state_.ready && (!next.ready || state_.permission_version!=next.permission_version);
         state_=next;
-        if (next.ready) { login_={};message_.clear(); }
+        const bool needs_login=next.use_status=="unbound" || next.use_status=="signed_out" || next.use_status=="authorization_required";
+        if (!needs_login) login_={};
+        if (next.ready) message_.clear();
     }
     if (revoke) Application::GetInstance().Schedule([] { Application::GetInstance().OnAccountUnavailable(); });
 }
@@ -215,13 +217,14 @@ void DeviceAccount::Render() {
         auto& app=Application::GetInstance();auto display=Board::GetInstance().GetDisplay();
         if (!display || !display->IsSetupUICalled()) return;
         DisplayLockGuard lock(display);
+        const bool ready=state.ready && online && Now()<state.valid_until_ms;
         static uint64_t shown_version=0;
-        if (!state.ready || shown_version!=state.permission_version) { confirm_unbind=false;account_details=false; }
+        if (!ready || shown_version!=state.permission_version) { confirm_unbind=false;account_details=false; }
         shown_version=state.permission_version;
         if (panel) { lv_obj_delete(panel);panel=nullptr; }
         if (account_button) { lv_obj_delete(account_button);account_button=nullptr; }
         if (app.GetDeviceState()==kDeviceStateUpgrading) return;
-        if (state.ready && !account_details && !pending) {
+        if (ready && !account_details && !pending) {
             account_button=lv_button_create(lv_layer_top());lv_obj_set_size(account_button,100,44);lv_obj_align(account_button,LV_ALIGN_TOP_RIGHT,-8,42);
             auto label=lv_label_create(account_button);lv_label_set_text(label,"账号");lv_obj_center(label);
             if (auto theme=static_cast<LvglTheme*>(display->GetTheme())) lv_obj_set_style_text_font(account_button,theme->text_font()->font(),0);
@@ -233,8 +236,8 @@ void DeviceAccount::Render() {
         lv_obj_set_style_pad_row(panel,16,0);
         if (auto theme=static_cast<LvglTheme*>(display->GetTheme())) lv_obj_set_style_text_font(panel,theme->text_font()->font(),0);
         auto text=[&](const std::string& value) { auto label=lv_label_create(panel);lv_obj_set_width(label,LV_PCT(94));lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);lv_label_set_text(label,value.c_str()); };
-        text(state.ready?"音箱账号":"音箱登录");
-        if (state.ready && account_details) {
+        text(ready?"音箱账号":"音箱登录");
+        if (ready && account_details) {
             text(state.customer_name.empty()?"已绑定集市账号":state.customer_name);
             text(confirm_unbind?"确认退出并解除本台绑定？其他音箱不受影响。":"本台已登录。退出并解绑后可由其他账号扫码使用。");
             if (confirm_unbind) Button(panel,"确认退出并解绑",[](lv_event_t*) { confirm_unbind=false;account_details=false;DeviceAccount::GetInstance().RequestUnbind();DeviceAccount::GetInstance().Render(); });
