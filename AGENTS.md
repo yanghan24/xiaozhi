@@ -26,6 +26,6 @@ Development MySQL and Redis run as independent Xiaozhi containers on `172.16.18.
 
 ## Separate deployed environment
 
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
+Production environment `114` is separate from development, not a dependency of local development. Do not connect development services to its databases, copy its runtime configuration, or change its services as part of local development. Production login accounts, SSH commands, jump routes and private access-file paths must not be recorded in repository files.
 
 Only when explicitly working on that deployed environment, read [the current deployment entry](docs/deployment/current.md) and linked evidence before looking up endpoints or versions, provisioning, testing or restarting services. If these local documents are missing or stale, check the entry on GitHub's latest `main` first. Physical-device acceptance remains separate from development checks.

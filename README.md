@@ -19,9 +19,8 @@
 - [设备身份保留与授权补发](docs/development/device-identity-recovery.md)、[B 应用更新/复位/重新配网验证](docs/verification/2026-11-11-device-identity-retention.md)
 - [换机/服务器交接](docs/handoff/2026-11-05-ubuntu-server.md)、[文档同步核查](docs/planning/document-sync-audit-2026-11-06.md)
 - [团队协作与回退](CONTRIBUTING.md)
-- [筑音硬件接入资料](筑音设备接入资料_核查稿_2026-11-06.md)
 - [集市当前接入基线](docs/planning/voice-backend-discovery.md#当前集市接入基线2026-11-06)、[契约核对](docs/development/ai-market-contract-review-2026-11-06.md)
-- [新版集市接入原文](<元筑AI集市应用接入接口文档(1).md>)、[旧版对照](元筑AI集市应用接入接口文档.md)
-- [历史规范通与 TTS 资料](docs/development/ai-market-api.md)、[原始问卷及更新说明](to-questionnaire-ai-market-integration.md)
+- [音箱扫码授权与身份接入实施记录](docs/development/speaker-phase1-implementation.md)
+- [历史规范通与 TTS 资料](docs/development/ai-market-api.md)
 
-根目录 `compose.yaml` 用于独立测试基线；现有服务器的运行方式见[当前部署入口](docs/deployment/current.md)。保留的 [上游 README](README.upstream.md)、`docs/Deployment_all.md` 和 `main/xiaozhi-server/docker-compose_all.yml` 是来源资料；其中的预构建镜像、全局容器名和清理步骤不是本项目本机运行流程。
+根目录 `compose.yaml` 用于独立测试基线；现有服务器的运行方式见[当前部署入口](docs/deployment/current.md)。保留的 `docs/Deployment_all.md` 和 `main/xiaozhi-server/docker-compose_all.yml` 是来源资料；其中的预构建镜像、全局容器名和清理步骤不是本项目本机运行流程。

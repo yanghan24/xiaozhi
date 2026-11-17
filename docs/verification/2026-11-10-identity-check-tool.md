@@ -154,7 +154,7 @@ PR 转正式后，审阅又提出 2 项 P2，同样先补复现测试再修复�
 
 新增三项测试覆盖自身在共享网络/第二网络上的冲突、容器名冲突，以及第二网络无冲突的正向场景。先加入测试，在 Ubuntu Python 3.8.10 上运行 276 项，修复前出现 2 项失败；修复后同一完整套件 276 项全部通过，0 失败、0 跳过。
 
-命令：`python3 -m unittest discover -s scripts/customer-identity/tests -t scripts/customer-identity -q`。通过 SSH 在 生产环境 独立临时目录执行：修复前 `/tmp/pr51-fix-Jwc86D`，修复后 `/tmp/pr51-fixed-vlxpzz`。本次仅运行合成离线测试，没有查询业务数据库、修改部署配置或执行真实登录/退出；不新增现场端到端验收结论。
+生产登录命令不在仓库文档中记录。
 
 ## 没有产生业务写入
 

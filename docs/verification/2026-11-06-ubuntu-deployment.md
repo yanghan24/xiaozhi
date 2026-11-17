@@ -59,7 +59,7 @@ SSH 批处理改为 `bash -c` 执行脚本文本，使 Docker exec 不会从共�
 管理端通过 SSH 隧道访问：
 
 ```bash
-生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
+生产登录命令不在仓库文档中记录。
 ```
 
 隧道运行时打开 `http://127.0.0.1:28002`。服务器专属管理员凭据保存在 `/home/jt/xiaozhi-ubuntu-test/.runtime/manager-check/credentials.json`；本机浏览器客户端副本在 `D:\AI\xiaozhi\.runtime\ubuntu-client\.runtime\manager-check\credentials.json`。复用这套账号和服务器 `.env`，后续操作见 [Ubuntu runbook](../deployment/ubuntu-isolated-test.md)。
