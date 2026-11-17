@@ -47,11 +47,11 @@ Supervisor 日志位于 `/opt/xiaozhi-dev/logs/`，只读检查后再摘取脱�
 
 ## 第一阶段音箱接入
 
-开发 API 可选加载 `/opt/xiaozhi-dev/speaker/speaker.properties`；默认缺失时不启用新模式。当前独立开发环境已配置 `speaker.enabled=true`、开发专用 device Client ID、独立加密文件和语音服务密钥，私有备份在宿主 runtime/xiaozhi/config/speaker。语音配置保存在原命名卷 data/.config.yaml，启用 product-voice 的 protocol_version=2，使用同容器 API 和独立 speaker-voice 状态目录。不要复制 114 配置，或在新旧语音授权接口之间共用拒绝记录目录。
+开发 API 可选加载 `/opt/xiaozhi-dev/speaker/speaker.properties`；默认缺失时不启用身份模式。当前独立开发环境已配置 `speaker.enabled=true`、开发专用 device Client ID 和独立加密文件，私有备份在宿主 runtime/xiaozhi/config/speaker。语音配置保存在原命名卷 data/.config.yaml；2026-11-17 恢复原版运行时后删除 product-voice 配置，身份接口通过原版 manager-api 的 server.secret 保护，不再使用独立语音服务 Key 或旧 v2 语音接口。管理员明确选择完整默认角色后才允许对话。不要复制 114 配置。
 
 新入口为 `/#/speaker-agents`、`/#/speaker-users`、`/#/speaker-devices`。仍使用原运营管理员登录；先新增角色并点击“设为默认”才能开始对话。系统不自动选用旧模板，也不开放客户自助注册。
 
-`check-speaker.py` 是本阶段定向联调：仅限 104 小智开发库，创建临时管理员/普通账号/模拟客户和设备，以不可外联的模拟 Key 验证 API 与语音鉴权；结束清理夹具并恢复默认角色。它会重启本容器 API，要求开发库尚未设置初始默认角色；已有实际默认角色后不再运行这一初始化检查。该检查不请求集市授权，不发送音频或调用模型/ASR/TTS/MCP。
+`check-speaker.py` 调用 `check-agent-management.py`：仅限 104 小智开发库，创建临时管理员、模拟客户、角色、设备及停用的 MCP 服务，验证无客户资源 Key 的完整原版配置下发、默认选择及页面。结束清理夹具并恢复默认角色，不重启 API、不请求集市授权或真实模型。浏览器工具、缓存和字体只放 runtime 卷。原版运行时、身份轮次和本地 MCP 协议替身的定向测试见实施记录；它们不代表真机或真实服务验收。
 
 `speaker-simulator.py` 以管理员登记后保存的私有设备身份运行，模拟心跳和设备状态，最长 600 秒。`--begin` 才会显式发起一次真实集市设备授权；它输出手机授权地址和核对码，令牌与 Key 不输出。退出模拟器不会退出用户或解绑。请给模拟设备明确的非实机名称，不将模拟在线当作音箱验收。
 
@@ -60,7 +60,9 @@ python deploy/local-zhou/speaker-simulator.py \
   --identity-file /opt/xiaozhi-dev/speaker/development-device.json --begin --duration 600
 ```
 
-完整范围与未完成验收条件见[第一阶段检查记录](../../docs/development/speaker-phase1-checks.md)。如需关闭本地新模式，先停止 voice，令私有 speaker.enabled=false，并从 `/opt/xiaozhi-dev/speaker/voice-before-speaker.yaml` 恢复本轮前的本地语音配置，再重启 api 和 voice；保留新增数据库表和密钥，不用删表模拟代码回退。
+当前方案与检查见[原版恢复实施记录](../../docs/development/upstream-restoration-progress.md)和[第一批交付](../../docs/development/upstream-restoration-batch1-delivery.md)。原版调用链的本地协议联调为 `check-upstream-voice.py`：真实 API 配置、WebSocket/Opus 与原版提供者适配器连接本地 ASR/LLM/TTS 替身，临时数据用完清理，不调用集市模型。不同使用默认角色的数据库/浏览器联调顺序运行，避免同时更改同一开发默认项。回退须恢复配套服务端、固件与私有配置；保留新增表和加密文件，不能单独关闭身份模式代替回退。
+
+固件构建工具也位于同一容器 runtime 卷：ESP-IDF 5.5.5 在 /opt/xiaozhi-dev/tools/idf-v5.5.5，工具链在 tools/idf-tools，独立 Python 环境在 tools/idf-python。服务端 `bash deploy/local-zhou/build-speaker-firmware.sh` 使用 /opt/xiaozhi-dev/restoration-firmware 的显式同步源码副本（对应兄弟固件 worktree），以官方核心加 sdkconfig.defaults.account 的 P4 4.3 profile 和固定组件锁构建，最多 4 个 Ninja 任务；产物在 /opt/xiaozhi-dev/run/account-p4。编辑兄弟目录后先同步当前改动，不把旧副本当作最新源码。该命令不刷机、不访问 114。新的源码检查/依赖安装命令同样应显式把 TMPDIR 置于 /opt/xiaozhi-dev/run/tmp。
 
 ## 独立访问
 

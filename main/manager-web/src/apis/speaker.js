@@ -12,6 +12,11 @@ const errors = {
   MARKET_CLIENT_NOT_CONFIGURED: '尚未配置集市设备应用。',
   INVALID_AGENT: '请完整填写角色名称、提示词、模型和音色。',
   AGENT_CHANGED: '角色已被修改，请刷新后再保存。',
+  AGENT_MODEL_REQUIRED: '请先在角色配置中选择已启用的模型。',
+  AGENT_VOICE_REQUIRED: '请先在角色配置中选择有效音色。',
+  INVALID_MCP: '请填写有效服务名称、传输方式和认证请求头；地址不包含查询参数。',
+  MCP_CHANGED: '服务已被修改，请刷新后重试。',
+  MCP_NOT_FOUND: 'MCP 服务不存在，请刷新目录。',
 };
 
 export function adminToken(store) {

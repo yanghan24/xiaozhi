@@ -1261,7 +1261,7 @@ export default {
   'providerDialog.batchDeleteFieldsSuccess': '成功删除{count}个字段',
 
   // 默认角色模版页面文本
-  'agentTemplateManagement.title': '默认角色管理',
+  'agentTemplateManagement.title': '预置角色模板',
   'agentTemplateManagement.templateName': '模板名称',
   'agentTemplateManagement.action': '操作',
   'agentTemplateManagement.createTemplate': '创建模板',

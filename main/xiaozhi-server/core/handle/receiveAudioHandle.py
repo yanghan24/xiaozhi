@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.connection import ConnectionHandler
-from core.utils.util import audio_to_data, remove_punctuation_and_length
+from core.utils.util import audio_to_data
 from core.handle.abortHandle import handleAbortMessage
 from core.handle.intentHandler import handle_user_intent
 from core.utils.output_counter import check_device_output_limit
@@ -15,9 +15,6 @@ TAG = __name__
 
 
 async def handleAudioMessage(conn: "ConnectionHandler", pcm_frame):
-    gate = getattr(conn, 'product_voice_gate', None)
-    if gate is not None:
-        await gate.check_async()
     # 当前片段是否有人说话
     have_voice = conn.vad.is_vad(conn, pcm_frame)
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
@@ -43,7 +40,7 @@ async def resume_vad_detection(conn: "ConnectionHandler"):
     conn.just_woken_up = False
 
 
-async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
+async def startToChat(conn: "ConnectionHandler", text):
     # 检查输入是否是JSON格式（包含说话人信息）
     speaker_name = None
     actual_text = text
@@ -78,17 +75,6 @@ async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
     else:
         conn.current_speaker = None
 
-    if getattr(conn, 'product_voice_gate', None) is not None:
-        turn_id = conn.product_conversation.begin(wakeup=wakeup)
-        await send_stt_message(conn, actual_text)
-        command_text = actual_content if speaker_name is not None else actual_text
-        _, command_text = remove_punctuation_and_length(command_text.strip())
-        if command_text in conn.cmd_exit:
-            await conn.close()
-            return
-        conn.executor.submit(conn.chat, actual_text, turn_id=turn_id)
-        return
-
     if conn.need_bind:
         await check_bind_device(conn)
         return
@@ -106,6 +92,8 @@ async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
         await handleAbortMessage(conn)
 
     # 首先进行意图分析，使用实际文本内容
+    if getattr(conn, 'identity_session', None):
+        await conn.identity_session.before_turn(conn)
     intent_handled = await handle_user_intent(conn, actual_text)
 
     if intent_handled:
@@ -118,7 +106,7 @@ async def startToChat(conn: "ConnectionHandler", text, *, wakeup=False):
     # 准备开始新会话
     conn.client_abort = False
 
-    conn.executor.submit(conn.chat, actual_text)
+    conn.chat_future = conn.executor.submit(conn.chat, actual_text)
 
 
 async def no_voice_close_connect(conn: "ConnectionHandler", have_voice):

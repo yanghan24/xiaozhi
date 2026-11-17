@@ -1,6 +1,6 @@
 <template>
-    <div class="welcome">
-        <HeaderBar />
+    <div class="welcome" :class="{ 'ota-embedded': embedded }">
+        <HeaderBar v-if="!embedded" />
         <div class="main-wrapper">
             <div class="content-panel">
                 <div class="content-area">
@@ -70,7 +70,7 @@
         <!-- 新增/编辑固件对话框 -->
         <firmware-dialog ref="firmwareDialog" :title="dialogTitle" :visible.sync="dialogVisible" :form="firmwareForm"
             :firmware-types="firmwareTypes" @submit="handleSubmit" @cancel="dialogVisible = false" />
-        <el-footer>
+        <el-footer v-if="!embedded">
             <version-footer />
         </el-footer>
     </div>
@@ -87,6 +87,7 @@ import { formatDate, formatFileSize } from "@/utils/format";
 
 export default {
     components: { HeaderBar, FirmwareDialog, VersionFooter, CustomButton, CustomTable },
+    props: { embedded: { type: Boolean, default: false } },
     data() {
         return {
             searchName: "",
@@ -363,6 +364,21 @@ export default {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+}
+
+.ota-embedded {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: transparent;
+
+    .main-wrapper {
+        flex: 1;
+        min-height: 0;
+        height: auto;
+        padding: 0;
+    }
 }
 
 .operation-header {

@@ -17,6 +17,7 @@
               let's have a wonderful day!
             </div>
             <div class="add-device-options">
+            <el-button v-if="speakerMode" class="add-device-btn" @click="$router.push('/agent-template-management')">预置角色模板</el-button>
             <div class="search-container">
               <div class="search-wrapper">
                   <el-input
@@ -55,6 +56,7 @@
           </div>
         </div>
         <div class="device-list-container">
+          <el-alert v-if="speakerMode && !defaultAgentId" title="请新增或配置智能体，并明确设为默认，音箱才能开始对话。" type="warning" :closable="false" show-icon />
           <template v-if="isLoading">
             <div v-for="i in skeletonCount" :key="'skeleton-' + i" class="skeleton-item">
               <div class="skeleton-image"></div>
@@ -66,7 +68,9 @@
           </template>
 
           <template v-else>
-            <DeviceItem v-for="(item, index) in devices" :key="index" :device="item" :feature-status="featureStatus" 
+            <DeviceItem v-for="(item, index) in devices" :key="item.agentId" :device="item" :feature-status="featureStatus"
+              :administrator-mode="speakerMode" :is-default="item.agentId === defaultAgentId" :default-loading="defaultLoading"
+              @select-default="selectDefault"
               @configure="goToRoleConfig" @deviceManage="handleDeviceManage" @delete="handleDeleteAgent" 
               @chat-history="handleShowChatHistory" />
           </template>
@@ -145,6 +149,7 @@ import DeviceItem from '@/components/DeviceItem.vue';
 import HeaderBar from '@/components/HeaderBar.vue';
 import VersionFooter from '@/components/VersionFooter.vue';
 import featureManager from '@/utils/featureManager';
+import { adminToken, speakerRequest } from '@/apis/speaker';
 
 export default {
   name: 'HomePage',
@@ -153,6 +158,9 @@ export default {
     return {
       addDeviceDialogVisible: false,
       devices: [],
+      defaultAgentId: null,
+      defaultRevision: 0,
+      defaultLoading: false,
       originalDevices: [],
       isSearching: false,
       searchRegex: null,
@@ -179,6 +187,7 @@ export default {
   },
 
   computed: {
+    speakerMode() { return this.$store.state.pubConfig.speakerMode === true; },
     ...mapState({
       userInfo: (state) => state.userInfo,
     }),
@@ -216,6 +225,7 @@ export default {
     handleWisdomBodyAdded(res) {
       this.fetchAgentList();
       this.addDeviceDialogVisible = false;
+      if (this.speakerMode && res?.data?.data) this.$router.push({ path: '/role-config', query: { agentId: res.data.data } });
     },
     handleDeviceManage() {
       this.$router.push('/device-management');
@@ -232,6 +242,7 @@ export default {
     },
     // 获取智能体列表
     fetchAgentList() {
+      if (this.speakerMode) this.fetchDefault();
       this.isLoading = true;
       Api.agent.getAgentList(({ data }) => {
         if (data?.data) {
@@ -253,6 +264,18 @@ export default {
         console.error('Failed to fetch agent list:', error);
         this.isLoading = false;
       });
+    },
+    async fetchDefault() {
+      try { const result = await speakerRequest(adminToken(this.$store), 'agent-default'); this.defaultAgentId = result.agent_id; this.defaultRevision = result.revision; }
+      catch (error) { this.$message.error(error.message); }
+    },
+    async selectDefault(agent) {
+      if (this.defaultLoading || agent.agentId === this.defaultAgentId) return;
+      try { await this.$confirm(`将「${agent.agentName}」设为所有音箱的默认智能体？当前回答先完成，下一轮使用新角色并清空旧上下文。`, '设置默认智能体', { type: 'warning' }); } catch (_) { return; }
+      this.defaultLoading = true;
+      try { await speakerRequest(adminToken(this.$store), `agent-default/${encodeURIComponent(agent.agentId)}`, { expected_revision: this.defaultRevision }); await this.fetchDefault(); this.fetchAgentList(); }
+      catch (error) { this.$message.error(error.message); await this.fetchDefault(); }
+      finally { this.defaultLoading = false; }
     },
     // 删除智能体
     handleDeleteAgent(device) {

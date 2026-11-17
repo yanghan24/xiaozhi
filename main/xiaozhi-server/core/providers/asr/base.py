@@ -34,6 +34,8 @@ class ASRProviderBase(ABC):
 
     # 打开音频通道
     async def open_audio_channels(self, conn: "ConnectionHandler"):
+        if getattr(conn, 'asr_priority_thread', None) and conn.asr_priority_thread.is_alive():
+            return
         conn.asr_priority_thread = threading.Thread(
             target=self.asr_text_priority_thread, args=(conn,), daemon=True
         )
@@ -48,10 +50,7 @@ class ASRProviderBase(ABC):
                     handleAudioMessage(conn, message),
                     conn.loop,
                 )
-                try:
-                    future.result()
-                finally:
-                    conn.asr_audio_queue.task_done()
+                future.result()
             except queue.Empty:
                 continue
             except Exception as e:
@@ -87,9 +86,6 @@ class ASRProviderBase(ABC):
     async def handle_voice_stop(self, conn: "ConnectionHandler", asr_audio_task: List[bytes]):
         """并行处理ASR和声纹识别"""
         try:
-            gate = getattr(conn, 'product_voice_gate', None)
-            if gate is not None:
-                await gate.check_async()
             total_start_time = time.monotonic()
 
             # 数据已经是PCM直接使用
@@ -173,7 +169,12 @@ class ASRProviderBase(ABC):
                 audio_snapshot = asr_audio_task.copy()
                 enqueue_asr_report(conn, enhanced_text, audio_snapshot)
                 # 使用自定义模块进行上报
-                await startToChat(conn, enhanced_text)
+                if getattr(conn, 'identity_session', None):
+                    # A role refresh can close this provider's receiver task.
+                    # Finish handing the recognized question to the new runtime.
+                    await asyncio.shield(startToChat(conn, enhanced_text))
+                else:
+                    await startToChat(conn, enhanced_text)
         except Exception as e:
             logger.bind(tag=TAG).error(f"处理语音停止失败: {e}")
             import traceback

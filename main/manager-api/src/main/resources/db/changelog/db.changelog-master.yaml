@@ -984,3 +984,24 @@ databaseChangeLog:
         - sqlFile:
             encoding: utf8
             path: classpath:db/changelog/202611171200.sql
+  - changeSet:
+      id: 202611171300
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171300.sql
+  - changeSet:
+      id: 202611171400
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171400.sql
+  - changeSet:
+      id: 202611171500
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171500.sql

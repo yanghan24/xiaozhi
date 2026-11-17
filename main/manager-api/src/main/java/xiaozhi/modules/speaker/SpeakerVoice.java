@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import static xiaozhi.modules.speaker.SpeakerSupport.*;
 
-/** Private voice adapter. Role revisions do not revoke an in-progress device conversation. */
+/** Connection identity only. Resource credentials and providers belong to upstream configuration. */
 @Service
 public class SpeakerVoice {
     private final JdbcTemplate db;
@@ -15,11 +15,12 @@ public class SpeakerVoice {
     private final SpeakerCrypto crypto;
     private final SpeakerGrants grants;
     private final SpeakerAgents agents;
+    @jakarta.annotation.Resource private SpeakerConversations conversations;
     public SpeakerVoice(JdbcTemplate db,SpeakerSettings settings,SpeakerCrypto crypto,SpeakerGrants grants,SpeakerAgents agents) {
         this.db=db;this.settings=settings;this.crypto=crypto;this.grants=grants;this.agents=agents;
     }
     public Map<String,Object> ticket(Map<String,Object> device) {
-        agents.current();
+        agents.configurationId();
         java.net.URI url;
         try { url=java.net.URI.create(settings.voiceUrl()); }
         catch(Exception invalid) { throw new SpeakerFailure(503,"VOICE_NOT_CONFIGURED"); }
@@ -40,31 +41,27 @@ public class SpeakerVoice {
     public Object action(String action,Map<String,String> body) {
         settings.requireEnabled();
         if("open".equals(action)) return open(body.get("device_id"),body.get("token"));
-        if("key-rejected".equals(action)) return rejected(body.get("rejection_receipt"));
         String session=body.get("session");
         if(session==null || !session.matches("[A-Za-z0-9_-]{43}")) throw new SpeakerFailure(401,"VOICE_DENIED");
         if("close".equals(action)) {db.update("DELETE FROM speaker_voice_session WHERE session_hash=?",hash(session));return Map.of("closed",true);}
         var device=checked("speaker_voice_session","session_hash",hash(session));
-        var grant=grants.grant(device.get("customer_id").toString());
-        if("check".equals(action)) return scope(device,grant);
-        if("asr-access".equals(action)) return Map.of("provider","market");
-        if(!"model-access".equals(action)) throw new SpeakerFailure(400,"INVALID_VOICE_ACTION");
-        var result=new LinkedHashMap<>(scope(device,grant));var agent=agents.current();
-        result.put("model",agent.get("llm_model"));result.put("asr_model",agent.get("asr_model"));result.put("agent",agent);
-        result.put("api_key",crypto.decrypt(grant.get("credential_cipher").toString()));
-        result.put("base_url",grant.get("credential_base").toString().replaceAll("/$","")+"/v1");
-        result.put("authorization_order",grant.get("token_version"));
-        result.put("rejection_receipt",crypto.encrypt(grant.get("customer_id")+"\n"+grant.get("generation")));
-        return result;
+        if("check".equals(action)) return scope(device);
+        if("conversation".equals(action)) {
+            var current=scope(device);
+            String revision=current.get("configuration_revision").toString();
+            if(!revision.equals(body.get("configuration_revision"))) throw new SpeakerFailure(409,"AGENT_CHANGED");
+            return Map.of("history_id",conversations.create(device,revision,current.get("memory_scope").toString()));
+        }
+        throw new SpeakerFailure(400,"INVALID_VOICE_ACTION");
     }
     private Object open(String id,String token) {
         if(id==null || token==null || !token.matches("[A-Za-z0-9_-]{43}")) throw new SpeakerFailure(401,"VOICE_DENIED");
         var device=checked("speaker_voice_ticket","token_hash",hash(token));
         if(!id.equals(device.get("device_id"))) throw new SpeakerFailure(401,"VOICE_DENIED");
-        agents.current();String session=token();
+        agents.configurationId();String session=token();
         db.update("INSERT INTO speaker_voice_session(session_hash,device_id,credential_hash,binding_version,permission_version,expires_at_ms) VALUES (?,?,?,?,?,?)",
                 hash(session),id,device.get("credential_hash"),device.get("binding_version"),device.get("permission_version"),System.currentTimeMillis()+86400000);
-        var result=new LinkedHashMap<>(scope(device,grants.grant(device.get("customer_id").toString())));result.put("session",session);return result;
+        var result=new LinkedHashMap<>(scope(device));result.put("session",session);return result;
     }
     private Map<String,Object> checked(String table,String key,String value) {
         // Table/key are private constants; authorization is one consistent read, with no global device lock.
@@ -80,18 +77,22 @@ public class SpeakerVoice {
             throw new SpeakerFailure(403,"VOICE_DENIED");
         return row;
     }
-    private Map<String,Object> scope(Map<String,Object> device,Map<String,Object> grant) {
-        return Map.of("allowed",true,"permission_version",device.get("permission_version"),"authorization_scope",grant.get("generation"),
-                "authorization_subject",hash(settings.issuer()+"\n"+settings.clientId()+"\n"+device.get("customer_id")),
-                "permission_authorization_order",grant.get("token_version"));
+    private Map<String,Object> scope(Map<String,Object> device) {
+        String revision=agents.configurationRevision();
+        return Map.of("allowed",true,"device_id",device.get("device_id"),"agent_id",revision.split(":",2)[0],
+                "configuration_revision",revision,"permission_version",device.get("permission_version"),
+                "memory_scope",hash(device.get("customer_id")+":"+device.get("device_id")+":"+revision));
     }
-    private Object rejected(String receipt) {
-        if(receipt==null || receipt.length()>1024) throw new SpeakerFailure(400,"INVALID_RECEIPT");
-        String[] fields=crypto.decrypt(receipt).split("\n",-1);
-        if(fields.length!=2) throw new SpeakerFailure(400,"INVALID_RECEIPT");
-        db.update("UPDATE speaker_grant SET credential_status='rejected' WHERE customer_id=? AND client_id=? AND generation=?",
-                fields[0],settings.clientId(),fields[1]);
-        return Map.of("recorded",true);
+    public void requireDevice(String id) {
+        var rows=db.queryForList("SELECT s.*,d.admitted FROM speaker_device_state s JOIN dc_device d ON d.device_id=s.device_id WHERE s.device_id=?",id);
+        if(rows.size()!=1 || !yes(rows.getFirst().get("admitted")) || !yes(rows.getFirst().get("admin_enabled"))
+                || !yes(rows.getFirst().get("use_enabled")) || rows.getFirst().get("customer_id")==null
+                || !SpeakerGrants.usable(grants.grant(rows.getFirst().get("customer_id").toString()),System.currentTimeMillis()))
+            throw new SpeakerFailure(403,"VOICE_DENIED");
+    }
+    public String memoryScope(String id,String revision) {
+        String customer=db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?",String.class,id);
+        return hash(customer+":"+id+":"+revision);
     }
     @Scheduled(fixedDelay=3600000)
     public void cleanup() {

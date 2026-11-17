@@ -63,8 +63,8 @@ public class SpeakerGrants {
         return rows.isEmpty()?null:rows.getFirst();
     }
     public static boolean usable(Map<String,Object> grant,long now) {
-        return grant!=null && "active".equals(grant.get("credential_status")) && grant.get("credential_cipher")!=null
-                && (grant.get("credential_expires_at_ms")==null || number(grant,"credential_expires_at_ms")>now);
+        // Identity authorization is independent of resource keys and short token expiry.
+        return grant!=null && java.util.Set.of("active","refreshing","uncertain").contains(grant.get("token_status"));
     }
     private SpeakerMarket.Tokens tokens(Map<String,Object> grant) {
         return new SpeakerMarket.Tokens(grant.get("subject").toString(),crypto.decrypt(grant.get("access_cipher").toString()),

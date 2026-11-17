@@ -43,7 +43,7 @@ public class SpeakerCustomers {
                 }).toList());
         var grant=grants.grant(id);
         result.put("authorization",grant==null?null:Map.of("client_id",settings.clientId(),"token_status",grant.get("token_status"),
-                "credential_status",grant.get("credential_status")));
+                "identity_authorized",SpeakerGrants.usable(grant,System.currentTimeMillis())));
         return result;
     }
     public Map<String,Object> refresh(String id) {

@@ -55,7 +55,7 @@ export default {
   methods: {
     displayTime, balanceText, organizationText,
     api(path, body) { return speakerRequest(adminToken(this.$store), path, body); },
-    authorizationLabel(value) { if (!value) return '未关联'; return value.token_status === 'active' ? '已授权' : value.credential_status === 'active' ? '调用凭据可用，资料授权待确认' : '需要重新授权'; },
+    authorizationLabel(value) { if (!value) return '未关联'; return { active: '已授权', refreshing: '资料授权刷新中', uncertain: '资料授权待确认，设备绑定保留', reauth_required: '需要重新授权' }[value.token_status] || '需要重新授权'; },
     async load() { this.loading = true; this.error = ''; try { const data = await this.api(`customers?keyword=${encodeURIComponent(this.keyword)}&page=${this.page}&limit=${this.limit}`); this.items = data.items; this.total = data.total; } catch (e) { this.error = e.message; } finally { this.loading = false; } },
     search() { this.page = 1; this.load(); }, changePage(value) { this.page = value; this.load(); }, changeSize(value) { this.limit = value; this.search(); },
     closeDetail() { ++this.detailRequest; this.detail = null; this.detailLoading = false; this.refreshing = false; },

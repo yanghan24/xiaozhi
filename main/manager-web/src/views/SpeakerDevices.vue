@@ -14,8 +14,7 @@
           <template slot="operations" slot-scope="scope"><el-button type="text" @click="open(scope.row.device_id)">设备详情</el-button></template>
         </CustomTable>
       </el-tab-pane>
-      <el-tab-pane label="固件管理" name="firmware" lazy><div class="firmware-panel"><ProductOtaCatalog @selected="selectFirmware" /></div></el-tab-pane>
-      <el-tab-pane label="OTA 升级" name="ota" lazy><div class="firmware-panel"><el-alert v-if="!firmware" title="请先在固件管理中选择经过校验的目标固件。" :closable="false" type="info" /><ProductOtaPush :firmware="firmware" /></div></el-tab-pane>
+      <el-tab-pane label="固件与 OTA" name="firmware" lazy><OtaManagement embedded /></el-tab-pane>
     </el-tabs>
     <template slot="dialogs">
       <el-dialog title="设备详情" :visible.sync="visible" width="850px" @close="closeDetail">
@@ -48,12 +47,11 @@
 import SpeakerPage from '@/components/SpeakerPage.vue';
 import CustomTable from '@/components/CustomTable.vue';
 import CustomButton from '@/components/CustomButton.vue';
-import ProductOtaCatalog from '@/components/ProductOtaCatalog.vue';
-import ProductOtaPush from '@/components/ProductOtaPush.vue';
+import OtaManagement from './OtaManagement.vue';
 import { adminToken, speakerRequest, displayTime, requestKey } from '@/apis/speaker';
 export default {
-  components: { SpeakerPage, CustomTable, CustomButton, ProductOtaCatalog, ProductOtaPush },
-  data() { return { tab: this.$route.query.tab || 'devices', keyword: '', items: [], total: 0, page: 1, limit: 10, loading: false, error: '', visible: false, detail: null, detailLoading: false, detailRequest: 0, firmware: null, registerVisible: false, registering: false, credential: '', registration: { device_id: '', name: '', board_type: '' },
+  components: { SpeakerPage, CustomTable, CustomButton, OtaManagement },
+  data() { return { tab: this.$route.query.tab ? 'firmware' : 'devices', keyword: '', items: [], total: 0, page: 1, limit: 10, loading: false, error: '', visible: false, detail: null, detailLoading: false, detailRequest: 0, registerVisible: false, registering: false, credential: '', registration: { device_id: '', name: '', board_type: '' },
     columns: [{ prop: 'name', label: '音箱名称' }, { prop: 'device_id', label: '设备标识' }, { prop: 'board_type', label: '硬件型号' }, { prop: 'firmware_version', label: '固件版本' }, { prop: 'online', label: '在线状态' }, { prop: 'last_seen_at_ms', label: '最近心跳' }] }; },
   mounted() { this.load(); if (this.$route.query.id) this.open(this.$route.query.id); },
   methods: {
@@ -65,7 +63,6 @@ export default {
       try { const detail = await this.api(`devices/${encodeURIComponent(id)}`); if (request === this.detailRequest && this.visible) this.detail = detail; } catch (e) { if (request === this.detailRequest) this.$message.error(e.message); } finally { if (request === this.detailRequest) this.detailLoading = false; } },
     goCustomer() { this.$router.push({ path: '/speaker-users', query: { id: this.detail.customer_id } }); },
     eventLabel(value) { return { registered: '设备登记', bound: '用户绑定', resumed: '恢复使用', 'sign-out': '退出本台', unbind: '解除绑定', enable: '管理员启用', disable: '管理员停用', rename: '修改名称' }[value] || '设备状态更新'; },
-    selectFirmware(value) { this.firmware = value; this.tab = 'ota'; },
     async register() { this.registering = true; try { const result = await this.api('devices', this.registration); this.credential = result.credential; await this.load(); } catch (e) { this.$message.error(e.message); } finally { this.registering = false; } },
     async rename() { const device = this.detail; let result; try { result = await this.$prompt('请输入音箱名称', '修改设备名称', { inputValue: device.name, inputValidator: value => !!value?.trim() && value.length <= 128 }); } catch (_) { return; } await this.perform('rename', result.value, device); },
     async toggle() { const device = this.detail, action = device.admin_enabled ? 'disable' : 'enable'; try { await this.$confirm(action === 'disable' ? '停用后本台不能进行语音对话，设备归属和维护连接保留。' : '启用后仍需满足用户授权和默认角色条件；用户主动退出的音箱需要重新扫码恢复。', '确认管理操作', { type: 'warning' }); } catch (_) { return; } await this.perform(action, requestKey(), device); },

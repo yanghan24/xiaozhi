@@ -137,7 +137,12 @@ public class ConfigServiceImpl implements ConfigService {
         }
 
         // 获取智能体信息
-        AgentEntity agent = agentService.getAgentById(device.getAgentId());
+        return getAgentConfiguration(device.getAgentId(), selectedModule);
+    }
+
+    @Override
+    public Map<String, Object> getAgentConfiguration(String agentId, Map<String, String> selectedModule) {
+        AgentEntity agent = agentService.getAgentById(agentId);
         if (agent == null) {
             throw new RenException(ErrorCode.AGENT_NOT_FOUND);
         }
@@ -193,7 +198,6 @@ public class ConfigServiceImpl implements ConfigService {
 
         // 添加函数调用参数信息
         if (!Objects.equals(agent.getIntentModelId(), "Intent_nointent")) {
-            String agentId = agent.getId();
             List<AgentPluginMapping> pluginMappings = agentPluginMappingService.agentPluginParamsByAgentId(agentId);
             if (pluginMappings != null && !pluginMappings.isEmpty()) {
                 Map<String, Object> pluginParams = new HashMap<>();
@@ -253,7 +257,12 @@ public class ConfigServiceImpl implements ConfigService {
         if (device == null) {
             return Collections.emptyList();
         }
-        List<CorrectWordSimpleVO> items = correctWordFileService.getAllItemsByAgentId(device.getAgentId());
+        return getAgentCorrectWords(device.getAgentId());
+    }
+
+    @Override
+    public List<String> getAgentCorrectWords(String agentId) {
+        List<CorrectWordSimpleVO> items = correctWordFileService.getAllItemsByAgentId(agentId);
         return items.stream()
                 .map(item -> item.getSourceWord() + "|" + item.getTargetWord())
                 .collect(Collectors.toList());
@@ -456,26 +465,27 @@ public class ConfigServiceImpl implements ConfigService {
             }
             Map<String, Object> typeConfig = new HashMap<>();
             if (model.getConfigJson() != null) {
-                typeConfig.put(model.getId(), model.getConfigJson());
+                Map<String,Object> moduleConfig = new HashMap<>(model.getConfigJson());
+                typeConfig.put(model.getId(), moduleConfig);
                 // 如果是TTS类型，添加private_voice属性
                 if ("TTS".equals(modelTypes[i])) {
                     if (voice != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("private_voice", voice);
+                        moduleConfig.put("private_voice", voice);
                     if (referenceAudio != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("ref_audio", referenceAudio);
+                        moduleConfig.put("ref_audio", referenceAudio);
                     if (referenceText != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("ref_text", referenceText);
+                        moduleConfig.put("ref_text", referenceText);
                     if (language != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("language", language);
+                        moduleConfig.put("language", language);
                     if (ttsVolume != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("ttsVolume", ttsVolume);
+                        moduleConfig.put("ttsVolume", ttsVolume);
                     if (ttsRate != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("ttsRate", ttsRate);
+                        moduleConfig.put("ttsRate", ttsRate);
                     if (ttsPitch != null)
-                        ((Map<String, Object>) model.getConfigJson()).put("ttsPitch", ttsPitch);
+                        moduleConfig.put("ttsPitch", ttsPitch);
 
                     // 火山引擎声音克隆需要替换resource_id
-                    Map<String, Object> map = (Map<String, Object>) model.getConfigJson();
+                    Map<String, Object> map = moduleConfig;
                     if (Constant.VOICE_CLONE_HUOSHAN_DOUBLE_STREAM.equals(map.get("type"))) {
                         // 如果voice是”S_”开头的，使用seed-icl-1.0
                         if (voice != null && voice.startsWith("S_")) {
@@ -485,7 +495,7 @@ public class ConfigServiceImpl implements ConfigService {
                 }
                 // 如果是Intent类型，且type=intent_llm，则给他添加附加模型
                 if ("Intent".equals(modelTypes[i])) {
-                    Map<String, Object> map = (Map<String, Object>) model.getConfigJson();
+                    Map<String, Object> map = moduleConfig;
                     if ("intent_llm".equals(map.get("type"))) {
                         intentLLMModelId = (String) map.get("llm");
                         if (StringUtils.isNotBlank(intentLLMModelId) && intentLLMModelId.equals(llmModelId)) {
@@ -499,10 +509,9 @@ public class ConfigServiceImpl implements ConfigService {
                             map.put("functions", functions);
                         }
                     }
-                    System.out.println("map: " + map);
                 }
                 if ("Memory".equals(modelTypes[i])) {
-                    Map<String, Object> map = (Map<String, Object>) model.getConfigJson();
+                    Map<String, Object> map = moduleConfig;
                     if ("mem_local_short".equals(map.get("type"))) {
                         memLocalShortLLMModelId = (String) map.get("llm");
                         if (StringUtils.isNotBlank(memLocalShortLLMModelId)

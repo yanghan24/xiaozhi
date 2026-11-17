@@ -77,21 +77,27 @@ class SpeakerLoginDatabaseTest {
     }
     @Test void lateAuthorizationCannotRebindChangedDeviceGeneration() {
         authorize();
-        db.update("UPDATE speaker_device_state SET binding_version=binding_version+1 WHERE device_id=?",device);
+        var profile=new ObjectMapper().createObjectNode().put("sub",tokens.subject());
+        when(market.profile(any())).thenAnswer(call -> {
+            db.update("UPDATE speaker_device_state SET binding_version=binding_version+1 WHERE device_id=?",device);
+            return profile;
+        });
         when(market.credential(any())).thenReturn(new SpeakerMarket.Credential("key-fixture","https://fixture.example",null));
         advance();
         assertEquals("cancelled",logins.status(identity,login).get("status"));
         assertNull(db.queryForMap("SELECT customer_id FROM speaker_device_state WHERE device_id=?",device).get("customer_id"));
+        verify(market,never()).credential(any());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM speaker_grant WHERE client_id=?",Integer.class,settings.clientId()));
     }
-    @Test void provisioningFailureRetainsAuthorizationAndRetriesWithoutAnotherScan() {
-        authorize();when(market.credential(any())).thenThrow(new SpeakerFailure(503,"MARKET_UNAVAILABLE"));advance();
-        assertEquals("authorized",logins.status(identity,login).get("status"));
+    @Test void identityBindingCompletesWithoutRequestingAResourceKey() {
+        authorize();advance();
+        assertEquals("completed",logins.status(identity,login).get("status"));
         var grant=db.queryForMap("SELECT * FROM speaker_grant WHERE client_id=?",settings.clientId());
         assertEquals("refresh-fixture",crypto.decrypt(grant.get("refresh_cipher").toString()));
-        doReturn(new SpeakerMarket.Credential("key-fixture","https://fixture.example",null)).when(market).credential(any());advance();
-        assertEquals("completed",logins.status(identity,login).get("status"));
+        assertNull(grant.get("credential_cipher"));
         assertEquals(true,db.queryForMap("SELECT use_enabled FROM speaker_device_state WHERE device_id=?",device).get("use_enabled"));
         verify(market,times(1)).poll(anyString());
+        verify(market,never()).credential(any());
     }
     @Test void refreshFailureDoesNotRevokeKeyOrDisableDevice() {
         authorize();when(market.credential(any())).thenReturn(new SpeakerMarket.Credential("key-fixture","https://fixture.example",null));advance();
@@ -137,6 +143,8 @@ class SpeakerLoginDatabaseTest {
         assertEquals("denied",logins.status(identity,login).get("status"));
         assertEquals("OWNER_REQUIRED",logins.status(identity,login).get("error_code"));
         assertEquals(owner,db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?",String.class,device));
+        verify(market,never()).credential(any());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM speaker_customer WHERE issuer=? AND subject=?",Integer.class,settings.issuer(),tokens.subject()));
     }
     @Test void enablingAdministrationDoesNotResumeUserSignedOutDevice() {
         bind();var operations=new SpeakerOperations(db,devices,grants,mock(SpeakerVoice.class));

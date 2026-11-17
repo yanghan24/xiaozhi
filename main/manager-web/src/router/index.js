@@ -5,9 +5,10 @@ import { speakerRedirect } from '../utils/speakerNavigation'
 Vue.use(VueRouter)
 
 const routes = [
+  { path: '/mcp-management', name: 'McpManagement', component: () => import('../views/McpManagement.vue') },
   { path: '/speaker-users', name: 'SpeakerCustomers', component: () => import('../views/SpeakerCustomers.vue') },
   { path: '/speaker-devices', name: 'SpeakerDevices', component: () => import('../views/SpeakerDevices.vue') },
-  { path: '/speaker-agents', name: 'SpeakerAgents', component: () => import('../views/SpeakerAgents.vue') },
+  { path: '/speaker-agents', name: 'SpeakerAgents', component: () => import('../views/home.vue') },
   { path: '/admin-accounts', name: 'AdminAccounts', component: () => import('../views/UserManagement.vue') },
   {
     path: '/',

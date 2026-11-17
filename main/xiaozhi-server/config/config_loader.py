@@ -63,7 +63,6 @@ async def get_config_from_api_async(config):
         raise Exception("Failed to fetch server config from API")
 
     config_data["read_config_from_api"] = True
-    config_data["product-voice"] = config.get("product-voice", {})
     config_data["manager-api"] = {
         "url": config["manager-api"].get("url", ""),
         "secret": config["manager-api"].get("secret", ""),
@@ -88,7 +87,7 @@ async def get_config_from_api_async(config):
 async def get_private_config_from_api(config, device_id, client_id):
     """从Java API获取私有配置"""
     results = await asyncio.gather(
-        get_agent_models(device_id, client_id, config["selected_module"]),
+        get_agent_models(device_id, client_id, {} if config.get('speaker_identity_enabled') else config["selected_module"]),
         get_correct_words(device_id),
         return_exceptions=True,
     )

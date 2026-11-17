@@ -555,6 +555,8 @@ def filter_sensitive_info(config: dict) -> dict:
         过滤后的配置字典
     """
     sensitive_keys = [
+        "headers",
+        "password",
         "api_key",
         "personal_access_token",
         "access_token",

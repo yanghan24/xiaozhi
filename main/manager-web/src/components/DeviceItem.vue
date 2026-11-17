@@ -4,6 +4,7 @@
     <el-tooltip :content="device.agentName" placement="top" effect="light">
       <div class="device-item-title">
         {{ device.agentName }}
+        <el-tag v-if="administratorMode && isDefault" size="mini" type="success">当前默认</el-tag>
       </div>
     </el-tooltip>
       <div>
@@ -21,7 +22,8 @@
     <div class="device-name">
       {{ $t('home.voiceModel') }}：{{ device.ttsModelName }} ({{ device.ttsVoiceName }})
     </div>
-    <div style="display: flex;gap: 10px;align-items: center;">
+    <div style="display: flex;gap: 10px;align-items: center;flex-wrap: wrap;">
+      <el-button v-if="administratorMode" class="settings-btn" :class="{'disabled-btn':isDefault}" type="text" size="small" :disabled="isDefault || defaultLoading" @click="$emit('select-default', device)">{{ isDefault ? '当前默认' : '设为默认' }}</el-button>
       <div class="settings-btn" @click="handleConfigure">
         {{ $t('home.configureRole') }}
       </div>
@@ -56,6 +58,9 @@ import i18n from '@/i18n';
 export default {
   name: 'DeviceItem',
   props: {
+    administratorMode: { type: Boolean, default: false },
+    isDefault: { type: Boolean, default: false },
+    defaultLoading: { type: Boolean, default: false },
     device: { type: Object, required: true },
     featureStatus: { 
       type: Object, 
@@ -105,6 +110,7 @@ export default {
       this.$router.push({ path: '/voice-print', query: { agentId: this.device.agentId } });
     },
     handleDeviceManage() {
+      if (this.administratorMode) { this.$router.push('/speaker-devices'); return; }
       this.$router.push({ path: '/device-management', query: { agentId: this.device.agentId } });
     },
     handleChatHistory() {

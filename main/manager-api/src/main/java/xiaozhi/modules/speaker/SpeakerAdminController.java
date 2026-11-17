@@ -42,11 +42,9 @@ public class SpeakerAdminController {
     public Object action(@PathVariable String id,@PathVariable String action,@RequestBody DeviceAction body) {
         return operations.adminAction(id,action,body.expected_permission_version(),body.request_key(),SecurityUser.getUserId());
     }
-    @GetMapping("/agents") public Object agents() { return agents.list(); }
-    @PostMapping("/agents") public Object createAgent(@RequestBody SpeakerAgents.Configuration config) { return agents.save(null,config); }
-    @PostMapping("/agents/{id}") public Object saveAgent(@PathVariable String id,@RequestBody SpeakerAgents.Configuration config) { return agents.save(id,config); }
-    public record DefaultAgent(long expected_revision) {}
-    @PostMapping("/agents/{id}/default") public Object defaultAgent(@PathVariable String id,@RequestBody DefaultAgent config) {
-        return agents.select(id,config.expected_revision());
+    @GetMapping("/agent-default") public Object agentDefault() { return agents.defaultConfiguration(); }
+    @PostMapping("/agent-default/{id}") public Object selectConfiguration(@PathVariable String id,@RequestBody DefaultAgent config) {
+        return agents.selectConfiguration(id,config.expected_revision());
     }
+    public record DefaultAgent(long expected_revision) {}
 }
