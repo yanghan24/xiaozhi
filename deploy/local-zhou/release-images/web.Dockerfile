@@ -3,3 +3,4 @@ ARG SOURCE_REVISION
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 COPY dist/ /usr/share/nginx/html/
 COPY web.conf /etc/nginx/conf.d/default.conf
+RUN chmod -R a+rX /usr/share/nginx/html
