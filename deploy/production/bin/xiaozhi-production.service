@@ -1,0 +1,16 @@
+[Unit]
+Description=Xiaozhi production containers
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/data/bin/xiaozhi/services.sh start
+ExecStop=/data/bin/xiaozhi/services.sh stop
+TimeoutStartSec=180
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target

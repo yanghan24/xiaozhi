@@ -1,0 +1,76 @@
+name: xiaozhi-production
+services:
+  mysql:
+    image: xiaozhi-release-mysql:8.0.41
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: xiaozhi
+      MYSQL_USER: xiaozhi
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u xiaozhi -D xiaozhi -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+  redis:
+    image: xiaozhi-release-redis:8.0.0
+    restart: unless-stopped
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?}
+    command: ["sh", "-ec", "exec docker-entrypoint.sh redis-server --appendonly yes --requirepass \"$$REDISCLI_AUTH\""]
+    volumes:
+      - ./redis/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -qx PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [internal]
+  api:
+    image: xiaozhi-release-api:${RELEASE_TAG:?}
+    restart: unless-stopped
+    user: "${RUN_UID:?}:${RUN_GID:?}"
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/run/xiaozhi/speaker.properties
+      SPRING_DATASOURCE_DRUID_URL: jdbc:mysql://mysql:3306/xiaozhi?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_DRUID_USERNAME: xiaozhi
+      SPRING_DATASOURCE_DRUID_PASSWORD: ${MYSQL_PASSWORD:?}
+      SPRING_DATASOURCE_DRUID_INITIAL_SIZE: "2"
+      SPRING_DATASOURCE_DRUID_MIN_IDLE: "2"
+      SPRING_DATASOURCE_DRUID_MAX_ACTIVE: "10"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx768m -Djava.awt.headless=true
+    volumes:
+      - ./config/api:/run/xiaozhi:ro
+      - ./storage:/app/uploadfile
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [internal, edge]
+  web:
+    image: xiaozhi-release-web:${RELEASE_TAG:?}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-18052}:80"
+    depends_on: [api]
+    networks: [edge]
+  voice:
+    image: xiaozhi-release-voice:${RELEASE_TAG:?}
+    restart: unless-stopped
+    user: "${RUN_UID:?}:${RUN_GID:?}"
+    volumes:
+      - ./config/voice:/app/data
+      - ./logs/voice:/app/tmp
+    depends_on: [api]
+    networks: [internal, edge]
+
+networks:
+  internal:
+    internal: true
+  edge:
+    name: ${EDGE_NETWORK:-xiaozhi-production-edge}

@@ -9,16 +9,22 @@ import org.apache.shiro.spring.LifecycleBeanPostProcessor;
 import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.web.config.ShiroFilterConfiguration;
+import org.apache.shiro.web.servlet.AdviceFilter;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
 import org.apache.shiro.web.mgt.WebSecurityManager;
 import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Role;
 
 import jakarta.servlet.Filter;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import xiaozhi.modules.security.oauth2.Oauth2Filter;
 import xiaozhi.modules.security.oauth2.Oauth2Realm;
 import xiaozhi.modules.security.secret.ServerSecretFilter;
@@ -53,7 +59,8 @@ public class ShiroConfig {
     @Bean("shiroFilter")
     public static ShiroFilterFactoryBean shirFilter(@Lazy WebSecurityManager securityManager,
             @Lazy SysParamsService sysParamsService,
-            @Lazy xiaozhi.modules.devicecontrol.DeviceControlService deviceControlService) {
+            @Lazy xiaozhi.modules.devicecontrol.DeviceControlService deviceControlService,
+            @Value("${xiaozhi.production.enabled:false}") boolean production) {
         ShiroFilterConfiguration config = new ShiroFilterConfiguration();
         config.setFilterOncePerRequest(true);
 
@@ -69,7 +76,6 @@ public class ShiroConfig {
         filters.put("deviceCredential", new xiaozhi.modules.devicecontrol.DeviceCredentialFilter(deviceControlService));
         // 服务密钥过滤
         filters.put("server", new ServerSecretFilter(sysParamsService));
-        shiroFilter.setFilters(filters);
 
         // 添加Shiro的内置过滤器
         /*
@@ -137,10 +143,41 @@ public class ShiroConfig {
         filterMap.put("/agent/chat-title/**", "server");
         filterMap.put("/agent/play/**", "anon");
         filterMap.put("/voiceClone/play/**", "anon");
+        if (production) {
+            filters.put("disabledRoute", productionGate(false));
+            filters.put("internalRoute", productionGate(true));
+            filterMap.replaceAll((path, rule) -> "server".equals(rule) ? "internalRoute,server" : rule);
+            // Put these first, including ahead of older, narrower exceptions.
+            Map<String, String> productionRules = new LinkedHashMap<>();
+            for (String path : new String[]{
+                    "/bind/**", "/customer/**", "/device-control/**", "/device-delivery/**",
+                    "/internal/**", "/admin/product-ota/**", "/admin/product-asr/**", "/ota-artifacts/**",
+                    "/ota/activate", "/user/register", "/user/smsVerification", "/user/retrieve-password",
+                    "/druid/**", "/swagger-ui/**", "/v3/api-docs/**", "/doc.html", "/webjars/**"}) {
+                productionRules.put(path, "disabledRoute");
+            }
+            filterMap.forEach(productionRules::putIfAbsent);
+            filterMap = productionRules;
+        }
         filterMap.put("/**", "oauth2");
+        shiroFilter.setFilters(filters);
         shiroFilter.setFilterChainDefinitionMap(filterMap);
 
         return shiroFilter;
+    }
+
+    private static Filter productionGate(boolean internal) {
+        return new AdviceFilter() {
+            @Override
+            protected boolean preHandle(ServletRequest request, ServletResponse response) throws Exception {
+                // The only browser/device proxy overwrites this header. Java has no public listener.
+                if (internal && !"public".equals(((HttpServletRequest) request).getHeader("X-Xiaozhi-Ingress"))) {
+                    return true;
+                }
+                ((HttpServletResponse) response).sendError(HttpServletResponse.SC_NOT_FOUND);
+                return false;
+            }
+        };
     }
 
     @Bean("lifecycleBeanPostProcessor")
