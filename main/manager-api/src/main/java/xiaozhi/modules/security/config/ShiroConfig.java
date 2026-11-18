@@ -14,11 +14,11 @@ import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
 import org.apache.shiro.web.mgt.WebSecurityManager;
 import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Role;
+import org.springframework.core.env.Environment;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.ServletRequest;
@@ -60,7 +60,7 @@ public class ShiroConfig {
     public static ShiroFilterFactoryBean shirFilter(@Lazy WebSecurityManager securityManager,
             @Lazy SysParamsService sysParamsService,
             @Lazy xiaozhi.modules.devicecontrol.DeviceControlService deviceControlService,
-            @Value("${xiaozhi.production.enabled:false}") boolean production) {
+            Environment environment) {
         ShiroFilterConfiguration config = new ShiroFilterConfiguration();
         config.setFilterOncePerRequest(true);
 
@@ -143,7 +143,7 @@ public class ShiroConfig {
         filterMap.put("/agent/chat-title/**", "server");
         filterMap.put("/agent/play/**", "anon");
         filterMap.put("/voiceClone/play/**", "anon");
-        if (production) {
+        if (environment.getProperty("xiaozhi.production.enabled", Boolean.class, false)) {
             filters.put("disabledRoute", productionGate(false));
             filters.put("internalRoute", productionGate(true));
             filterMap.replaceAll((path, rule) -> "server".equals(rule) ? "internalRoute,server" : rule);
