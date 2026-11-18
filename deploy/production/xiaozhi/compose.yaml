@@ -48,6 +48,7 @@ services:
     volumes:
       - ./config/api:/run/xiaozhi:ro
       - ./storage:/app/uploadfile
+      - ./logs/api:/app/logs
     depends_on:
       mysql: {condition: service_healthy}
       redis: {condition: service_healthy}
