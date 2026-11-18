@@ -67,6 +67,7 @@ services:
     volumes:
       - ./config/voice:/app/data
       - ./logs/voice:/app/tmp
+      - ./storage/wakeup:/app/config/assets/wakeup_words
     depends_on: [api]
     networks: [internal, edge]
 

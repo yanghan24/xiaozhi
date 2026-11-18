@@ -6,7 +6,7 @@ release=${1:?Usage: init-config.sh RELEASE_TAG}
 case "$release" in *[!a-zA-Z0-9_.-]*|'' ) exit 2;; esac
 cd "$app"
 test ! -e .env
-mkdir -p config/api config/voice mysql/data redis/data storage logs/api logs/voice
+mkdir -p config/api config/voice mysql/data redis/data storage/wakeup logs/api logs/voice
 for folder in mysql/data redis/data; do
   test -z "$(ls -A "$folder")"
 done
