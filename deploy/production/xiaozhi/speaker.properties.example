@@ -1,0 +1,15 @@
+xiaozhi.production.enabled=true
+xiaozhi.production.bootstrap-password-file=/run/xiaozhi/bootstrap-admin.password
+xiaozhi.production.websocket=wss://bridge.hncig.cn:18443/xiaozhi/v1/
+xiaozhi.production.ota=https://bridge.hncig.cn:18443/xiaozhi/ota/
+knife4j.enable=false
+springdoc.api-docs.enabled=false
+springdoc.swagger-ui.enabled=false
+spring.datasource.druid.stat-view-servlet.enabled=false
+speaker.enabled=true
+speaker.issuer=https://aimarket.hncig.cn/oidc
+speaker.client-id=
+speaker.encryption-key-file=/run/xiaozhi/identity.key
+speaker.management-url-map={"wss://bridge.hncig.cn:18443/xiaozhi/v1/":"ws://voice:8000/xiaozhi/management/"}
+market.catalog.client-id=
+market.catalog.client-secret-file=/run/xiaozhi/market-catalog.secret
