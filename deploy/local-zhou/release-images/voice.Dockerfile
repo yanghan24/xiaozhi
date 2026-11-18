@@ -6,11 +6,12 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY media/bin/ /usr/local/bin/
 COPY media/lib/ /usr/local/lib/xiaozhi-media/
-RUN ffmpeg -version && ffprobe -version
+RUN printf '%s\n' /usr/local/lib/xiaozhi-media > /etc/ld.so.conf.d/xiaozhi-media.conf \
+    && ldconfig && ffmpeg -version && ffprobe -version
 RUN --mount=type=bind,source=wheels,target=/wheels \
     --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     pip install --no-cache-dir --no-index --find-links=/wheels -r /tmp/requirements.txt \
-    && pip check
+    && pip check && python -c 'import opuslib_next, onnxruntime'
 COPY app/ /app/
 RUN chmod -R a+rX /app
 CMD ["python", "app.py"]
