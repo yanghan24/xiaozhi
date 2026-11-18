@@ -18,6 +18,10 @@ Before editing project files, creating branches or worktrees, committing, pushin
 
 Before planning or running physical-device tests, read the testing environment policy in `CONTRIBUTING.md`.
 
+## Firmware delivery
+
+Before modifying firmware source or uploading firmware artifacts, read [the GitHub firmware publishing workflow](docs/development/firmware-publishing.md). Finish firmware work by pushing its source changes and uploading the corresponding build with checksums.
+
 ## Backend validation
 
 Run backend services, regression tests, and device protocol checks on Ubuntu `192.168.168.114` using SSH user `jt`. The local computer may provide editing, SSH, and browser access. Before looking up public endpoints or deployment versions, or provisioning, testing, or restarting backend services, read [the current deployment entry](docs/deployment/current.md) and its linked evidence. If local deployment documentation is missing or stale, check that entry on GitHub's latest `main` before concluding the information is unavailable.
