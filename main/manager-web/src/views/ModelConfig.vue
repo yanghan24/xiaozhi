@@ -263,7 +263,7 @@ export default {
     return {
       addDialogVisible: false,
       activeTab: "llm",
-      modelSource: "system",
+      modelSource: "aimarket",
       search: "",
       editDialogVisible: false,
       editModelData: {},
@@ -281,8 +281,10 @@ export default {
     };
   },
 
-  created() {
-    this.loadData();
+  watch: {
+    modelSource(source) {
+      if (source === "system") this.loadData();
+    },
   },
 
   mounted() {
@@ -348,7 +350,7 @@ export default {
       this.activeTab = index;
       this.currentPage = 1; // 重置到第一页
       this.pageSize = 10; // 可选：重置每页条数
-      this.loadData();
+      if (this.modelSource === "system") this.loadData();
     },
     handleSearch() {
       this.currentPage = 1;

@@ -13,7 +13,10 @@ const {chromium}=require('/opt/xiaozhi-dev/browser-tools/node_modules/playwright
  const visible=selector=>page.locator(selector).waitFor({state:'hidden'});
  try{
   await page.goto('http://127.0.0.1:8001/#/model-config');
-  await page.locator('.source-switch').waitFor();
+  await page.locator('.source-switch .el-radio-button.is-active').filter({hasText:'AI 集市'}).waitFor();
+  await page.locator('.market-panel').waitFor();
+  await page.locator('.source-switch .el-radio-button').filter({hasText:'小智系统'}).click();
+  await page.locator('.model-card tbody tr').first().waitFor();
   await visible('.model-card .el-loading-mask');
   if(await page.locator('.model-card tbody tr').count()===0)throw Error('Original system model rows missing');
   await page.screenshot({path:'/opt/xiaozhi-dev/run/market-system-layout.png',fullPage:true,animations:'disabled'});
