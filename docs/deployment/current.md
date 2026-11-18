@@ -1,5 +1,26 @@
 # 当前部署与公网入口
 
+## 2026-11-18 生产部署
+
+114 已按 [生产目录与初始化流程](../../deploy/production/README.md) 启动新版。在开发环境构建镜像，在服务器校验和导入发布包，使用新 MySQL 与 Redis 初始化。切换时停止了旧小智部署和关联测试容器，旧容器、数据卷及目录保留。
+
+| 项目 | 当前值 |
+| --- | --- |
+| API、Web、语音镜像版本 | `226d384b38e8` |
+| 部署模板版本 | `41e7e9d52088` |
+| 管理后台 | [生产登录页](https://bridge.hncig.cn:18443/#/login) |
+| 音箱 OTA 检查 | `https://bridge.hncig.cn:18443/xiaozhi/ota/` |
+| 音箱语音 WebSocket | `wss://bridge.hncig.cn:18443/xiaozhi/v1/` |
+| 应用和网关目录 | `/data/apps/xiaozhi`、`/data/apps/nginx` |
+| 冻结的发布包和初始备份 | `/data/packages/xiaozhi/226d384b38e8`、`/data/backup/xiaozhi/initial-226d384b38e8` |
+| 自启动 | `xiaozhi-production.service` 已启用并处于 active |
+
+公网已验证 HTTPS、管理首页、OTA 检查、语音 WebSocket 握手和鉴权。注册与内部配置接口对公网拒绝。首个管理员已按空库初始化流程创建。实际音箱绑定、语音和 OTA 升级等待实机验收，P4 固件成品保存在发布包目录。现场部署视图、运维说明和更新日志位于 `/data/`。
+
+## 历史记录
+
+以下入口和版本记录对应 2026-11-18 切换前的版本。
+
 2026-11-13 19:12（Asia/Hong_Kong）已上线[开机联网在线与待机 OTA](../verification/2026-11-13-powered-device-ota.md)：[PR #114](https://github.com/yanghan24/xiaozhi/pull/114)，合并提交 `a285acc`。API `sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5`、Web `sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2`；432 项 Ubuntu 回归及最终 C++/Java 协议互通通过。仅重建 API/Web，现场语音、依赖容器、身份/归属/许可、配置及操作记录保持。B 在语音离线时已显示在线，实际管理联系时间持续更新；A 暂无近期联系。配套固件 `b471c10` 已经 [PR #113](https://github.com/yanghan24/xiaozhi/pull/113) 合并并上传小智后台候选目录，40 项固件测试和 P4 编译通过；首次安装与真实待机 OTA 仍待实机窗口，未向 A/B 下发。本机 TLS 入口检查通过，浏览器视觉检查因自动授权拒绝而未完成。详细 SHA、备份、观察证据及恢复边界见上述报告。
 
 2026-11-13 17:34（Asia/Hong_Kong）已上线 [OTA 精确板型识别修复](../verification/2026-11-13-ota-board-identity.md)：[PR #109](https://github.com/yanghan24/xiaozhi/pull/109)，合并提交 `7a1a097`，API 镜像 `sha256:cb7c7d1774c3d8dae13402e0c9f1656903c5eb1077f7b87c8fff14f655e72c7b`。设备上报系列名称时结合已核验、已完成的精确 4.3 寸交付登记，预检与下发前均重查；原 manifest、目录与硬件检查保留。Ubuntu 完整回归 401 项通过，受测 JAR 与镜像核验一致，既有数据库启动及公网入口检查通过。仅重建 API，保留现场语音 `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686` 和现有 Web。B 当时离线，在线预检待唤醒；真实 OTA 操作数仍为 0。备份、就绪检查地址修正和部署证据见上述报告。
