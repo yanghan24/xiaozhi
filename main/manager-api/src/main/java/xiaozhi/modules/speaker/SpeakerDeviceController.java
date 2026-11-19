@@ -16,11 +16,13 @@ public class SpeakerDeviceController {
     public SpeakerDeviceController(SpeakerDevices devices,SpeakerLogins logins,SpeakerOperations operations) {
         this.devices = devices; this.logins=logins; this.operations=operations;
     }
-    public record Heartbeat(@Size(max=128) String board_type, @Size(max=128) String firmware_version) {}
+    public record Heartbeat(@Size(max=128) String board_type, @Size(max=128) String firmware_version,
+                            boolean diagnostics_supported) {}
     @PostMapping("/heartbeat")
     public Map<String,Object> heartbeat(@RequestHeader(name="Authorization",required=false) String auth,
             @RequestHeader(name="Device-Id",required=false) String id, @Valid @RequestBody Heartbeat body) {
-        return devices.heartbeat(devices.authenticate(auth,id), body.board_type(), body.firmware_version());
+        return devices.heartbeat(devices.authenticate(auth,id), body.board_type(), body.firmware_version(),
+                body.diagnostics_supported());
     }
     @PostMapping("/login")
     public Object login(@RequestHeader(name="Authorization",required=false) String auth,

@@ -41,6 +41,7 @@
               </el-descriptions>
               <div class="detail-actions"><CustomButton size="small" @click="rename">修改名称</CustomButton><CustomButton size="small" :type="detail.admin_enabled ? 'delete' : 'add'" @click="toggle">{{ detail.admin_enabled ? '停用音箱' : '启用音箱' }}</CustomButton></div>
             </section>
+            <SpeakerDeviceDiagnostics :key="detail.device_id" :device-id="detail.device_id" />
             <section class="dialog-section">
               <h3 class="section-heading">维护记录</h3>
               <el-table :data="detail.events" max-height="250" border>
@@ -85,9 +86,10 @@ import CustomTable from '@/components/CustomTable.vue';
 import CustomButton from '@/components/CustomButton.vue';
 import CustomDialog from '@/components/CustomDialog.vue';
 import OtaManagement from './OtaManagement.vue';
+import SpeakerDeviceDiagnostics from '@/components/SpeakerDeviceDiagnostics.vue';
 import { adminToken, speakerRequest, displayTime, requestKey } from '@/apis/speaker';
 export default {
-  components: { SpeakerPage, CustomTable, CustomButton, CustomDialog, OtaManagement },
+  components: { SpeakerPage, CustomTable, CustomButton, CustomDialog, OtaManagement, SpeakerDeviceDiagnostics },
   data() { return { tab: this.$route.query.tab === 'firmware' ? 'firmware' : 'devices', keyword: '', items: [], total: 0, page: 1, limit: 10, loading: false, error: '', visible: false, detail: null, detailLoading: false, detailRequest: 0, registerVisible: false, registering: false, credential: '', registration: { device_id: '', name: '', board_type: '' },
     columns: [{ prop: 'name', label: '音箱名称' }, { prop: 'device_id', label: '设备标识' }, { prop: 'board_type', label: '硬件型号' }, { prop: 'firmware_version', label: '固件版本' }, { prop: 'online', label: '在线状态' }, { prop: 'last_seen_at_ms', label: '最近心跳' }] }; },
   mounted() { this.load(); if (this.$route.query.id) this.open(this.$route.query.id); },
@@ -101,7 +103,7 @@ export default {
     async open(id) { const request = ++this.detailRequest; this.visible = true; this.detail = null; this.detailLoading = true;
       try { const detail = await this.api(`devices/${encodeURIComponent(id)}`); if (request === this.detailRequest && this.visible) this.detail = detail; } catch (e) { if (request === this.detailRequest) this.$message.error(e.message); } finally { if (request === this.detailRequest) this.detailLoading = false; } },
     goCustomer() { this.$router.push({ path: '/speaker-users', query: { id: this.detail.customer_id } }); },
-    eventLabel(value) { return { registered: '设备登记', bound: '用户绑定', resumed: '恢复使用', 'sign-out': '退出本台', unbind: '解除绑定', enable: '管理员启用', disable: '管理员停用', rename: '修改名称' }[value] || '设备状态更新'; },
+    eventLabel(value) { return { registered: '设备登记', bound: '用户绑定', resumed: '恢复使用', 'sign-out': '退出本台', unbind: '解除绑定', enable: '管理员启用', disable: '管理员停用', rename: '修改名称', 'diagnostics-on': '开启诊断日志', 'diagnostics-off': '关闭诊断日志' }[value] || '设备状态更新'; },
     clearRegistration() { this.credential = ''; this.registration = { device_id: '', name: '', board_type: '' }; },
     async register() { this.registering = true; try { const result = await this.api('devices', this.registration); this.credential = result.credential; await this.load(); } catch (e) { this.$message.error(e.message); } finally { this.registering = false; } },
     async rename() { const device = this.detail; let result; try { result = await this.$prompt('请输入音箱名称', '修改设备名称', { inputValue: device.name, inputValidator: value => !!value?.trim() && value.length <= 128 }); } catch (_) { return; } await this.perform('rename', result.value, device); },
