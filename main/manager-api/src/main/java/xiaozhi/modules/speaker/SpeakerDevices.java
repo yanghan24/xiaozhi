@@ -43,8 +43,11 @@ public class SpeakerDevices {
         return row;
     }
     public Map<String,Object> heartbeat(Identity identity, String board, String firmware) {
+        return heartbeat(identity, board, firmware, null);
+    }
+    public Map<String,Object> heartbeat(Identity identity, String board, String firmware, Boolean supportsDiagnostics) {
         return transactions.execute(tx -> {
-            load(identity, true);
+            var device = load(identity, true);
             long now = System.currentTimeMillis();
             db.update("UPDATE speaker_device_state SET last_seen_at_ms=?,board_type=COALESCE(?,board_type),"
                     + "firmware_version=COALESCE(?,firmware_version) WHERE device_id=?", now, board, firmware, identity.id());
@@ -52,7 +55,14 @@ public class SpeakerDevices {
             db.update("INSERT INTO dc_device_presence(device_id,credential_hash,last_seen_at_ms) VALUES (?,?,?) "
                     + "ON DUPLICATE KEY UPDATE credential_hash=VALUES(credential_hash),last_seen_at_ms=VALUES(last_seen_at_ms)",
                     identity.id(), identity.hash(), now);
-            return Map.of("device_id", identity.id(), "server_time_ms", now, "heartbeat_interval_ms", 20_000);
+            if (supportsDiagnostics != null && supportsDiagnostics != yes(device.get("diagnostics_supported"))) {
+                db.update("UPDATE speaker_device_state SET diagnostics_supported=? WHERE device_id=?",
+                        supportsDiagnostics, identity.id());
+            }
+            long until = Boolean.TRUE.equals(supportsDiagnostics) && device.get("diagnostics_until_ms") instanceof Number value
+                    ? value.longValue() : 0;
+            return Map.of("device_id", identity.id(), "server_time_ms", now, "heartbeat_interval_ms", 20_000,
+                    "diagnostics_until_ms", until > now ? until : 0);
         });
     }
     public List<Map<String,Object>> list(String keyword, int page, int limit) {

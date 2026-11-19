@@ -8,6 +8,7 @@ const errors = {
   OWNER_REQUIRED: '请使用这台音箱的原归属账号重新扫码。',
   CUSTOMER_NOT_FOUND: '用户不存在。',
   DEVICE_NOT_FOUND: '设备不存在。',
+  DEVICE_DIAGNOSTICS_UNSUPPORTED: '请先升级固件，并等待音箱上报诊断支持状态。',
   MARKET_UNAVAILABLE: 'AI 集市暂时不可用，请稍后重试。',
   MARKET_CLIENT_NOT_CONFIGURED: '尚未配置集市设备应用。',
   INVALID_AGENT: '请完整填写角色名称、提示词、模型和音色。',
