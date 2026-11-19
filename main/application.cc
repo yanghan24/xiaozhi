@@ -1,6 +1,7 @@
 #include "application.h"
 #ifdef CONFIG_XIAOZHI_ACCOUNT
 #include "account/device_account.h"
+#include "account/device_diagnostics.h"
 #endif
 #include "board.h"
 #include "display.h"
@@ -62,6 +63,9 @@ bool Application::SetDeviceState(DeviceState state) {
 }
 
 void Application::Initialize() {
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+    account::diagnostics::Initialize();
+#endif
     auto& board = Board::GetInstance();
     SetDeviceState(kDeviceStateStarting);
 
@@ -416,6 +420,9 @@ void Application::CheckNewVersion() {
 
         esp_err_t err = ota_->CheckVersion();
         if (err != ESP_OK) {
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+            account::diagnostics::Record(account::diagnostics::Event::OtaCheckFailed, err);
+#endif
             retry_count++;
             if (retry_count >= MAX_RETRY) {
                 ESP_LOGE(TAG, "Too many retries, exit version check");
@@ -504,6 +511,9 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnNetworkError([this](const std::string& message) {
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+        account::diagnostics::Record(account::diagnostics::Event::VoiceNetworkError);
+#endif
         last_error_message_ = message;
         xEventGroupSetBits(event_group_, MAIN_EVENT_ERROR);
     });
@@ -873,6 +883,9 @@ void Application::ContinueWakeWordInvoke(const std::string& wake_word) {
 
 void Application::HandleStateChangedEvent() {
     DeviceState new_state = state_machine_.GetState();
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+    account::diagnostics::ObserveState(new_state);
+#endif
     clock_ticks_ = 0;
 
     auto& board = Board::GetInstance();
@@ -1028,6 +1041,9 @@ bool Application::UpgradeFirmware(const std::string& url, const std::string& ver
     });
 
     if (!upgrade_success) {
+#ifdef CONFIG_XIAOZHI_ACCOUNT
+        account::diagnostics::Record(account::diagnostics::Event::OtaUpgradeFailed);
+#endif
         // Upgrade failed, restart audio service and continue running
         ESP_LOGE(TAG, "Firmware upgrade failed, restarting audio service and continuing operation...");
         audio_service_.Start(); // Restart audio service

@@ -41,7 +41,8 @@ set(SOURCES "audio/audio_codec.cc"
 
 set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols")
 if(CONFIG_XIAOZHI_ACCOUNT)
-    list(APPEND SOURCES "account/account_protocol.cc" "account/device_account.cc" "account/nvs_guard.cc")
+    list(APPEND SOURCES "account/account_protocol.cc" "account/device_account.cc"
+         "account/device_diagnostics.cc" "account/nvs_guard.cc")
 endif()
 
 # Add board common files

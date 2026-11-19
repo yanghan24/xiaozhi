@@ -24,7 +24,8 @@ private:
     DeviceAccount() = default;
     bool LoadIdentity();
     void Worker();
-    int Request(const char* method, const std::string& path, const std::string& body, std::string& response);
+    int Request(const char* method, const std::string& path, const std::string& body, std::string& response,
+                int timeout_ms = 5000);
     void Apply(const State& state);
     void Render();
     Identity identity_;

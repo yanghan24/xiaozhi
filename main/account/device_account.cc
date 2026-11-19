@@ -1,4 +1,5 @@
 #include "device_account.h"
+#include "device_diagnostics.h"
 #include "application.h"
 #include "board.h"
 #include "settings.h"
@@ -109,11 +110,12 @@ void DeviceAccount::RequestUnbind() {
 }
 void DeviceAccount::ShowAccount() { account_details=true;Render(); }
 
-int DeviceAccount::Request(const char* method,const std::string& path,const std::string& body,std::string& response) {
+int DeviceAccount::Request(const char* method,const std::string& path,const std::string& body,std::string& response,
+                           int timeout_ms) {
     response.clear();
     auto http=Board::GetInstance().GetNetwork()->CreateHttp(5);
     if (!http) return 0;
-    http->SetTimeout(5000);
+    http->SetTimeout(timeout_ms);
     http->SetHeader("Device-Id",identity_.device_id);
     http->SetHeader("Authorization","Bearer "+identity_.credential);
     http->SetHeader("Content-Type","application/json");
@@ -147,6 +149,7 @@ void DeviceAccount::Worker() {
     for (;;) {
         if (!connected_) { vTaskDelay(pdMS_TO_TICKS(1000));continue; }
         const auto now=Now();std::string response;
+        bool can_upload_diagnostics = false;
         if (unbind_.exchange(false)) {
             uint64_t version;
             { std::lock_guard<std::mutex> lock(mutex_);version=state_.permission_version; }
@@ -171,7 +174,15 @@ void DeviceAccount::Worker() {
         }
         if (now>=heartbeat) {
             auto* body=cJSON_CreateObject();cJSON_AddStringToObject(body,"board_type",BoardType());cJSON_AddStringToObject(body,"firmware_version",esp_app_get_description()->version);
-            Request("POST","/heartbeat",Print(body),response);heartbeat=now+20000;
+            cJSON_AddBoolToObject(body, "diagnostics_supported", true);
+            const int status = Request("POST", "/heartbeat", Print(body), response);
+            if (status == 200) {
+                diagnostics::ApplyHeartbeat(response);
+                can_upload_diagnostics = true;
+            } else {
+                diagnostics::Record(diagnostics::Event::HeartbeatFailed, status);
+            }
+            heartbeat=now+20000;
         }
         if (now>=poll || retry_) {
             State next;
@@ -205,6 +216,13 @@ void DeviceAccount::Worker() {
         bool expired=false;
         { std::lock_guard<std::mutex> lock(mutex_);if (state_.ready && Now()>=state_.valid_until_ms) { state_.ready=false;expired=true; } }
         if (expired) { Application::GetInstance().Schedule([] { Application::GetInstance().OnAccountUnavailable(); });Render(); }
+        if (can_upload_diagnostics && connected_) {
+            const auto& report = diagnostics::PendingReport();
+            if (!report.empty()) {
+                const int status = Request("POST", "/diagnostics", report, response, 1500);
+                diagnostics::CompleteReport(status);
+            }
+        }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
