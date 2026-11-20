@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -34,15 +35,21 @@ public class SpeakerWeather {
 
     private final SpeakerThirdPartyServices services;
     private final ObjectMapper json;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
+    private final HttpClient http;
     private final Cache<Lookup, Location> locations = CacheBuilder.newBuilder()
             .maximumSize(4096).expireAfterWrite(Duration.ofHours(6)).build();
     private final Cache<Lookup, Report> weather = CacheBuilder.newBuilder()
             .maximumSize(1024).expireAfterWrite(Duration.ofMinutes(20)).build();
 
+    @Autowired
     public SpeakerWeather(SpeakerThirdPartyServices services, ObjectMapper json) {
+        this(services, json, HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build());
+    }
+
+    SpeakerWeather(SpeakerThirdPartyServices services, ObjectMapper json, HttpClient http) {
         this.services = services;
         this.json = json;
+        this.http = http;
     }
 
     public Report current(String address) {
