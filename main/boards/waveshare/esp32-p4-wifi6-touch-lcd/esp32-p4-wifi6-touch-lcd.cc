@@ -356,11 +356,14 @@ private:
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
         using ModelDisplay = SpeakerHomeDisplay;
+        constexpr auto rotation = LV_DISPLAY_ROTATION_270;
 #else
         using ModelDisplay = MipiLcdDisplay;
+        constexpr auto rotation = LV_DISPLAY_ROTATION_0;
 #endif
         display_ = new ModelDisplay(io, disp_panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
-                                       DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+                                    DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X,
+                                    DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY, rotation);
     }
     void InitializeTouch()
     {

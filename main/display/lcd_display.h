@@ -80,7 +80,7 @@ class MipiLcdDisplay : public LcdDisplay {
 public:
     MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width,
                    int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y,
-                   bool swap_xy);
+                   bool swap_xy, lv_display_rotation_t rotation = LV_DISPLAY_ROTATION_0);
 };
 
 #endif  // LCD_DISPLAY_H

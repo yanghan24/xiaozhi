@@ -273,7 +273,7 @@ RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
 MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                                int width, int height, int offset_x, int offset_y, bool mirror_x,
-                               bool mirror_y, bool swap_xy)
+                               bool mirror_y, bool swap_xy, lv_display_rotation_t rotation)
     : LcdDisplay(panel_io, panel, width, height) {
     ESP_LOGI(TAG, "Initialize LVGL library");
     lv_init();
@@ -318,6 +318,18 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
 
     if (offset_x != 0 || offset_y != 0) {
         lv_display_set_offset(display_, offset_x, offset_y);
+    }
+    if (rotation != LV_DISPLAY_ROTATION_0) {
+        DisplayLockGuard lock(this);
+        if (!lock) {
+            ESP_LOGE(TAG, "Could not set display rotation");
+            return;
+        }
+        lv_display_set_rotation(display_, rotation);
+        width_ = lv_display_get_horizontal_resolution(display_);
+        height_ = lv_display_get_vertical_resolution(display_);
+        ESP_LOGI(TAG, "Display rotation %d degrees, logical resolution %dx%d",
+                 static_cast<int>(rotation) * 90, width_, height_);
     }
 }
 
