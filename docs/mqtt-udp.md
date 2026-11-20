@@ -2,6 +2,9 @@
 
 This document describes the MQTT + UDP hybrid protocol used between the device and the server, based on the current implementation: MQTT carries control messages, UDP carries real-time audio.
 
+For authenticated UDP reachability checks, see the [PING/PONG extension](mqtt-udp-probe.md).
+The client implements this opt-in extension; server implementation and end-to-end validation are pending.
+
 ---
 
 ## 1. Overview
@@ -80,7 +83,14 @@ The device connects to the broker using:
   "transport": "udp",
   "features": {
     "mcp": true,
-    "aec": true
+    "aec": true,
+    "glyph_push": true
+  },
+  "text_font": {
+    "bundle": "noto-v1",
+    "charset": "common",
+    "size": 20,
+    "bpp": 4
   },
   "audio_params": {
     "format": "opus",
@@ -92,6 +102,8 @@ The device connects to the broker using:
 ```
 
 `features.mcp` is always set; `features.aec` is set when `CONFIG_USE_SERVER_AEC` is enabled.
+`features.glyph_push` and `text_font` advertise the shared dynamic text-glyph extension described in
+[Dynamic Text Glyph Push Extension](glyph-push.md).
 
 #### 3.2.2 Server -> Device
 

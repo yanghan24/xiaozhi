@@ -1,7 +1,4 @@
 #include "system_reset.h"
-#ifdef CONFIG_XIAOZHI_ACCOUNT
-#include "account/device_account.h"
-#endif
 
 #include <esp_log.h>
 #include <nvs_flash.h>
@@ -41,11 +38,7 @@ void SystemReset::CheckButtons() {
 
 void SystemReset::ResetNvsFlash() {
     ESP_LOGI(TAG, "Resetting NVS flash");
-#ifdef CONFIG_XIAOZHI_ACCOUNT
-    esp_err_t ret = account::DeviceAccount::ResetUserSettings();
-#else
     esp_err_t ret = nvs_flash_erase();
-#endif
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to erase NVS flash");
     }
@@ -56,11 +49,6 @@ void SystemReset::ResetNvsFlash() {
 }
 
 void SystemReset::ResetToFactory() {
-#ifdef CONFIG_XIAOZHI_ACCOUNT
-    // A preference reset keeps this validated firmware and device identity.
-    RestartInSeconds(3);
-    return;
-#endif
     ESP_LOGI(TAG, "Resetting to factory");
     // Erase otadata partition
     const esp_partition_t* partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_OTA, NULL);

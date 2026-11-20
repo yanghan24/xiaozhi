@@ -1,18 +1,20 @@
 #include "lcd_display.h"
-#include "gif/lvgl_gif.h"
-#include "settings.h"
-#include "lvgl_theme.h"
 #include "assets/lang_config.h"
+#include "gif/lvgl_gif.h"
+#include "lvgl_theme.h"
+#include "settings.h"
 
-#include <vector>
-#include <algorithm>
-#include <font_awesome.h>
-#include <esp_log.h>
 #include <esp_err.h>
+#include <esp_heap_caps.h>
+#include <esp_log.h>
 #include <esp_lvgl_port.h>
 #include <esp_psram.h>
-#include <cstring>
+#include <material_symbols.h>
+#include <noto_emoji.h>
 #include <src/misc/cache/lv_cache.h>
+#include <algorithm>
+#include <cstring>
+#include <vector>
 
 #include "board.h"
 
@@ -20,12 +22,14 @@
 
 LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
 LV_FONT_DECLARE(BUILTIN_ICON_FONT);
-LV_FONT_DECLARE(font_awesome_30_4);
+LV_FONT_DECLARE(font_material_symbols_30_4);
+LV_FONT_DECLARE(font_noto_emoji_30_4);
 
 void LcdDisplay::InitializeLcdThemes() {
     auto text_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_TEXT_FONT);
     auto icon_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_ICON_FONT);
-    auto large_icon_font = std::make_shared<LvglBuiltInFont>(&font_awesome_30_4);
+    auto large_icon_font = std::make_shared<LvglBuiltInFont>(&font_material_symbols_30_4);
+    auto emoji_font = std::make_shared<LvglBuiltInFont>(&font_noto_emoji_30_4);
 
     // light theme
     auto light_theme = new LvglTheme("light");
@@ -41,6 +45,7 @@ void LcdDisplay::InitializeLcdThemes() {
     light_theme->set_text_font(text_font);
     light_theme->set_icon_font(icon_font);
     light_theme->set_large_icon_font(large_icon_font);
+    light_theme->set_emoji_font(emoji_font);
 
     // dark theme
     auto dark_theme = new LvglTheme("dark");
@@ -56,13 +61,15 @@ void LcdDisplay::InitializeLcdThemes() {
     dark_theme->set_text_font(text_font);
     dark_theme->set_icon_font(icon_font);
     dark_theme->set_large_icon_font(large_icon_font);
+    dark_theme->set_emoji_font(emoji_font);
 
     auto& theme_manager = LvglThemeManager::GetInstance();
     theme_manager.RegisterTheme("light", light_theme);
     theme_manager.RegisterTheme("dark", dark_theme);
 }
 
-LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width, int height)
+LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width,
+                       int height)
     : panel_io_(panel_io), panel_(panel) {
     width_ = width;
     height_ = height;
@@ -77,10 +84,11 @@ LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_
 
     // Create a timer to hide the preview image
     esp_timer_create_args_t preview_timer_args = {
-        .callback = [](void* arg) {
-            LcdDisplay* display = static_cast<LcdDisplay*>(arg);
-            display->SetPreviewImage(nullptr);
-        },
+        .callback =
+            [](void* arg) {
+                LcdDisplay* display = static_cast<LcdDisplay*>(arg);
+                display->SetPreviewImage(nullptr);
+            },
         .arg = this,
         .dispatch_method = ESP_TIMER_TASK,
         .name = "preview_timer",
@@ -90,9 +98,9 @@ LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_
 }
 
 SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
-                           int width, int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y, bool swap_xy)
+                             int width, int height, int offset_x, int offset_y, bool mirror_x,
+                             bool mirror_y, bool swap_xy)
     : LcdDisplay(panel_io, panel, width, height) {
-
     // draw white
     std::vector<uint16_t> buffer(width_, 0xFFFF);
     for (int y = 0; y < height_; y++) {
@@ -117,6 +125,34 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // lv image cache, currently only PNG is supported
     size_t psram_size_mb = esp_psram_get_size() / 1024 / 1024;
     if (psram_size_mb >= 8) {
+#if CONFIG_LV_USE_BUILTIN_MALLOC
+        // Base TLSF pool is CONFIG_LV_MEM_SIZE_KILOBYTES in PSRAM; grow it so
+        // the 2MB decoded-image cache does not exhaust a 2MB-PSRAM-safe pool.
+        // TLSF rejects any single pool larger than LV_MEM_SIZE when
+        // LV_MEM_POOL_EXPAND_SIZE is 0 (block_size_max = 1 << ceil(log2(LV_MEM_SIZE))).
+        const size_t extra_total = 2560 * 1024;
+        const size_t chunk_size = LV_MEM_SIZE;
+        size_t added = 0;
+        while (added < extra_total) {
+            size_t this_chunk = extra_total - added;
+            if (this_chunk > chunk_size) {
+                this_chunk = chunk_size;
+            }
+            void* pool = heap_caps_malloc(this_chunk, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (pool == nullptr || lv_mem_add_pool(pool, this_chunk) == nullptr) {
+                if (pool != nullptr) {
+                    heap_caps_free(pool);
+                }
+                ESP_LOGE(TAG, "Failed to add %uKB LVGL PSRAM pool (added %uKB)",
+                         (unsigned)(this_chunk / 1024), (unsigned)(added / 1024));
+                break;
+            }
+            added += this_chunk;
+        }
+        if (added == extra_total) {
+            ESP_LOGI(TAG, "Added %uKB LVGL pool in PSRAM", (unsigned)(added / 1024));
+        }
+#endif
         lv_image_cache_resize(2 * 1024 * 1024, true);
         ESP_LOGI(TAG, "Use 2MB of PSRAM for image cache");
     } else if (psram_size_mb >= 2) {
@@ -134,6 +170,9 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     lvgl_port_init(&port_cfg);
 
     ESP_LOGI(TAG, "Adding LCD display");
+    // SPI LCD still needs an internal DMA bounce buffer for PSRAM sources.
+    // A full-frame transfer (~150KB) cannot allocate that bounce buffer, so
+    // keep a small DMA strip in internal SRAM and partial refresh.
     const lvgl_port_display_cfg_t display_cfg = {
         .io_handle = panel_io_,
         .panel_handle = panel_,
@@ -144,20 +183,22 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         .hres = static_cast<uint32_t>(width_),
         .vres = static_cast<uint32_t>(height_),
         .monochrome = false,
-        .rotation = {
-            .swap_xy = swap_xy,
-            .mirror_x = mirror_x,
-            .mirror_y = mirror_y,
-        },
+        .rotation =
+            {
+                .swap_xy = swap_xy,
+                .mirror_x = mirror_x,
+                .mirror_y = mirror_y,
+            },
         .color_format = LV_COLOR_FORMAT_RGB565,
-        .flags = {
-            .buff_dma = 1,
-            .buff_spiram = 0,
-            .sw_rotate = 0,
-            .swap_bytes = 1,
-            .full_refresh = 0,
-            .direct_mode = 0,
-        },
+        .flags =
+            {
+                .buff_dma = 1,
+                .buff_spiram = 0,
+                .sw_rotate = 0,
+                .swap_bytes = 1,
+                .full_refresh = 0,
+                .direct_mode = 0,
+            },
     };
 
     display_ = lvgl_port_add_disp(&display_cfg);
@@ -171,13 +212,11 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     }
 }
 
-
 // RGB LCD implementation
 RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
-                           int width, int height, int offset_x, int offset_y,
-                           bool mirror_x, bool mirror_y, bool swap_xy)
+                             int width, int height, int offset_x, int offset_y, bool mirror_x,
+                             bool mirror_y, bool swap_xy)
     : LcdDisplay(panel_io, panel, width, height) {
-
     // draw white
     std::vector<uint16_t> buffer(width_, 0xFFFF);
     for (int y = 0; y < height_; y++) {
@@ -201,25 +240,25 @@ RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         .double_buffer = true,
         .hres = static_cast<uint32_t>(width_),
         .vres = static_cast<uint32_t>(height_),
-        .rotation = {
-            .swap_xy = swap_xy,
-            .mirror_x = mirror_x,
-            .mirror_y = mirror_y,
-        },
-        .flags = {
-            .buff_dma = 1,
-            .swap_bytes = 0,
-            .full_refresh = 1,
-            .direct_mode = 1,
-        },
+        .rotation =
+            {
+                .swap_xy = swap_xy,
+                .mirror_x = mirror_x,
+                .mirror_y = mirror_y,
+            },
+        .flags =
+            {
+                .buff_dma = 1,
+                .swap_bytes = 0,
+                .full_refresh = 1,
+                .direct_mode = 1,
+            },
     };
 
-    const lvgl_port_display_rgb_cfg_t rgb_cfg = {
-        .flags = {
-            .bb_mode = true,
-            .avoid_tearing = true,
-        }
-    };
+    const lvgl_port_display_rgb_cfg_t rgb_cfg = {.flags = {
+                                                     .bb_mode = true,
+                                                     .avoid_tearing = true,
+                                                 }};
 
     display_ = lvgl_port_add_disp_rgb(&display_cfg, &rgb_cfg);
     if (display_ == nullptr) {
@@ -233,10 +272,9 @@ RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 }
 
 MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
-                            int width, int height,  int offset_x, int offset_y,
-                            bool mirror_x, bool mirror_y, bool swap_xy)
+                               int width, int height, int offset_x, int offset_y, bool mirror_x,
+                               bool mirror_y, bool swap_xy)
     : LcdDisplay(panel_io, panel, width, height) {
-
     ESP_LOGI(TAG, "Initialize LVGL library");
     lv_init();
 
@@ -255,23 +293,23 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
         .vres = static_cast<uint32_t>(height_),
         .monochrome = false,
         /* Rotation values must be same as used in esp_lcd for initial settings of the screen */
-        .rotation = {
-            .swap_xy = swap_xy,
-            .mirror_x = mirror_x,
-            .mirror_y = mirror_y,
-        },
-        .flags = {
-            .buff_dma = true,
-            .buff_spiram =false,
-            .sw_rotate = true,
-        },
+        .rotation =
+            {
+                .swap_xy = swap_xy,
+                .mirror_x = mirror_x,
+                .mirror_y = mirror_y,
+            },
+        .flags =
+            {
+                .buff_dma = true,
+                .buff_spiram = false,
+                .sw_rotate = true,
+            },
     };
 
-    const lvgl_port_display_dsi_cfg_t dpi_cfg = {
-        .flags = {
-            .avoid_tearing = false,
-        }
-    };
+    const lvgl_port_display_dsi_cfg_t dpi_cfg = {.flags = {
+                                                     .avoid_tearing = false,
+                                                 }};
     display_ = lvgl_port_add_disp_dsi(&disp_cfg, &dpi_cfg);
     if (display_ == nullptr) {
         ESP_LOGE(TAG, "Failed to add display");
@@ -342,12 +380,29 @@ LcdDisplay::~LcdDisplay() {
     }
 }
 
-bool LcdDisplay::Lock(int timeout_ms) {
-    return lvgl_port_lock(timeout_ms);
-}
+bool LcdDisplay::Lock(int timeout_ms) { return lvgl_port_lock(timeout_ms); }
 
-void LcdDisplay::Unlock() {
-    lvgl_port_unlock();
+void LcdDisplay::Unlock() { lvgl_port_unlock(); }
+
+void LcdDisplay::ShowEmotion() {
+    // Message cleanup must restore the selected renderer, not the boot logo.
+    if (emoji_label_ != nullptr) {
+        if (emotion_uses_image_) {
+            lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (emoji_image_ != nullptr) {
+        if (emotion_uses_image_) {
+            lv_obj_remove_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (emotion_uses_image_ && gif_controller_ && !gif_controller_->IsPlaying()) {
+        gif_controller_->Start();
+    }
 }
 
 #if CONFIG_USE_WECHAT_MESSAGE_STYLE
@@ -395,7 +450,8 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_left(top_bar_, lvgl_theme->spacing(4), 0);
     lv_obj_set_style_pad_right(top_bar_, lvgl_theme->spacing(4), 0);
     lv_obj_set_flex_flow(top_bar_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(top_bar_, LV_SCROLLBAR_MODE_OFF);
 
     // Left icon
@@ -411,7 +467,8 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_border_width(right_icons, 0, 0);
     lv_obj_set_style_pad_all(right_icons, 0, 0);
     lv_obj_set_flex_flow(right_icons, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(right_icons, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(right_icons, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
 
     mute_label_ = lv_label_create(right_icons);
     lv_label_set_text(mute_label_, "");
@@ -435,7 +492,7 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_bottom(status_bar_, lvgl_theme->spacing(2), 0);
     lv_obj_set_scrollbar_mode(status_bar_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_layout(status_bar_, LV_LAYOUT_NONE, 0);  // Use absolute positioning
-    lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);  // Overlap with top_bar_
+    lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);        // Overlap with top_bar_
 
     notification_label_ = lv_label_create(status_bar_);
     lv_obj_set_width(notification_label_, LV_HOR_RES * 0.8);
@@ -460,7 +517,8 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_flex_grow(content_, 1);
     lv_obj_set_style_pad_all(content_, lvgl_theme->spacing(4), 0);
     lv_obj_set_style_border_width(content_, 0, 0);
-    lv_obj_set_style_bg_color(content_, lvgl_theme->chat_background_color(), 0); // Background for chat area
+    lv_obj_set_style_bg_color(content_, lvgl_theme->chat_background_color(),
+                              0);  // Background for chat area
 
     // Enable scrolling for chat content
     lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
@@ -469,7 +527,7 @@ void LcdDisplay::SetupUI() {
     // Create a flex container for chat messages
     lv_obj_set_flex_flow(content_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_row(content_, lvgl_theme->spacing(4), 0); // Space between messages
+    lv_obj_set_style_pad_row(content_, lvgl_theme->spacing(4), 0);  // Space between messages
 
     // We'll create chat messages dynamically in SetChatMessage
     chat_message_label_ = nullptr;
@@ -487,28 +545,34 @@ void LcdDisplay::SetupUI() {
     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
 
     emoji_image_ = lv_img_create(screen);
-    lv_obj_align(emoji_image_, LV_ALIGN_TOP_MID, 0, text_font->line_height + lvgl_theme->spacing(8));
+    lv_obj_align(emoji_image_, LV_ALIGN_TOP_MID, 0,
+                 text_font->line_height + lvgl_theme->spacing(8));
+    lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
 
     // Display AI logo while booting
     emoji_label_ = lv_label_create(screen);
     lv_obj_center(emoji_label_);
     lv_obj_set_style_text_font(emoji_label_, large_icon_font, 0);
     lv_obj_set_style_text_color(emoji_label_, lvgl_theme->text_color(), 0);
-    lv_label_set_text(emoji_label_, FONT_AWESOME_MICROCHIP_AI);
+    lv_label_set_text(emoji_label_, MATERIAL_SYMBOLS_ROBOT_2);
 }
 #if CONFIG_IDF_TARGET_ESP32P4
-#define  MAX_MESSAGES 40
+#define MAX_MESSAGES 40
 #else
-#define  MAX_MESSAGES 20
+#define MAX_MESSAGES 20
 #endif
 void LcdDisplay::SetChatMessage(const char* role, const char* content) {
     if (!setup_ui_called_) {
-        ESP_LOGW(TAG, "SetChatMessage('%s', '%s') called before SetupUI() - message will be lost!", role, content);
+        ESP_LOGW(TAG, "SetChatMessage('%s', '%s') called before SetupUI() - message will be lost!",
+                 role, content);
     }
     DisplayLockGuard lock(this);
     if (content_ == nullptr) {
         if (setup_ui_called_) {
-            ESP_LOGW(TAG, "SetChatMessage('%s', '%s') failed: content_ is nullptr (SetupUI() was called but container not created)", role, content);
+            ESP_LOGW(TAG,
+                     "SetChatMessage('%s', '%s') failed: content_ is nullptr (SetupUI() was called "
+                     "but container not created)",
+                     role, content);
         }
         return;
     }
@@ -532,20 +596,23 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
         }
     }
 
-    // Collapse system messages (if it's a system message, check if the last message is also a system message)
+    // Collapse system messages (if it's a system message, check if the last message is also a
+    // system message)
     if (strcmp(role, "system") == 0) {
         // Refresh child count to get accurate count after potential deletion above
         child_count = lv_obj_get_child_cnt(content_);
         if (child_count > 0) {
             // Get the last message container
             lv_obj_t* last_container = lv_obj_get_child(content_, child_count - 1);
-            if (last_container != nullptr && lv_obj_is_valid(last_container) && lv_obj_get_child_cnt(last_container) > 0) {
+            if (last_container != nullptr && lv_obj_is_valid(last_container) &&
+                lv_obj_get_child_cnt(last_container) > 0) {
                 // Get the bubble inside the container
                 lv_obj_t* last_bubble = lv_obj_get_child(last_container, 0);
                 if (last_bubble != nullptr && lv_obj_is_valid(last_bubble)) {
                     // Check if bubble type is system message
                     void* bubble_type_ptr = lv_obj_get_user_data(last_bubble);
-                    if (bubble_type_ptr != nullptr && strcmp((const char*)bubble_type_ptr, "system") == 0) {
+                    if (bubble_type_ptr != nullptr &&
+                        strcmp((const char*)bubble_type_ptr, "system") == 0) {
                         // If the last message is also a system message, delete it
                         lv_obj_del(last_container);
                     }
@@ -558,7 +625,7 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
     }
 
     // Avoid empty message boxes
-    if(strlen(content) == 0) {
+    if (strlen(content) == 0) {
         return;
     }
 
@@ -726,8 +793,8 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
     lv_obj_t* preview_image = lv_image_create(img_bubble);
 
     // Calculate appropriate size for the image
-    lv_coord_t max_width = LV_HOR_RES * 70 / 100;  // 70% of screen width
-    lv_coord_t max_height = LV_VER_RES * 50 / 100; // 50% of screen height
+    lv_coord_t max_width = LV_HOR_RES * 70 / 100;   // 70% of screen width
+    lv_coord_t max_height = LV_VER_RES * 50 / 100;  // 50% of screen height
 
     // Calculate zoom factor to fit within maximum dimensions
     auto img_dsc = image->image_dsc();
@@ -736,7 +803,8 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
     if (img_width == 0 || img_height == 0) {
         img_width = max_width;
         img_height = max_height;
-        ESP_LOGW(TAG, "Invalid image dimensions: %ld x %ld, using default dimensions: %ld x %ld", img_width, img_height, max_width, max_height);
+        ESP_LOGW(TAG, "Invalid image dimensions: %ld x %ld, using default dimensions: %ld x %ld",
+                 img_width, img_height, max_width, max_height);
     }
 
     lv_coord_t zoom_w = (max_width * 256) / img_width;
@@ -744,7 +812,8 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
     lv_coord_t zoom = (zoom_w < zoom_h) ? zoom_w : zoom_h;
 
     // Ensure zoom doesn't exceed 256 (100%)
-    if (zoom > 256) zoom = 256;
+    if (zoom > 256)
+        zoom = 256;
 
     // Set image properties
     lv_image_set_src(preview_image, img_dsc);
@@ -752,13 +821,16 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 
     // Add event handler to clean up LvglImage when image is deleted
     // We need to transfer ownership of the unique_ptr to the event callback
-    LvglImage* raw_image = image.release(); // Release ownership of smart pointer
-    lv_obj_add_event_cb(preview_image, [](lv_event_t* e) {
-        LvglImage* img = (LvglImage*)lv_event_get_user_data(e);
-        if (img != nullptr) {
-            delete img; // Properly release memory by deleting LvglImage object
-        }
-    }, LV_EVENT_DELETE, (void*)raw_image);
+    LvglImage* raw_image = image.release();  // Release ownership of smart pointer
+    lv_obj_add_event_cb(
+        preview_image,
+        [](lv_event_t* e) {
+            LvglImage* img = (LvglImage*)lv_event_get_user_data(e);
+            if (img != nullptr) {
+                delete img;  // Properly release memory by deleting LvglImage object
+            }
+        },
+        LV_EVENT_DELETE, (void*)raw_image);
 
     // Calculate actual scaled image dimensions
     lv_coord_t scaled_width = (img_width * zoom) / 256;
@@ -781,6 +853,38 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
     lv_obj_scroll_to_view_recursive(img_bubble, LV_ANIM_ON);
 }
 
+void LcdDisplay::RemoveChatMessage(const char* role, const char* content) {
+    DisplayLockGuard lock(this);
+    if (content_ == nullptr || role == nullptr || content == nullptr) {
+        return;
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(content_); ++i) {
+        auto container = lv_obj_get_child(content_, i);
+        auto bubble = container;
+        auto bubble_role = static_cast<const char*>(lv_obj_get_user_data(bubble));
+        if (bubble_role == nullptr && lv_obj_get_child_cnt(bubble) > 0) {
+            bubble = lv_obj_get_child(bubble, 0);
+            bubble_role = static_cast<const char*>(lv_obj_get_user_data(bubble));
+        }
+        if (bubble_role == nullptr || strcmp(bubble_role, role) != 0 ||
+            lv_obj_get_child_cnt(bubble) == 0) {
+            continue;
+        }
+        auto label = lv_obj_get_child(bubble, 0);
+        if (strcmp(lv_label_get_text(label), content) != 0) {
+            continue;
+        }
+        if (chat_message_label_ == label) {
+            chat_message_label_ = nullptr;
+        }
+        lv_obj_del(container);
+        if (lv_obj_get_child_cnt(content_) == 0) {
+            ShowEmotion();
+        }
+        return;
+    }
+}
+
 void LcdDisplay::ClearChatMessages() {
     DisplayLockGuard lock(this);
     if (content_ == nullptr) {
@@ -793,10 +897,7 @@ void LcdDisplay::ClearChatMessages() {
     // Reset chat_message_label_ as it has been deleted
     chat_message_label_ = nullptr;
 
-    // Show the centered AI logo (emoji_label_) again
-    if (emoji_label_ != nullptr) {
-        lv_obj_remove_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-    }
+    ShowEmotion();
 
     ESP_LOGI(TAG, "Chat messages cleared");
 }
@@ -840,7 +941,7 @@ void LcdDisplay::SetupUI() {
     emoji_label_ = lv_label_create(emoji_box_);
     lv_obj_set_style_text_font(emoji_label_, large_icon_font, 0);
     lv_obj_set_style_text_color(emoji_label_, lvgl_theme->text_color(), 0);
-    lv_label_set_text(emoji_label_, FONT_AWESOME_MICROCHIP_AI);
+    lv_label_set_text(emoji_label_, MATERIAL_SYMBOLS_ROBOT_2);
 
     emoji_image_ = lv_img_create(emoji_box_);
     lv_obj_center(emoji_image_);
@@ -865,7 +966,8 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_left(top_bar_, lvgl_theme->spacing(4), 0);
     lv_obj_set_style_pad_right(top_bar_, lvgl_theme->spacing(4), 0);
     lv_obj_set_flex_flow(top_bar_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(top_bar_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_align(top_bar_, LV_ALIGN_TOP_MID, 0, 0);
 
@@ -882,7 +984,8 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_border_width(right_icons, 0, 0);
     lv_obj_set_style_pad_all(right_icons, 0, 0);
     lv_obj_set_flex_flow(right_icons, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(right_icons, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(right_icons, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
 
     mute_label_ = lv_label_create(right_icons);
     lv_label_set_text(mute_label_, "");
@@ -906,7 +1009,7 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_bottom(status_bar_, lvgl_theme->spacing(2), 0);
     lv_obj_set_scrollbar_mode(status_bar_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_layout(status_bar_, LV_LAYOUT_NONE, 0);  // Use absolute positioning
-    lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);  // Overlap with top_bar_
+    lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);        // Overlap with top_bar_
 
     notification_label_ = lv_label_create(status_bar_);
     lv_obj_set_width(notification_label_, LV_HOR_RES * 0.75);
@@ -976,7 +1079,8 @@ void LcdDisplay::SetupUI() {
     lv_anim_set_delay(&a, 1000);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
     lv_obj_set_style_anim(chat_message_label_, &a, LV_PART_MAIN);
-    lv_obj_set_style_anim_duration(chat_message_label_, lv_anim_speed_clamped(60, 300, 60000), LV_PART_MAIN);
+    lv_obj_set_style_anim_duration(chat_message_label_, lv_anim_speed_clamped(60, 300, 60000),
+                                   LV_PART_MAIN);
     lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);  // Hide until there is content
 #endif
 
@@ -1032,15 +1136,20 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 
 void LcdDisplay::SetChatMessage(const char* role, const char* content) {
     if (!setup_ui_called_) {
-        ESP_LOGW(TAG, "SetChatMessage('%s', '%s') called before SetupUI() - message will be lost!", role, content);
+        ESP_LOGW(TAG, "SetChatMessage('%s', '%s') called before SetupUI() - message will be lost!",
+                 role, content);
     }
     DisplayLockGuard lock(this);
     if (chat_message_label_ == nullptr) {
         if (setup_ui_called_) {
-            ESP_LOGW(TAG, "SetChatMessage('%s', '%s') failed: chat_message_label_ is nullptr (SetupUI() was called but label not created)", role, content);
+            ESP_LOGW(TAG,
+                     "SetChatMessage('%s', '%s') failed: chat_message_label_ is nullptr (SetupUI() "
+                     "was called but label not created)",
+                     role, content);
         }
         return;
     }
+    lv_anim_delete(chat_message_label_, nullptr);
     lv_label_set_text(chat_message_label_, content);
     // Show bottom_bar_ only when there is content (and subtitle is not globally hidden)
     if (bottom_bar_ != nullptr) {
@@ -1059,6 +1168,20 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
 #endif
 }
 
+void LcdDisplay::RemoveChatMessage(const char* role, const char* content) {
+    DisplayLockGuard lock(this);
+    if (chat_message_label_ == nullptr || content == nullptr ||
+        strcmp(lv_label_get_text(chat_message_label_), content) != 0) {
+        return;
+    }
+    // The classic layout has one text slot and does not distinguish message roles.
+    lv_anim_delete(chat_message_label_, nullptr);
+    lv_label_set_text(chat_message_label_, "");
+    if (bottom_bar_ != nullptr) {
+        lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 void LcdDisplay::ClearChatMessages() {
     DisplayLockGuard lock(this);
     // In non-wechat mode, just clear the chat message label and hide the bar
@@ -1071,32 +1194,47 @@ void LcdDisplay::ClearChatMessages() {
 }
 #endif
 
-void LcdDisplay::SetEmotion(const char* emotion) {
+bool LcdDisplay::SetEmotion(const char* emotion) {
     if (!setup_ui_called_) {
-        ESP_LOGW(TAG, "SetEmotion('%s') called before SetupUI() - emotion will not be displayed!", emotion);
+        ESP_LOGW(TAG, "SetEmotion('%s') called before SetupUI() - emotion will not be displayed!",
+                 emotion);
     }
     if (emoji_image_ == nullptr) {
         if (setup_ui_called_) {
-            ESP_LOGW(TAG, "SetEmotion('%s') failed: emoji_image_ is nullptr (SetupUI() was called but emoji image not created)", emotion);
+            ESP_LOGW(TAG,
+                     "SetEmotion('%s') failed: emoji_image_ is nullptr (SetupUI() was called but "
+                     "emoji image not created)",
+                     emotion);
         }
-        return;
+        return false;
     }
 
     auto emoji_collection = static_cast<LvglTheme*>(current_theme_)->emoji_collection();
     auto image = emoji_collection != nullptr ? emoji_collection->GetEmojiImage(emotion) : nullptr;
     if (image == nullptr) {
-        const char* utf8 = font_awesome_get_utf8(emotion);
-        if (utf8 != nullptr && emoji_label_ != nullptr) {
-            DisplayLockGuard lock(this);
-            if (gif_controller_) {
-                gif_controller_->Stop();
-                gif_controller_.reset();
-            }
-            lv_label_set_text(emoji_label_, utf8);
-            lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+        auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
+        const char* utf8 = noto_emoji_get_utf8(emotion);
+        const lv_font_t* emotion_font = lvgl_theme->emoji_font()->font();
+        if (utf8 == nullptr) {
+            utf8 = material_symbols_get_utf8(emotion);
+            emotion_font = lvgl_theme->large_icon_font()->font();
         }
-        return;
+        if (utf8 == nullptr || emoji_label_ == nullptr) {
+            // No image and no glyph for this name: nothing was shown for the request.
+            return false;
+        }
+        DisplayLockGuard lock(this);
+        if (gif_controller_) {
+            gif_controller_->Stop();
+            gif_controller_.reset();
+        }
+        lv_obj_set_style_text_font(emoji_label_, emotion_font, 0);
+        lv_label_set_text(emoji_label_, utf8);
+        emotion_uses_image_ = false;
+        ShowEmotion();
+        // The glyph is this emotion's own, from noto_emoji or material_symbols, not a
+        // stand-in - so the request was honoured.
+        return true;
     }
 
     DisplayLockGuard lock(this);
@@ -1106,47 +1244,53 @@ void LcdDisplay::SetEmotion(const char* emotion) {
         gif_controller_->Stop();
         gif_controller_.reset();
     }
+    bool shown = false;
     if (image->IsGif()) {
         // Create new GIF controller
         gif_controller_ = std::make_unique<LvglGif>(image->image_dsc());
 
         if (gif_controller_->IsLoaded()) {
             // Set up frame update callback
-            gif_controller_->SetFrameCallback([this]() {
-                lv_image_set_src(emoji_image_, gif_controller_->image_dsc());
-            });
+            gif_controller_->SetFrameCallback(
+                [this]() { lv_image_set_src(emoji_image_, gif_controller_->image_dsc()); });
 
             // Set initial frame and start animation
             lv_image_set_src(emoji_image_, gif_controller_->image_dsc());
             gif_controller_->Start();
 
-            // Show GIF, hide others
-            lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+            emotion_uses_image_ = true;
+            ShowEmotion();
+            shown = true;
         } else {
+            // Keep a valid label fallback instead of a freed GIF descriptor.
             ESP_LOGE(TAG, "Failed to load GIF for emotion: %s", emotion);
             gif_controller_.reset();
+            emotion_uses_image_ = false;
+            ShowEmotion();
         }
     } else {
         lv_image_set_src(emoji_image_, image->image_dsc());
-        lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+        emotion_uses_image_ = true;
+        ShowEmotion();
+        shown = true;
     }
 
 #if CONFIG_USE_WECHAT_MESSAGE_STYLE
     // In WeChat message style, if emotion is neutral, don't display it
     uint32_t child_count = lv_obj_get_child_cnt(content_);
     if (strcmp(emotion, "neutral") == 0 && child_count > 0) {
-        // Stop GIF animation if running
+        // Keep the descriptor alive so clearing the last bubble can show it again.
         if (gif_controller_) {
-            gif_controller_->Stop();
-            gif_controller_.reset();
+            gif_controller_->Pause();
         }
 
         lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
     }
 #endif
+    // The WeChat style deliberately hides a neutral emotion. That is a choice about
+    // presentation, not a failure to honour the request, so `shown` stands as it was.
+    return shown;
 }
 
 void LcdDisplay::SetTheme(Theme* theme) {
@@ -1207,7 +1351,8 @@ void LcdDisplay::SetTheme(Theme* theme) {
     uint32_t child_count = lv_obj_get_child_cnt(content_);
     for (uint32_t i = 0; i < child_count; i++) {
         lv_obj_t* obj = lv_obj_get_child(content_, i);
-        if (obj == nullptr) continue;
+        if (obj == nullptr)
+            continue;
 
         lv_obj_t* bubble = nullptr;
 
@@ -1230,7 +1375,8 @@ void LcdDisplay::SetTheme(Theme* theme) {
             continue;
         }
 
-        if (bubble == nullptr) continue;
+        if (bubble == nullptr)
+            continue;
 
         // Use saved user data to identify bubble type
         void* bubble_type_ptr = lv_obj_get_user_data(bubble);
@@ -1301,7 +1447,8 @@ void LcdDisplay::SetHideSubtitle(bool hide) {
             lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
         } else {
             // Only show if there is actual content to display
-            const char* text = (chat_message_label_ != nullptr) ? lv_label_get_text(chat_message_label_) : nullptr;
+            const char* text =
+                (chat_message_label_ != nullptr) ? lv_label_get_text(chat_message_label_) : nullptr;
             if (text != nullptr && text[0] != '\0') {
                 lv_obj_remove_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
             }

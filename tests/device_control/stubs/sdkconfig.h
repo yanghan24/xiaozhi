@@ -1,2 +1,0 @@
-#pragma once
-#define CONFIG_XIAOZHI_DEVICE_CONTROL 1

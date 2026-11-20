@@ -1,7 +1,0 @@
-# Explicit opt-in for the device-authorization development firmware.
-CONFIG_XIAOZHI_DEVICE_CONTROL=y
-CONFIG_XIAOZHI_SPEAKER_PROTOCOL_V2=y
-# Required by the board's existing SD media service compile-time contract.
-CONFIG_FATFS_LFN_HEAP=y
-CONFIG_FATFS_MAX_LFN=255
-CONFIG_FATFS_API_ENCODING_UTF_8=y

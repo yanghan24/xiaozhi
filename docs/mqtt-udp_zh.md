@@ -2,6 +2,9 @@
 
 基于代码实现整理的 MQTT + UDP 混合通信协议文档，概述设备端与服务器之间如何通过 MQTT 进行控制消息传输，通过 UDP 进行音频数据传输的交互方式。
 
+认证 UDP 可达性探测见 [PING/PONG 扩展](mqtt-udp-probe_zh.md)。
+客户端已实现该可选扩展，服务端实现及端到端验证仍待完成。
+
 ---
 
 ## 1. 协议概览
@@ -78,7 +81,14 @@ sequenceDiagram
   "version": 3,
   "transport": "udp",
   "features": {
-    "mcp": true
+    "mcp": true,
+    "glyph_push": true
+  },
+  "text_font": {
+    "bundle": "noto-v1",
+    "charset": "common",
+    "size": 20,
+    "bpp": 4
   },
   "audio_params": {
     "format": "opus",
@@ -88,6 +98,9 @@ sequenceDiagram
   }
 }
 ```
+
+`features.glyph_push` 和 `text_font` 声明 WebSocket 与 MQTT/UDP 共用的动态文字扩展，详见
+[动态文字 Glyph Push 扩展](glyph-push_zh.md)。
 
 #### 3.2.2 服务器响应 Hello
 
@@ -390,4 +403,4 @@ MQTT + UDP 混合协议通过以下设计实现高效的音视频通信：
 - **自动恢复**：支持连接断开后的自动重连
 - **性能优化**：UDP 传输保证音频数据的实时性
 
-该协议适用于对实时性要求较高的语音交互场景，但需要在网络复杂度和传输性能之间做出权衡。 
+该协议适用于对实时性要求较高的语音交互场景，但需要在网络复杂度和传输性能之间做出权衡。
