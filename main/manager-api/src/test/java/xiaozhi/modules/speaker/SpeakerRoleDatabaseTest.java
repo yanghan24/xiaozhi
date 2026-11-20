@@ -119,7 +119,10 @@ class SpeakerRoleDatabaseTest {
         String previous=agents.configurationRevision();
         mcp.save(id,new SpeakerMcp.Configuration("协议夹具","https://fixture.example/mcp","streamable-http",null,false,true,1));
         assertNotEquals(previous,agents.configurationRevision());
-        assertEquals("Bearer secret-fixture",((Map<?,?>)((Map<?,?>)mcp.configuration(role).get(id)).get("headers")).get("Authorization"));
+        assertEquals(Map.of(id, Map.of(
+                "url", "https://fixture.example/mcp",
+                "transport", "streamable-http",
+                "headers", Map.of("Authorization", "Bearer secret-fixture"))), mcp.configuration(role));
         assertTrue(mcp.configuration(role("未关联角色","original")).isEmpty());
         assertThrows(SpeakerFailure.class,()->mcp.save(id,new SpeakerMcp.Configuration("过期编辑","https://fixture.example/mcp","sse",null,false,true,1)));
     }

@@ -257,7 +257,7 @@ class ServerMCPClient:
                 # 获取工具
                 self.tools = (await self.session.list_tools()).tools
                 for t in self.tools:
-                    sanitized = sanitize_tool_name(self.config.get('tool_prefix', '') + t.name)
+                    sanitized = sanitize_tool_name(t.name)
                     self.tools_dict[sanitized] = t
                     self.name_mapping[sanitized] = t.name
 
