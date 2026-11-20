@@ -1,0 +1,766 @@
+{
+  "source_revision": "1b50709fd1cadfad966b12d4afedf78b1f279aa6",
+  "execution": "existing Ubuntu isolated regression XML; not rerun",
+  "suites": [
+    {
+      "name": "xiaozhi.common.utils.SensitiveDataUtilsTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "beab2f5fba90040dc92a367defc246928e3337d1bc18054474021a746d4d7e4d",
+      "cases": [
+        {
+          "name": "maskMiddle_returns_input_unchanged_for_short_or_blank_values",
+          "passed": true
+        },
+        {
+          "name": "isMaskedValue_detects_masked_values",
+          "passed": true
+        },
+        {
+          "name": "maskSensitiveFields_returns_null_when_input_is_null",
+          "passed": true
+        },
+        {
+          "name": "maskSensitiveFields_masks_known_sensitive_keys_only",
+          "passed": true
+        },
+        {
+          "name": "maskMiddle_keeps_two_at_each_end_for_short_strings",
+          "passed": true
+        },
+        {
+          "name": "isSensitiveField_recognizes_known_field_names",
+          "passed": true
+        },
+        {
+          "name": "maskMiddle_keeps_four_at_each_end_for_long_strings",
+          "passed": true
+        },
+        {
+          "name": "isSensitiveField_rejects_blank_and_unknown_field_names",
+          "passed": true
+        },
+        {
+          "name": "isMaskedValue_rejects_blank_values",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerBindingHttpTest",
+      "tests": "42",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "7c769e7c5acd0307f6b8ffeb65b02747da7377d0f15e687c5f32a3bdbcf668a4",
+      "cases": [
+        {
+          "name": "anotherLoginWithoutBusinessCredentialsDoesNotDiscardTheSharedGrant",
+          "passed": true
+        },
+        {
+          "name": "historicalConfirmationCannotUndoLaterPermissionOrOwnershipChanges",
+          "passed": true
+        },
+        {
+          "name": "phoneConfirmationBindsOnceAndSafeRetryReturnsTheOriginalResult",
+          "passed": true
+        },
+        {
+          "name": "accountEntryRechecksTheRequestAtFinalSubmission(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "accountEntryRechecksTheRequestAtFinalSubmission(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "accountEntryRechecksTheRequestAtFinalSubmission(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "accountEntryRechecksTheRequestAtFinalSubmission(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "twoAccountsConfirmingConcurrentlyCannotOverwriteTheWinner",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[5]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[6]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[7]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[8]",
+          "passed": true
+        },
+        {
+          "name": "deviceSessionCannotBypassIdentityOwnershipCredentialOrVersionChanges(String)[9]",
+          "passed": true
+        },
+        {
+          "name": "trustedIdentityCanBindWithoutPretendingBusinessAuthorizationSucceeded(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "trustedIdentityCanBindWithoutPretendingBusinessAuthorizationSucceeded(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "trustedIdentityCanBindWithoutPretendingBusinessAuthorizationSucceeded(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "failedReceiptSaveRollsBackOwnershipAndTheSameRequestCanRetry",
+          "passed": true
+        },
+        {
+          "name": "deviceActionsRejectNonEmptyOrMalformedJsonWithoutChangingPermission(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "deviceActionsRejectNonEmptyOrMalformedJsonWithoutChangingPermission(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "deviceActionsRejectNonEmptyOrMalformedJsonWithoutChangingPermission(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "accountEntryRequiresTheOwnerAndConsumesRequestWithoutChangingPermission",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[5]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[6]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[7]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[8]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[9]",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsInvalidIdentityOrChangedDeviceWithoutBinding(String)[10]",
+          "passed": true
+        },
+        {
+          "name": "signOutReplayAndOldStopAckCannotOverwriteOrConfirmALaterPermission",
+          "passed": true
+        },
+        {
+          "name": "ownerCanSignOutOnlyThisDeviceAndObserveItsStopAcknowledgement",
+          "passed": true
+        },
+        {
+          "name": "phonePageOffersExplicitSignOutAndReportsStoredUntilDeviceAcknowledges",
+          "passed": true
+        },
+        {
+          "name": "logoutEndsConfirmationAuthorityButDoesNotUndoAnExistingBinding",
+          "passed": true
+        },
+        {
+          "name": "confirmationRejectsClientSuppliedTargetAndUnsupportedMedia",
+          "passed": true
+        },
+        {
+          "name": "failedSignOutReceiptRollsBackAndConcurrentRetryHasOneVersion",
+          "passed": true
+        },
+        {
+          "name": "uncertainCurrentGrantBindsWithPendingReasonAndNoVoiceLease",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerBindingRestartTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "cdb6826ff1d52a21592852dc32f206c9f5af2d57a7793f743f7755480fbeaba2",
+      "cases": [
+        {
+          "name": "signOutWakesOtherInstanceAndReceiptSurvivesRestart",
+          "passed": true
+        },
+        {
+          "name": "crossInstanceWinnerAndRetryReceiptSurviveApplicationRestart",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerIdentityHttpTest",
+      "tests": "43",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "bdd94abf376f7f44d36e65ceb699ff4a29bf1b0c7d67db1d51e753d39e3942be",
+      "cases": [
+        {
+          "name": "uncertainRefreshNeverReplaysAndOnlyConfirmedInvalidGrantRequiresReauthorization(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "uncertainRefreshNeverReplaysAndOnlyConfirmedInvalidGrantRequiresReauthorization(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "uncertainRefreshNeverReplaysAndOnlyConfirmedInvalidGrantRequiresReauthorization(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "olderCallbackCannotReplaceNewerGrantEvenWhenFlowsStartInSameMillisecond",
+          "passed": true
+        },
+        {
+          "name": "unknownDeviceRequestDoesNotOpenAnIdentityFlow",
+          "passed": true
+        },
+        {
+          "name": "validRequestOpensPhonePageAndExpiredRequestCannotBeUsed",
+          "passed": true
+        },
+        {
+          "name": "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "admittedDeviceQrUsesCurrentAdmissionAndRequestLifetime(String)[5]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[5]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[6]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[7]",
+          "passed": true
+        },
+        {
+          "name": "invalidLogoutDoesNotChangeAnyIdentity(String)[8]",
+          "passed": true
+        },
+        {
+          "name": "callbackCannotCrossBrowsersOrReplayAndRefusalIsClear",
+          "passed": true
+        },
+        {
+          "name": "failedRefreshPersistenceNeverReplaysTheConsumedRefreshToken",
+          "passed": true
+        },
+        {
+          "name": "oidcSuccessConfirmsIdentityAndRemovesCodeFromAddress",
+          "passed": true
+        },
+        {
+          "name": "versionedIdentityEntrySharesTheBrowserAndFlowWithTheCompatibilityEntry",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[5]",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[6]",
+          "passed": true
+        },
+        {
+          "name": "invalidIdentityOrUpstreamFailureCannotCreateIdentity(String)[7]",
+          "passed": true
+        },
+        {
+          "name": "refreshRotatesOnceBeforeAccessExpiryWhileBusinessKeyWithNoExpiryRemainsUsable",
+          "passed": true
+        },
+        {
+          "name": "rejectedCallbackAlsoRedirectsAwayFromTemporaryCode",
+          "passed": true
+        },
+        {
+          "name": "flowRequiresBrowserCsrfAndSeparateTabsKeepTheirOwnTarget",
+          "passed": true
+        },
+        {
+          "name": "signedBackchannelNeedsNoCookieInvalidatesOnlyMatchingIdentityAndPreservesGrant",
+          "passed": true
+        },
+        {
+          "name": "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[3]",
+          "passed": true
+        },
+        {
+          "name": "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[4]",
+          "passed": true
+        },
+        {
+          "name": "versionedFlowRejectsMalformedOrAmbiguousRequestBodies(String)[5]",
+          "passed": true
+        },
+        {
+          "name": "logoutReceivedDuringLoginCannotBeUndoneByTheCallback",
+          "passed": true
+        },
+        {
+          "name": "oldRefreshFailureCannotInvalidateNewAuthorization",
+          "passed": true
+        },
+        {
+          "name": "expiredFlowNoLongerAppearsToBeWaitingAndResultIdentifiesTheTargetDevice",
+          "passed": true
+        },
+        {
+          "name": "transactionExpiresAtFiveMinutesAndPollingCannotExtendThirtyMinuteIdle",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerIdentityRestartTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f6f724ead7779918fa3a6003980b47472f517e37f147f395c4f7cc6b7e1443d6",
+      "cases": [
+        {
+          "name": "identityRefreshChainAndLogoutDedupSurviveRestartAndConcurrentInstances",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerProfileDisplayTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "7931c273b6cd44ba5f2a23d4858fcd8aae32325fb93a093584d105788676cf4e",
+      "cases": [
+        {
+          "name": "acceptsOidcDisplayNameWithoutSeparateNickname",
+          "passed": true
+        },
+        {
+          "name": "prefersNicknameWhenOtherProfileNamesDiffer",
+          "passed": true
+        },
+        {
+          "name": "doesNotTurnTheSubjectIntoAUsername",
+          "passed": true
+        },
+        {
+          "name": "rejectsUnusableCandidatesBeforeTryingTheNextField",
+          "passed": true
+        },
+        {
+          "name": "matchesMarketNicknameInsteadOfGeneratedLoginName",
+          "passed": true
+        },
+        {
+          "name": "fallsBackToTheMarketLoginName",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerVoiceDisabledHttpTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "3e2d2013f2737ca0e98f026103d98fb2293802b900a9f90c3a8585b543606703",
+      "cases": [
+        {
+          "name": "disablingVoiceInvalidatesPersistedReadyPermission",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.customer.CustomerVoicePermissionHttpTest",
+      "tests": "24",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "e15f6f6020a4ea13fd4232c7a174907391d1c162888274008231748faeef56df",
+      "cases": [
+        {
+          "name": "speakerNameMatchesTheMarketDisplayAndRefreshesLive",
+          "passed": true
+        },
+        {
+          "name": "productOtaOnlyDiscoversControlAndNeverIssuesLegacyVoiceCredentials",
+          "passed": true
+        },
+        {
+          "name": "refreshFailureSharesReplacementBarrierAndStopsDevicesBeforeRelogin(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "refreshFailureSharesReplacementBarrierAndStopsDevicesBeforeRelogin(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "delayedRejectionAfterReloginStopsOldPermissionsButNotNewExplicitResume",
+          "passed": true
+        },
+        {
+          "name": "resumeRequiresOriginalOwnerAndCurrentGrantGeneration",
+          "passed": true
+        },
+        {
+          "name": "speakerSignOutStopsOnlyItAndCannotReplayAfterRecovery",
+          "passed": true
+        },
+        {
+          "name": "speakerUnbindAllowsAnotherAccountAndFencesEveryOldOwnerAction(boolean, boolean)[1]",
+          "passed": true
+        },
+        {
+          "name": "speakerUnbindAllowsAnotherAccountAndFencesEveryOldOwnerAction(boolean, boolean)[2]",
+          "passed": true
+        },
+        {
+          "name": "speakerUnbindAllowsAnotherAccountAndFencesEveryOldOwnerAction(boolean, boolean)[3]",
+          "passed": true
+        },
+        {
+          "name": "speakerUnbindAllowsAnotherAccountAndFencesEveryOldOwnerAction(boolean, boolean)[4]",
+          "passed": true
+        },
+        {
+          "name": "rejectedKeyStopsSharedDevicesAndOldGenerationCannotStopReplacement",
+          "passed": true
+        },
+        {
+          "name": "voiceAuthorityRejectsLegacyTokensAndExistingSessionAfterSignOut",
+          "passed": true
+        },
+        {
+          "name": "accountLookupDoesNotBlockOrLeakAcrossSignOut",
+          "passed": true
+        },
+        {
+          "name": "sharedGrantFailureStopsEnabledDevicesButKeepsSignedOutDeviceSignedOut(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "sharedGrantFailureStopsEnabledDevicesButKeepsSignedOutDeviceSignedOut(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "accountLookupDoesNotBlockOrLeakAcrossUnbindAndNewOwner",
+          "passed": true
+        },
+        {
+          "name": "internalAuthorityRejectsMissingKeyMalformedAndUnsupportedBodies",
+          "passed": true
+        },
+        {
+          "name": "explicitOwnerResumeEnablesOnlyTargetAndIssuesBoundedVoiceCredentials",
+          "passed": true
+        },
+        {
+          "name": "credentialRecoveryKeepsOwnerAndOtherDeviceButRejectsOldVoiceAndLateResume",
+          "passed": true
+        },
+        {
+          "name": "deviceReadsOnlyItsCurrentOwnersLiveMarketAccount",
+          "passed": true
+        },
+        {
+          "name": "unavailableBalanceDoesNotInventPointsOrStopVoice(String)[1]",
+          "passed": true
+        },
+        {
+          "name": "unavailableBalanceDoesNotInventPointsOrStopVoice(String)[2]",
+          "passed": true
+        },
+        {
+          "name": "accessRefreshDoesNotSignOutAnOtherwiseValidModelGrant",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.devicecontrol.DeviceControlHttpTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "7538bf58778ddda126f0dea9bafb985bc63bc11bf885c88159e15e27012147e3",
+      "cases": [
+        {
+          "name": "preregisteredDeviceReadsBlockedStateButCannotImpersonateAnotherDevice",
+          "passed": true
+        },
+        {
+          "name": "expiredRequestsCannotBeResurrectedByIdempotentRetry",
+          "passed": true
+        },
+        {
+          "name": "creatingAndRetryingBindingRequestPreservesItsIdentityAndDeadline",
+          "passed": true
+        },
+        {
+          "name": "unsupportedContentTypesAndChunkedOversizedBodiesUseProtocolErrors",
+          "passed": true
+        },
+        {
+          "name": "oversizedChunkedUploadIsRejectedBeforeTheSenderFinishes",
+          "passed": true
+        },
+        {
+          "name": "acknowledgementRequiresCurrentStoppedStateAndNeverGrantsPermission",
+          "passed": true
+        },
+        {
+          "name": "advancingClockKeepsCreationRetryAndStateTimesConsistent",
+          "passed": true
+        },
+        {
+          "name": "protocolRejectsAmbiguousBodiesQueryCredentialsAndUnsupportedVersions",
+          "passed": true
+        },
+        {
+          "name": "conflictsRevocationAndDisabledDevicesCannotReuseRequests",
+          "passed": true
+        },
+        {
+          "name": "historicalAckReplayCannotConfirmANewPermissionOrOverwriteItsAcknowledgement",
+          "passed": true
+        },
+        {
+          "name": "boundBlockedDeviceCanSwitchBetweenResumeAndAccountWithoutRevivingOldRequests",
+          "passed": true
+        },
+        {
+          "name": "neverAcceptedOldAcknowledgementsAreRejectedAfterQrRevisionChanges",
+          "passed": true
+        },
+        {
+          "name": "responseAtExpirationNeverAdvertisesAZeroLifetimeRequest",
+          "passed": true
+        },
+        {
+          "name": "protocolVersionsAndTimesAreJsonIntegersRatherThanAdministratorIdStrings",
+          "passed": true
+        },
+        {
+          "name": "longPollWaitsForARevisionChangeThenReturnsTheCommittedRequest",
+          "passed": true
+        },
+        {
+          "name": "independentInstancesShareRequestsAndObserveChangesAfterRestart",
+          "passed": true
+        },
+        {
+          "name": "selfReportedDeviceIdentityCannotReadControlState",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "xiaozhi.modules.devicecontrol.DeviceDeliveryHttpTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "19b9374bbdc70c15012b9384ac6ee208c6869bc4df98ee0c150ad2eee92d1124",
+      "cases": [
+        {
+          "name": "encryptedCredentialCannotBeMovedBetweenOperations",
+          "passed": true
+        },
+        {
+          "name": "anotherOperatorCannotReadOrResumeAnExistingOperation",
+          "passed": true
+        },
+        {
+          "name": "interruptedCreateReplaysSameIdentityButHardwareCannotCreateAnotherRecord",
+          "passed": true
+        },
+        {
+          "name": "credentialAdministrationIsIsolatedByOperatorAndValidatesInput",
+          "passed": true
+        },
+        {
+          "name": "completionNeverReenablesDisabledDeviceOrChangesAnOwner",
+          "passed": true
+        },
+        {
+          "name": "malformedBodiesAndInsecureTransportNeverIssueCredentials",
+          "passed": true
+        },
+        {
+          "name": "onlyCurrentAdministratorsCanAuthorizeOrUseTools",
+          "passed": true
+        },
+        {
+          "name": "rotationOrAdministrativeChangesFencePendingOperations",
+          "passed": true
+        },
+        {
+          "name": "missingOrInvalidContentTypeUsesProtocolRejectionBeforeMvcRouteSelection",
+          "passed": true
+        },
+        {
+          "name": "administratorRecoveryKeepsTheDeviceAndRejectsOldCredentialAndDeliveryReplay",
+          "passed": true
+        },
+        {
+          "name": "concurrentCreateHasOneDurableOperationAndNoOrphanDevice",
+          "passed": true
+        },
+        {
+          "name": "toolCredentialCannotAdministerCredentialsOrBecomeAnAdministratorOrDevice",
+          "passed": true
+        },
+        {
+          "name": "toolTokenIsHashedScopedAndExpires",
+          "passed": true
+        },
+        {
+          "name": "persistentCredentialWorksYearsLaterAndIsHashedWithNoSecretInListing",
+          "passed": true
+        },
+        {
+          "name": "completionRequiresBothReceiptsAndDoesNotBindOrGrantVoicePermission",
+          "passed": true
+        },
+        {
+          "name": "recoveryWriteReceiptResumesWithoutEnablingASignedOutDevice",
+          "passed": true
+        },
+        {
+          "name": "revokingOneCredentialIsPermanentAndLeavesOtherCredentialsAndDevicesIntact",
+          "passed": true
+        },
+        {
+          "name": "concurrentRecoveryHasOneSuccessorAndLateRecoveryCannotRestoreOldSecrets",
+          "passed": true
+        },
+        {
+          "name": "twoDevicesHaveDistinctPendingIdentitiesAndCannotUseEachOthersCredentials",
+          "passed": true
+        },
+        {
+          "name": "recoveryRejectsOtherOperatorsMalformedRequestsAndCrossDevicePredecessors",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}
