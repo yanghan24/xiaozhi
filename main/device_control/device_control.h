@@ -19,6 +19,7 @@ struct DeviceControlView {
     std::string purpose;
     int64_t qr_deadline_ms = 0;
     bool sign_out_pending = false;
+    std::string scheduled_reminder_id;
 };
 
 enum class DeviceAccountStatus {

@@ -3,6 +3,7 @@
 #include <string>
 #include "control_http.h"
 #include "control_model.h"
+#include "reminder_playback.h"
 
 static void Check(bool ok, const char* message) {
     if (!ok) {
@@ -22,6 +23,38 @@ static std::string Replace(std::string s, const std::string& from, const std::st
 }
 
 int main() {
+    {
+        ReminderPlayback playback;
+        playback.Begin(7, "a");
+        playback.Observe(6, "reminder", "cancel", "a", 0);
+        playback.Observe(7, "reminder", "start", "a", 0);
+        playback.Observe(7, "tts", "start", "", 0);
+        Check(!playback.ReceiveAudio(6) && playback.ReceiveAudio(7), "count current stream only");
+        playback.Observe(7, "tts", "stop", "", 0);
+        Check(playback.ExpectedFrames() == 0, "tts stop alone does not confirm playback");
+        playback.Observe(7, "reminder", "end", "a", 1);
+        Check(playback.ExpectedFrames() == 1, "complete stream requires one successful codec write");
+        playback.Begin(8, "b");
+        playback.Observe(8, "reminder", "start", "b", 0);
+        playback.Observe(8, "tts", "start", "", 0);
+        playback.Observe(8, "tts", "stop", "", 0);
+        playback.Observe(8, "reminder", "end", "b", 1);
+        Check(playback.ExpectedFrames() < 0, "missing audio cannot acknowledge playback");
+        playback.Begin(9, "c");
+        playback.Observe(9, "reminder", "start", "b", 0);
+        Check(!playback.ReceiveAudio(9) && playback.ExpectedFrames() < 0, "reject mismatched reminder");
+    }
+    {
+        const std::string id = "0123456789abcdef0123456789abcdef";
+        const auto offered = Replace(AllowedState, "\"voice\":", "\"scheduled_reminder_id\":\"" + id + "\",\"voice\":");
+        device_control::Model reminder("speaker-a", "https://speaker.example:8443");
+        Check(reminder.ApplyState(offered, 11000, 1000) == device_control::ApplyResult::Applied &&
+              reminder.View().scheduled_reminder_id == id, "current grant accepts reminder hint");
+        Check(reminder.ApplyState(AllowedState, 12000, 1000) == device_control::ApplyResult::Applied &&
+              reminder.View().scheduled_reminder_id.empty(), "consumed hint can disappear at same revision");
+        Check(reminder.ApplyState(Replace(offered, id, "not-an-id"), 13000, 1000) ==
+              device_control::ApplyResult::Invalid, "malformed reminder fails closed");
+    }
     device_control::Model model("speaker-a", "https://speaker.example:8443");
     Check(model.ApplyState(AllowedState, 11000, 1000) == device_control::ApplyResult::Applied,
           "valid state should apply");

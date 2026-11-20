@@ -167,6 +167,12 @@ HttpResult ControlRequest(const std::string& text, const std::string& method,
                           "\r\nAuthorization: Bearer " + credential +
                           "\r\nDevice-Id: " + device_id +
                           "\r\nAccept: application/json\r\nConnection: close\r\n";
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (method == "GET" &&
+        (url.target == "/xiaozhi/device-control/v1/state" ||
+         url.target.rfind("/xiaozhi/device-control/v1/state?", 0) == 0))
+        request += "X-Reminder-Protocol: 1\r\n";
+#endif
     if (method == "POST")
         request +=
             "Content-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) +

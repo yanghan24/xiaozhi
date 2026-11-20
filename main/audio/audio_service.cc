@@ -383,7 +383,9 @@ void AudioService::AudioOutputTask() {
                         callbacks_.on_playback_text(task->playback_text, task->generation,
                                                     task->connection_id);
                     }
-                    codec_->OutputData(task->pcm);
+                    if (codec_->OutputData(task->pcm) && task->connection_id != 0 &&
+                        task->connection_id == reminder_connection_)
+                        ++reminder_frames_written_;
                 }
             }
         }
@@ -1039,6 +1041,17 @@ void AudioService::PlaySound(const std::string_view& ogg, bool requires_voice_pe
 bool AudioService::IsIdle() {
     std::lock_guard<std::mutex> lock(audio_queue_mutex_);
     return audio_encode_queue_.empty() && audio_decode_queue_.empty() && audio_playback_queue_.empty() && audio_testing_queue_.empty();
+}
+
+void AudioService::TrackReminderOutput(uint64_t connection) {
+    std::lock_guard<std::mutex> lock(audio_output_mutex_);
+    reminder_connection_ = connection;
+    reminder_frames_written_ = 0;
+}
+
+int AudioService::ReminderFramesWritten(uint64_t connection) {
+    std::lock_guard<std::mutex> lock(audio_output_mutex_);
+    return connection == reminder_connection_ ? reminder_frames_written_ : 0;
 }
 
 bool AudioService::MaintenanceIdle() {

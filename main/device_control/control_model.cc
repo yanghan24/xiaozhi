@@ -14,12 +14,14 @@ using Json = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
 const cJSON* Item(const cJSON* j, const char* key) {
     return cJSON_GetObjectItemCaseSensitive(j, key);
 }
-bool Object(const cJSON* j, std::initializer_list<const char*> keys) {
+bool Object(const cJSON* j, std::initializer_list<const char*> keys, const char* optional = nullptr) {
     if (!cJSON_IsObject(j))
         return false;
     std::set<std::string> allowed;
     for (auto k : keys)
         allowed.emplace(k);
+    if (optional && Item(j, optional))
+        allowed.emplace(optional);
     for (const cJSON* p = j->child; p; p = p->next) {
         if (!p->string || allowed.erase(p->string) != 1)
             return false;
@@ -397,7 +399,7 @@ ApplyResult Model::ApplyState(const std::string& json, int64_t now, int64_t elap
     if (elapsed < 0 || elapsed >= 25000 || !Envelope(root.get(), data) ||
         !Object(data,
                 {"device_id", "revision", "permission_version", "server_time_ms", "binding_state",
-                 "use_permission", "reason", "binding_request", "lease", "voice"}) ||
+                 "use_permission", "reason", "binding_request", "lease", "voice"}, "scheduled_reminder_id") ||
         !String(Item(data, "device_id"), id, 128) || id != device_id_ ||
         !Int(Item(data, "revision"), revision, 1) ||
         !Int(Item(data, "permission_version"), pv, 1) ||
@@ -409,6 +411,12 @@ ApplyResult Model::ApplyState(const std::string& json, int64_t now, int64_t elap
     next.permission_version = pv;
     next.reason = reason;
     next.voice_allowed = permission == "allowed";
+    if (const auto reminder = Item(data, "scheduled_reminder_id")) {
+        if (!next.voice_allowed || !String(reminder, next.scheduled_reminder_id, 32) ||
+            next.scheduled_reminder_id.size() != 32 ||
+            next.scheduled_reminder_id.find_first_not_of("0123456789abcdef") != std::string::npos)
+            return invalid();
+    }
     bool valid = (binding == "unbound" && permission == "blocked" && reason == "unbound") ||
                  (binding == "bound" && permission == "allowed" && reason == "ready") ||
                  (binding == "bound" && permission == "blocked" &&
@@ -571,6 +579,7 @@ bool Model::Revoke(const std::string& reason) {
     if (changed)
         ++view_.generation;
     view_.voice_allowed = false;
+    view_.scheduled_reminder_id.clear();
     view_.reason = reason;
     lease_deadline_ms_ = 0;
     voice_ = {};
