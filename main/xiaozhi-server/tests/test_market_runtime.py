@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from core.providers.llm.openai.openai import LLMProvider
+from core.providers.vllm.openai import VLLMProvider
 from core.api.vision_handler import VisionHandler
 from core.auth import AuthenticationError
 
@@ -17,7 +18,8 @@ def test_original_openai_provider_scopes_json_and_retry_settings_to_market(monke
         return SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
     monkeypatch.setattr("core.providers.llm.openai.openai.openai.OpenAI", client)
     public = {"model_name": "compatible", "base_url": "https://aimarket.hncig.cn/v1",
-              "response_format": {"type": "json_object"}, "thinking": "default"}
+              "response_format": {"type": "json_object"}, "thinking": "default",
+              "reasoning_effort": "none"}
     for source, key in [("aimarket", "a-key"), ("aimarket", "b-key"), ("system", "system-key")]:
         provider = LLMProvider(dict(public, source=source, api_key=key))
         list(provider.response("fixture", [{"role": "user", "content": "test"}]))
@@ -25,7 +27,35 @@ def test_original_openai_provider_scopes_json_and_retry_settings_to_market(monke
     assert [c.get("max_retries") for c in constructed] == [0, 0, None]
     assert requests[0]["response_format"] == {"type": "json_object"}
     assert "response_format" not in requests[2]
+    assert [body.get("extra_body") for body in requests] == [
+        {"reasoning_effort": "none"}, {"reasoning_effort": "none"}, None
+    ]
     assert "api_key" not in public
+
+    tools = [{"type": "function", "function": {"name": "lookup"}}]
+    list(provider.response_with_functions("fixture", [{"role": "user", "content": "test"}], tools))
+    assert "extra_body" not in requests[-1]
+    market = LLMProvider(dict(public, source="aimarket", api_key="a-key"))
+    list(market.response_with_functions("fixture", [{"role": "user", "content": "test"}], tools))
+    assert requests[-1]["tools"] == tools
+    assert requests[-1]["extra_body"] == {"reasoning_effort": "none"}
+    market.response_no_stream("system", "test")
+    assert requests[-1]["response_format"] == {"type": "json_object"}
+    assert requests[-1]["extra_body"] == {"reasoning_effort": "none"}
+
+
+def test_vision_provider_only_disables_reasoning_for_market(monkeypatch):
+    create = Mock(return_value=SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content="fixture"))]
+    ))
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    monkeypatch.setattr("core.providers.vllm.openai.openai.OpenAI", Mock(return_value=client))
+    config = {"model_name": "fixture", "api_key": "fixture-key", "reasoning_effort": "none"}
+
+    assert VLLMProvider(dict(config, source="aimarket")).response("test", "image") == "fixture"
+    assert create.call_args.kwargs["extra_body"] == {"reasoning_effort": "none"}
+    assert VLLMProvider(dict(config, source="system")).response("test", "image") == "fixture"
+    assert "extra_body" not in create.call_args.kwargs
 
 
 @pytest.mark.asyncio
