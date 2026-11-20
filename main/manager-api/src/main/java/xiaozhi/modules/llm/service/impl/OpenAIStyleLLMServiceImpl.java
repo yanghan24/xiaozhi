@@ -21,6 +21,7 @@ import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 import xiaozhi.modules.llm.service.LLMService;
 import xiaozhi.modules.model.entity.ModelConfigEntity;
+import xiaozhi.modules.model.market.MarketModelBindings;
 import xiaozhi.modules.model.service.ModelConfigService;
 
 /**
@@ -50,9 +51,13 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     /**
-     * 根据域名自动禁用思考模式
+     * 使用集市运行配置或按模型服务域名禁用思考模式
      */
-    private void applyThinkingDisabled(String baseUrl, Map<String, Object> requestBody) {
+    private void applyThinkingDisabled(JSONObject config, String baseUrl, Map<String, Object> requestBody) {
+        if (MarketModelBindings.isMarket(config) && config.containsKey("reasoning_effort")) {
+            requestBody.put("reasoning_effort", config.getStr("reasoning_effort"));
+            return;
+        }
         for (Map.Entry<String, Map<String, Object>> entry : THINKING_DISABLED_DOMAINS.entrySet()) {
             if (baseUrl.contains(entry.getKey())) {
                 requestBody.putAll(entry.getValue());
@@ -129,7 +134,7 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
             requestBody.put("max_tokens", maxTokens != null ? maxTokens : 2000);
 
             // 禁用思考模式
-            applyThinkingDisabled(baseUrl, requestBody);
+            applyThinkingDisabled(configJson, baseUrl, requestBody);
 
             // 发送HTTP请求
             HttpHeaders headers = new HttpHeaders();
@@ -228,7 +233,7 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
             requestBody.put("max_tokens", 2000);
 
             // 禁用思考模式
-            applyThinkingDisabled(baseUrl, requestBody);
+            applyThinkingDisabled(configJson, baseUrl, requestBody);
 
             // 发送HTTP请求
             HttpHeaders headers = new HttpHeaders();
@@ -387,7 +392,7 @@ public class OpenAIStyleLLMServiceImpl implements LLMService {
             requestBody.put("max_tokens", 50);
 
             // 禁用思考模式
-            applyThinkingDisabled(baseUrl, requestBody);
+            applyThinkingDisabled(configJson, baseUrl, requestBody);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

@@ -16,6 +16,7 @@ public class MarketModelRuntime {
     private final xiaozhi.modules.model.service.ModelConfigService models;
     private final ObjectMapper json=new ObjectMapper();
     private static final List<String> KINDS=List.of("ASR","LLM","VLLM","Intent","Memory","SLM");
+    private static final String REASONING_EFFORT="none";
     public MarketModelRuntime(MarketModelCatalog catalog,MarketResourceCredentials credentials,JdbcTemplate db,xiaozhi.modules.model.service.ModelConfigService models) {
         this.catalog=catalog;this.credentials=credentials;this.db=db;this.models=models;
     }
@@ -63,12 +64,17 @@ public class MarketModelRuntime {
                 auxiliary.put("base_url",root+"/v1");auxiliary.put("api_key",credential.key());
                 if(selected.kind().equals("Intent")) auxiliary.put("response_format",Map.of("type","json_object"));
                 auxiliary.put("thinking","default");
+                auxiliary.put("reasoning_effort",REASONING_EFFORT);
                 auxiliary.put("max_tokens",selected.kind().equals("Memory")?2000:512);
                 ((Map<String,Object>)config.computeIfAbsent("LLM",k->new LinkedHashMap<>())).put(model.get("llm").toString(),auxiliary);
                 model.remove("api_key");model.remove("base_url");
                 if(selected.kind().equals("Intent")) model.putIfAbsent("functions",List.of());
-            } else model.put("thinking","default");
-            if(selected.kind().equals("ASR")) model.put("output_dir","tmp/");
+            } else if(selected.kind().equals("ASR")) {
+                model.put("output_dir","tmp/");
+            } else {
+                model.put("thinking","default");
+                model.put("reasoning_effort",REASONING_EFFORT);
+            }
         }
         return config;
     }
@@ -90,6 +96,7 @@ public class MarketModelRuntime {
         MarketModelCompatibility.require(kind,config.getStr("model_name",""),catalog.list(),false);
         var credential=credentials.forCustomer(rows.getFirst().get("customer_id").toString());
         config.set("base_url",credential.baseUrl().replaceAll("/$","")+"/v1");config.set("api_key",credential.key());
+        config.set("reasoning_effort",REASONING_EFFORT);
         return config;
     }
 }

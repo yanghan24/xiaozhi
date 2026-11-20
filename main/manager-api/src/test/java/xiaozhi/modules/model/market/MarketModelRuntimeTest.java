@@ -24,8 +24,11 @@ class MarketModelRuntimeTest {
              "capabilities":["chat","streaming","tools","vision","structured-output"],
              "verifiedCapabilities":["chat","streaming","tools","vision","structured-output"],
              "verifiedMethods":{"vision":["chat-image-data-uri"],"structured-output":["json_object"]}}
+            """),json.readTree("""
+            {"publicId":"spark_zh_iat_new","protocol":"xfyun_asr_v2",
+             "capabilities":["transcription"],"verifiedCapabilities":["transcription"]}
             """)));
-        for(String kind:List.of("LLM","VLLM","Intent","Memory")) {
+        for(String kind:List.of("ASR","LLM","VLLM","Intent","Memory")) {
             var model=new ModelConfigEntity();model.setIsEnabled(1);
             when(models.getModelByIdFromCache(MarketModelBindings.id(kind))).thenReturn(model);
         }
@@ -35,6 +38,8 @@ class MarketModelRuntimeTest {
     Map<String,Object> configuration() {
         return new HashMap<>(Map.of("selected_module",Map.of("LLM","MARKET_LLM","Intent","MARKET_Intent"),
                 "LLM",Map.of("MARKET_LLM",Map.of("source","aimarket","type","openai","model_name","compatible-chat")),
+                "VLLM",Map.of("MARKET_VLLM",Map.of("source","aimarket","type","openai","model_name","compatible-chat")),
+                "ASR",Map.of("MARKET_ASR",Map.of("source","aimarket","type","aimarket_xfyun_asr_v2","model_name","spark_zh_iat_new")),
                 "Intent",Map.of("MARKET_Intent",Map.of("source","aimarket","type","intent_llm","model_name","compatible-chat","llm","market_intent_llm")),
                 "Memory",Map.of("MARKET_Memory",Map.of("source","aimarket","type","mem_local_short","model_name","compatible-chat","llm","market_memory_llm"))));
     }
@@ -46,6 +51,13 @@ class MarketModelRuntimeTest {
         assertFalse(original.toString().contains("api_key"));assertFalse(original.toString().contains("/v1"));
         assertTrue(a.toString().contains("market_intent_llm"));assertTrue(a.toString().contains("json_object"));
         assertTrue(a.toString().contains("https://aimarket.hncig.cn/v1"));
+        var runtimeConfig=new ObjectMapper().valueToTree(a);
+        for(String id:List.of("MARKET_LLM","market_intent_llm","market_memory_llm")) {
+            assertEquals("none",runtimeConfig.path("LLM").path(id).path("reasoning_effort").asText());
+        }
+        assertEquals("none",runtimeConfig.at("/VLLM/MARKET_VLLM/reasoning_effort").asText());
+        assertTrue(runtimeConfig.at("/ASR/MARKET_ASR/reasoning_effort").isMissingNode());
+        assertFalse(original.toString().contains("reasoning_effort"));
     }
     @Test void systemOnlyConfigurationDoesNotNeedCatalogOrResourceKey() {
         var system=Map.<String,Object>of("LLM",Map.of("original",Map.of("type","openai","api_key","system-key")));
@@ -67,6 +79,8 @@ class MarketModelRuntimeTest {
         when(db.queryForList(anyString(),eq("owned"))).thenReturn(List.of(Map.of("customer_id","b")));
         var resolved=runtime.forConversation(publicConfig,"LLM","owned");
         assertEquals("user-b-key",resolved.getStr("api_key"));assertFalse(publicConfig.containsKey("api_key"));
+        assertEquals("none",resolved.getStr("reasoning_effort"));
+        assertFalse(publicConfig.containsKey("reasoning_effort"));
         assertThrows(SpeakerFailure.class,()->runtime.forConversation(publicConfig,"LLM","not-owned"));
     }
 }
