@@ -5,6 +5,7 @@
 #include "display.h"
 #include "lvgl_font.h"
 
+#include <memory>
 #include <lvgl.h>
 #include <qrcode_wrapper.h>
 
@@ -14,6 +15,7 @@ using Page = SpeakerAccount::Page;
 
 lv_obj_t* launcher = nullptr;
 lv_obj_t* panel = nullptr;
+std::shared_ptr<LvglFont> account_font;
 lv_draw_buf_t* qr_buffer = nullptr;
 bool details_open = false;
 bool confirm_unbind = false;
@@ -140,6 +142,21 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
         return;
     }
     DisplayLockGuard lock(display);
+    auto* layer = lv_layer_top();
+    if (!launcher) {
+        launcher = Button(layer, "账号", ToggleDetails);
+        lv_obj_align(launcher, LV_ALIGN_TOP_RIGHT, -10, 45);
+    }
+    if (auto* theme = display->GetTheme()) {
+        const auto font = theme->GetTextFont();
+        if (font && font != account_font) {
+            lv_obj_set_style_text_font(launcher, font->font(), 0);
+            if (panel) {
+                lv_obj_set_style_text_font(panel, font->font(), 0);
+            }
+            account_font = font;
+        }
+    }
     if (has_rendered && rendered == view) {
         return;
     }
@@ -147,11 +164,6 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
     rendered = view;
     if (!view.can_unbind || view.unbind_pending) {
         confirm_unbind = false;
-    }
-    auto* layer = lv_layer_top();
-    if (!launcher) {
-        launcher = Button(layer, "账号", ToggleDetails);
-        lv_obj_align(launcher, LV_ALIGN_TOP_RIGHT, -10, 45);
     }
     if (panel) {
         lv_obj_delete(panel);
@@ -177,11 +189,8 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
     lv_obj_set_style_border_width(panel, 1, 0);
     lv_obj_set_style_pad_all(panel, 22, 0);
     lv_obj_set_style_pad_row(panel, 12, 0);
-    if (auto* theme = display->GetTheme()) {
-        if (const auto font = theme->GetTextFont()) {
-            lv_obj_set_style_text_font(panel, font->font(), 0);
-            lv_obj_set_style_text_font(launcher, font->font(), 0);
-        }
+    if (account_font) {
+        lv_obj_set_style_text_font(panel, account_font->font(), 0);
     }
     lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
