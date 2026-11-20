@@ -12,9 +12,34 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 class SpeakerWeatherTest {
+    @Test
+    void standbyWeatherAuthorizationDoesNotNeedVoiceConfiguration() {
+        var db = mock(JdbcTemplate.class);
+        var manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        var devices = spy(new SpeakerDevices(db, null, manager));
+        var identity = new SpeakerDevices.Identity("speaker", "fixture");
+        var device = Map.<String, Object>of("customer_id", "customer");
+        doReturn(device).when(devices).load(identity, true);
+        when(db.queryForMap("SELECT display_name FROM speaker_customer WHERE id=?", "customer"))
+                .thenReturn(Map.of("display_name", "fixture"));
+        var voice = mock(SpeakerVoice.class);
+        when(voice.ticket(device)).thenThrow(new SpeakerFailure(503, "DEFAULT_AGENT_REQUIRED"));
+        var operations = spy(new SpeakerOperations(db, devices, null, voice));
+        doReturn("authorized").when(operations).useStatus(device);
+
+        var state = operations.state(identity);
+        assertEquals(true, state.get("standby_weather_allowed"));
+        assertEquals("default_agent_required", state.get("use_status"));
+        assertNull(state.get("voice"));
+    }
+
     @Test
     void checksDeviceEntitlementBeforeTrustingTheIngressAddress() {
         SpeakerDevices devices = mock(SpeakerDevices.class);

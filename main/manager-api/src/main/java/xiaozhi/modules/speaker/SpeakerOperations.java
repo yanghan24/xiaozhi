@@ -24,6 +24,7 @@ public class SpeakerOperations {
             result.put("binding_version",device.get("binding_version"));result.put("permission_version",device.get("permission_version"));
             result.put("binding_state",device.get("customer_id")==null?"unbound":"bound");
             String status=useStatus(device);result.put("voice",null);
+            result.put("standby_weather_allowed","authorized".equals(status));
             if("authorized".equals(status)) {
                 try { result.put("voice",voice.ticket(device)); status="ready"; }
                 catch(SpeakerFailure failure) {
