@@ -6,11 +6,20 @@ from config.manage_api_client import device_session
 from core.auth import AuthenticationError
 
 
+def diagnostic_deadline(value):
+    # The management API serializes Java Long values as strings.
+    if type(value) is int:
+        return max(0, value)
+    if isinstance(value, str) and 0 < len(value) <= 16 and value.isascii() and value.isdecimal():
+        return int(value)
+    return 0
+
+
 class DeviceSession:
     def __init__(self, session, memory_scope=None, diagnostics_until_ms=0):
         self.session = session
         self.memory_scope = memory_scope
-        self.diagnostics_until_ms = diagnostics_until_ms
+        self.diagnostics_until_ms = diagnostic_deadline(diagnostics_until_ms)
         self.lock = asyncio.Lock()
 
     @classmethod
@@ -31,7 +40,7 @@ class DeviceSession:
         status = await device_session('check', {'session': self.session})
         if status.get('allowed') is not True:
             raise AuthenticationError('Device login required')
-        self.diagnostics_until_ms = status.get('diagnostics_until_ms', 0)
+        self.diagnostics_until_ms = diagnostic_deadline(status.get('diagnostics_until_ms'))
         return status
 
     async def configuration_loaded(self, conn):

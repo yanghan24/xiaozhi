@@ -2,7 +2,14 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from core.device_session import diagnostic_deadline
 from core.voice_timing import VoiceTiming
+
+
+def test_java_deadline_and_malformed_values():
+    assert diagnostic_deadline('1760000000000') == 1760000000000
+    assert diagnostic_deadline(1760000000000) == 1760000000000
+    assert all(diagnostic_deadline(value) == 0 for value in (None, True, '-1', 'NaN', 1.2))
 
 
 def test_lease_and_sentence_isolation(monkeypatch):
