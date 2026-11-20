@@ -616,9 +616,12 @@ class CustomerVoicePermissionHttpTest {
         String id = UUID.randomUUID().toString().replace("-", "");
         long due = customerClock.millis() + 60000;
         Map<String,Object> create = Map.of("action", "create", "id", id, "title", "测试会议", "due_at_ms", due);
+        var wire = new com.fasterxml.jackson.databind.ObjectMapper();
         java.util.function.BiFunction<String,Map<String,Object>,Map> command = (who, what) -> {
-            var response = voice("reminder", Map.of("session", who, "command", what));
-            assertEquals(200, response.getStatusCode().value());
+            // The administrator's MVC mapper stringifies Long values. Match
+            // the Python service's actual JSON numeric wire format.
+            var response = voice("reminder", Map.of("session", who, "command", wire.valueToTree(what)));
+            assertEquals(200, response.getStatusCode().value(), String.valueOf(response.getBody()));
             return response.getBody();
         };
         assertEquals("saved", command.apply(session, create).get("status"));
@@ -657,7 +660,7 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("unavailable", command.apply(second, Map.of("action","claim","id",cancelled)).get("status"));
         long permission = ((Number)client.state(device).get("permission_version")).longValue();
         var signOut = http.postForEntity("/device-control/v1/sign-out", new HttpEntity<>(
-                Map.of("expected_permission_version",permission),BindingTestClient.deviceHeaders(device)),Map.class);
+                wire.valueToTree(Map.of("expected_permission_version",permission)),BindingTestClient.deviceHeaders(device)),Map.class);
         assertEquals(200, signOut.getStatusCode().value());
         assertEquals(403, voice("reminder", Map.of("session",session,"command",Map.of("action","list")))
                 .getStatusCode().value());
