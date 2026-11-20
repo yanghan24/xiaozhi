@@ -72,6 +72,14 @@ class ReminderConversationTest(unittest.TestCase):
             self.say("确认")
         self.request.assert_not_called()
 
+    def test_unknown_commit_is_not_presented_as_success_or_retried(self):
+        self.assertIsNone(self.say("日程这个词是什么意思"))
+        self.request.return_value = None
+        self.say("十分钟后提醒我喝水")
+        self.assertIn("无法确认", self.say("确认"))
+        self.assertIsNone(self.say("确认"))
+        self.request.assert_called_once()
+
 
 class ReminderPlaybackTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):

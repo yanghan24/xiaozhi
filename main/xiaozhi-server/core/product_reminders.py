@@ -96,10 +96,14 @@ class ReminderConversation:
             if text in ("确认", "是的", "确定", expected[command["action"]]):
                 guard()
                 result = request(command)
+                if result is None:
+                    return "暂时无法确认执行结果，请重新查询日程。"
                 return {"saved": "日程已保存。", "cancelled": "这项日程已取消。"}.get(
                             result.get("status"), "这项日程状态已变化，请重新查询。")
             if text in ("不", "不确认", "取消", "不用了", "算了"):
                 return "已放弃这次操作。"
+            if text.startswith("确认"):
+                return "这次确认与复述的操作不同，已放弃操作。"
         if not re.search(r"日程|提醒我|提醒事项", text):
             return None
         text = re.sub(r"^(?:请|麻烦)?(?:帮我)?", "", text).strip()
@@ -113,6 +117,8 @@ class ReminderConversation:
                 return "页码从第一页开始。"
             offset = (page - 1) * 5
             result = request({"action": "list", "offset": offset})
+            if result is None:
+                return "暂时无法读取日程，请稍后再试。"
             lines = [f"第{i}项，{spoken(item)}" for i, item in enumerate(result["items"], offset + 1)]
             if result.get("more"):
                 lines.append(f"还可以说查询日程第{page + 1}页。")
@@ -123,7 +129,10 @@ class ReminderConversation:
                 index = number(edit[2])
             except ValueError:
                 return "请说出日程的序号。"
-            items = request({"action": "list", "offset": max(0, index - 1)})["items"]
+            result = request({"action": "list", "offset": max(0, index - 1)})
+            if result is None:
+                return "暂时无法读取日程，请稍后再试。"
+            items = result["items"]
             if not items or index < 1:
                 return "没有这个序号的日程，请先说查询日程。"
             item = items[0]
@@ -143,6 +152,8 @@ class ReminderConversation:
                                due_at_ms=int(moment.timestamp() * 1000))
                 prompt = f"把{spoken(item)}修改为{spoken(command)}"
         else:
+            if "提醒我" not in text and not re.match(r"(?:添加|新建|创建|设置|查询|查看|取消|删除|修改|更改)", text):
+                return None
             text = re.sub(r"^(?:添加|新建|创建|设置)(?:一个|一条|一项)?日程[，,：: ]*", "", text)
             parts = re.fullmatch(r"(.+?)[，, ]*提醒我[，, ]*(.+)", text)
             if parts:

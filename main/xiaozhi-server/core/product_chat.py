@@ -129,7 +129,14 @@ class ProductConversation:
                 self.guard(turn_id)
                 gate.check()
                 self.guard(turn_id)
-                return gate.authority.request('reminder', {'session': gate.session, 'command': command})
+                try:
+                    return gate.authority.request('reminder', {'session': gate.session, 'command': command})
+                except VoiceDenied:
+                    # A transport failure can follow a committed write. Only a
+                    # still-authorized turn may explain the unknown result.
+                    gate.check()
+                    self.guard(turn_id)
+                    return None
             reminder = self.reminders.reply(query, reminder_request, lambda: self.guard(turn_id))
             if reminder is not None:
                 self._speech(turn_id, SentenceType.FIRST)
