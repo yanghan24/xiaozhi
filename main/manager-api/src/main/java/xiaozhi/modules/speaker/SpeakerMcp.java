@@ -78,7 +78,6 @@ public class SpeakerMcp {
         var result=new LinkedHashMap<String,Object>();
         for(var row:db.queryForList("SELECT s.* FROM speaker_mcp s JOIN speaker_agent_mcp a ON a.service_id=s.id WHERE a.agent_id=? AND s.enabled=TRUE ORDER BY s.id",agent)) {
             var config=new LinkedHashMap<String,Object>();config.put("url",row.get("url"));config.put("transport",row.get("transport"));
-            config.put("tool_prefix","mcp_"+row.get("id").toString().replace("-","").substring(0,12)+"_");
             if(row.get("headers_cipher")!=null) {
                 try {config.put("headers",json.readValue(crypto.decryptConfiguration(row.get("headers_cipher").toString()),new TypeReference<Map<String,String>>(){}));}
                 catch(Exception unavailable) {throw new SpeakerFailure(503,"MCP_CREDENTIALS_UNAVAILABLE");}
