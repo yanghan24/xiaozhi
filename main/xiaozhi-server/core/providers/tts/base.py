@@ -4,6 +4,7 @@ import math
 import uuid
 import queue
 import asyncio
+from core.voice_timing import VoiceTiming
 import threading
 import traceback
 
@@ -124,6 +125,9 @@ class TTSProviderBase(ABC):
         self.before_stop_play_files.append((file_audio, text))
 
     def to_tts_stream(self, text, opus_handler: Callable[[bytes], None] = None) -> None:
+        timing = VoiceTiming.for_sentence(getattr(self, 'conn', None), getattr(self, 'current_sentence_id', None))
+        if timing:
+            timing.mark('tts_request')
         # 保留原始文本用于显示/上报
         original_text = text
         text = MarkdownCleaner.clean_markdown(text)
@@ -134,9 +138,13 @@ class TTSProviderBase(ABC):
         if self.delete_audio_file:
             # 需要删除文件的直接转为音频数据
             while max_repeat_time > 0:
+                if timing and max_repeat_time < 5:
+                    timing.tts_retries += 1
                 try:
                     audio_bytes = asyncio.run(self.text_to_speak(text, None))
                     if audio_bytes:
+                        if timing:
+                            timing.mark('tts_segment_ready')
                         # 使用原始文本用于显示/上报
                         self.tts_audio_queue.put((SentenceType.FIRST, None, original_text, getattr(self, 'current_sentence_id', None)))
                         audio_bytes_to_data_stream(
@@ -168,6 +176,8 @@ class TTSProviderBase(ABC):
             tmp_file = self.generate_filename()
             try:
                 while not os.path.exists(tmp_file) and max_repeat_time > 0:
+                    if timing and max_repeat_time < 5:
+                        timing.tts_retries += 1
                     try:
                         asyncio.run(self.text_to_speak(text, tmp_file))
                     except Exception as e:
@@ -180,6 +190,8 @@ class TTSProviderBase(ABC):
                         max_repeat_time -= 1
 
                 if max_repeat_time > 0:
+                    if timing:
+                        timing.mark('tts_segment_ready')
                     logger.bind(tag=TAG).info(
                         f"语音生成成功: {original_text}:{tmp_file}，重试{5 - max_repeat_time}次"
                     )

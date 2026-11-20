@@ -87,6 +87,9 @@ class ASRProviderBase(ABC):
         """并行处理ASR和声纹识别"""
         try:
             total_start_time = time.monotonic()
+            timing = getattr(conn, 'voice_input_timing', None)
+            if timing:
+                timing.mark('asr_request')
 
             # 数据已经是PCM直接使用
             pcm_data = asr_audio_task
@@ -113,6 +116,9 @@ class ASRProviderBase(ABC):
             else:
                 asr_result = await asr_task
                 voiceprint_result = None
+
+            if timing:
+                timing.mark('asr_result')
 
             # 记录识别结果 - 检查是否为异常
             if isinstance(asr_result, Exception):
@@ -175,6 +181,10 @@ class ASRProviderBase(ABC):
                     await asyncio.shield(startToChat(conn, enhanced_text))
                 else:
                     await startToChat(conn, enhanced_text)
+            elif timing:
+                timing.finish('no_transcript')
+                if getattr(conn, 'voice_input_timing', None) is timing:
+                    conn.voice_input_timing = None
         except Exception as e:
             logger.bind(tag=TAG).error(f"处理语音停止失败: {e}")
             import traceback

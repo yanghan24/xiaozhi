@@ -10,6 +10,7 @@ from core.utils import textUtils
 from core.utils.util import audio_to_data
 from core.providers.tts.dto.dto import SentenceType
 from core.utils.audioRateController import AudioRateController
+from core.voice_timing import VoiceTiming
 
 TAG = __name__
 AUDIO_FRAME_DURATION = 60  # 音频帧时长（毫秒），与 Opus 编码 60ms/帧对齐
@@ -49,6 +50,10 @@ async def sendAudioMessage(conn: "ConnectionHandler", sentenceType, audios, text
     # 通话需要维持speaking状态
     if not conn.calling and sentenceType == SentenceType.LAST:
         await send_tts_message(conn, "stop", None)
+        trace = VoiceTiming.for_sentence(conn, sentence_id)
+        if trace:
+            trace.mark('audio_send_end')
+            trace.finish('completed' if 'first_audio_sent' in trace.phases else 'no_audio')
         if conn.close_after_chat:
             await conn.close()
 
@@ -274,6 +279,11 @@ async def _do_send_audio(conn: "ConnectionHandler", opus_packet, flow_control):
         # 直接发送opus数据包
         await conn.websocket.send(opus_packet)
 
+    if packet_index == 0:
+        trace = VoiceTiming.for_sentence(conn, flow_control.get('sentence_id'))
+        if trace:
+            trace.mark('first_audio_sent')
+
     # 更新流控状态
     flow_control["packet_count"] = packet_index + 1
     flow_control["sequence"] = sequence + 1
@@ -315,7 +325,7 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None):
     await conn.websocket.send(json.dumps(message))
 
 
-async def send_stt_message(conn: "ConnectionHandler", text):
+async def send_stt_message(conn: "ConnectionHandler", text, *, timing=None):
     """发送 STT 状态消息"""
     end_prompt_str = conn.config.get("end_prompt", {}).get("prompt")
     if end_prompt_str and end_prompt_str == text:
@@ -338,9 +348,11 @@ async def send_stt_message(conn: "ConnectionHandler", text):
         # 如果不是JSON格式，直接使用原始文本
         display_text = text
     stt_text = textUtils.get_string_no_punctuation_or_emoji(display_text)
-    await conn.websocket.send(
-        json.dumps({"type": "stt", "text": stt_text, "session_id": conn.session_id})
-    )
+    message = {"type": "stt", "text": stt_text, "session_id": conn.session_id}
+    if timing:
+        timing.mark('stt_sent')
+        message['diagnostic_trace_id'] = timing.trace_id
+    await conn.websocket.send(json.dumps(message))
     await send_tts_message(conn, "start")
     # 发送start消息后客户端状态会处于说话中状态，同步服务端状态
     conn.client_is_speaking = True

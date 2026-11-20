@@ -7,9 +7,10 @@ from core.auth import AuthenticationError
 
 
 class DeviceSession:
-    def __init__(self, session, memory_scope=None):
+    def __init__(self, session, memory_scope=None, diagnostics_until_ms=0):
         self.session = session
         self.memory_scope = memory_scope
+        self.diagnostics_until_ms = diagnostics_until_ms
         self.lock = asyncio.Lock()
 
     @classmethod
@@ -22,7 +23,7 @@ class DeviceSession:
             status = await device_session('open', {'device_id': device, 'token': token[7:]})
             if status.get('allowed') is not True or status.get('device_id') != device:
                 raise ValueError()
-            return cls(status['session'], status['memory_scope'])
+            return cls(status['session'], status['memory_scope'], status.get('diagnostics_until_ms', 0))
         except Exception:
             raise AuthenticationError('Device login required') from None
 
@@ -30,6 +31,7 @@ class DeviceSession:
         status = await device_session('check', {'session': self.session})
         if status.get('allowed') is not True:
             raise AuthenticationError('Device login required')
+        self.diagnostics_until_ms = status.get('diagnostics_until_ms', 0)
         return status
 
     async def configuration_loaded(self, conn):

@@ -153,6 +153,9 @@ class ASRProvider(ASRProviderBase):
         raise ValueError("ASR_INCOMPLETE_RESULT")
 
     async def _recognize(self, conn):
+        timing = getattr(conn, 'voice_input_timing', None)
+        if timing:
+            timing.mark('asr_request')
         children = []
         success = False
         snapshot = []
@@ -160,6 +163,8 @@ class ASRProvider(ASRProviderBase):
             async with websockets.connect(self.ws_url,
                     additional_headers={"Authorization": "Bearer " + self.api_key},
                     open_timeout=8, close_timeout=2, max_size=1024 * 1024) as ws:
+                if timing:
+                    timing.mark('asr_connected')
                 self._ws = ws
                 sender = asyncio.create_task(self._send(ws))
                 receiver = asyncio.create_task(self._receive(ws))
@@ -172,6 +177,8 @@ class ASRProvider(ASRProviderBase):
                     self.text = await asyncio.wait_for(receiver, self.final_timeout)
                 else:
                     self.text = await receiver
+                if timing:
+                    timing.mark('asr_result')
                 success = bool(self.text)
                 snapshot = self._recorded.copy()
         except asyncio.CancelledError:
@@ -181,6 +188,10 @@ class ASRProvider(ASRProviderBase):
             self.last_error = "ASR_UNAVAILABLE"
             self._closed = True
             logger.warning("AI Market ASR did not complete")
+            if timing:
+                timing.finish('asr_error')
+                if getattr(conn, 'voice_input_timing', None) is timing:
+                    conn.voice_input_timing = None
         finally:
             for task in children:
                 if not task.done():
@@ -196,6 +207,10 @@ class ASRProvider(ASRProviderBase):
         if success and not self._closed and getattr(conn, "asr", None) is self:
             # Original reporting, voiceprint and startToChat remain responsible.
             await super().handle_voice_stop(conn, snapshot)
+        elif timing and not self.last_error:
+            timing.finish('no_transcript')
+            if getattr(conn, 'voice_input_timing', None) is timing:
+                conn.voice_input_timing = None
         if self._task is asyncio.current_task():
             self._task = None
 

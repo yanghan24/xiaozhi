@@ -40,6 +40,7 @@ from core.auth import AuthenticationError
 from config.config_loader import get_private_config_from_api
 from core.providers.tts.dto.dto import ContentType, TTSMessageDTO, SentenceType
 from config.logger import setup_logging, build_module_string, create_connection_logger
+from core.voice_timing import VoiceTiming
 from config.manage_api_client import DeviceNotFoundException, DeviceBindException, generate_and_save_chat_title
 from core.utils.prompt_manager import PromptManager
 from core.utils.voiceprint_provider import VoiceprintProvider
@@ -1126,7 +1127,7 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def chat(self, query, depth=0):
+    def chat(self, query, depth=0, *, timing=None):
         # 保存当前任务的sentence_id到局部变量，避免被新任务覆盖
         current_sentence_id = None
 
@@ -1137,6 +1138,9 @@ class ConnectionHandler:
         if depth == 0:
             current_sentence_id = str(uuid.uuid4().hex)
             self.sentence_id = current_sentence_id  # 更新共享属性
+            if timing:
+                timing.sentence_id = current_sentence_id
+                self.voice_output_timing = timing
             self.dialogue.put(Message(role="user", content=query))
             self.tts.tts_text_queue.put(
                 TTSMessageDTO(
@@ -1148,6 +1152,7 @@ class ConnectionHandler:
         else:
             # 递归调用时，使用当前的sentence_id
             current_sentence_id = self.sentence_id
+            timing = VoiceTiming.for_sentence(self, current_sentence_id)
 
         # 设置最大递归深度，避免无限循环，可根据实际需求调整
         MAX_DEPTH = 5
@@ -1187,10 +1192,14 @@ class ConnectionHandler:
             memory_str = None
             # 仅当query非空（代表用户询问）时查询记忆
             if self.memory is not None and query:
+                if timing:
+                    timing.mark('memory_start')
                 future = asyncio.run_coroutine_threadsafe(
                     self.memory.query_memory(query), self.loop
                 )
                 memory_str = future.result()
+                if timing:
+                    timing.mark('memory_end')
 
             # 仅在该说话人首次出现时把身份注入 system，之后靠对话历史首轮保留，
             # 避免每轮在 system 重复出现名字诱导模型反复称呼
@@ -1200,6 +1209,8 @@ class ConnectionHandler:
                 self.system_introduced_speakers.add(cs)
                 speaker_for_system = cs
 
+            if timing:
+                timing.mark('llm_request')
             if self.intent_type == "function_call" and functions is not None:
                 # 使用支持functions的streaming接口
                 llm_responses = self.llm.response_with_functions(
@@ -1217,6 +1228,8 @@ class ConnectionHandler:
                     ),
                 )
         except Exception as e:
+            if timing:
+                timing.finish('llm_error')
             self.logger.bind(tag=TAG).error(f"LLM 处理出错 {query}: {e}")
             return None
 
@@ -1260,6 +1273,8 @@ class ConnectionHandler:
                                     # 清理 delta 中可能泄漏的 JSON 闭合垃圾
                                     new_part = self._clean_response_garbage(new_part)
                                     if new_part:
+                                        if timing:
+                                            timing.mark('llm_first_text')
                                         tc["_da_sent"] = safe_end
                                         self.tts.tts_text_queue.put(
                                             TTSMessageDTO(
@@ -1283,6 +1298,8 @@ class ConnectionHandler:
 
                 if content is not None and len(content) > 0:
                     if not tool_call_flag:
+                        if timing and content.strip():
+                            timing.mark('llm_first_text')
                         response_message.append(content)
                         self.tts.tts_text_queue.put(
                             TTSMessageDTO(
@@ -1293,6 +1310,8 @@ class ConnectionHandler:
                             )
                         )
         except Exception as e:
+            if timing:
+                timing.finish('llm_error')
             self.logger.bind(tag=TAG).error(f"LLM stream processing error: {e}")
             self.tts.tts_text_queue.put(
                 TTSMessageDTO(
@@ -1400,6 +1419,8 @@ class ConnectionHandler:
 
                 # 收集所有工具调用的 Future
                 futures_with_data = []
+                if timing:
+                    timing.mark('tools_start')
                 for tool_call_data in tool_calls_list:
                     self.logger.bind(tag=TAG).debug(
                         f"function_name={tool_call_data['name']}, function_id={tool_call_data['id']}, function_arguments={tool_call_data['arguments']}"
@@ -1441,6 +1462,8 @@ class ConnectionHandler:
                         # 上报工具调用错误
                         enqueue_tool_report(self, tool_call_data['name'], tool_input, str(e), report_tool_call=False)
 
+                if timing:
+                    timing.mark('tools_end')
                 # 统一处理工具调用结果
                 if tool_results:
                     self._handle_function_result(tool_results, depth=depth, streamed_text=streamed_text)
@@ -1616,6 +1639,9 @@ class ConnectionHandler:
 
     async def close(self, ws=None):
         """资源清理方法"""
+        for trace in (getattr(self, 'voice_input_timing', None), getattr(self, 'voice_output_timing', None)):
+            if trace:
+                trace.finish('disconnected')
         try:
             # 清理 VAD 连接资源
             if (

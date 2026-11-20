@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from ..base import ToolType, ToolDefinition, ToolExecutor
 from plugins_func.register import Action, ActionResponse
 from .mcp_manager import ServerMCPManager
+from core.voice_timing import VoiceTiming
 
 
 class ServerMCPExecutor(ToolExecutor):
@@ -31,6 +32,9 @@ class ServerMCPExecutor(ToolExecutor):
                 response="MCP管理器未初始化",
             )
 
+        timing = VoiceTiming.for_sentence(conn, getattr(conn, 'sentence_id', None))
+        if timing:
+            timing.mark('mcp_start')
         try:
             # 移除mcp_前缀（如果有）
             actual_tool_name = tool_name
@@ -51,6 +55,9 @@ class ServerMCPExecutor(ToolExecutor):
                 action=Action.ERROR,
                 response=str(e),
             )
+        finally:
+            if timing:
+                timing.mark('mcp_end')
 
     def get_tools(self) -> Dict[str, ToolDefinition]:
         """获取所有服务端MCP工具"""
