@@ -53,10 +53,11 @@ public class DeviceCredentialFilter extends PathMatchingFilter {
         if (!path.startsWith("/device-control/v1/")) throw new ControlFailure(400, "UNSUPPORTED_VERSION");
         boolean state = path.equals("/device-control/v1/state") && request.getMethod().equals("GET");
         boolean account = path.equals("/device-control/v1/account") && request.getMethod().equals("GET");
+        boolean environment = path.equals("/device-control/v1/environment") && request.getMethod().equals("GET");
         boolean mutation = Set.of("/device-control/v1/requests", "/device-control/v1/state-acks",
                 "/device-control/v1/sign-out", "/device-control/v1/unbind", "/device-control/v1/maintenance").contains(path)
                 && request.getMethod().equals("POST");
-        if (!state && !account && !mutation) throw new ControlFailure(400, "INVALID_REQUEST");
+        if (!state && !account && !environment && !mutation) throw new ControlFailure(400, "INVALID_REQUEST");
         if (mutation) {
             try {
                 MediaType type = MediaType.parseMediaType(request.getContentType() == null ? "" : request.getContentType());
@@ -67,7 +68,8 @@ public class DeviceCredentialFilter extends PathMatchingFilter {
                 throw new ControlFailure(400, "INVALID_REQUEST");
             }
         }
-        var allowedQuery = state ? Set.of("after_revision", "wait_ms") : Set.<String>of();
+        var allowedQuery = state ? Set.of("after_revision", "wait_ms") :
+                environment ? Set.of("city", "province", "city_id") : Set.<String>of();
         request.getParameterMap().forEach((key, values) -> {
             if (!allowedQuery.contains(key) || values.length != 1) throw new ControlFailure(400, "INVALID_REQUEST");
         });

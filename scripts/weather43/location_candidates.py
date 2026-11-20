@@ -13,6 +13,11 @@ def normal(value):
     return value
 
 
+def province_name(value):
+    # DB-IP uses "Shanghai"; the matching GeoNames ADM1 is "Shanghai Shi".
+    return normal(value).removesuffix(" shi").removesuffix(" sheng")
+
+
 class CityCatalog:
     def __init__(self, path):
         self.cities = json.loads(Path(path).read_text(encoding="utf-8"))["cities"]
@@ -24,8 +29,9 @@ class CityCatalog:
     def resolve(self, query, province=None):
         candidates = list(self.by_alias.get(normal(query), {}).values())
         if province:
-            candidates = [c for c in candidates if normal(province) in {
-                normal(c.get("province") or ""), normal(c.get("province_chinese") or ""), c["province_code"]}]
+            candidates = [c for c in candidates if province_name(province) in {
+                province_name(c.get("province") or ""), province_name(c.get("province_chinese") or ""),
+                c["province_code"]}]
         return {"status": "found" if len(candidates) == 1 else ("ambiguous" if candidates else "unknown"),
                 "candidates": [{k: c.get(k) for k in ("id", "name", "chinese_name", "province", "province_chinese",
                                                       "latitude", "longitude")} for c in candidates]}

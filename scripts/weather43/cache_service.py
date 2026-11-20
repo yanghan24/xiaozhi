@@ -13,6 +13,7 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 import math
+import os
 from pathlib import Path
 import sqlite3
 import time
@@ -288,20 +289,23 @@ class Gateway:
                 "refreshing": key in self.pending, "source_has_newer_run": superseded,
                 "source_has_newer_version": superseded or revised}
 
-    async def environment(self, request):
-        self.metrics["requests"] += 1
-        city_id = request.query.get("city_id", "")
-        if city_id not in self.cities:
-            return web.json_response({"error": "unknown_city", "values": None}, status=404)
-        canonical = str(self.cities[city_id]["id"])
-        if request.query.get("peek") != "1":
+    def city_components(self, canonical, *, peek=False):
+        if not peek:
             self.accessed.add(canonical)
             for kind in KINDS:
                 key = (canonical, kind)
                 if key not in self.entries or time.time() >= self.entries[key]["next_check_at"]:
                     if time.time() >= self.errors.get(key, {}).get("retry_at", 0):
                         self.schedule(canonical, kind)
-        data = {kind: self.component((canonical, kind)) for kind in KINDS}
+        return {kind: self.component((canonical, kind)) for kind in KINDS}
+
+    async def environment(self, request):
+        self.metrics["requests"] += 1
+        city_id = request.query.get("city_id", "")
+        if city_id not in self.cities:
+            return web.json_response({"error": "unknown_city", "values": None}, status=404)
+        canonical = str(self.cities[city_id]["id"])
+        data = self.city_components(canonical, peek=request.query.get("peek") == "1")
         complete = all(c["values"] is not None for c in data.values())
         city = self.cities[canonical]
         public_city = {"id": canonical, "name": city.get("chinese_name") or city["name"],
@@ -345,6 +349,12 @@ class Gateway:
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--cities", required=True, type=Path)
+    p.add_argument("--device-environment", action="store_true", default=os.getenv("WEATHER_DEVICE_ENVIRONMENT") == "1",
+                   help="Enable the private manager API adapter")
+    p.add_argument("--device-city-catalog", type=Path, default=os.getenv("WEATHER_CITY_CATALOG") or None,
+                   help="Full GeoNames catalog for device name disambiguation")
+    p.add_argument("--ip-database", type=Path, default=os.getenv("WEATHER_IP_DATABASE") or None,
+                   help="Optional offline DB-IP City Lite MMDB for device location")
     p.add_argument("--data", required=True, type=Path)
     p.add_argument("--engine", default="http://openmeteo:8080")
     p.add_argument("--source", required=True, help="Trial bridge S3 relay origin")
@@ -361,12 +371,17 @@ def main():
     p.add_argument("--aq-max-age", type=int, default=64800)
     p.add_argument("--prewarm", type=int, default=1)
     args = p.parse_args()
+    if args.device_environment and not args.device_city_catalog:
+        p.error("The device adapter requires the full city catalog, even when the cache serves a pilot subset")
     if not len(KINDS) <= args.workers <= 32:
         p.error("Workers must reserve at least one per component and remain bounded")
     service = Gateway(args)
     app = web.Application(client_max_size=4096)
     app.router.add_get("/v1/environment", service.environment)
     app.router.add_get("/health", service.health)
+    if args.device_environment:
+        from device_environment import register_device_environment
+        register_device_environment(app, service, args.device_city_catalog, args.ip_database)
     app.on_startup.append(service.start)
     app.on_cleanup.append(service.stop)
     web.run_app(app, host="0.0.0.0", port=args.port, backlog=args.listen_backlog, access_log=None, print=None)
