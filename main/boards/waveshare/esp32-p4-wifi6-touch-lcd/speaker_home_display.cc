@@ -8,6 +8,7 @@
 #include "lvgl_font.h"
 #include "lvgl_image.h"
 #include "speaker_account/speaker_account.h"
+#include "speaker_home_widgets.h"
 
 #include <cstring>
 #include <ctime>
@@ -80,6 +81,14 @@ void SpeakerHomeDisplay::SetupUI() {
     lv_obj_set_width(account_, width() - 280);
     lv_label_set_long_mode(account_, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_align(account_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+
+#if LV_USE_CALENDAR
+    calendar_.Create(home_);
+    auto* calendar_button = SpeakerHomeWidgets::Button(home_, "日历", [](lv_event_t* event) {
+        static_cast<SpeakerHomeDisplay*>(lv_event_get_user_data(event))->calendar_.Show();
+    }, this);
+    lv_obj_align(calendar_button, LV_ALIGN_BOTTOM_MID, -75, -18);
+#endif
 
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
         static_cast<SpeakerHomeDisplay*>(lv_timer_get_user_data(timer))->RefreshHome();
@@ -158,6 +167,9 @@ void SpeakerHomeDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 void SpeakerHomeDisplay::RefreshHome() {
     const auto state = Application::GetInstance().GetDeviceState();
     if (!standby_ || state != kDeviceStateIdle || !message_.empty() || has_preview_) {
+#if LV_USE_CALENDAR
+        calendar_.Hide();
+#endif
         lv_obj_add_flag(home_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
@@ -176,6 +188,9 @@ void SpeakerHomeDisplay::RefreshHome() {
         ? (view.customer.empty() ? "账号已登录" : "账号  " + view.customer)
         : "";
     UpdateLabel(account_, account.c_str());
+#if LV_USE_CALENDAR
+    calendar_.Update();
+#endif
 }
 
 #endif

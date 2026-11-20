@@ -5,6 +5,8 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
+#include "speaker_calendar_view.h"
+
 class SpeakerHomeDisplay : public MipiLcdDisplay {
 public:
     using MipiLcdDisplay::MipiLcdDisplay;
@@ -29,6 +31,9 @@ private:
     bool has_preview_ = false;
     std::string message_role_;
     std::string message_;
+#if LV_USE_CALENDAR
+    SpeakerCalendarView calendar_;
+#endif
 };
 
 #endif
