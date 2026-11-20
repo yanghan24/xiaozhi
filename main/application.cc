@@ -906,7 +906,28 @@ void Application::StartListening() { xEventGroupSetBits(event_group_, MAIN_EVENT
 
 void Application::StopListening() { xEventGroupSetBits(event_group_, MAIN_EVENT_STOP_LISTENING); }
 
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+bool Application::BeginLocalRecording(AudioService::LocalCapture capture) {
+    if (GetDeviceState() != kDeviceStateIdle || audio_service_.IsLocalCaptureRunning()) return false;
+    audio_service_.CancelLocalPlayback();
+    audio_service_.EnableVoiceProcessing(false);
+    audio_service_.EnableWakeWordDetection(false);
+    xEventGroupClearBits(event_group_, MAIN_EVENT_WAKE_WORD_DETECTED);
+    audio_service_.StartLocalCapture(std::move(capture));
+    return true;
+}
+
+void Application::EndLocalRecording() {
+    if (!audio_service_.IsLocalCaptureRunning()) return;
+    audio_service_.StopLocalCapture();
+    if (GetDeviceState() == kDeviceStateIdle) audio_service_.EnableWakeWordDetection(true);
+}
+#endif
+
 void Application::HandleToggleChatEvent() {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (audio_service_.IsLocalCaptureRunning()) return;
+#endif
     auto state = GetDeviceState();
 
     if (state == kDeviceStateNotifying) {
@@ -977,6 +998,9 @@ void Application::ContinueOpenAudioChannel(ListeningMode mode) {
 }
 
 void Application::HandleStartListeningEvent() {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (audio_service_.IsLocalCaptureRunning()) return;
+#endif
     auto state = GetDeviceState();
 
     if (state == kDeviceStateNotifying) {
@@ -1036,6 +1060,9 @@ void Application::HandleStopListeningEvent() {
 }
 
 void Application::HandleWakeWordDetectedEvent() {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (audio_service_.IsLocalCaptureRunning()) return;
+#endif
     if (!protocol_) {
         return;
     }
@@ -1076,6 +1103,9 @@ void Application::HandleWakeWordDetectedEvent() {
 }
 
 void Application::BeginWakeWordInvoke(const std::string& wake_word) {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (audio_service_.IsLocalCaptureRunning()) return;
+#endif
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
     if (!SpeakerAccount::Get().Voice()) {
         audio_service_.EnableWakeWordDetection(true);
@@ -1168,7 +1198,11 @@ void Application::HandleStateChangedEvent() {
                     "neutral");  // Then set emotion (wechat mode checks child count)
             }
             audio_service_.EnableVoiceProcessing(false);
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            audio_service_.EnableWakeWordDetection(!audio_service_.IsLocalCaptureRunning());
+#else
             audio_service_.EnableWakeWordDetection(true);
+#endif
             break;
         case kDeviceStateConnecting:
             display->SetStatus(Lang::Strings::CONNECTING);
@@ -1526,6 +1560,9 @@ void Application::WakeWordInvoke(const std::string& wake_word) {
 }
 
 bool Application::CanEnterSleepMode() {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (audio_service_.IsLocalCaptureRunning()) return false;
+#endif
     if (GetDeviceState() != kDeviceStateIdle) {
         return false;
     }

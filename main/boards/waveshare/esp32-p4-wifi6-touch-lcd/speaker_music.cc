@@ -77,7 +77,8 @@ void SpeakerMusic::Refresh() {
 void SpeakerMusic::Select(int index) {
     std::lock_guard lock(mutex_);
     if (!snapshot_.tracks || index < 0 || static_cast<size_t>(index) >= snapshot_.tracks->size() ||
-        Application::GetInstance().GetDeviceState() != kDeviceStateIdle || scan_ || !task_) return;
+        Application::GetInstance().GetDeviceState() != kDeviceStateIdle ||
+        Audio().IsLocalCaptureRunning() || scan_ || !task_) return;
     generation_ = Audio().BeginLocalPlayback();
     pending_ = generation_;
     snapshot_.selected = index;

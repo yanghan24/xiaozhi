@@ -9,6 +9,7 @@
 #include "speaker_home_widgets.h"
 #include "speaker_pomodoro_view.h"
 #include "speaker_music_view.h"
+#include "speaker_recording_view.h"
 
 class SpeakerHomeDisplay : public MipiLcdDisplay {
 public:
@@ -48,6 +49,7 @@ private:
 #endif
     SpeakerPomodoroView pomodoro_;
     SpeakerMusicView music_;
+    SpeakerRecordingView recording_;
 };
 
 #endif

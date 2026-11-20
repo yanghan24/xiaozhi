@@ -108,6 +108,11 @@ void SpeakerHomeDisplay::SetupUI() {
     }, this);
     lv_obj_set_size(music_button, 84, 40);
     lv_obj_set_pos(music_button, 104, 4);
+    auto* recording_button = Button(home_, "录音", [](lv_event_t* event) {
+        static_cast<SpeakerHomeDisplay*>(lv_event_get_user_data(event))->recording_.Show();
+    }, this);
+    lv_obj_set_size(recording_button, 84, 40);
+    lv_obj_set_pos(recording_button, 200, 4);
 
     // Draw shared status controls above the independently managed pages.
 #if LV_USE_CALENDAR
@@ -115,6 +120,7 @@ void SpeakerHomeDisplay::SetupUI() {
 #endif
     pomodoro_.Create(home_);
     music_.Create(home_);
+    recording_.Create(home_);
     auto* account_button = Button(home_, "账号", [](lv_event_t*) {
         ToggleSpeakerAccountDetails();
     }, nullptr);
@@ -265,6 +271,7 @@ void SpeakerHomeDisplay::RefreshHome() {
 #endif
         pomodoro_.Hide();
         music_.Hide();
+        recording_.Hide();
         return;
     }
     UpdateLabel(home_network_, lv_label_get_text(network_label_));
@@ -310,6 +317,7 @@ void SpeakerHomeDisplay::RefreshHome() {
     UpdateLabel(weather_condition_, summary.c_str());
     UpdateLabel(weather_details_, detail.c_str());
     music_.Update();
+    recording_.Update();
 #if LV_USE_CALENDAR
     calendar_.Update();
 #endif

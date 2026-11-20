@@ -247,9 +247,15 @@ bool AudioService::ReadAudioData(std::vector<int16_t>& data, int sample_rate, in
 }
 
 void AudioService::AudioInputTask() {
-    constexpr EventBits_t kAudioInputActiveBits = AS_EVENT_AUDIO_TESTING_RUNNING |
-                                                  AS_EVENT_WAKE_WORD_RUNNING |
-                                                  AS_EVENT_AUDIO_PROCESSOR_RUNNING;
+    constexpr EventBits_t kAudioInputActiveBits = AS_EVENT_AUDIO_TESTING_RUNNING
+            | AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            | AS_EVENT_LOCAL_CAPTURE_RUNNING
+#endif
+            ;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    std::vector<int16_t> capture_pcm;
+#endif
 
     while (true) {
         EventBits_t bits = xEventGroupWaitBits(
@@ -284,6 +290,20 @@ void AudioService::AudioInputTask() {
             vTaskDelay(pdMS_TO_TICKS(120));
             continue;
         }
+
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        if (bits & AS_EVENT_LOCAL_CAPTURE_RUNNING) {
+            if (ReadAudioData(capture_pcm, 16000, 320)) {
+                std::lock_guard lock(local_capture_mutex_);
+                if (local_capture_) {
+                    local_capture_(capture_pcm.data(), capture_pcm.size(), codec_->input_channels());
+                }
+                continue;
+            }
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
+#endif
 
         /* Used for audio testing in NetworkConfiguring mode by clicking the BOOT button */
         if (bits & AS_EVENT_AUDIO_TESTING_RUNNING) {
@@ -855,6 +875,18 @@ bool AudioService::QueueLocalPcm(uint32_t generation, std::vector<int16_t> pcm) 
     playback_drained_notified_ = false;
     audio_queue_cv_.notify_all();
     return true;
+}
+
+void AudioService::StartLocalCapture(LocalCapture capture) {
+    std::lock_guard lock(local_capture_mutex_);
+    local_capture_ = std::move(capture);
+    xEventGroupSetBits(event_group_, AS_EVENT_LOCAL_CAPTURE_RUNNING);
+}
+
+void AudioService::StopLocalCapture() {
+    std::lock_guard lock(local_capture_mutex_);
+    xEventGroupClearBits(event_group_, AS_EVENT_LOCAL_CAPTURE_RUNNING);
+    local_capture_ = {};
 }
 #endif
 

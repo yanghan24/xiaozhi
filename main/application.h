@@ -112,6 +112,10 @@ public:
      * Sends MAIN_EVENT_STOP_LISTENING to be handled in Run()
      */
     void StopListening();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    bool BeginLocalRecording(AudioService::LocalCapture capture);
+    void EndLocalRecording();
+#endif
 
     void Reboot();
     void WakeWordInvoke(const std::string& wake_word);

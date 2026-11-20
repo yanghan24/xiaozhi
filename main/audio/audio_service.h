@@ -52,6 +52,7 @@
 #define AS_EVENT_WAKE_WORD_RUNNING (1 << 1)
 #define AS_EVENT_AUDIO_PROCESSOR_RUNNING (1 << 2)
 #define AS_EVENT_AUDIO_INPUT_STOP_REQUEST (1 << 4)
+#define AS_EVENT_LOCAL_CAPTURE_RUNNING (1 << 5)
 
 #define AS_OPUS_GET_FRAME_DRU_ENUM(duration_ms)                  \
     ((duration_ms) == 5     ? ESP_OPUS_ENC_FRAME_DURATION_5_MS   \
@@ -135,6 +136,12 @@ public:
     bool IsLocalPlaybackCurrent(uint32_t generation);
     bool QueueLocalPcm(uint32_t generation, std::vector<int16_t> pcm);
     int LocalOutputSampleRate() const { return codec_->output_sample_rate(); }
+    using LocalCapture = std::function<void(const int16_t*, size_t, int)>;
+    void StartLocalCapture(LocalCapture capture);
+    void StopLocalCapture();
+    bool IsLocalCaptureRunning() const {
+        return xEventGroupGetBits(event_group_) & AS_EVENT_LOCAL_CAPTURE_RUNNING;
+    }
 #endif
     bool IsWakeWordRunning() const {
         return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING;
@@ -204,6 +211,8 @@ private:
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> local_playback_queue_;
     uint32_t local_playback_generation_ = 0;
+    std::mutex local_capture_mutex_;
+    LocalCapture local_capture_;
 #endif
     bool decode_in_flight_ = false;
     bool output_in_flight_ = false;
