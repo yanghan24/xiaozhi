@@ -1,0 +1,35 @@
+{
+  "source_code_commit": "e781598aef5600ac18b718c4fafce13515324cc3",
+  "base_image": "sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff",
+  "candidate_image": "sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686",
+  "candidate_file_sha256": {
+    "core/product_wakeup.py": "92a95e5091c8715141fca21ceecb9fb066c585b1c470b9bf487d3643e54bb76a",
+    "core/handle/receiveAudioHandle.py": "3e20ad418862a29fa05a82b03f8363f16b30e3a5f50daeab96443034540c1791",
+    "config/assets/product_wakeup.wav": "d62e0993fc0ab412df7eccd5c2869f12a22d7cf30c8403965fb65d687a54403a",
+    "core/providers/tts/base.py": "b333258be5d733b0df85ad02e27ff071e8d240fcabafa1f566f716da3b786231",
+    "core/providers/tts/edge.py": "27bc08bd4c24b7470658f99fe059fc852b6f92cd9ab8e000670f2253cae88632"
+  },
+  "fixtures": {
+    "test_product_tts_logging.py": "f87bc08759d1f0ffd8684b78195787339985fb18c15fd08924e2a16a28c6f70e",
+    "test_edge_streaming.py": "bdf30315c5b48a55581d61155aa84db459b84f6da04ce131d2be839489c5842d",
+    "check-product-knowledge.py": "fb9076f0c932865870e33ff0cfddf0c6b6b1f33d09f25a0b99312ef267e17d66",
+    "check-product-first-segment.py": "b146111e09ebc79669ec164618e4d93185f3fdbd68f4217872f9605e2439c5c8"
+  },
+  "verification": {
+    "network": "none",
+    "source_overlay": false,
+    "units": {
+      "tests": 77,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "success": true
+    },
+    "quote_tests_passed": 22,
+    "websocket_scenarios_passed": 28,
+    "first_segment_scenarios_passed": 7,
+    "real_external_requests": 0,
+    "physical_device_test": false
+  },
+  "evidence_path": "/home/jt/voice-numeric-final-regression/candidate-final"
+}
