@@ -6,6 +6,7 @@
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
 #include "speaker_calendar_view.h"
+#include "speaker_pomodoro_view.h"
 
 class SpeakerHomeDisplay : public MipiLcdDisplay {
 public:
@@ -34,6 +35,7 @@ private:
 #if LV_USE_CALENDAR
     SpeakerCalendarView calendar_;
 #endif
+    SpeakerPomodoroView pomodoro_;
 };
 
 #endif

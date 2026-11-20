@@ -1,0 +1,44 @@
+#pragma once
+
+#include <lvgl.h>
+
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+
+#include <atomic>
+#include <cstdint>
+
+class SpeakerPomodoroView {
+public:
+    void Create(lv_obj_t* parent);
+    void Show();
+    void Hide();
+    void Update();
+
+private:
+    enum class State { Ready, Running, Paused, Finished };
+
+    void Toggle();
+    void Reset(int minutes);
+    void Render(int64_t now);
+    void DispatchSound();
+
+    lv_obj_t* panel_ = nullptr;
+    lv_obj_t* value_ = nullptr;
+    lv_obj_t* state_label_ = nullptr;
+    lv_obj_t* action_label_ = nullptr;
+    lv_obj_t* work_ = nullptr;
+    lv_obj_t* rest_ = nullptr;
+    State state_ = State::Ready;
+    int minutes_ = 25;
+    int64_t remaining_us_ = 0;
+    int64_t deadline_us_ = 0;
+    int64_t next_sound_check_us_ = 0;
+    int displayed_seconds_ = -1;
+    State displayed_state_ = State::Finished;
+
+    // LVGL owns the timer state. The application's main task dispatches the sound.
+    std::atomic<bool> sound_pending_{false};
+    std::atomic<bool> sound_scheduled_{false};
+};
+
+#endif

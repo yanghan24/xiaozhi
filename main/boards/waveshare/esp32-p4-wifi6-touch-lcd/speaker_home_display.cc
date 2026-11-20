@@ -90,8 +90,16 @@ void SpeakerHomeDisplay::SetupUI() {
     lv_obj_align(calendar_button, LV_ALIGN_BOTTOM_MID, -75, -18);
 #endif
 
+    pomodoro_.Create(home_);
+    auto* pomodoro_button = SpeakerHomeWidgets::Button(home_, "番茄钟", [](lv_event_t* event) {
+        static_cast<SpeakerHomeDisplay*>(lv_event_get_user_data(event))->pomodoro_.Show();
+    }, this);
+    lv_obj_align(pomodoro_button, LV_ALIGN_BOTTOM_MID, 75, -18);
+
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
-        static_cast<SpeakerHomeDisplay*>(lv_timer_get_user_data(timer))->RefreshHome();
+        auto* display = static_cast<SpeakerHomeDisplay*>(lv_timer_get_user_data(timer));
+        display->pomodoro_.Update();
+        display->RefreshHome();
     }, 250, this);
 }
 
@@ -170,6 +178,7 @@ void SpeakerHomeDisplay::RefreshHome() {
 #if LV_USE_CALENDAR
         calendar_.Hide();
 #endif
+        pomodoro_.Hide();
         lv_obj_add_flag(home_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
