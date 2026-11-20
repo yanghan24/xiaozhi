@@ -599,7 +599,7 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/",((Map<?,?>)result.getBody().get("device_control")).get("base_url"));
         assertEquals(403,http.postForEntity("/ota/activate",new org.springframework.http.HttpEntity<>(Map.of(),headers),String.class).getStatusCode().value());
     }
-    @Test void reminderRequiresCurrentOwnershipAndAUniquePlaybackClaim() {
+    @Test void reminderRequiresCurrentOwnershipAndAUniquePlaybackClaim() throws Exception {
         String owner = UUID.randomUUID().toString();
         var device = client.device();
         var peer = client.device();
@@ -631,12 +631,17 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("changed", command.apply(session, update).get("status"));
         var claim = Map.<String,Object>of("action", "claim", "id", id);
         assertEquals("unavailable", command.apply(session, claim).get("status"));
-        CustomerTestTime.offset.set(61000);
-        assertFalse(client.state(device).containsKey("scheduled_reminder_id"));
+        long revision = ((Number)client.state(device).get("revision")).longValue();
         var headers = BindingTestClient.deviceHeaders(device);
         headers.set("X-Reminder-Protocol","1");
-        var state = http.exchange("/device-control/v1/state", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+        var waiting = CompletableFuture.supplyAsync(() -> http.exchange(
+                "/device-control/v1/state?after_revision="+revision+"&wait_ms=10000",
+                HttpMethod.GET, new HttpEntity<>(headers), Map.class));
+        CustomerTestTime.offset.set(61000);
+        var state = waiting.get(4, TimeUnit.SECONDS);
         assertEquals(id, BindingTestClient.data(state).get("scheduled_reminder_id"));
+        assertEquals(revision, ((Number)BindingTestClient.data(state).get("revision")).longValue());
+        assertFalse(client.state(device).containsKey("scheduled_reminder_id"));
         assertEquals("unavailable", command.apply(other, claim).get("status"));
         assertEquals("已改会议", command.apply(second, claim).get("title"));
         assertEquals("unavailable", command.apply(session, claim).get("status"));
