@@ -33,9 +33,11 @@ final class CustomerVoiceController {
         try {body=json.readTree(raw);}catch(Exception invalid){throw new CustomerFailure(400,"INVALID_REQUEST");}
         boolean open="open".equals(action);
         boolean rejected="key-rejected".equals(action);
-        if(!java.util.Set.of("open","check","close","model-access","asr-access","key-rejected").contains(action) || !body.isObject() || body.size()!=(open?2:1)) throw new CustomerFailure(400,"INVALID_REQUEST");
+        boolean reminder="reminder".equals(action);
+        if(!java.util.Set.of("open","check","close","model-access","asr-access","key-rejected","reminder").contains(action) || !body.isObject() || body.size()!=((open || reminder)?2:1)) throw new CustomerFailure(400,"INVALID_REQUEST");
         Map<String,Object> result;
         if(open) result=permissions.open(field(body,"device_id"),field(body,"token"));
+        else if(reminder) result=permissions.reminder(field(body,"session"),body.path("command"));
         else if(rejected) {
             var receipt=body.path("rejection_receipt");
             if(!receipt.isTextual() || receipt.asText().length()>1024)throw new CustomerFailure(400,"INVALID_REQUEST");

@@ -331,7 +331,7 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None, sentence
     if state == "stop":
         # 播放提示音
         tts_notify = conn.config.get("enable_stop_tts_notify", False)
-        if tts_notify:
+        if tts_notify and not getattr(conn, "reminder_playback", None):
             stop_tts_notify_voice = conn.config.get(
                 "stop_tts_notify_voice", "config/assets/tts_notify.mp3"
             )

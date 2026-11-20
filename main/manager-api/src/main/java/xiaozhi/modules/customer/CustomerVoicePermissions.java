@@ -18,18 +18,20 @@ public final class CustomerVoicePermissions {
     private final Clock clock;
     private final CustomerOidcConfig secrets;
     private final CustomerDevicePermissionTransitions transitions;
+    private final CustomerReminders reminders;
     private final TransactionTemplate transactions;
     private final boolean enabled;
     private final String origin;
     private final String modelBase;
     public CustomerVoicePermissions(JdbcTemplate db,@Qualifier("customerTime") Clock clock,CustomerOidcConfig secrets,
-            PlatformTransactionManager manager,CustomerDevicePermissionTransitions transitions,@Value("${device-control.enabled:false}") boolean control,
+            PlatformTransactionManager manager,CustomerDevicePermissionTransitions transitions,CustomerReminders reminders,@Value("${device-control.enabled:false}") boolean control,
             @Value("${device-control.voice-enabled:false}") boolean voice,
             @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String origin,
             @Value("${device-control.model-base-url:https://aimarket.hncig.cn/v1/}") String modelBase) {
         this.db=db;this.clock=clock;this.secrets=secrets;this.enabled=control && voice;this.origin=origin;
         this.modelBase=modelBase;
         this.transitions=transitions;
+        this.reminders=reminders;
         transactions=new TransactionTemplate(manager);transactions.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
     public boolean enabled(){return enabled;}
@@ -90,6 +92,13 @@ public final class CustomerVoicePermissions {
         return transactions.execute(tx->{barrier();var device=checked(sessionToken(session));
             var result=new java.util.HashMap<String,Object>(scope(device));
             result.put("allowed",true);result.put("permission_version",device.get("permission_version"));return result;});
+    }
+    Map<String,Object> reminder(String session, com.fasterxml.jackson.databind.JsonNode command) {
+        if (!command.isObject()) throw new CustomerFailure(400, "INVALID_REQUEST");
+        return transactions.execute(tx -> {
+            barrier();
+            return reminders.handle(checked(sessionToken(session)), session, command);
+        });
     }
     private Map<String,Object> scope(Map<String,Object> device) {
         var grant=db.queryForMap("SELECT generation,subject_key FROM customer_authorization WHERE issuer=? AND subject=?",device.get("owner_issuer"),device.get("owner_subject"));

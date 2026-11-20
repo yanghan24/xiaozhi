@@ -599,6 +599,65 @@ class CustomerVoicePermissionHttpTest {
         assertEquals("https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/",((Map<?,?>)result.getBody().get("device_control")).get("base_url"));
         assertEquals(403,http.postForEntity("/ota/activate",new org.springframework.http.HttpEntity<>(Map.of(),headers),String.class).getStatusCode().value());
     }
+    @Test void reminderRequiresCurrentOwnershipAndAUniquePlaybackClaim() {
+        String owner = UUID.randomUUID().toString();
+        var device = client.device();
+        var peer = client.device();
+        for (var target : java.util.List.of(device, peer)) {
+            var flow = client.scan(target);
+            client.login(flow, null, owner);
+            assertEquals(200, client.confirm(flow, "bind").getStatusCode().value());
+        }
+        var token = ((Map<?,?>)client.state(device).get("voice")).get("token");
+        String session = voice("open", Map.of("device_id", device.id(), "token", token)).getBody().get("session").toString();
+        String second = voice("open", Map.of("device_id", device.id(), "token", token)).getBody().get("session").toString();
+        String other = voice("open", Map.of("device_id", peer.id(), "token",
+                ((Map<?,?>)client.state(peer).get("voice")).get("token"))).getBody().get("session").toString();
+        String id = UUID.randomUUID().toString().replace("-", "");
+        long due = customerClock.millis() + 60000;
+        Map<String,Object> create = Map.of("action", "create", "id", id, "title", "测试会议", "due_at_ms", due);
+        java.util.function.BiFunction<String,Map<String,Object>,Map> command = (who, what) -> {
+            var response = voice("reminder", Map.of("session", who, "command", what));
+            assertEquals(200, response.getStatusCode().value());
+            return response.getBody();
+        };
+        assertEquals("saved", command.apply(session, create).get("status"));
+        assertEquals("saved", command.apply(session, create).get("status"));
+        assertEquals(1, ((java.util.List<?>)command.apply(second, Map.of("action", "list")).get("items")).size());
+        assertTrue(((java.util.List<?>)command.apply(other, Map.of("action", "list")).get("items")).isEmpty());
+        assertEquals("changed", command.apply(other, Map.of("action","cancel","id",id,"version",1)).get("status"));
+        Map<String,Object> update = Map.of("action","update","id",id,"version",1,"title","已改会议","due_at_ms",due);
+        assertEquals("saved", command.apply(session, update).get("status"));
+        assertEquals("changed", command.apply(session, update).get("status"));
+        var claim = Map.<String,Object>of("action", "claim", "id", id);
+        assertEquals("unavailable", command.apply(session, claim).get("status"));
+        CustomerTestTime.offset.set(61000);
+        assertFalse(client.state(device).containsKey("scheduled_reminder_id"));
+        var headers = BindingTestClient.deviceHeaders(device);
+        headers.set("X-Reminder-Protocol","1");
+        var state = http.exchange("/device-control/v1/state", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+        assertEquals(id, BindingTestClient.data(state).get("scheduled_reminder_id"));
+        assertEquals("unavailable", command.apply(other, claim).get("status"));
+        assertEquals("已改会议", command.apply(second, claim).get("title"));
+        assertEquals("unavailable", command.apply(session, claim).get("status"));
+        var played = Map.<String,Object>of("action", "played", "id", id);
+        assertEquals("unavailable", command.apply(session, played).get("status"));
+        assertEquals("played", command.apply(second, played).get("status"));
+        assertEquals("played", db.queryForObject("SELECT status FROM dc_reminder WHERE id=?", String.class, id));
+        String cancelled = UUID.randomUUID().toString().replace("-", "");
+        assertEquals("saved", command.apply(second, Map.of("action","create","id",cancelled,
+                "title","取消这项","due_at_ms",customerClock.millis()+10000)).get("status"));
+        assertEquals("cancelled", command.apply(second, Map.of("action","cancel","id",cancelled,"version",1)).get("status"));
+        CustomerTestTime.offset.set(73000);
+        assertEquals("unavailable", command.apply(second, Map.of("action","claim","id",cancelled)).get("status"));
+        long permission = ((Number)client.state(device).get("permission_version")).longValue();
+        var signOut = http.postForEntity("/device-control/v1/sign-out", new HttpEntity<>(
+                Map.of("expected_permission_version",permission),BindingTestClient.deviceHeaders(device)),Map.class);
+        assertEquals(200, signOut.getStatusCode().value());
+        assertEquals(403, voice("reminder", Map.of("session",session,"command",Map.of("action","list")))
+                .getStatusCode().value());
+    }
+
     @Test void internalAuthorityRejectsMissingKeyMalformedAndUnsupportedBodies() {
         assertEquals(401,http.postForEntity("/internal/device-voice/v1/check",Map.of("session","unknown"),Map.class).getStatusCode().value());
         var headers=new org.springframework.http.HttpHeaders();headers.set("X-Voice-Service-Key","isolated-voice-test-service-secret-123456");

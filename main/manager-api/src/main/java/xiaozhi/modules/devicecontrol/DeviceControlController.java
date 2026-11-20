@@ -30,7 +30,8 @@ public class DeviceControlController {
     public JsonNode state(HttpServletRequest request) {
         Long after = queryNumber(request, "after_revision", DeviceControlService.MAX_VERSION);
         Long wait = queryNumber(request, "wait_ms", 20000);
-        return success(service.poll(identity(request), after, wait == null ? 0 : wait.intValue()));
+        boolean reminders = "1".equals(request.getHeader("X-Reminder-Protocol"));
+        return success(service.poll(identity(request), after, wait == null ? 0 : wait.intValue(), reminders));
     }
 
     @GetMapping("/account")
