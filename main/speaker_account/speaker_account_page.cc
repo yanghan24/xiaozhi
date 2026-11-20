@@ -74,9 +74,7 @@ lv_obj_t* Button(lv_obj_t* parent, const char* content, lv_event_cb_t handler) {
 const char* Description(Page page) {
     switch (page) {
         case Page::Connecting:
-            return "正在连接账号服务";
-        case Page::Enrolling:
-            return "正在自动登记设备";
+            return "正在加载";
         case Page::Unprovisioned:
             return "设备身份尚未交付";
         case Page::Scan:
@@ -86,7 +84,7 @@ const char* Description(Page page) {
         case Page::Disabled:
             return "当前无法使用，请联系管理员";
         case Page::Ready:
-            return "已绑定 AI 集市账号";
+            return "已登录";
         case Page::Offline:
             return "连接中断，正在恢复";
     }
@@ -152,7 +150,7 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
     }
     auto* layer = lv_layer_top();
     if (!launcher) {
-        launcher = Button(layer, "AI 集市", ToggleDetails);
+        launcher = Button(layer, "账号", ToggleDetails);
         lv_obj_align(launcher, LV_ALIGN_TOP_RIGHT, -10, 45);
     }
     if (panel) {
@@ -164,7 +162,7 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
         qr_buffer = nullptr;
     }
     const bool show = details_open || view.page == Page::Scan || view.page == Page::Retry ||
-                      view.page == Page::Enrolling || view.page == Page::Unprovisioned || view.unbind_pending;
+                      view.page == Page::Unprovisioned || view.unbind_pending;
     if (!show || Application::GetInstance().GetDeviceState() == kDeviceStateUpgrading) {
         return;
     }
@@ -187,7 +185,8 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
     }
     lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    Label(panel, "AI 集市", lv_color_hex(0x172334));
+    const bool scan = view.page == Page::Scan || view.page == Page::Retry;
+    Label(panel, scan ? "扫码登录" : "账号", lv_color_hex(0x172334));
     Label(panel, view.unbind_pending ? "正在解除绑定" : Description(view.page), lv_color_hex(0x34465B));
     if (view.page == Page::Unprovisioned) {
         Label(panel, SpeakerAccount::Get().hardware_id().c_str(), lv_color_hex(0x172334));

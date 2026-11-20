@@ -3,6 +3,7 @@
 #include "application.h"
 #include "board.h"
 #include "cjson_utils.h"
+#include "display.h"
 
 #include <esp_app_desc.h>
 #include <esp_log.h>
@@ -283,7 +284,7 @@ void SpeakerAccount::NetworkChanged(bool connected) {
         } else if (!connected) {
             view_ = {Page::Offline};
         } else {
-            view_ = {identity_.id.empty() ? Page::Enrolling : Page::Connecting};
+            view_ = {Page::Connecting};
         }
     }
     Notify();
@@ -371,7 +372,8 @@ SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& ide
     http->SetHeader("Device-Id", identity.id);
     http->SetHeader("Authorization", "Bearer " + identity.credential);
     http->SetHeader("Content-Type", "application/json");
-    if (!body.empty()) {
+    // An absent POST body opens a chunked upload in HttpClient. These requests send a complete body.
+    if (!body.empty() || std::string_view(method) == "POST") {
         http->SetContent(std::move(body));
     }
     if (!http->Open(method, identity.origin + "/xiaozhi/speaker/v1" + path)) {
@@ -470,6 +472,7 @@ void SpeakerAccount::Run() {
     auto pending = ReadUnbind();
     std::optional<Identity> enrollment;
     bool enrollment_registered = false;
+    bool enrollment_notice_shown = false;
     const auto saved_enrollment = ReadStored("enrollment_v1");
     bool acknowledge_enrollment = identity_.id.starts_with("enr-") && saved_enrollment && !saved_enrollment->empty();
 
@@ -514,7 +517,15 @@ void SpeakerAccount::Run() {
                 }
             }
             if (!enrollment_registered) {
-                Publish({Page::Enrolling}, {}, 0, 0, true, epoch);
+                Publish({Page::Connecting}, {}, 0, 0, true, epoch);
+                if (!enrollment_notice_shown) {
+                    enrollment_notice_shown = true;
+                    Application::GetInstance().Schedule([] {
+                        if (SpeakerAccount::Get().GetView().page == Page::Connecting) {
+                            Board::GetInstance().GetDisplay()->ShowNotification("正在准备登录");
+                        }
+                    });
+                }
                 const std::string report = "{\"board_type\":\"" + std::string(RegisteredBoard()) +
                     "\",\"firmware_version\":\"" + esp_app_get_description()->version + "\"}";
                 const auto response = RequestWithIdentity(*enrollment, "POST", "/enrollment", report);

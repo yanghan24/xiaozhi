@@ -27,7 +27,6 @@ public:
 
     enum class Page {
         Connecting,
-        Enrolling,
         Unprovisioned,
         Scan,
         Retry,
