@@ -1,5 +1,11 @@
 # 当前部署与公网入口
 
+## 2026-11-21 P4X 对话动效和 LCD 诊断 2.6.10
+
+06:45:55（Asia/Shanghai），管理 API 和管理页更新到 `b8069122189e`。设备诊断新增 LCD 扫描缺帧计数。公网管理页、API 和诊断鉴权通过。语音服务沿用 `56d2df6caa5b`。
+
+06:46:06，Waveshare ESP32-P4X 4.3 寸应用固件 2.6.10（`e43cb47547d7`）通过原版固件管理发布。OTA 目录及公网下载校验通过。发布复查时尚未收到 2.6.10 心跳或 LCD 诊断报告。[实施与发布记录](../development/speaker-display-diagnostics.md#生产发布)
+
 ## 2026-11-21 P4X 深蓝全屏固件 2.6.9
 
 06:02:41（Asia/Shanghai），Waveshare ESP32-P4X 4.3 寸固件 2.6.9（`7170be9c1564`）已通过原版固件管理发布。固件目录、服务器上传件和公网 HTTPS 下载的 SHA-256 校验通过。设备联网启动时检查 OTA，发布复查时尚未收到 2.6.9 心跳。管理 API、管理页和语音服务仍运行 `56d2df6caa5b`，启动时间与发布前一致。[实施与发布记录](../development/speaker-dark-ui-implementation.md#生产发布)
