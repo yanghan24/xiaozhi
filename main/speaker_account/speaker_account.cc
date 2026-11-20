@@ -358,14 +358,14 @@ SpeakerAccount::Response SpeakerAccount::Request(const char* method, const std::
 }
 
 SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& identity, const char* method,
-                                                             const std::string& path, std::string body) {
+                                                             const std::string& path, std::string body, int channel) {
     {
         std::lock_guard lock(mutex_);
         if (!connected_ || upgrading_) {
             return {};
         }
     }
-    auto http = Board::GetInstance().GetNetwork()->CreateHttp(5);
+    auto http = Board::GetInstance().GetNetwork()->CreateHttp(channel);
     if (!http) {
         return {};
     }

@@ -29,6 +29,9 @@ private:
     SpeakerHomeWidgets::DigitalClock clock_;
     lv_obj_t* date_ = nullptr;
     lv_obj_t* account_ = nullptr;
+    lv_obj_t* weather_city_ = nullptr;
+    lv_obj_t* weather_condition_ = nullptr;
+    lv_obj_t* weather_details_ = nullptr;
     lv_obj_t* home_network_ = nullptr;
     lv_obj_t* home_mute_ = nullptr;
     lv_obj_t* home_battery_ = nullptr;

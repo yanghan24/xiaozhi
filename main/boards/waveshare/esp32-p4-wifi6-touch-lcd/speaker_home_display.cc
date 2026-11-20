@@ -1,4 +1,5 @@
 #include "speaker_home_display.h"
+#include "speaker_standby_weather.h"
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
@@ -70,9 +71,27 @@ void SpeakerHomeDisplay::SetupUI() {
     lv_image_set_src(logo, &hncig_logo_i2);
     lv_obj_align_to(logo, logo_frame, LV_ALIGN_CENTER, 0, 0);
 
-    auto* account_card = Card(home_, 420, 72, 364, 356);
+    auto* weather_card = Card(home_, 420, 72, 364, 232);
+    lv_obj_set_pos(Label(weather_card, "天气", kCyan), 18, 14);
+    weather_city_ = Label(weather_card, "", kText);
+    lv_obj_set_pos(weather_city_, 104, 14);
+    lv_obj_set_width(weather_city_, 236);
+    lv_label_set_long_mode(weather_city_, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(weather_city_, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+    Rule(weather_card, 18, 56, 326, 1, kCyan, LV_OPA_40);
+    weather_condition_ = Label(weather_card, "正在获取天气", kText);
+    lv_obj_set_width(weather_condition_, 326);
+    lv_obj_align(weather_condition_, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_set_style_text_align(weather_condition_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    weather_details_ = Label(weather_card, "", kMuted);
+    lv_obj_set_width(weather_details_, 326);
+    lv_obj_align(weather_details_, LV_ALIGN_BOTTOM_MID, 0, -16);
+    lv_obj_set_style_text_align(weather_details_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    SpeakerStandbyWeather::Get().Start();
+
+    auto* account_card = Card(home_, 420, 319, 364, 109);
     lv_obj_set_pos(Label(account_card, "账号", kCyan), 18, 14);
-    Rule(account_card, 18, 61, 326, 1, kCyan, LV_OPA_40);
+    Rule(account_card, 18, 45, 326, 1, kCyan, LV_OPA_40);
     account_ = Label(account_card, "", kMuted);
     lv_obj_set_width(account_, 312);
     lv_obj_align(account_, LV_ALIGN_CENTER, 0, 25);
@@ -271,6 +290,26 @@ void SpeakerHomeDisplay::RefreshHome() {
         ? (view.customer.empty() ? "已登录" : view.customer)
         : "";
     UpdateLabel(account_, account.c_str());
+    const auto weather = SpeakerStandbyWeather::Get().GetSnapshot();
+    std::string summary;
+    std::string detail;
+    switch (weather.state) {
+        case SpeakerStandbyWeather::State::Loading: summary = "正在获取天气"; break;
+        case SpeakerStandbyWeather::State::Offline: summary = "网络已断开"; break;
+        case SpeakerStandbyWeather::State::Unavailable: summary = "暂无天气数据"; break;
+        case SpeakerStandbyWeather::State::Ready:
+            summary = weather.condition;
+            if (!weather.temperature.empty()) summary += "   " + weather.temperature + " ℃";
+            if (!weather.humidity.empty()) detail = "湿度 " + weather.humidity + "%";
+            if (!weather.wind.empty()) {
+                if (!detail.empty()) detail += "    ";
+                detail += "风 " + weather.wind;
+            }
+            break;
+    }
+    UpdateLabel(weather_city_, weather.city.c_str());
+    UpdateLabel(weather_condition_, summary.c_str());
+    UpdateLabel(weather_details_, detail.c_str());
 #if LV_USE_CALENDAR
     calendar_.Update();
 #endif

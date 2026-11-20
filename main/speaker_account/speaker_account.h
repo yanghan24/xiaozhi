@@ -63,6 +63,7 @@ public:
     void Unbind();
 
 private:
+    friend class SpeakerStandbyWeather;
     struct Response {
         int status = 0;
         std::string body;
@@ -71,7 +72,7 @@ private:
     void Run();
     Response Request(const char* method, const std::string& path, std::string body = {});
     Response RequestWithIdentity(const Identity& identity, const char* method, const std::string& path,
-                                 std::string body = {});
+                                 std::string body = {}, int channel = 5);
     enum class LoginResult { InProgress, Completed, InvalidCredential };
     LoginResult PollLogin(const Identity& identity, std::string& login_id, bool& retry_login,
                           const std::string& customer, bool bound, int64_t permission, uint32_t epoch);
