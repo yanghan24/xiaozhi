@@ -45,6 +45,12 @@ public final class SpeakerCrypto {
     String encryptThirdPartyCredential(String serviceId, String value) {
         return "thirdparty1." + encrypt(value, "xiaozhi:third-party-service:v1\n" + serviceId);
     }
+    String decryptThirdPartyCredential(String serviceId, String value) {
+        if (!value.startsWith("thirdparty1.")) {
+            throw new SpeakerFailure(503, "CREDENTIAL_STORAGE_UNAVAILABLE");
+        }
+        return decrypt(value.substring("thirdparty1.".length()), "xiaozhi:third-party-service:v1\n" + serviceId);
+    }
     String encryptEnrollmentCredential(String value, String deviceId) {
         return encrypt(value, "xiaozhi:speaker-enrollment:v1\n" + deviceId);
     }

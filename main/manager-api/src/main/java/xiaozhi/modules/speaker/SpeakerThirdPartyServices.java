@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,10 @@ public class SpeakerThirdPartyServices {
                                 boolean enabled, long version) {}
     public record Entry(String id, String name, String url, List<Endpoint> endpoints, String authMode,
                         String authName, boolean hasCredential, boolean enabled, long version) {}
+
+    record AmapConfiguration(long version, String credential) {
+        @Override public String toString() { return "AmapConfiguration[redacted]"; }
+    }
 
     private final JdbcTemplate db;
     private final ObjectMapper json;
@@ -41,6 +46,19 @@ public class SpeakerThirdPartyServices {
                 row.getString("base_url"), readEndpoints(row.getString("endpoints")), row.getString("auth_mode"),
                 row.getString("auth_name"), row.getBoolean("has_credential"), row.getBoolean("enabled"),
                 row.getLong("version")));
+    }
+
+    Optional<AmapConfiguration> amapConfiguration() {
+        return db.query("""
+                SELECT version, credential_cipher FROM speaker_third_party_service
+                WHERE id='amap' AND enabled=TRUE AND credential_cipher IS NOT NULL
+                  AND base_url IN ('https://restapi.amap.com', 'https://restapi.amap.com/')
+                  AND auth_mode='query' AND auth_name='key'
+                  AND JSON_CONTAINS(endpoints, '{"path": "/v3/ip"}')
+                  AND JSON_CONTAINS(endpoints, '{"path": "/v3/weather/weatherInfo"}')
+                """, (row, index) -> new AmapConfiguration(row.getLong("version"),
+                crypto.decryptThirdPartyCredential("amap", row.getString("credential_cipher"))))
+                .stream().findFirst();
     }
 
     public void save(String id, Configuration configuration) {
