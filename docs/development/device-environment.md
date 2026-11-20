@@ -1,5 +1,7 @@
 # P4 城市天气接口
 
+此候选基于公开 `main@e708ba2` 的 `device-control/v1`。2026-11-20 现场交接报告称 Ubuntu 测试服采用尚未提交的 `speaker/v1`。本文记录公开代码上的接口与试点配置。取得现场源码后，需要把设备鉴权、可信来源地址和固件请求接到 `speaker/v1` 的正常入口，并在同一台音箱上复核语音选城和首页显示。下面的接口与步骤尚待该环境联调。
+
 设备向现有 TLS 控制入口发送 `GET /xiaozhi/device-control/v1/environment`，沿用逐台签发的 `Authorization: Bearer …` 和 `Device-Id`。管理 API 检查设备准入后，只向指定的私有 weather43 缓存发送位置查询。缓存按城市共享模型结果。
 
 | 查询参数 | 行为 |
