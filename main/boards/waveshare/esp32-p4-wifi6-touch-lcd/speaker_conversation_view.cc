@@ -20,7 +20,7 @@ void SpeakerConversationView::Create(lv_obj_t* parent, void (*on_exit)(void*), v
     Scale(message_, 470);
     lv_obj_align(message_, LV_ALIGN_CENTER, 0, -46);
 
-    wave_.Create(root_, 346, 134, SpeakerWave::Shape::Ribbon);
+    wave_.Create(root_, 405, 60, SpeakerWave::Shape::Ribbon);
     exit_.Create(root_, on_exit, context);
     exit_.SetVisible(true);
 }

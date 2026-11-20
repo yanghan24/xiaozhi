@@ -37,7 +37,7 @@ void SpeakerWave::SetMotion(Motion motion) {
     } else {
         timer_ = lv_timer_create([](lv_timer_t* timer) {
             auto* wave = static_cast<SpeakerWave*>(lv_timer_get_user_data(timer));
-            wave->phase_ += wave->motion_ == Motion::Speaking ? 0.24f : 0.17f;
+            wave->phase_ += wave->motion_ == Motion::Speaking ? 0.42f : 0.30f;
             if (wave->phase_ > 6.2832f) {
                 wave->phase_ -= 6.2832f;
             }
@@ -62,6 +62,10 @@ void SpeakerWave::Render(lv_event_t* event) const {
     auto* layer = lv_event_get_layer(event);
     lv_area_t area;
     lv_obj_get_coords(region_, &area);
+    if (shape_ == Shape::Ribbon) {
+        RenderRibbon(layer, area);
+        return;
+    }
     const int width = lv_area_get_width(&area);
     const int height = lv_area_get_height(&area);
     const auto sample = [&](int index) -> lv_point_precise_t {
@@ -70,13 +74,8 @@ void SpeakerWave::Render(lv_event_t* event) const {
         if (shape_ == Shape::Horizon) {
             const float center = 2 * x - 1;
             y = 0.27f + 0.54f * center * center;
-        } else if (shape_ == Shape::Sweep) {
-            y = 0.56f + 0.29f * std::sin(5.6f * x + 0.25f);
         } else {
-            const float depth = motion_ == Motion::Speaking ? 0.26f :
-                                motion_ == Motion::Listening ? 0.20f : 0.12f;
-            y = 0.47f - depth * std::sin(6.7f * x + phase_) +
-                0.045f * std::sin(13.4f * x - phase_);
+            y = 0.56f + 0.29f * std::sin(5.6f * x + 0.25f);
         }
         return {area.x1 + static_cast<int32_t>((width - 1) * x),
                 area.y1 + static_cast<int32_t>(height * y)};
@@ -86,7 +85,7 @@ void SpeakerWave::Render(lv_event_t* event) const {
     lv_draw_line_dsc_init(&line);
     lv_draw_triangle_dsc_t fill;
     lv_draw_triangle_dsc_init(&fill);
-    fill.opa = shape_ == Shape::Ribbon ? LV_OPA_20 : LV_OPA_10;
+    fill.opa = LV_OPA_10;
     auto left = sample(0);
     for (int i = 1; i <= kSegments; ++i) {
         const auto right = sample(i);
@@ -114,6 +113,32 @@ void SpeakerWave::Render(lv_event_t* event) const {
         line.round_end = 1;
         lv_draw_line(layer, &line);
         left = right;
+    }
+
+}
+
+void SpeakerWave::RenderRibbon(lv_layer_t* layer, const lv_area_t& area) const {
+    constexpr int segments = 24;
+    const int center = area.y1 + lv_area_get_height(&area) / 2;
+    const int width = lv_area_get_width(&area) - 1;
+    const int amplitude = motion_ == Motion::Speaking ? 21 :
+                          motion_ == Motion::Listening ? 15 : 7;
+    const auto sample = [&](int index) -> lv_point_precise_t {
+        const float x = static_cast<float>(index) / segments;
+        return {area.x1 + width * index / segments,
+                center + static_cast<int32_t>(amplitude * std::sin(6.7f * x + phase_))};
+    };
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init(&line);
+    line.width = 5;
+    line.round_start = 1;
+    line.round_end = 1;
+    line.p1 = sample(0);
+    for (int i = 1; i <= segments; ++i) {
+        line.p2 = sample(i);
+        line.color = Gradient(static_cast<float>(i - 1) / (segments - 1), Shape::Ribbon);
+        lv_draw_line(layer, &line);
+        line.p1 = line.p2;
     }
 }
 
