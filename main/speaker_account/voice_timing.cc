@@ -61,10 +61,12 @@ void SpeakerVoiceTiming::SetLease(int64_t server_ms, int64_t until_ms) {
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
         display_count_ = 0;
         next_display_sample_ms_ = 0;
+        playback_count_ = 0;
 #endif
     }
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     SpeakerDisplayDiagnostics::SetWindow(until_ms ? remaining : 0, changed);
+    SpeakerPlaybackDiagnostics::SetWindow(until_ms ? remaining : 0, changed);
 #endif
     deadline_ms_.store(until_ms ? NowMs() + remaining : 0);
 }
@@ -157,12 +159,14 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
     if (report_id_.empty()) {
         size_t available = kBatchSize;
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
-        static_assert(std::tuple_size_v<SpeakerDisplayDiagnostics::Samples> < kBatchSize);
+        static_assert(std::tuple_size_v<SpeakerDisplayDiagnostics::Samples> + 1 < kBatchSize);
         display_sample_ms_ = NowMs();
         display_count_ = SpeakerDisplayDiagnostics::TakeSamples(
             display_samples_, display_sample_ms_ >= next_display_sample_ms_);
         if (display_count_) next_display_sample_ms_ = display_sample_ms_ + 60 * 1000;
-        available -= display_count_;
+        playback_sample_ms_ = display_sample_ms_;
+        playback_count_ = SpeakerPlaybackDiagnostics::TakeSamples(playback_samples_);
+        available -= display_count_ + (playback_count_ != 0);
 #endif
         report_count_ = std::min(available, events_.size());
         if (available == kBatchSize && report_count_ == 0) return {};
@@ -190,6 +194,7 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
         cJSON_AddNumberToObject(entry, "elapsed_ms", event.elapsed_ms);
     }
     size_t entry_count = report_count_;
+    bool complete = true;
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     entry_count += display_count_;
     for (size_t i = 0; i < display_count_ && entries; ++i) {
@@ -203,8 +208,31 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
         cJSON_AddBoolToObject(entry, "animation_active", sample.animation_active);
         cJSON_AddNumberToObject(entry, "underrun_count", sample.underruns);
     }
+    if (playback_count_ && entries) {
+        ++entry_count;
+        auto* entry = cJSON_CreateObject();
+        if (entry) {
+            cJSON_AddItemToArray(entries, entry);
+            cJSON_AddStringToObject(entry, "event", "tts_playback");
+            cJSON_AddNumberToObject(entry, "uptime_ms", playback_sample_ms_);
+            auto* samples = cJSON_AddArrayToObject(entry, "playback_stages");
+            for (size_t i = 0; i < playback_samples_.size() && samples; ++i) {
+                const auto& sample = playback_samples_[i];
+                if (!sample.count) continue;
+                auto* stage = cJSON_CreateObject();
+                if (!stage) break;
+                cJSON_AddItemToArray(samples, stage);
+                const auto phase = static_cast<SpeakerPlaybackDiagnostics::Phase>(i);
+                cJSON_AddStringToObject(stage, "phase", SpeakerPlaybackDiagnostics::PhaseName(phase));
+                cJSON_AddNumberToObject(stage, "count", sample.count);
+                cJSON_AddNumberToObject(stage, "uptime_ms", sample.uptime_ms);
+                cJSON_AddNumberToObject(stage, "code", sample.code);
+            }
+            complete = samples && cJSON_GetArraySize(samples) == playback_count_;
+        }
+    }
 #endif
-    char* text = entries && cJSON_GetArraySize(entries) == entry_count ? cJSON_PrintUnformatted(root) : nullptr;
+    char* text = complete && entries && cJSON_GetArraySize(entries) == entry_count ? cJSON_PrintUnformatted(root) : nullptr;
     Report result{until_ms_, text ? text : ""};
     cJSON_free(text);
     cJSON_Delete(root);
@@ -219,5 +247,6 @@ void SpeakerVoiceTiming::Acknowledge(int64_t until_ms) {
     report_id_.clear();
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     display_count_ = 0;
+    playback_count_ = 0;
 #endif
 }

@@ -2,6 +2,7 @@
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 #include "speaker_account/speaker_account.h"
 #include "speaker_account/voice_timing.h"
+#include "speaker_account/playback_diagnostics.h"
 #endif
 #include "assets.h"
 #include "assets/lang_config.h"
@@ -25,6 +26,10 @@
 #include <limits>
 
 #define TAG "Application"
+
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+namespace PlaybackDiag = SpeakerPlaybackDiagnostics;
+#endif
 
 Application::Application() : notify_player_(audio_service_) {
     event_group_ = xEventGroupCreate();
@@ -259,6 +264,9 @@ void Application::Run() {
 
         if (bits & MAIN_EVENT_PLAYBACK_DRAINED) {
             if (audio_service_.IsPlaybackIdle()) {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                if (active_voice_reply_.load()) PlaybackDiag::Record(PlaybackDiag::Phase::Drained);
+#endif
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
                 SpeakerVoiceTiming::Get().PlaybackIdle();
                 if (voice_reply_stopped_) ClearVoiceReply();
@@ -701,12 +709,28 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnIncomingAudio([this](std::unique_ptr<AudioStreamPacket> packet) {
-        if (GetDeviceState() == kDeviceStateSpeaking) {
+        const auto state = GetDeviceState();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        PlaybackDiag::Record(PlaybackDiag::Phase::PacketReceived);
+#endif
+        if (state == kDeviceStateSpeaking) {
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
             packet->voice_timing_generation = SpeakerVoiceTiming::Get().ReceiveAudio();
             packet->voice_reply_generation = active_voice_reply_.load();
 #endif
-            audio_service_.PushPacketToDecodeQueue(std::move(packet));
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            packet->tts_diagnostics = true;
+#endif
+            const bool queued = audio_service_.PushPacketToDecodeQueue(std::move(packet));
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            if (!queued) PlaybackDiag::Record(PlaybackDiag::Phase::PacketDropped, -1);
+#else
+            (void)queued;
+#endif
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        } else {
+            PlaybackDiag::Record(PlaybackDiag::Phase::PacketDropped, static_cast<int>(state));
+#endif
         }
     });
 
@@ -724,6 +748,9 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelClosed([this, &board]() {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        PlaybackDiag::Record(PlaybackDiag::Phase::ChannelClosed);
+#endif
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
         SpeakerVoiceTiming::Get().Interrupt();
 #endif
@@ -735,6 +762,9 @@ void Application::InitializeProtocol() {
             auto display = Board::GetInstance().GetDisplay();
             display->SetChatMessage("system", "");
             SetDeviceState(kDeviceStateIdle);
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            PlaybackDiag::Record(PlaybackDiag::Phase::ChannelCleaned, static_cast<int>(GetDeviceState()));
+#endif
         });
     });
 
@@ -784,6 +814,9 @@ void Application::InitializeProtocol() {
                 return;
             }
             if (strcmp(state->valuestring, "start") == 0) {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                PlaybackDiag::Record(PlaybackDiag::Phase::StartReceived);
+#endif
                 Schedule([this]() {
                     aborted_ = false;
                     const bool speaking = SetDeviceState(kDeviceStateSpeaking);
@@ -796,8 +829,15 @@ void Application::InitializeProtocol() {
 #else
                     (void)speaking;
 #endif
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                    PlaybackDiag::Record(PlaybackDiag::Phase::StartHandled,
+                                         speaking ? 0 : static_cast<int>(GetDeviceState()));
+#endif
                 });
             } else if (strcmp(state->valuestring, "stop") == 0) {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                PlaybackDiag::Record(PlaybackDiag::Phase::StopReceived);
+#endif
                 Schedule([this]() {
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
                     const bool idle = audio_service_.IsPlaybackIdle();
@@ -812,6 +852,9 @@ void Application::InitializeProtocol() {
                             SetDeviceState(kDeviceStateListening);
                         }
                     }
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                    PlaybackDiag::Record(PlaybackDiag::Phase::StopHandled, static_cast<int>(GetDeviceState()));
+#endif
                 });
             } else if (strcmp(state->valuestring, "sentence_start") == 0) {
                 auto text = cJSON_GetObjectItem(root, "text");

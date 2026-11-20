@@ -1,6 +1,7 @@
 #include "audio_service.h"
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 #include "speaker_account/voice_timing.h"
+#include "speaker_account/playback_diagnostics.h"
 #endif
 #include <esp_log.h>
 #include <cstring>
@@ -27,6 +28,10 @@
 #endif
 
 #define TAG "AudioService"
+
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+namespace PlaybackDiag = SpeakerPlaybackDiagnostics;
+#endif
 
 AudioService::AudioService() { event_group_ = xEventGroupCreate(); }
 
@@ -381,6 +386,9 @@ void AudioService::AudioOutputTask() {
         audio_queue_cv_.notify_all();
         lock.unlock();
 
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        PlaybackDiag::SetOutputContext(task.tts_diagnostics);
+#endif
         if (!codec_->output_enabled()) {
             esp_timer_stop(audio_power_timer_);
             esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
@@ -401,6 +409,9 @@ void AudioService::AudioOutputTask() {
         }
 #endif
         codec_->OutputData(task.pcm);
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        PlaybackDiag::SetOutputContext(false);
+#endif
 
         /* Update the last output time */
         last_output_time_ = std::chrono::steady_clock::now();
@@ -461,9 +472,15 @@ void AudioService::OpusCodecTask() {
             task.voice_timing_generation = packet->voice_timing_generation;
             task.voice_reply_generation = packet->voice_reply_generation;
 #endif
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            task.tts_diagnostics = packet->tts_diagnostics;
+#endif
 
             SetDecodeSampleRate(packet->sample_rate, packet->frame_duration);
             bool decoded = false;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            int decode_result = ESP_ERR_INVALID_STATE;
+#endif
             if (opus_decoder_ != nullptr) {
                 task.pcm.resize(decoder_frame_size_);
                 esp_audio_dec_in_raw_t raw = {
@@ -481,6 +498,9 @@ void AudioService::OpusCodecTask() {
                 std::unique_lock<std::mutex> decoder_lock(decoder_mutex_);
                 auto ret = esp_opus_dec_decode(opus_decoder_, &raw, &out_frame, &dec_info);
                 decoder_lock.unlock();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                decode_result = ret;
+#endif
                 if (ret == ESP_AUDIO_ERR_OK) {
                     task.pcm.resize(out_frame.decoded_size / sizeof(int16_t));
                     if (decoder_sample_rate_ != codec_->output_sample_rate() &&
@@ -505,7 +525,8 @@ void AudioService::OpusCodecTask() {
             }
 
             lock.lock();
-            if (decoded && generation == playback_generation_ && !service_stopped_.load()) {
+            const bool queued = decoded && generation == playback_generation_ && !service_stopped_.load();
+            if (queued) {
                 audio_playback_queue_.push_back(std::move(task));
             }
             decode_in_flight_ = false;
@@ -513,6 +534,13 @@ void AudioService::OpusCodecTask() {
             const bool notify_drained = MarkPlaybackDrainedLocked();
             audio_queue_cv_.notify_all();
             lock.unlock();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+            if (packet->tts_diagnostics) {
+                const auto phase = queued ? PlaybackDiag::Phase::Decoded :
+                    decoded ? PlaybackDiag::Phase::PacketDropped : PlaybackDiag::Phase::DecodeError;
+                PlaybackDiag::Record(phase, decoded && !queued ? -2 : decode_result);
+            }
+#endif
             if (notify_drained && callbacks_.on_playback_drained) {
                 callbacks_.on_playback_drained();
             }

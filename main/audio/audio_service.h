@@ -109,6 +109,9 @@ struct AudioTask {
     uint32_t voice_timing_generation = 0;
     uint32_t voice_reply_generation = 0;
 #endif
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    bool tts_diagnostics = false;
+#endif
 };
 
 struct DebugStatistics {

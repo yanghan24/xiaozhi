@@ -1,4 +1,5 @@
 #include "box_audio_codec.h"
+#include "speaker_account/playback_diagnostics.h"
 
 #include <esp_log.h>
 #include <driver/i2c_master.h>
@@ -253,7 +254,18 @@ int BoxAudioCodec::Read(int16_t* dest, int samples) {
 
 int BoxAudioCodec::Write(const int16_t* data, int samples) {
     if (output_enabled_) {
-        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_codec_dev_write(output_dev_, (void*)data, samples * sizeof(int16_t)));
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        SpeakerPlaybackDiagnostics::BeforeCodecWrite();
+#endif
+        const int result = esp_codec_dev_write(output_dev_, (void*)data, samples * sizeof(int16_t));
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        SpeakerPlaybackDiagnostics::AfterCodecWrite(result);
+#endif
+        ESP_ERROR_CHECK_WITHOUT_ABORT(result);
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    } else {
+        SpeakerPlaybackDiagnostics::AfterCodecWrite(ESP_ERR_INVALID_STATE);
+#endif
     }
     return samples;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "display_diagnostics.h"
+#include "playback_diagnostics.h"
 
 #include <array>
 #include <atomic>
@@ -49,5 +50,8 @@ private:
     size_t display_count_ = 0;
     int64_t display_sample_ms_ = 0;
     int64_t next_display_sample_ms_ = 0;
+    SpeakerPlaybackDiagnostics::Samples playback_samples_{};
+    size_t playback_count_ = 0;
+    int64_t playback_sample_ms_ = 0;
 #endif
 };
