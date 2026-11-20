@@ -107,6 +107,15 @@ void Application::Initialize() {
     callbacks.on_playback_progress = [this](uint32_t playback_id, uint32_t media_position_ms) {
         notify_player_.OnPlaybackProgress(playback_id, media_position_ms);
     };
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    callbacks.on_voice_reply_output = [this](uint32_t generation) {
+        Schedule([this, generation] {
+            if (active_voice_reply_.load() == generation) {
+                Board::GetInstance().GetDisplay()->SetVoicePlaybackActive(true);
+            }
+        });
+    };
+#endif
     audio_service_.SetCallbacks(callbacks);
 
     // Load local fonts, images and speech models before starting the network. A pending
@@ -247,6 +256,7 @@ void Application::Run() {
             if (audio_service_.IsPlaybackIdle()) {
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
                 SpeakerVoiceTiming::Get().PlaybackIdle();
+                if (voice_reply_stopped_) ClearVoiceReply();
 #endif
                 notify_player_.OnPlaybackDrained();
             }
@@ -385,6 +395,7 @@ void Application::HandleNetworkDisconnectedEvent() {
 
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 void Application::OnSpeakerPermissionRevoked() {
+    ClearVoiceReply();
     const auto state = GetDeviceState();
     if (state == kDeviceStateConnecting || state == kDeviceStateListening ||
         state == kDeviceStateSpeaking) {
@@ -394,6 +405,25 @@ void Application::OnSpeakerPermissionRevoked() {
         audio_service_.ResetDecoder();
         SetDeviceState(kDeviceStateIdle);
     }
+}
+
+void Application::ClearVoiceReply() {
+    active_voice_reply_.store(0);
+    voice_reply_stopped_ = false;
+    Board::GetInstance().GetDisplay()->SetVoicePlaybackActive(false);
+}
+
+void Application::EndSpeakerConversation() {
+    Schedule([this] {
+        const auto state = GetDeviceState();
+        if (!active_voice_reply_.load() && state != kDeviceStateConnecting &&
+            state != kDeviceStateListening && state != kDeviceStateSpeaking) return;
+        if (state == kDeviceStateSpeaking) AbortSpeaking(kAbortReasonNone);
+        ClearVoiceReply();
+        audio_service_.ResetDecoder();
+        if (protocol_ && protocol_->IsAudioChannelOpened()) protocol_->CloseAudioChannel();
+        SetDeviceState(kDeviceStateIdle);
+    });
 }
 #endif
 
@@ -669,6 +699,7 @@ void Application::InitializeProtocol() {
         if (GetDeviceState() == kDeviceStateSpeaking) {
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
             packet->voice_timing_generation = SpeakerVoiceTiming::Get().ReceiveAudio();
+            packet->voice_reply_generation = active_voice_reply_.load();
 #endif
             audio_service_.PushPacketToDecodeQueue(std::move(packet));
         }
@@ -693,6 +724,9 @@ void Application::InitializeProtocol() {
 #endif
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         Schedule([this]() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+            ClearVoiceReply();
+#endif
             auto display = Board::GetInstance().GetDisplay();
             display->SetChatMessage("system", "");
             SetDeviceState(kDeviceStateIdle);
@@ -747,12 +781,24 @@ void Application::InitializeProtocol() {
             if (strcmp(state->valuestring, "start") == 0) {
                 Schedule([this]() {
                     aborted_ = false;
-                    SetDeviceState(kDeviceStateSpeaking);
+                    const bool speaking = SetDeviceState(kDeviceStateSpeaking);
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+                    if (speaking) {
+                        ClearVoiceReply();
+                        if (++voice_reply_sequence_ == 0) ++voice_reply_sequence_;
+                        active_voice_reply_.store(voice_reply_sequence_);
+                    }
+#else
+                    (void)speaking;
+#endif
                 });
             } else if (strcmp(state->valuestring, "stop") == 0) {
                 Schedule([this]() {
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
-                    SpeakerVoiceTiming::Get().StopReply(audio_service_.IsPlaybackIdle());
+                    const bool idle = audio_service_.IsPlaybackIdle();
+                    SpeakerVoiceTiming::Get().StopReply(idle);
+                    voice_reply_stopped_ = true;
+                    if (idle) ClearVoiceReply();
 #endif
                     if (GetDeviceState() == kDeviceStateSpeaking) {
                         if (listening_mode_ == kListeningModeManualStop) {
@@ -1431,6 +1477,9 @@ void Application::Schedule(std::function<void()>&& callback) {
 void Application::AbortSpeaking(AbortReason reason) {
     ESP_LOGI(TAG, "Abort speaking");
     aborted_ = true;
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    ClearVoiceReply();
+#endif
     if (protocol_) {
         protocol_->SendAbortSpeaking(reason);
     }

@@ -93,6 +93,7 @@ public:
     void AbortSpeaking(AbortReason reason);
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
     void OnSpeakerPermissionRevoked();
+    void EndSpeakerConversation();
 #endif
 
     /**
@@ -143,6 +144,12 @@ private:
     std::deque<std::function<void()>> main_tasks_;
     std::unique_ptr<Protocol> protocol_;
     EventGroupHandle_t event_group_ = nullptr;
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    std::atomic<uint32_t> active_voice_reply_{0};
+    uint32_t voice_reply_sequence_ = 0;
+    bool voice_reply_stopped_ = false;
+    void ClearVoiceReply();
+#endif
     esp_timer_handle_t clock_timer_handle_ = nullptr;
     esp_timer_handle_t startup_wake_word_hint_timer_ = nullptr;
     DeviceStateMachine state_machine_;

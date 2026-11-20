@@ -10,6 +10,7 @@
 #include "speaker_pomodoro_view.h"
 #include "speaker_music_view.h"
 #include "speaker_recording_view.h"
+#include "speaker_conversation_view.h"
 
 class SpeakerHomeDisplay : public MipiLcdDisplay {
 public:
@@ -22,6 +23,8 @@ public:
     void ClearChatMessages() override;
     void SetPreviewImage(std::unique_ptr<LvglImage> image) override;
     void SetTheme(Theme* theme) override;
+    void SetVoicePlaybackActive(bool active) override;
+    void SetHideSubtitle(bool hide) override;
 
 private:
     void SetIdleClock(const char* clock) override;
@@ -42,6 +45,7 @@ private:
     bool standby_ = false;
     bool has_preview_ = false;
     bool awaiting_reply_ = false;
+    bool voice_playback_ = false;
     std::string message_role_;
     std::string message_;
 #if LV_USE_CALENDAR
@@ -50,6 +54,7 @@ private:
     SpeakerPomodoroView pomodoro_;
     SpeakerMusicView music_;
     SpeakerRecordingView recording_;
+    SpeakerConversationView conversation_;
 };
 
 #endif

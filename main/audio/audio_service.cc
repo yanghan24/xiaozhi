@@ -351,6 +351,9 @@ void AudioService::AudioInputTask() {
 }
 
 void AudioService::AudioOutputTask() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    uint32_t last_voice_reply = 0;
+#endif
     while (true) {
         std::unique_lock<std::mutex> lock(audio_queue_mutex_);
         audio_queue_cv_.wait(lock, [this]() {
@@ -388,6 +391,10 @@ void AudioService::AudioOutputTask() {
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
         if (task.voice_timing_generation) {
             SpeakerVoiceTiming::Get().OutputAudio(task.voice_timing_generation);
+        }
+        if (task.voice_reply_generation && task.voice_reply_generation != last_voice_reply) {
+            last_voice_reply = task.voice_reply_generation;
+            if (callbacks_.on_voice_reply_output) callbacks_.on_voice_reply_output(last_voice_reply);
         }
 #endif
         codec_->OutputData(task.pcm);
@@ -449,6 +456,7 @@ void AudioService::OpusCodecTask() {
             task.media_position_ms = packet->media_position_ms;
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
             task.voice_timing_generation = packet->voice_timing_generation;
+            task.voice_reply_generation = packet->voice_reply_generation;
 #endif
 
             SetDecodeSampleRate(packet->sample_rate, packet->frame_duration);

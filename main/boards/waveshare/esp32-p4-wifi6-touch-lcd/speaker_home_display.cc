@@ -20,6 +20,7 @@ SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     DisplayLockGuard lock(this);
     if (lock && refresh_timer_) {
         lv_timer_delete(refresh_timer_);
+        conversation_.Destroy();
         lv_obj_delete(home_);
         SetSpeakerAccountLauncherVisible(true);
     }
@@ -152,6 +153,7 @@ void SpeakerHomeDisplay::SetupUI() {
     lv_obj_set_style_radius(home_notice_, 8, LV_PART_MAIN);
     lv_obj_set_style_pad_all(home_notice_, 8, LV_PART_MAIN);
     lv_obj_add_flag(home_notice_, LV_OBJ_FLAG_HIDDEN);
+    conversation_.Create(lv_screen_active());
     lv_obj_move_foreground(low_battery_popup_);
 
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
@@ -170,23 +172,16 @@ void SpeakerHomeDisplay::SetTheme(Theme* theme) {
 }
 
 void SpeakerHomeDisplay::SetStatus(const char* status) {
-    const char* visible_status = status;
-    {
-        DisplayLockGuard lock(this);
-        if (lock && home_ && status) {
-            standby_ = std::strcmp(status, Lang::Strings::STANDBY) == 0;
-            const bool speaking = std::strcmp(status, Lang::Strings::SPEAKING) == 0
-                && Application::GetInstance().GetDeviceState() == kDeviceStateSpeaking;
-            if (speaking && awaiting_reply_) {
-                // The server can enter the speaking state before sending a reply sentence.
-                visible_status = "正在处理";
-            } else if (!speaking) {
-                awaiting_reply_ = false;
-            }
-            RefreshHome();
+    MipiLcdDisplay::SetStatus(status);
+    DisplayLockGuard lock(this);
+    if (lock && home_ && status) {
+        standby_ = std::strcmp(status, Lang::Strings::STANDBY) == 0;
+        if (standby_ || std::strcmp(status, Lang::Strings::LISTENING) == 0 ||
+            std::strcmp(status, Lang::Strings::CONNECTING) == 0) {
+            awaiting_reply_ = false;
         }
+        RefreshHome();
     }
-    MipiLcdDisplay::SetStatus(visible_status);
 }
 
 void SpeakerHomeDisplay::SetIdleClock(const char* clock) {
@@ -199,36 +194,16 @@ void SpeakerHomeDisplay::SetChatMessage(const char* role, const char* content) {
     if (!role) {
         return;
     }
-    if (!content || !*content) {
-        DisplayLockGuard lock(this);
-        if (lock && home_) {
-            message_.clear();
-            RefreshHome();
-        }
-        return;
-    }
     const auto state = Application::GetInstance().GetDeviceState();
-    const bool recognized = (state == kDeviceStateListening || state == kDeviceStateSpeaking)
-        && std::strcmp(role, "user") == 0;
-    const bool reply = state == kDeviceStateSpeaking && std::strcmp(role, "assistant") == 0;
-    {
-        DisplayLockGuard lock(this);
-        if (!lock || !home_) {
-            return;
-        }
-        message_role_ = role;
-        message_ = content;
-        if (recognized || reply) {
-            awaiting_reply_ = recognized;
-        }
-        RefreshHome();
+    DisplayLockGuard lock(this);
+    if (!lock || !home_) return;
+    message_role_ = role;
+    message_ = content ? content : "";
+    if (!message_.empty() && (state == kDeviceStateListening || state == kDeviceStateSpeaking)
+        && std::strcmp(role, "user") == 0) {
+        awaiting_reply_ = true;
     }
-
-    if (recognized) {
-        MipiLcdDisplay::SetStatus("正在处理");
-    } else if (reply) {
-        MipiLcdDisplay::SetStatus(Lang::Strings::SPEAKING);
-    }
+    RefreshHome();
 }
 
 void SpeakerHomeDisplay::RemoveChatMessage(const char* role, const char* content) {
@@ -243,11 +218,28 @@ void SpeakerHomeDisplay::RemoveChatMessage(const char* role, const char* content
 void SpeakerHomeDisplay::ClearChatMessages() {
     MipiLcdDisplay::ClearChatMessages();
     DisplayLockGuard lock(this);
-    if (lock && home_) {
+    if (lock && home_ && !voice_playback_) {
         message_.clear();
         awaiting_reply_ = false;
         RefreshHome();
     }
+}
+
+void SpeakerHomeDisplay::SetVoicePlaybackActive(bool active) {
+    DisplayLockGuard lock(this);
+    if (!lock || !home_ || voice_playback_ == active) return;
+    voice_playback_ = active;
+    if (!active) {
+        awaiting_reply_ = false;
+        if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle) message_.clear();
+    }
+    RefreshHome();
+}
+
+void SpeakerHomeDisplay::SetHideSubtitle(bool hide) {
+    MipiLcdDisplay::SetHideSubtitle(hide);
+    DisplayLockGuard lock(this);
+    if (lock && home_) RefreshHome();
 }
 
 void SpeakerHomeDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
@@ -262,9 +254,18 @@ void SpeakerHomeDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 
 void SpeakerHomeDisplay::RefreshHome() {
     const auto state = Application::GetInstance().GetDeviceState();
-    const bool show = standby_ && state == kDeviceStateIdle && message_.empty() && !has_preview_;
+    const bool voice_page = !has_preview_ && (voice_playback_ || state == kDeviceStateConnecting ||
+        state == kDeviceStateListening || state == kDeviceStateSpeaking);
+    const bool show = !voice_page && standby_ && state == kDeviceStateIdle && message_.empty() && !has_preview_;
     lv_obj_set_flag(home_, LV_OBJ_FLAG_HIDDEN, !show);
-    SetSpeakerAccountLauncherVisible(!show);
+    SetSpeakerAccountLauncherVisible(!show && !voice_page);
+    const bool notice_visible = !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
+    const char* mode = voice_playback_ ? Lang::Strings::SPEAKING
+        : state == kDeviceStateConnecting ? Lang::Strings::CONNECTING
+        : state == kDeviceStateSpeaking || awaiting_reply_ ? "正在处理" : Lang::Strings::LISTENING;
+    auto* font = lv_obj_get_style_text_font(status_label_, LV_PART_MAIN);
+    conversation_.Update(voice_page, notice_visible ? lv_label_get_text(notification_label_) : mode,
+                         hide_subtitle_ ? "" : message_.c_str(), font, voice_playback_);
     if (!show) {
 #if LV_USE_CALENDAR
         calendar_.Hide();
@@ -277,7 +278,6 @@ void SpeakerHomeDisplay::RefreshHome() {
     UpdateLabel(home_network_, lv_label_get_text(network_label_));
     UpdateLabel(home_mute_, lv_label_get_text(mute_label_));
     UpdateLabel(home_battery_, lv_label_get_text(battery_label_));
-    const bool notice_visible = !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
     if (notice_visible) {
         UpdateLabel(home_notice_, lv_label_get_text(notification_label_));
     }

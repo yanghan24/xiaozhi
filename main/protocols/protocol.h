@@ -15,6 +15,8 @@ struct AudioStreamPacket {
     uint32_t media_position_ms = 0;
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
     uint32_t voice_timing_generation = 0;
+    // Local metadata associated with reply PCM. It is never put on the wire.
+    uint32_t voice_reply_generation = 0;
 #endif
     std::vector<uint8_t> payload;
 };
