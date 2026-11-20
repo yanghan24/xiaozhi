@@ -13,10 +13,12 @@ public:
     void Create(lv_obj_t* parent, int y, int height, Shape shape);
     void SetMotion(Motion motion);
     void Stop();
+    bool IsAnimating() const { return timer_ != nullptr; }
 
 private:
     static void Draw(lv_event_t* event);
     void Render(lv_event_t* event) const;
+    void RenderRibbon(lv_layer_t* layer, const lv_area_t& area) const;
     lv_obj_t* region_ = nullptr;
     lv_timer_t* timer_ = nullptr;
     Shape shape_ = Shape::Sweep;
