@@ -559,7 +559,10 @@ export default {
     handleDefaultChange(model) {
       Api.model.setDefaultModel(model.id, ({ data }) => {
         if (data.code === 0) {
-          this.$message.success(this.$t("modelConfig.setDefaultSuccess"));
+          const messageKey = this.$store.state.pubConfig.speakerMode
+            ? "modelConfig.setSystemDefaultSuccess"
+            : "modelConfig.setDefaultSuccess";
+          this.$message.success(this.$t(messageKey));
           this.loadData();
         }
       });
