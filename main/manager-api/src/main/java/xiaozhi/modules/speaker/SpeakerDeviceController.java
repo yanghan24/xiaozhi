@@ -27,12 +27,12 @@ public class SpeakerDeviceController {
     @PostMapping("/login")
     public Object login(@RequestHeader(name="Authorization",required=false) String auth,
             @RequestHeader(name="Device-Id",required=false) String id) {
-        return logins.begin(devices.authenticate(auth,id));
+        return logins.begin(devices.authenticateForLogin(auth,id));
     }
     @GetMapping("/login/{transaction}")
     public Object loginStatus(@RequestHeader(name="Authorization",required=false) String auth,
             @RequestHeader(name="Device-Id",required=false) String id,@PathVariable String transaction) {
-        return logins.status(devices.authenticate(auth,id),transaction);
+        return logins.status(devices.authenticateForLogin(auth,id),transaction);
     }
     @GetMapping("/state")
     public Object state(@RequestHeader(name="Authorization",required=false) String auth,

@@ -7,6 +7,7 @@ springdoc.api-docs.enabled=false
 springdoc.swagger-ui.enabled=false
 spring.datasource.druid.stat-view-servlet.enabled=false
 speaker.enabled=true
+speaker.enrollment-enabled=true
 speaker.issuer=https://aimarket.hncig.cn/oidc
 speaker.client-id=
 speaker.encryption-key-file=/run/xiaozhi/identity.key

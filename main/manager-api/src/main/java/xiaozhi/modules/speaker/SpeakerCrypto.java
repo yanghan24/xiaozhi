@@ -42,6 +42,14 @@ public final class SpeakerCrypto {
         return encrypt(value, settings.issuer()+"\n"+settings.clientId());
     }
     public String encryptConfiguration(String value) { return "mcp1."+encrypt(value,"xiaozhi:mcp-configuration:v1"); }
+    String encryptEnrollmentCredential(String value, String deviceId) {
+        return encrypt(value, "xiaozhi:speaker-enrollment:v1\n" + deviceId);
+    }
+
+    String decryptEnrollmentCredential(String value, String deviceId) {
+        return decrypt(value, "xiaozhi:speaker-enrollment:v1\n" + deviceId);
+    }
+
     private String encrypt(String value,String context) {
         try {
             byte[] iv = new byte[12]; new SecureRandom().nextBytes(iv);

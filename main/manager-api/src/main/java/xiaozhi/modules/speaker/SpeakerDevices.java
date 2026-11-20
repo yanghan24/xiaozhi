@@ -25,21 +25,49 @@ public class SpeakerDevices {
         transactions.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
     public Identity authenticate(String authorization, String id) {
+        return authenticate(authorization, id, false);
+    }
+
+    Identity authenticateForLogin(String authorization, String id) {
+        return authenticate(authorization, id, true);
+    }
+
+    private Identity authenticate(String authorization, String id, boolean allowEnrollment) {
         settings.requireEnabled();
+        Identity identity = parseIdentity(authorization, id);
+        load(identity, false, allowEnrollment);
+        return identity;
+    }
+
+    static Identity parseIdentity(String authorization, String id) {
         if (id == null || !id.matches("[A-Za-z0-9_.:-]{1,128}") || authorization == null
                 || !authorization.matches("Bearer [A-Za-z0-9_-]{43,128}"))
             throw new SpeakerFailure(401, "INVALID_DEVICE_CREDENTIAL");
-        Identity identity = new Identity(id, hash(authorization.substring(7)));
-        load(identity, false);
-        return identity;
+        return new Identity(id, hash(authorization.substring(7)));
     }
+
     public Map<String,Object> load(Identity identity, boolean lock) {
+        return load(identity, lock, false);
+    }
+
+    Map<String,Object> loadForLogin(Identity identity, boolean lock) {
+        return load(identity, lock, true);
+    }
+
+    private Map<String,Object> load(Identity identity, boolean lock, boolean allowEnrollment) {
         var rows = db.queryForList("SELECT s.*,d.admitted,d.credential_hash FROM speaker_device_state s "
                 + "JOIN dc_device d ON d.device_id=s.device_id WHERE s.device_id=? AND d.credential_hash=?"
                 + (lock ? " FOR UPDATE" : ""), identity.id(), identity.hash());
         if (rows.size() != 1) throw new SpeakerFailure(401, "INVALID_DEVICE_CREDENTIAL");
         var row = rows.getFirst();
-        if (!yes(row.get("admitted"))) throw new SpeakerFailure(403, "DEVICE_NOT_ADMITTED");
+        if (!yes(row.get("admitted"))) {
+            if (!allowEnrollment || !yes(row.get("admin_enabled")) || !identity.id().startsWith("enr-")) {
+                throw new SpeakerFailure(403, "DEVICE_NOT_ADMITTED");
+            }
+            var enrollment = db.queryForList("SELECT device_id FROM speaker_enrollment "
+                    + "WHERE device_id=? AND proof_hash=? AND receipt_cipher IS NULL", identity.id(), identity.hash());
+            if (enrollment.isEmpty()) throw new SpeakerFailure(403, "DEVICE_NOT_ADMITTED");
+        }
         return row;
     }
     public Map<String,Object> heartbeat(Identity identity, String board, String firmware) {
