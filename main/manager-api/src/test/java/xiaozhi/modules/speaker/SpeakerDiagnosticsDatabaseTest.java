@@ -161,6 +161,26 @@ class SpeakerDiagnosticsDatabaseTest {
                 timingBody(until, Map.of("event", "tts_playback")))).status);
     }
 
+    @Test void ttsTransportReportsRetainRoundCountersAndValidateMissingStop() throws Exception {
+        devices.heartbeat(devices.authenticate(auth, device), "p4", "2.6.12", true);
+        long until = enable();
+        var sample = Map.of("received_frames", 165, "first_packet_ms", 1000, "last_packet_ms", 21000,
+                "max_receive_gap_ms", 900, "stop_received", false, "channel_closed", true);
+        var entry = Map.of("event", "tts_transport", "trace_id", "a".repeat(32), "transport", sample);
+        assertTrue(diagnostics.upload(auth, device, timingBody(until, entry)).get("accepted"));
+        var logs = (List<?>) diagnostics.read(device).get("logs");
+        var stored = json.valueToTree(logs.getFirst()).path("entries").get(0);
+        assertEquals("a".repeat(32), stored.path("trace_id").asText());
+        assertEquals(165, stored.path("transport").path("received_frames").asInt());
+        assertFalse(stored.path("transport").path("stop_received").asBoolean());
+        assertTrue(stored.path("transport").path("channel_closed").asBoolean());
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "tts_transport", "transport", sample)))).status);
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "tts_transport", "trace_id", "a".repeat(32), "transport",
+                        Map.of("received_frames", 10, "stop_received", false))))).status);
+    }
+
     private MockHttpServletRequest timingBody(long until, Map<String, ?> entry) throws Exception {
         var request = new MockHttpServletRequest();
         request.setContent(json.writeValueAsBytes(Map.of("report_id", "2".repeat(32),

@@ -45,9 +45,26 @@ public class SpeakerDiagnostics {
             @Min(1) @Max(4_294_967_295L) long count,
             int code) {}
 
+    public record TransportSample(
+            @NotNull @Min(0) @Max(4_294_967_295L) Long received_frames,
+            @NotNull @Min(0) Long first_packet_ms,
+            @NotNull @Min(0) Long last_packet_ms,
+            @NotNull @Min(0) Long max_receive_gap_ms,
+            @NotNull Boolean stop_received,
+            @NotNull Boolean channel_closed) {
+        @AssertTrue
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean isPacketTimingConsistent() {
+            if (received_frames == null || first_packet_ms == null || last_packet_ms == null
+                    || max_receive_gap_ms == null) return true;
+            if (received_frames == 0) return first_packet_ms == 0 && last_packet_ms == 0 && max_receive_gap_ms == 0;
+            return first_packet_ms <= last_packet_ms && max_receive_gap_ms <= last_packet_ms - first_packet_ms;
+        }
+    }
+
     public record Entry(
             @NotNull @Pattern(regexp = "boot|state|voice_network_error|ota_check_failed|ota_upgrade_failed"
-                    + "|heartbeat_failed|voice_timing|display_underrun|tts_playback") String event,
+                    + "|heartbeat_failed|voice_timing|display_underrun|tts_playback|tts_transport") String event,
             @Min(0) long uptime_ms,
             @Min(0) @Max(10) int state,
             int code,
@@ -59,11 +76,13 @@ public class SpeakerDiagnostics {
             @Pattern(regexp = "idle|connecting|listening|waiting|speaking") String display_mode,
             Boolean animation_active,
             @Min(0) @Max(4_294_967_295L) Long underrun_count,
-            @Size(min = 1, max = 16) List<@NotNull @Valid PlaybackStage> playback_stages) {
+            @Size(min = 1, max = 16) List<@NotNull @Valid PlaybackStage> playback_stages,
+            @Valid TransportSample transport) {
         @AssertTrue
         @com.fasterxml.jackson.annotation.JsonIgnore
         public boolean isTimingComplete() {
             if ("voice_timing".equals(event)) return trace_id != null && phase != null && elapsed_ms != null;
+            if ("tts_transport".equals(event)) return trace_id != null && phase == null && elapsed_ms == null;
             return trace_id == null && phase == null && elapsed_ms == null;
         }
 
@@ -80,6 +99,12 @@ public class SpeakerDiagnostics {
         @com.fasterxml.jackson.annotation.JsonIgnore
         public boolean isPlaybackSampleComplete() {
             return "tts_playback".equals(event) == (playback_stages != null);
+        }
+
+        @AssertTrue
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean isTransportSampleComplete() {
+            return "tts_transport".equals(event) == (transport != null);
         }
     }
 
