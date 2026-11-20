@@ -19,14 +19,14 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 
-@EnabledIfEnvironmentVariable(named = "SPRING_DATASOURCE_DRUID_URL", matches = "jdbc:mysql://172\\.16\\.18\\.104:13306/xiaozhi_dev\\?.*")
+@EnabledIfEnvironmentVariable(named = "XIAOZHI_TEST_THIRD_PARTY_SERVICES", matches = "true")
 class SpeakerThirdPartyServicesTest {
     @TempDir Path directory;
 
     @Test
     void migrationAndEditsKeepCredentialsPrivateAndRejectStaleVersions() throws Exception {
         var source = new DriverManagerDataSource(System.getenv("SPRING_DATASOURCE_DRUID_URL"),
-                "xiaozhi_dev", System.getenv("SPRING_DATASOURCE_DRUID_PASSWORD"));
+                System.getenv("SPRING_DATASOURCE_DRUID_USERNAME"), System.getenv("SPRING_DATASOURCE_DRUID_PASSWORD"));
         try (var connection = source.getConnection()) {
             String sql;
             try (var input = new ClassPathResource("db/changelog/202611201600.sql").getInputStream()) {
