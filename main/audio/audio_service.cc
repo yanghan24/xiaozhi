@@ -1,4 +1,7 @@
 #include "audio_service.h"
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+#include "speaker_account/voice_timing.h"
+#endif
 #include <esp_log.h>
 #include <cstring>
 
@@ -348,6 +351,11 @@ void AudioService::AudioOutputTask() {
             callbacks_.on_playback_progress(task.playback_id, task.media_position_ms);
         }
 
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        if (task.voice_timing_generation) {
+            SpeakerVoiceTiming::Get().OutputAudio(task.voice_timing_generation);
+        }
+#endif
         codec_->OutputData(task.pcm);
 
         /* Update the last output time */
@@ -405,6 +413,9 @@ void AudioService::OpusCodecTask() {
             task.timestamp = packet->timestamp;
             task.playback_id = packet->playback_id;
             task.media_position_ms = packet->media_position_ms;
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+            task.voice_timing_generation = packet->voice_timing_generation;
+#endif
 
             SetDecodeSampleRate(packet->sample_rate, packet->frame_duration);
             bool decoded = false;

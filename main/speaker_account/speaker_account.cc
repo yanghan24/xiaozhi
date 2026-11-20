@@ -1,4 +1,5 @@
 #include "speaker_account.h"
+#include "voice_timing.h"
 
 #include "application.h"
 #include "board.h"
@@ -583,8 +584,23 @@ void SpeakerAccount::Run() {
         }
         if (now >= next_heartbeat) {
             std::string report = "{\"board_type\":\"" + std::string(RegisteredBoard()) +
-                                 "\",\"firmware_version\":\"" + esp_app_get_description()->version + "\"}";
+                                 "\",\"firmware_version\":\"" + esp_app_get_description()->version +
+                                 "\",\"diagnostics_supported\":true}";
             const auto heartbeat = Request("POST", "/heartbeat", std::move(report));
+            if (heartbeat.status == 200) {
+                const auto document = Parse(heartbeat.body);
+                auto& timing = SpeakerVoiceTiming::Get();
+                timing.SetLease(Number(document.get(), "server_time_ms"),
+                                Number(document.get(), "diagnostics_until_ms"));
+                auto batch = timing.PrepareReport();
+                if (!batch.body.empty()) {
+                    const auto result = Request("POST", "/diagnostics", std::move(batch.body));
+                    if (result.status == 200) timing.Acknowledge(batch.until_ms);
+                    if (result.status == 409) timing.SetLease(0, 0);
+                }
+            } else if (heartbeat.status == 401 || heartbeat.status == 403) {
+                SpeakerVoiceTiming::Get().SetLease(0, 0);
+            }
             if (heartbeat.status == 200 && acknowledge_enrollment &&
                 Request("POST", "/enrollment/ack").status == 204) {
                 acknowledge_enrollment = !StoreValue("enrollment_v1", {});

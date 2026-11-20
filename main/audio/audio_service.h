@@ -101,6 +101,9 @@ struct AudioTask {
     uint32_t timestamp = 0;
     uint32_t playback_id = 0;
     uint32_t media_position_ms = 0;
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    uint32_t voice_timing_generation = 0;
+#endif
 };
 
 struct DebugStatistics {

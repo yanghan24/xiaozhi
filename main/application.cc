@@ -1,6 +1,7 @@
 #include "application.h"
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 #include "speaker_account/speaker_account.h"
+#include "speaker_account/voice_timing.h"
 #endif
 #include "assets.h"
 #include "assets/lang_config.h"
@@ -237,6 +238,9 @@ void Application::Run() {
 
         if (bits & MAIN_EVENT_PLAYBACK_DRAINED) {
             if (audio_service_.IsPlaybackIdle()) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+                SpeakerVoiceTiming::Get().PlaybackIdle();
+#endif
                 notify_player_.OnPlaybackDrained();
             }
             // Deferred listening start (auto mode): the playback queue has
@@ -275,6 +279,11 @@ void Application::Run() {
                         ;
                     break;
                 }
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+                if (protocol_ && GetDeviceState() == kDeviceStateListening) {
+                    SpeakerVoiceTiming::Get().RecordInput(SpeakerVoiceTiming::FirstMicFrame);
+                }
+#endif
             }
         }
 
@@ -651,11 +660,17 @@ void Application::InitializeProtocol() {
 
     protocol_->OnIncomingAudio([this](std::unique_ptr<AudioStreamPacket> packet) {
         if (GetDeviceState() == kDeviceStateSpeaking) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+            packet->voice_timing_generation = SpeakerVoiceTiming::Get().ReceiveAudio();
+#endif
             audio_service_.PushPacketToDecodeQueue(std::move(packet));
         }
     });
 
     protocol_->OnAudioChannelOpened([this, codec, &board]() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        SpeakerVoiceTiming::Get().RecordInput(SpeakerVoiceTiming::ChannelOpen);
+#endif
         board.SetPowerSaveLevel(PowerSaveLevel::PERFORMANCE);
         if (protocol_->server_sample_rate() != codec->output_sample_rate()) {
             ESP_LOGW(TAG,
@@ -666,6 +681,9 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelClosed([this, &board]() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        SpeakerVoiceTiming::Get().Interrupt();
+#endif
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         Schedule([this]() {
             auto display = Board::GetInstance().GetDisplay();
@@ -726,6 +744,9 @@ void Application::InitializeProtocol() {
                 });
             } else if (strcmp(state->valuestring, "stop") == 0) {
                 Schedule([this]() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+                    SpeakerVoiceTiming::Get().StopReply(audio_service_.IsPlaybackIdle());
+#endif
                     if (GetDeviceState() == kDeviceStateSpeaking) {
                         if (listening_mode_ == kListeningModeManualStop) {
                             SetDeviceState(kDeviceStateIdle);
@@ -751,6 +772,10 @@ void Application::InitializeProtocol() {
                 }
             }
         } else if (strcmp(type->valuestring, "stt") == 0) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+            const auto* trace = cJSON_GetObjectItemCaseSensitive(root, "diagnostic_trace_id");
+            SpeakerVoiceTiming::Get().BeginReply(cJSON_IsString(trace) ? trace->valuestring : nullptr);
+#endif
             auto text = cJSON_GetObjectItem(root, "text");
             if (cJSON_IsString(text)) {
                 std::vector<TextGlyph> glyphs;
@@ -1009,6 +1034,9 @@ void Application::HandleWakeWordDetectedEvent() {
     }
 
     auto state = GetDeviceState();
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    SpeakerVoiceTiming::Get().RecordInput(SpeakerVoiceTiming::Wake);
+#endif
     auto wake_word = audio_service_.GetLastWakeWord();
     ESP_LOGI(TAG, "Wake word detected: %s (state: %d)", wake_word.c_str(), (int)state);
 
@@ -1260,6 +1288,9 @@ void Application::StartListeningAudio() {
     }
 
     // Send the start listening command
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    SpeakerVoiceTiming::Get().RecordInput(SpeakerVoiceTiming::Listening);
+#endif
     protocol_->SendStartListening(listening_mode_);
     audio_service_.EnableVoiceProcessing(true);
 

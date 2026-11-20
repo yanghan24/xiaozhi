@@ -47,7 +47,8 @@ set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg"
 
 if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT)
     list(APPEND SOURCES "speaker_account/speaker_account.cc"
-                        "speaker_account/speaker_account_page.cc")
+                        "speaker_account/speaker_account_page.cc"
+                        "speaker_account/voice_timing.cc")
 endif()
 
 # Add board common files
