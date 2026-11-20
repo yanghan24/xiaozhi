@@ -2,6 +2,7 @@
 #include "codecs/box_audio_codec.h"
 #include "application.h"
 #include "display/lcd_display.h"
+#include "speaker_home_display.h"
 // #include "display/no_display.h"
 #include "button.h"
 
@@ -353,7 +354,12 @@ private:
         esp_lcd_panel_reset(disp_panel);
         esp_lcd_panel_init(disp_panel);
 
-        display_ = new MipiLcdDisplay(io, disp_panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        using ModelDisplay = SpeakerHomeDisplay;
+#else
+        using ModelDisplay = MipiLcdDisplay;
+#endif
+        display_ = new ModelDisplay(io, disp_panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
                                        DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
     }
     void InitializeTouch()

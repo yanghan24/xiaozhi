@@ -78,6 +78,7 @@
                 "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X800_50FPS=y",
                 "CONFIG_XIAOZHI_ENABLE_CAMERA_ENDIANNESS_SWAP=y",
                 "CONFIG_XIAOZHI_SPEAKER_ACCOUNT=y",
+                "CONFIG_LV_FONT_MONTSERRAT_48=y",
                 "CONFIG_XIAOZHI_SPEAKER_ENROLLMENT_ORIGIN=\"https://bridge.hncig.cn:18443\""
             ]
         },
