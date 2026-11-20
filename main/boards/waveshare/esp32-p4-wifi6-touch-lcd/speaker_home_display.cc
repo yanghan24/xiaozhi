@@ -6,6 +6,7 @@
 #include "assets/lang_config.h"
 #include "lvgl_font.h"
 #include "lvgl_image.h"
+#include "speaker_account/display_diagnostics.h"
 #include "speaker_account/speaker_ui_widgets.h"
 #include "speaker_memos.h"
 #include "speaker_standby_weather.h"
@@ -249,6 +250,12 @@ void SpeakerHomeDisplay::RefreshUi() {
         }
     }
     conversation_.Update(voice, motion, status, subtitle, lv_obj_get_style_text_font(status_label_, LV_PART_MAIN));
+#if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    using SpeakerDisplayDiagnostics::Mode;
+    const auto display_mode = !voice ? Mode::Idle : voice_playback_ ? Mode::Speaking :
+        state == kDeviceStateConnecting ? Mode::Connecting : waiting ? Mode::Waiting : Mode::Listening;
+    SpeakerDisplayDiagnostics::SetContext(display_mode, conversation_.IsAnimating());
+#endif
 
     if (show_desktop && notice) {
         UpdateLabel(notice_, lv_label_get_text(notification_label_));

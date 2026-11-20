@@ -1,0 +1,36 @@
+# ESP-IDF 6.1 reports underrun inside the DSI ISR without a public callback.
+# Compile a generated copy in the original component; the shared SDK stays intact.
+idf_component_get_property(lcd_dir esp_lcd COMPONENT_DIR)
+idf_component_get_property(lcd_target esp_lcd COMPONENT_LIB)
+set(driver "${lcd_dir}/dsi/esp_lcd_panel_dpi.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${driver}")
+file(READ "${driver}" driver_source)
+set(handler "void mipi_dsi_bridge_isr_handler(void *args)\n{")
+set(underrun_branch "    if (intr_status & MIPI_DSI_BRG_LL_EVENT_UNDERRUN) {")
+get_target_property(lcd_sources "${lcd_target}" SOURCES)
+get_target_property(lcd_source_dir "${lcd_target}" SOURCE_DIR)
+set(driver_entry "")
+foreach(source IN LISTS lcd_sources)
+    get_filename_component(source_path "${source}" ABSOLUTE BASE_DIR "${lcd_source_dir}")
+    if(source_path STREQUAL driver)
+        set(driver_entry "${source}")
+    endif()
+endforeach()
+string(FIND "${driver_source}" "${handler}" handler_pos)
+string(FIND "${driver_source}" "${underrun_branch}" underrun_pos)
+if(NOT driver_entry OR handler_pos EQUAL -1 OR underrun_pos EQUAL -1)
+    message(FATAL_ERROR "The P4X LCD diagnostic hook needs to be reviewed for this ESP-IDF driver")
+endif()
+string(REPLACE "${handler}"
+    "extern void xiaozhi_display_record_underrun(void);\n\n${handler}"
+    driver_source "${driver_source}")
+string(REPLACE "${underrun_branch}"
+    "${underrun_branch}\n        xiaozhi_display_record_underrun();"
+    driver_source "${driver_source}")
+set(generated "${CMAKE_BINARY_DIR}/p4x-display-diagnostics/esp_lcd_panel_dpi.c")
+file(GENERATE OUTPUT "${generated}" CONTENT "${driver_source}")
+set_source_files_properties("${generated}" TARGET_DIRECTORY "${lcd_target}" PROPERTIES GENERATED TRUE)
+list(REMOVE_ITEM lcd_sources "${driver_entry}")
+set_property(TARGET "${lcd_target}" PROPERTY SOURCES "${lcd_sources}")
+target_sources("${lcd_target}" PRIVATE "${generated}")
+target_include_directories("${lcd_target}" PRIVATE "${lcd_dir}/dsi")

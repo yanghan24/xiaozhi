@@ -48,7 +48,8 @@ void SpeakerVoiceTiming::SetLease(int64_t server_ms, int64_t until_ms) {
     const auto remaining = until_ms - server_ms;
     if (server_ms < 0 || remaining <= 0 || remaining > kWindowMs) until_ms = 0;
     std::lock_guard lock(mutex_);
-    if (until_ms != until_ms_) {
+    const bool changed = until_ms != until_ms_;
+    if (changed) {
         until_ms_ = until_ms;
         input_.fill(0);
         output_.fill(0);
@@ -56,7 +57,15 @@ void SpeakerVoiceTiming::SetLease(int64_t server_ms, int64_t until_ms) {
         stopping_ = false;
         events_.clear();
         report_count_ = 0;
+        report_id_.clear();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        display_count_ = 0;
+        next_display_sample_ms_ = 0;
+#endif
     }
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    SpeakerDisplayDiagnostics::SetWindow(until_ms ? remaining : 0, changed);
+#endif
     deadline_ms_.store(until_ms ? NowMs() + remaining : 0);
 }
 
@@ -145,12 +154,21 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
     std::lock_guard lock(mutex_);
     if (!Enabled()) return {};
     if (!trace_id_.empty() && NowMs() - output_[SttReceived] > kMaxTurnMs) Finish();
-    if (events_.empty()) return {};
-    if (report_count_ == 0) {
+    if (report_id_.empty()) {
+        size_t available = kBatchSize;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        static_assert(std::tuple_size_v<SpeakerDisplayDiagnostics::Samples> < kBatchSize);
+        display_sample_ms_ = NowMs();
+        display_count_ = SpeakerDisplayDiagnostics::TakeSamples(
+            display_samples_, display_sample_ms_ >= next_display_sample_ms_);
+        if (display_count_) next_display_sample_ms_ = display_sample_ms_ + 60 * 1000;
+        available -= display_count_;
+#endif
+        report_count_ = std::min(available, events_.size());
+        if (available == kBatchSize && report_count_ == 0) return {};
         std::array<uint8_t, 16> random;
         esp_fill_random(random.data(), random.size());
         report_id_ = Hex(random.data(), random.size());
-        report_count_ = std::min(kBatchSize, events_.size());
     }
     auto* root = cJSON_CreateObject();
     if (!root) return {};
@@ -171,7 +189,22 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
         cJSON_AddNumberToObject(entry, "uptime_ms", event.uptime_ms);
         cJSON_AddNumberToObject(entry, "elapsed_ms", event.elapsed_ms);
     }
-    char* text = entries && cJSON_GetArraySize(entries) == report_count_ ? cJSON_PrintUnformatted(root) : nullptr;
+    size_t entry_count = report_count_;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    entry_count += display_count_;
+    for (size_t i = 0; i < display_count_ && entries; ++i) {
+        const auto& sample = display_samples_[i];
+        auto* entry = cJSON_CreateObject();
+        if (!entry) break;
+        cJSON_AddItemToArray(entries, entry);
+        cJSON_AddStringToObject(entry, "event", "display_underrun");
+        cJSON_AddNumberToObject(entry, "uptime_ms", display_sample_ms_);
+        cJSON_AddStringToObject(entry, "display_mode", SpeakerDisplayDiagnostics::ModeName(sample.mode));
+        cJSON_AddBoolToObject(entry, "animation_active", sample.animation_active);
+        cJSON_AddNumberToObject(entry, "underrun_count", sample.underruns);
+    }
+#endif
+    char* text = entries && cJSON_GetArraySize(entries) == entry_count ? cJSON_PrintUnformatted(root) : nullptr;
     Report result{until_ms_, text ? text : ""};
     cJSON_free(text);
     cJSON_Delete(root);
@@ -183,4 +216,8 @@ void SpeakerVoiceTiming::Acknowledge(int64_t until_ms) {
     if (until_ms != until_ms_) return;
     for (size_t i = 0; i < report_count_; ++i) events_.pop_front();
     report_count_ = 0;
+    report_id_.clear();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    display_count_ = 0;
+#endif
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "display_diagnostics.h"
+
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -42,4 +44,10 @@ private:
     std::deque<Event> events_;
     std::string report_id_;
     size_t report_count_ = 0;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    SpeakerDisplayDiagnostics::Samples display_samples_{};
+    size_t display_count_ = 0;
+    int64_t display_sample_ms_ = 0;
+    int64_t next_display_sample_ms_ = 0;
+#endif
 };

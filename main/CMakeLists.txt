@@ -51,6 +51,10 @@ if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT)
                         "speaker_account/voice_timing.cc")
 endif()
 
+if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT AND CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)
+    list(APPEND SOURCES "speaker_account/display_diagnostics.cc")
+endif()
+
 # Add board common files
 list(APPEND SOURCES
     "boards/common/board.cc"

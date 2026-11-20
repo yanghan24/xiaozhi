@@ -9,5 +9,9 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
 idf_build_set_property(MINIMAL_BUILD ON)
 
-set(PROJECT_VER "2.6.9")
+set(PROJECT_VER "2.6.10")
 project(xiaozhi)
+
+if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT AND CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)
+    include(cmake/p4x-display-diagnostics.cmake)
+endif()
