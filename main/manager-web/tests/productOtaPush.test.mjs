@@ -121,3 +121,35 @@ it('keeps unknown transport visible after observing target firmware and allows a
   await wrapper.find('[data-test=device-online-A]').setChecked();
   expect(wrapper.find('[data-test=preview]').attributes('disabled')).toBeUndefined();
 });
+it('shows a sleeping device online separately from whether its firmware can receive standby OTA', async () => {
+  fetch.mockResolvedValueOnce(response({ items: [
+    { device_id: 'standby-A', status: 'current', online: true, ota_transport: 'management', voice_status: 'offline', last_seen_at_ms: Date.now() },
+    { device_id: 'legacy-B', status: 'online_requires_wake', online: true, ota_transport: null, voice_status: 'offline', last_seen_at_ms: Date.now() },
+    { device_id: 'absent-C', status: 'offline', online: false, ota_transport: null, last_seen_at_ms: null }
+  ], total: 3 })).mockResolvedValueOnce(response([]));
+  wrapper = mount(component, { propsData: { firmware }, mocks: { $store: { getters: { getToken: '{}' } } } });
+  await settle();
+  const rows = wrapper.findAll('tbody tr');
+  expect(rows.at(0).text()).toContain('在线');
+  expect(rows.at(0).text()).toContain('无需唤醒');
+  expect(rows.at(0).text()).toContain('语音未连接');
+  expect(wrapper.find('[data-test=device-standby-A]').attributes('disabled')).toBeUndefined();
+  expect(rows.at(1).text()).toContain('在线');
+  expect(rows.at(1).text()).toContain('需唤醒');
+  expect(wrapper.find('[data-test=device-legacy-B]').attributes('disabled')).toBeDefined();
+  expect(rows.at(2).text()).toContain('离线');
+});
+it('confirms standby OTA as waiting for idle and keeps the waiting operation protected from repeat submission', async () => {
+  await open();
+  await wrapper.find('[data-test=device-online-A]').setChecked();
+  fetch.mockResolvedValueOnce(response({ preview_id: 'standby-preview', eligible: true, device_id: 'online-A', ota_transport: 'management', expires_at_ms: Date.now() + 60000 }));
+  await wrapper.find('[data-test=preview]').trigger('click'); await settle();
+  expect(wrapper.find('.preview').text()).toContain('空闲后自动升级');
+  expect(wrapper.find('.preview').text()).not.toContain('立即中断');
+  await wrapper.find('[data-test=acknowledge]').setChecked();
+  fetch.mockResolvedValueOnce(response({ operation_id: 'waiting-operation', device_id: 'online-A', status: 'waiting_idle', reason: 'waiting_idle' }));
+  await wrapper.find('[data-test=confirm]').trigger('click'); await settle();
+  expect(wrapper.text()).toContain('等待设备空闲');
+  expect(wrapper.find('[data-test=preview]').attributes('disabled')).toBeDefined();
+  expect(fetch.mock.calls.filter(([path, options]) => path.endsWith('/operations') && options.method === 'POST')).toHaveLength(1);
+});

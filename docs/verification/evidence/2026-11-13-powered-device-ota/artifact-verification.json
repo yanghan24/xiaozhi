@@ -1,0 +1,11 @@
+{
+  "git_commit": "2d522fedab2ef152504c311163ee63d15fe216fd",
+  "api_tree": "171e10adec260ed06c0daeb7ab2cd54c8ed45f86",
+  "isolated_project": "powered-ota-backend-release",
+  "jar_path": "/home/jt/powered-ota-backend-release/.runtime/api.jar",
+  "jar_sha256": "513064a0351ebb535108eac8a7047988ab875a56706ecce238b318c0707b46ab",
+  "firmware_commit": "b471c1019566d204839e80c3ac2026caf1b16739",
+  "firmware_host_binary_sha256": "0720a2ef86eb771bccfcd414634cbef0d3572376c634ed3232f687cff8f828d2",
+  "physical_device_ota_performed": false,
+  "production_modified": false
+}

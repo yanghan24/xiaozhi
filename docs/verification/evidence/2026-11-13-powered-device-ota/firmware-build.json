@@ -1,0 +1,38 @@
+{
+  "source": {
+    "source_commit": "b471c1019566d204839e80c3ac2026caf1b16739",
+    "source_tree": "43f7db767528323dc80f46728c15d3b00fb176ce",
+    "source_archive_sha256": "5cbbee04b46f051ffd0b0f0f80027011c7de4ba9d9f9abbdc695501083f77032",
+    "base_commit": "12f2ff1b3e224ff012bdce95799ebf19740dcd11",
+    "tracked_files_verified": 1660,
+    "normalized_files": []
+  },
+  "manifest": {
+    "schema_version": 1,
+    "release_tag": "p4-powered-ota-2.2.6-b471c10-rc1",
+    "prerelease": true,
+    "source_commit": "b471c1019566d204839e80c3ac2026caf1b16739",
+    "board_type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+    "app_version": "2.2.6",
+    "partition_layout": "partitions/v2/16m.csv",
+    "app_partition_bytes": 4128768,
+    "partition_table_sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5",
+    "application": {
+      "file": "product.bin",
+      "bytes": 4022608,
+      "sha256": "f343d890a30ede6ad045ddd4eaf629e7c455e2b24af367c121cb53e35041103d",
+      "elf_sha256": "de97cbaa11ef327a9b986516f779eb4243924012d58e3dc335583d597cc902d0"
+    }
+  },
+  "sdkconfig_sha256": "d1e37f30144b880603b658eba635dbf71332ca93f95fa16ebdb843a85ea5ab67",
+  "dependencies_sha256": "3f13ae3552abb9d1404a26f830f7fb969a5e4d52cb29974ae30875da8af3f27a",
+  "image_slack_bytes": 106160,
+  "min_revision": 301,
+  "max_revision": 399,
+  "host_tests": {
+    "passed": 40,
+    "failed": 0
+  },
+  "hardware_test": "not_run",
+  "physical_devices_modified": false
+}

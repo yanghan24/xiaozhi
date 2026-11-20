@@ -1,6 +1,9 @@
 package xiaozhi.modules.device.controller;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
@@ -24,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import xiaozhi.common.constant.Constant;
+import xiaozhi.common.utils.JsonUtils;
 import xiaozhi.modules.device.dto.DeviceReportReqDTO;
 import xiaozhi.modules.device.dto.DeviceReportRespDTO;
 import xiaozhi.modules.device.entity.DeviceEntity;
@@ -40,6 +44,8 @@ public class OTAController {
     private boolean productControl;
     @org.springframework.beans.factory.annotation.Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}")
     private String productOrigin;
+    @org.springframework.beans.factory.annotation.Value("${device-control.time-zone:Asia/Shanghai}")
+    private ZoneId productTimeZone;
     private final DeviceService deviceService;
     private final SysParamsService sysParamsService;
 
@@ -51,8 +57,16 @@ public class OTAController {
             @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
         if (productControl) {
             // Discovery is public; only the independent control credential can obtain voice access.
+            long timestamp = System.currentTimeMillis();
+            // Firmware expects UTC epoch milliseconds plus a separate offset in minutes.
+            var discovery = Map.of(
+                    "device_control", Map.of("version", 1,
+                            "base_url", productOrigin + "/xiaozhi/device-control/v1/"),
+                    "server_time", Map.of("timestamp", timestamp,
+                            "timezone_offset", productTimeZone.getRules().getOffset(Instant.ofEpochMilli(timestamp)).getTotalSeconds() / 60,
+                            "timeZone", productTimeZone.getId()));
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).header("Cache-Control","no-store")
-                    .body("{\"device_control\":{\"version\":1,\"base_url\":\""+productOrigin+"/xiaozhi/device-control/v1/\"}}");
+                    .body(JsonUtils.toJsonString(discovery));
         }
         if (StringUtils.isBlank(deviceId)) {
             return createResponse(DeviceReportRespDTO.createError("Device ID is required"));

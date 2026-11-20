@@ -34,7 +34,8 @@ final class DeviceControlBodyFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        int maxBytes = "/admin/product-ota/batch-preview".equals(request.getServletPath()) ? 256 * 1024 : MAX_BYTES;
+        int maxBytes = "/admin/product-ota/batch-preview".equals(request.getServletPath()) ? 256 * 1024
+                : "/device-control/v1/maintenance".equals(request.getServletPath()) ? 16 * 1024 : MAX_BYTES;
         if (request.getContentLengthLong() > maxBytes) {
             reject(response);
             return;

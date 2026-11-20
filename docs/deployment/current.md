@@ -1,5 +1,9 @@
 # 当前部署与公网入口
 
+2026-11-13 19:12（Asia/Hong_Kong）已上线[开机联网在线与待机 OTA](../verification/2026-11-13-powered-device-ota.md)：[PR #114](https://github.com/yanghan24/xiaozhi/pull/114)，合并提交 `a285acc`。API `sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5`、Web `sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2`；432 项 Ubuntu 回归及最终 C++/Java 协议互通通过。仅重建 API/Web，现场语音、依赖容器、身份/归属/许可、配置及操作记录保持。B 在语音离线时已显示在线，实际管理联系时间持续更新；A 暂无近期联系。配套固件 `b471c10` 已经 [PR #113](https://github.com/yanghan24/xiaozhi/pull/113) 合并并上传小智后台候选目录，40 项固件测试和 P4 编译通过；首次安装与真实待机 OTA 仍待实机窗口，未向 A/B 下发。本机 TLS 入口检查通过，浏览器视觉检查因自动授权拒绝而未完成。详细 SHA、备份、观察证据及恢复边界见上述报告。
+
+2026-11-13 17:34（Asia/Hong_Kong）已上线 [OTA 精确板型识别修复](../verification/2026-11-13-ota-board-identity.md)：[PR #109](https://github.com/yanghan24/xiaozhi/pull/109)，合并提交 `7a1a097`，API 镜像 `sha256:cb7c7d1774c3d8dae13402e0c9f1656903c5eb1077f7b87c8fff14f655e72c7b`。设备上报系列名称时结合已核验、已完成的精确 4.3 寸交付登记，预检与下发前均重查；原 manifest、目录与硬件检查保留。Ubuntu 完整回归 401 项通过，受测 JAR 与镜像核验一致，既有数据库启动及公网入口检查通过。仅重建 API，保留现场语音 `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686` 和现有 Web。B 当时离线，在线预检待唤醒；真实 OTA 操作数仍为 0。备份、就绪检查地址修正和部署证据见上述报告。
+
 2026-11-13 17:27（Asia/Hong_Kong）已部署[数列连续播放修复](../verification/2026-11-13-voice-optimization.md)：当前语音 `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686`，将纯数列保持在一次合成中，保留缓存唤醒和增量音频。候选 99 项单测、35 个 WebSocket 场景通过；受控真实 Edge 验证未丢失或重排音频。仅重建语音，其他容器、配置和持久挂载保持，TLS 发现 200、无授权 WSS 1008。用户此前确认唤醒立即出声，补丁后的数数连贯性待现场复验。[部署／回退证据](../verification/evidence/2026-11-13-voice-optimization/numeric-deployment.json)。
 
 2026-11-13 16:54（Asia/Hong_Kong）完成[唤醒与首段语音优化部署](../verification/2026-11-13-voice-optimization.md)：语音运行镜像 `sha256:923a86f241f40aed526e3f9a5d0156f1a34de7224733122d774b4d06e79fc5ff`，固定问候缓存、最早安全首段与 Edge 增量播放生效。受测镜像通过 99 项单测及 31 个 WebSocket 场景；部署只更改语音 image，保留部署前其他任务更新的 API／管理页面，MySQL／Redis／入口容器及原配置、持久挂载保持。TLS 发现 200，无授权 WSS 1008；用户确认唤醒立即出声，但数数在首个数字后长停顿；连续性补丁正在验证。[部署与回退证据](../verification/evidence/2026-11-13-voice-optimization/deployment.json)。
@@ -22,7 +26,7 @@
 
 2026-11-13 10:49（Asia/Hong_Kong）最新维护更新：[#18准备与部署记录](../verification/2026-11-13-issue18-ota-preparation.md)确认现网语音更新为 `xiaozhi-product-voice:issue18-12f2ff1`，基于现场实际 `rtasr-3739aad` 镜像，仅增加新固件精确维护路径。API与身份数据不变；新路径短时HTTPS下载验证后已撤销，尚未向B下发OTA。下方更早的签收及部署说明保留历史范围。
 
-本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 12:32（Asia/Hong_Kong），当前已部署[集市/讯飞语音识别切换](../verification/2026-11-13-asr-provider-switch.md)，下述旧记录保留历史依据，API 部署依据[PR #67 服务端部署记录](../verification/2026-11-11-pr67-deployment.md)，补发后重启及当前新旧凭据依据[历史证据复核](../verification/2026-11-12-api-restart-audit.md)；语音已按 [rtasr-llm 切换记录](../verification/2026-11-13-rtasr-llm.md)更换集市语音转写模型，保留 PR #79 维护修复、原系统提示词和私有配置。API 已包含 PR #67 本机解绑、PR #63 管理员补发设备凭据、PR #52、长期烧录凭据、设备账号查询与旧版停用，手机扫码页为 AI 集市风格，音箱名称优先显示集市昵称；语音为 PR #26 基础上的系统提示词派生版本。操作服务器前仍须检查实际运行状态。
+本页是查找小智服务端地址、部署版本和运行方式的固定入口。最近核验：2026-11-13 19:12（Asia/Hong_Kong），当前 API/Web 和配套固件依据[开机联网在线与待机 OTA 部署记录](../verification/2026-11-13-powered-device-ota.md)。较早报告保留各自当时的验证范围；操作服务器前仍须检查实际运行状态。
 
 2026-11-13 设备现场状态补充：用户确认 B 当前可用，关闭手机登录/绑定页面后仍能完成普通语音问答。设备侧已有步骤及本次确认已整理为 [#13 设备验收与服务器交接](../handoff/2026-11-13-issue13-device-to-server.md)。这项确认晚于 [PR #87 当时的连接失败记录](https://github.com/yanghan24/xiaozhi/blob/6a20c8c8de190ac9b8ce7eda212ed277fdf2245a/docs/verification/2026-11-12-pr84-pr85-continuation.md)；历史失败结论保留。服务器接续已完成，#13 已关闭，详见下方签收；各历史报告保留各自日期和版本。
 
@@ -35,6 +39,7 @@
 | 公网 HTTPS origin | https://bridge.hncig.cn:18443 |
 | 音箱 OTA 产品发现 | https://bridge.hncig.cn:18443/xiaozhi/ota/ |
 | 设备控制状态（GET） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/state |
+| 设备管理心跳与 OTA（POST） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/maintenance |
 | 创建绑定/恢复请求（POST） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/requests |
 | 停播确认（POST） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/state-acks |
 | 本台归属账号与积分（GET） | https://bridge.hncig.cn:18443/xiaozhi/device-control/v1/account |
@@ -50,13 +55,13 @@
 | 项目 | 最近确认值 |
 | --- | --- |
 | Ubuntu / SSH | `jt@192.168.168.114` |
-| API 源码 | `7a935aba50c0e177e79badcb17a45e6a7ae43308`，从 main 基线加入集市/讯飞识别切换；运行产物固定于该实现提交，代码审阅入口为 [PR #94](https://github.com/yanghan24/xiaozhi/pull/94) |
+| API 源码 | `a285acc3cd904aa567b01814b39b5da4f888dde8`（PR #114）；受测后端 `2d522fe` 的 API 内容与合并结果一致 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
-| 产品 API | `xiaozhi-pr26-api` / `xiaozhi-product-api:asr-switch`，11:02:36 重建；#18 下发前只读复查确认 |
-| 产品语音 | `xiaozhi-pr26-voice` / `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686`；17:26 重建，缓存问候、增量播放及数字序列连续合成。代码入口 [PR #107](https://github.com/yanghan24/xiaozhi/pull/107)；17:27 服务核验通过，数数连贯性待实机复验 |
+| 产品 API | `xiaozhi-pr26-api`，镜像 `sha256:0af7ce75dc8af5b1f5d21e74913dc90cb032867b473190fc421e2a0c79f90eb5`；2026-11-13 19:12 上线核验通过 |
+| 产品语音 | `xiaozhi-pr26-voice`，19:12 核验现场镜像 `sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686`；本轮沿用该版本，未重建语音 |
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
-| 管理页面 | `xiaozhi-pr26-web` / `xiaozhi-manager-web:asr-switch`，Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问；模型配置 → 语音识别可切换来源 |
+| 管理页面 | `xiaozhi-pr26-web`，镜像 `sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2`；Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
 外网烧录工作站继续使用已签发的长期烧录凭据；本次验证其有效状态及已撤销凭据的拒绝状态均保留。它不能登录管理页面。管理页面可用 `ssh -N -L 127.0.0.1:28052:127.0.0.1:18052 jt@192.168.168.114` 后访问 `http://127.0.0.1:28052/#/login`。
 

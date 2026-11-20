@@ -1,0 +1,56 @@
+{
+    "pr":  109,
+    "merge_commit":  "7a1a097e8a23e63776fc155a6d1929bb134d1f97",
+    "tests":  {
+                  "totals":  {
+                                 "tests":  401,
+                                 "failures":  0,
+                                 "errors":  0,
+                                 "skipped":  0
+                             },
+                  "failed_tests":  [
+
+                                   ],
+                  "reports_directory":  ".runtime/reports-20261113T092845Z"
+              },
+    "deployment":  {
+                       "deployed_utc":  "2026-11-13T09:33:57.357386+00:00",
+                       "source_commit":  "4602a66e02a3d87ce18c85d920ddba9ea5401181",
+                       "api_image_before":  "sha256:2828d49aab09ae80489c27c1d3e388b68ad47fb67e2c865847740412c639dbbe",
+                       "api_image_after":  "sha256:cb7c7d1774c3d8dae13402e0c9f1656903c5eb1077f7b87c8fff14f655e72c7b",
+                       "jar_sha256":  "a006c015471b99cfb330cebdaf7319a591e9230c2c1acbae9ee501108326d9b6",
+                       "voice_image_preserved":  "sha256:578524ae8454c0d69334844a563af35df2c6c7bd73ed550865155fd09176b686",
+                       "web_image_preserved":  "sha256:4bd43d3269f1c6156fce2186d7cd3173b2f0d1291cc506787bbffc29b011b5df",
+                       "identity_delivery_firmware_operations_unchanged":  true,
+                       "private_configuration_unchanged":  true,
+                       "dependency_containers_not_recreated":  true,
+                       "ota_sent":  false,
+                       "checks":  {
+                                      "/xiaozhi/ota/":  200,
+                                      "/xiaozhi/admin/product-ota/devices":  404,
+                                      "/internal/product-ota/v1/control":  404,
+                                      "unsigned_artifact":  404
+                                  },
+                       "backup":  "/home/jt/ota-board-identity-20261113/rollout/backup"
+                   },
+    "preview":  {
+                    "checked_utc":  "2026-11-13T09:34:12.323196+00:00",
+                    "device":  "B",
+                    "session_status":  "offline",
+                    "firmware_id":  "447d6bea932a4803866ac18e78701ba4",
+                    "firmware_board_type":  "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+                    "firmware_sha256":  "7cb0c36077d42d9b64f09727e176c83f6ca2f281abb04d988982dc82e30b8f8c",
+                    "ota_sent":  false,
+                    "preview":  {
+                                    "eligible":  false,
+                                    "reason":  "offline",
+                                    "current_version":  "",
+                                    "current_elf_sha256":  "",
+                                    "target_version":  "2.2.6",
+                                    "target_elf_sha256":  "f242b5b68cc3c565335c7eb0b048156209531ebd6fb5e9c54bdf809b9cc58d6e"
+                                },
+                    "operation_count_unchanged":  true,
+                    "operations_before":  0,
+                    "operations_after":  0
+                }
+}
