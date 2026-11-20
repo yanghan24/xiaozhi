@@ -23,7 +23,7 @@
         <el-table-column label="轮次耗时" min-width="140">
           <template slot-scope="{ row }">
             <el-tooltip v-if="row.trace_id" :content="row.trace_id" placement="top">
-              <span>{{ row.elapsed_ms }} ms · {{ row.trace_id.slice(0, 8) }}</span>
+              <span>{{ row.elapsed_ms == null ? '' : row.elapsed_ms + ' ms · ' }}{{ row.trace_id.slice(0, 8) }}</span>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -35,7 +35,7 @@
         </el-table-column>
         <el-table-column label="可用内存 / 最低值" min-width="132">
           <template slot-scope="{ row }">
-            <span v-if="row.event !== 'display_underrun' && row.event !== 'tts_playback'">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
+            <span v-if="row.event !== 'display_underrun' && row.event !== 'tts_playback' && row.event !== 'tts_transport'">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
           </template>
         </el-table-column>
         <el-table-column label="固件版本" min-width="105">
@@ -103,6 +103,13 @@ export default {
       if (row.event === 'voice_timing') return timingPhases[row.phase] || row.phase;
       if (row.event === 'display_underrun') {
         return `LCD 扫描缺帧 ${row.underrun_count} 次 · ${displayModes[row.display_mode]} · 波带${row.animation_active ? '播放中' : '静止'}`;
+      }
+      if (row.event === 'tts_transport') {
+        const sample = row.transport;
+        const stop = sample.stop_received ? '已收到停止指令' : '尚未收到停止指令';
+        const closed = sample.channel_closed ? ' · 语音连接已关闭' : '';
+        const gap = sample.received_frames > 1 ? ` · 最大收包间隔 ${sample.max_receive_gap_ms} ms` : '';
+        return `TTS 累计接收 ${sample.received_frames} 帧${gap} · ${stop}${closed}`;
       }
       if (row.event === 'tts_playback') {
         const { phase, count, code } = row.playbackStage;

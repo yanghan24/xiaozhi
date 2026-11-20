@@ -16,6 +16,8 @@ class VoiceTiming:
         self.phases = {}
         self.sentence_id = None
         self.tts_retries = 0
+        self.tts_frames_sent = 0
+        self.tts_max_send_gap_ms = 0
         self.finished = False
         self._finish_lock = threading.Lock()
 
@@ -40,12 +42,36 @@ class VoiceTiming:
         return trace if trace is not None and sentence_id and trace.sentence_id == sentence_id else None
 
     def active(self):
-        return (not self.finished and self.enabled_until(self.conn) == self.until_ms
-                and self.until_ms > time.time() * 1000)
+        return not self.finished and self._lease_valid()
+
+    def _lease_valid(self):
+        return (self.enabled_until(self.conn) == self.until_ms and self.until_ms > time.time() * 1000)
 
     def mark(self, phase):
         if phase not in self.phases:
             self.phases.setdefault(phase, (time.monotonic_ns() - self.started) // 1_000_000)
+
+    def tts_frame_sent(self):
+        if not self.active():
+            return
+        elapsed = (time.monotonic_ns() - self.started) // 1_000_000
+        if self.tts_frames_sent:
+            gap = elapsed - self.phases['last_audio_sent']
+            self.tts_max_send_gap_ms = max(self.tts_max_send_gap_ms, gap)
+        else:
+            self.phases['first_audio_sent'] = elapsed
+        self.phases['last_audio_sent'] = elapsed
+        self.tts_frames_sent += 1
+
+    def log_tts_close(self, websocket, started):
+        if not self._lease_valid():
+            return
+        protocol = getattr(websocket, 'protocol', None)
+        data = {'trace_id': self.trace_id,
+                'close_wait_ms': (time.monotonic_ns() - started) // 1_000_000,
+                'close_sent_code': getattr(getattr(protocol, 'close_sent', None), 'code', None),
+                'close_received_code': getattr(getattr(protocol, 'close_rcvd', None), 'code', None)}
+        self.conn.logger.bind(tag=__name__).info('voice_tts_close {}', json.dumps(data, separators=(',', ':')))
 
     def finish(self, outcome):
         with self._finish_lock:
@@ -62,5 +88,6 @@ class VoiceTiming:
                 providers[kind] = model
         data = {'trace_id': self.trace_id, 'outcome': outcome,
                 'phase_offset_ms': dict(self.phases), 'tts_retries': self.tts_retries,
+                'tts_frames_sent': self.tts_frames_sent, 'tts_max_send_gap_ms': self.tts_max_send_gap_ms,
                 'models': providers}
         self.conn.logger.bind(tag=__name__).info('voice_timing {}', json.dumps(data, separators=(',', ':')))

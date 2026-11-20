@@ -49,13 +49,17 @@ async def sendAudioMessage(conn: "ConnectionHandler", sentenceType, audios, text
     # 发送结束消息（如果是最后一个文本）
     # 通话需要维持speaking状态
     if not conn.calling and sentenceType == SentenceType.LAST:
-        await send_tts_message(conn, "stop", None)
         trace = VoiceTiming.for_sentence(conn, sentence_id)
+        await send_tts_message(conn, "stop", timing=trace)
         if trace:
             trace.mark('audio_send_end')
             trace.finish('completed' if 'first_audio_sent' in trace.phases else 'no_audio')
         if conn.close_after_chat:
+            websocket = conn.websocket
+            started = time.monotonic_ns()
             await conn.close()
+            if trace:
+                trace.log_tts_close(websocket, started)
 
 
 async def _wait_for_audio_completion(conn: "ConnectionHandler"):
@@ -279,17 +283,16 @@ async def _do_send_audio(conn: "ConnectionHandler", opus_packet, flow_control):
         # 直接发送opus数据包
         await conn.websocket.send(opus_packet)
 
-    if packet_index == 0:
-        trace = VoiceTiming.for_sentence(conn, flow_control.get('sentence_id'))
-        if trace:
-            trace.mark('first_audio_sent')
+    trace = VoiceTiming.for_sentence(conn, flow_control.get('sentence_id'))
+    if trace:
+        trace.tts_frame_sent()
 
     # 更新流控状态
     flow_control["packet_count"] = packet_index + 1
     flow_control["sequence"] = sequence + 1
 
 
-async def send_tts_message(conn: "ConnectionHandler", state, text=None):
+async def send_tts_message(conn: "ConnectionHandler", state, text=None, *, timing=None):
     """发送 TTS 状态消息"""
     if text is None and state == "sentence_start":
         return
@@ -314,6 +317,8 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None):
 
         # 检查是否是当前轮次
         if current_sentence_id != conn.sentence_id:
+            if timing and timing.active():
+                timing.mark('tts_stop_superseded')
             return
 
         # 停止音频发送循环（仅在流控器已初始化时调用）
@@ -321,15 +326,20 @@ async def send_tts_message(conn: "ConnectionHandler", state, text=None):
             conn.audio_rate_controller.stop_sending()
         conn.clearSpeakStatus()
 
+    if timing and timing.active() and state in ('start', 'stop'):
+        message['diagnostic_trace_id'] = timing.trace_id
+
     # 发送消息到客户端
     await conn.websocket.send(json.dumps(message))
+    if 'diagnostic_trace_id' in message:
+        timing.mark(f'tts_{state}_sent')
 
 
 async def send_stt_message(conn: "ConnectionHandler", text, *, timing=None):
     """发送 STT 状态消息"""
     end_prompt_str = conn.config.get("end_prompt", {}).get("prompt")
     if end_prompt_str and end_prompt_str == text:
-        await send_tts_message(conn, "start")
+        await send_tts_message(conn, "start", timing=timing)
         return
 
     # 解析JSON格式，提取实际的用户说话内容
@@ -353,7 +363,7 @@ async def send_stt_message(conn: "ConnectionHandler", text, *, timing=None):
         timing.mark('stt_sent')
         message['diagnostic_trace_id'] = timing.trace_id
     await conn.websocket.send(json.dumps(message))
-    await send_tts_message(conn, "start")
+    await send_tts_message(conn, "start", timing=timing)
     # 发送start消息后客户端状态会处于说话中状态，同步服务端状态
     conn.client_is_speaking = True
 
