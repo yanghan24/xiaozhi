@@ -1,4 +1,7 @@
 #include "websocket_protocol.h"
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+#include "speaker_account/speaker_account.h"
+#endif
 #include "application.h"
 #include "board.h"
 #include "settings.h"
@@ -77,10 +80,20 @@ void WebsocketProtocol::CloseAudioChannel(bool send_goodbye) {
 }
 
 bool WebsocketProtocol::OpenAudioChannel() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    const auto access = SpeakerAccount::Get().Voice();
+    if (!access) {
+        return false;
+    }
+    const auto& url = access->url;
+    std::string token = access->token;
+    const int version = access->protocol_version;
+#else
     Settings settings("websocket", false);
     std::string url = settings.GetString("url");
     std::string token = settings.GetString("token");
-    int version = settings.GetInt("version");
+    const int version = settings.GetInt("version");
+#endif
     if (version != 0) {
         version_ = version;
     }
@@ -102,7 +115,11 @@ bool WebsocketProtocol::OpenAudioChannel() {
         websocket_->SetHeader("Authorization", token.c_str());
     }
     websocket_->SetHeader("Protocol-Version", std::to_string(version_).c_str());
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    websocket_->SetHeader("Device-Id", SpeakerAccount::Get().identity().id.c_str());
+#else
     websocket_->SetHeader("Device-Id", SystemInfo::GetMacAddress().c_str());
+#endif
     websocket_->SetHeader("Client-Id", Board::GetInstance().GetUuid().c_str());
 
     websocket_->OnData([this](const char* data, size_t len, bool binary) {

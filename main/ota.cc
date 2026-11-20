@@ -4,6 +4,9 @@
 #include "protocols/protocol.h"
 #include "settings.h"
 #include "system_info.h"
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+#include "speaker_account/speaker_account.h"
+#endif
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -57,6 +60,9 @@ Ota::~Ota() {
 }
 
 std::string Ota::GetCheckVersionUrl() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    return SpeakerAccount::Get().identity().OtaUrl();
+#else
     Settings settings("wifi", false);
     std::string url = settings.GetString("ota_url");
     if (!wifi_config::IsValidOtaUrl(url)) {
@@ -67,15 +73,27 @@ std::string Ota::GetCheckVersionUrl() {
         url = CONFIG_OTA_URL;
     }
     return url;
+#endif
 }
 
 std::unique_ptr<Http> Ota::SetupHttp() {
     auto& board = Board::GetInstance();
     auto network = board.GetNetwork();
     auto http = network->CreateHttp(0);
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    if (!http) {
+        return nullptr;
+    }
+#endif
     auto user_agent = SystemInfo::GetUserAgent();
     http->SetHeader("Activation-Version", has_serial_number_ ? "2" : "1");
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    const auto& identity = SpeakerAccount::Get().identity();
+    http->SetHeader("Device-Id", identity.id);
+    http->SetHeader("Authorization", "Bearer " + identity.credential);
+#else
     http->SetHeader("Device-Id", SystemInfo::GetMacAddress().c_str());
+#endif
     http->SetHeader("Client-Id", board.GetUuid());
     if (has_serial_number_) {
         http->SetHeader("Serial-Number", serial_number_.c_str());
@@ -104,8 +122,24 @@ NetworkResult<> Ota::CheckVersion() {
     }
 
     auto http = SetupHttp();
+    if (!http) {
+        return std::unexpected(NetworkError::ProtocolError());
+    }
 
     std::string data = board.GetSystemInfoJson();
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    CJsonUniquePtr report(cJSON_Parse(data.c_str()));
+    auto* report_board = cJSON_GetObjectItemCaseSensitive(report.get(), "board");
+    auto* type = cJSON_GetObjectItemCaseSensitive(report_board, "type");
+    if (!cJSON_IsString(type) || !cJSON_SetValuestring(type, SpeakerAccount::RegisteredBoard())) {
+        return std::unexpected(NetworkError::ProtocolError());
+    }
+    CJsonStringUniquePtr encoded_report(cJSON_PrintUnformatted(report.get()));
+    if (!encoded_report) {
+        return std::unexpected(NetworkError::ProtocolError());
+    }
+    data = encoded_report.get();
+#endif
     const auto root_start = data.find_first_not_of(" \r\n\t");
     const auto root_end = data.find_last_not_of(" \r\n\t");
     if (root_start != std::string::npos && data[root_start] == '{' && data[root_end] == '}') {

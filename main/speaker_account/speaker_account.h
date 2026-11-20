@@ -1,0 +1,94 @@
+#ifndef SPEAKER_ACCOUNT_H
+#define SPEAKER_ACCOUNT_H
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <cstdint>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <string_view>
+
+class SpeakerAccount {
+public:
+    struct Identity {
+        std::string id;
+        std::string credential;
+        std::string origin;
+
+        std::string OtaUrl() const;
+    };
+
+    struct VoiceAccess {
+        std::string url;
+        std::string token;
+        int protocol_version = 1;
+    };
+
+    enum class Page {
+        Connecting,
+        Unprovisioned,
+        Scan,
+        Retry,
+        Disabled,
+        Ready,
+        Offline,
+    };
+
+    struct View {
+        Page page = Page::Connecting;
+        std::string qr_url;
+        std::string user_code;
+        std::string customer;
+        bool can_unbind = false;
+        bool unbind_pending = false;
+
+        bool operator==(const View&) const = default;
+    };
+
+    static SpeakerAccount& Get();
+    static constexpr const char* RegisteredBoard() {
+        return "waveshare-esp32-p4-wifi6-touch-lcd-4.3";
+    }
+
+    void LoadIdentity();
+    const Identity& identity() const { return identity_; }
+    const std::string& hardware_id() const { return hardware_id_; }
+    void NetworkChanged(bool connected);
+    void Start();
+    void SetUpgrading(bool upgrading);
+    std::optional<VoiceAccess> Voice() const;
+    View GetView() const;
+    void RefreshCode();
+    void Unbind();
+
+private:
+    struct Response {
+        int status = 0;
+        std::string body;
+    };
+
+    void Run();
+    Response Request(const char* method, const std::string& path, std::string body = {});
+    void Publish(View view, std::optional<VoiceAccess> access, int64_t lease_until,
+                 int64_t permission_version, bool revoke_if_changed, uint32_t network_epoch);
+    void Notify();
+
+    Identity identity_;
+    std::string hardware_id_;
+    mutable std::mutex mutex_;
+    TaskHandle_t worker_ = nullptr;
+    View view_;
+    std::optional<VoiceAccess> voice_;
+    int64_t voice_until_ = 0;
+    int64_t permission_version_ = 0;
+    uint32_t network_epoch_ = 0;
+    bool connected_ = false;
+    bool upgrading_ = false;
+    bool refresh_ = false;
+    bool unbind_ = false;
+};
+
+void RenderSpeakerAccount(const SpeakerAccount::View& view);
+
+#endif

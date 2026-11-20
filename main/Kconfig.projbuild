@@ -6,6 +6,14 @@ config OTA_URL
     help
         The application will access this URL to check for new firmwares and server address.
 
+config XIAOZHI_SPEAKER_ACCOUNT
+    bool "AI Market device authorization"
+    depends on BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 && !ESP32P4_SELECTS_REV_LESS_V3 && !USE_EMOTE_MESSAGE_STYLE
+    select LV_USE_CANVAS
+    help
+        Use the provisioned speaker identity and the management API for device
+        authorization. The product variant uses the existing WebSocket protocol.
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE

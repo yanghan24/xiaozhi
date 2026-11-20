@@ -45,6 +45,11 @@ set(SOURCES "audio/audio_codec.cc"
 
 set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols")
 
+if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT)
+    list(APPEND SOURCES "speaker_account/speaker_account.cc"
+                        "speaker_account/speaker_account_page.cc")
+endif()
+
 # Add board common files
 list(APPEND SOURCES
     "boards/common/board.cc"
@@ -82,6 +87,11 @@ function(find_component_by_pattern PATTERN COMPONENT_VAR PATH_VAR)
         endif()
     endforeach()
 endfunction()
+
+if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT)
+    find_component_by_pattern("esp_emote_gfx$" SPEAKER_QR_COMPONENT SPEAKER_QR_DIR)
+    list(APPEND INCLUDE_DIRS "${SPEAKER_QR_DIR}/src/lib/qrcode")
+endif()
 
 # Set default BUILTIN_TEXT_FONT and BUILTIN_ICON_FONT
 set(BUILTIN_TEXT_FONT font_noto_sans_basic_14_1)

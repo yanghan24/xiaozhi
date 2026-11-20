@@ -91,6 +91,9 @@ public:
     void DismissAlert();
 
     void AbortSpeaking(AbortReason reason);
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    void OnSpeakerPermissionRevoked();
+#endif
 
     /**
      * Toggle chat state (event-based, thread-safe)

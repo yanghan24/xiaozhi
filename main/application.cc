@@ -1,4 +1,7 @@
 #include "application.h"
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+#include "speaker_account/speaker_account.h"
+#endif
 #include "assets.h"
 #include "assets/lang_config.h"
 #include "audio_codec.h"
@@ -316,6 +319,9 @@ void Application::Run() {
 
 void Application::HandleNetworkConnectedEvent() {
     ESP_LOGI(TAG, "Network connected");
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    SpeakerAccount::Get().NetworkChanged(true);
+#endif
     auto state = GetDeviceState();
 
     if (state == kDeviceStateStarting || state == kDeviceStateWifiConfiguring) {
@@ -342,6 +348,9 @@ void Application::HandleNetworkConnectedEvent() {
 }
 
 void Application::HandleNetworkDisconnectedEvent() {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    SpeakerAccount::Get().NetworkChanged(false);
+#endif
     // Close current conversation when network disconnected
     auto state = GetDeviceState();
     if (state == kDeviceStateNotifying) {
@@ -358,6 +367,20 @@ void Application::HandleNetworkDisconnectedEvent() {
     display->UpdateStatusBar(true);
 }
 
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+void Application::OnSpeakerPermissionRevoked() {
+    const auto state = GetDeviceState();
+    if (state == kDeviceStateConnecting || state == kDeviceStateListening ||
+        state == kDeviceStateSpeaking) {
+        if (protocol_ && protocol_->IsAudioChannelOpened()) {
+            protocol_->CloseAudioChannel();
+        }
+        audio_service_.ResetDecoder();
+        SetDeviceState(kDeviceStateIdle);
+    }
+}
+#endif
+
 void Application::HandleActivationDoneEvent() {
     ESP_LOGI(TAG, "Activation done");
 
@@ -372,7 +395,11 @@ void Application::HandleActivationDoneEvent() {
     const bool has_error = !last_error_message_.empty();
     if (!startup_completed_) {
         startup_completed_ = true;
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        pending_startup_wake_word_hint_ = !has_error && SpeakerAccount::Get().Voice().has_value();
+#else
         pending_startup_wake_word_hint_ = !has_error;
+#endif
     }
     if (!has_error) {
         auto display = Board::GetInstance().GetDisplay();
@@ -386,7 +413,11 @@ void Application::HandleActivationDoneEvent() {
     auto& board = Board::GetInstance();
     board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
 
-    if (!has_error) {
+    if (!has_error
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        && SpeakerAccount::Get().Voice().has_value()
+#endif
+    ) {
         Schedule([this]() {
             // Play the success sound to indicate the device is ready
             audio_service_.PlaySound(Lang::Sounds::OGG_SUCCESS);
@@ -402,10 +433,19 @@ void Application::ActivationTask() {
     CheckAssetsVersion();
 
     // Check for new firmware version
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    if (!SpeakerAccount::Get().identity().id.empty()) {
+        CheckNewVersion();
+    }
+#else
     CheckNewVersion();
+#endif
 
     // Initialize the protocol
     InitializeProtocol();
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    SpeakerAccount::Get().Start();
+#endif
 
     // Signal completion to main loop
     xEventGroupSetBits(event_group_, MAIN_EVENT_ACTIVATION_DONE);
@@ -479,9 +519,11 @@ void Application::CheckAssetsVersion() {
 }
 
 void Application::CheckNewVersion() {
+#ifndef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
     const int MAX_RETRY = 10;
     int retry_count = 0;
     int retry_delay = 10;  // Initial retry delay in seconds
+#endif
 
     auto& board = Board::GetInstance();
     while (true) {
@@ -490,6 +532,12 @@ void Application::CheckNewVersion() {
 
         auto check = ota_->CheckVersion();
         if (!check) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+            // The separate account worker reports connectivity and credentials.
+            // Boot can finish even if the version endpoint is unavailable.
+            ESP_LOGW(TAG, "Firmware check could not complete");
+            return;
+#else
             retry_count++;
             if (retry_count >= MAX_RETRY) {
                 ESP_LOGE(TAG, "Too many retries, exit version check");
@@ -525,9 +573,12 @@ void Application::CheckNewVersion() {
             }
             retry_delay *= 2;  // Double the retry delay
             continue;
+#endif
         }
+#ifndef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
         retry_count = 0;
         retry_delay = 10;  // Reset retry delay
+#endif
 
         if (ota_->HasNewVersion()) {
             if (UpgradeFirmware(ota_->GetFirmwareUrl(), ota_->GetFirmwareVersion())) {
@@ -538,6 +589,9 @@ void Application::CheckNewVersion() {
 
         // No new version, mark the current version as valid
         ota_->MarkCurrentVersionValid();
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        break;  // The management API owns the device authorization transaction.
+#else
         if (!ota_->HasActivationCode() && !ota_->HasActivationChallenge()) {
             // Exit the loop if done checking new version
             break;
@@ -564,6 +618,7 @@ void Application::CheckNewVersion() {
                 break;
             }
         }
+#endif
     }
 }
 
@@ -574,6 +629,9 @@ void Application::InitializeProtocol() {
 
     display->SetStatus(Lang::Strings::LOADING_PROTOCOL);
 
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    protocol_ = std::make_unique<WebsocketProtocol>();
+#else
     if (ota_->HasMqttConfig()) {
         protocol_ = std::make_unique<MqttProtocol>();
     } else if (ota_->HasWebsocketConfig()) {
@@ -582,6 +640,7 @@ void Application::InitializeProtocol() {
         ESP_LOGW(TAG, "No protocol specified in the OTA config, using MQTT");
         protocol_ = std::make_unique<MqttProtocol>();
     }
+#endif
 
     protocol_->OnConnected([this]() { DismissAlert(); });
 
@@ -842,6 +901,12 @@ void Application::HandleToggleChatEvent() {
     }
 
     if (state == kDeviceStateIdle) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        if (!SpeakerAccount::Get().Voice()) {
+            RenderSpeakerAccount(SpeakerAccount::Get().GetView());
+            return;
+        }
+#endif
         ListeningMode mode = GetDefaultListeningMode();
         if (!protocol_->IsAudioChannelOpened()) {
             SetDeviceState(kDeviceStateConnecting);
@@ -902,6 +967,12 @@ void Application::HandleStartListeningEvent() {
     }
 
     if (state == kDeviceStateIdle) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        if (!SpeakerAccount::Get().Voice()) {
+            RenderSpeakerAccount(SpeakerAccount::Get().GetView());
+            return;
+        }
+#endif
         if (!protocol_->IsAudioChannelOpened()) {
             SetDeviceState(kDeviceStateConnecting);
             // Schedule to let the state change be processed first (UI update)
@@ -970,6 +1041,13 @@ void Application::HandleWakeWordDetectedEvent() {
 }
 
 void Application::BeginWakeWordInvoke(const std::string& wake_word) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    if (!SpeakerAccount::Get().Voice()) {
+        audio_service_.EnableWakeWordDetection(true);
+        RenderSpeakerAccount(SpeakerAccount::Get().GetView());
+        return;
+    }
+#endif
     // Must run in the main task with the device in idle state
     audio_service_.EncodeWakeWord();
 
@@ -1312,6 +1390,9 @@ void Application::Reboot() {
 }
 
 bool Application::UpgradeFirmware(const std::string& url, const std::string& version) {
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    SpeakerAccount::Get().SetUpgrading(true);
+#endif
     auto& board = Board::GetInstance();
     auto display = board.GetDisplay();
 
@@ -1359,6 +1440,9 @@ bool Application::UpgradeFirmware(const std::string& url, const std::string& ver
         Alert(Lang::Strings::ERROR, Lang::Strings::UPGRADE_FAILED, "cancel",
               Lang::Sounds::OGG_EXCLAMATION);
         vTaskDelay(pdMS_TO_TICKS(3000));
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        SpeakerAccount::Get().SetUpgrading(false);
+#endif
         return false;
     } else {
         // Upgrade success, reboot immediately
