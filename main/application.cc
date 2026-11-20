@@ -65,7 +65,14 @@ Application::~Application() {
     vEventGroupDelete(event_group_);
 }
 
-bool Application::SetDeviceState(DeviceState state) { return state_machine_.TransitionTo(state); }
+bool Application::SetDeviceState(DeviceState state) {
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    if (state != kDeviceStateIdle && GetDeviceState() == kDeviceStateIdle) {
+        audio_service_.CancelLocalPlayback();
+    }
+#endif
+    return state_machine_.TransitionTo(state);
+}
 
 void Application::Initialize() {
     auto& board = Board::GetInstance();

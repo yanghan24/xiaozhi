@@ -183,6 +183,10 @@ void AudioService::Stop() {
     {
         std::lock_guard<std::mutex> lock(audio_queue_mutex_);
         ++playback_generation_;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        ++local_playback_generation_;
+        local_playback_queue_.clear();
+#endif
         audio_encode_queue_.clear();
         audio_decode_queue_.clear();
         audio_playback_queue_.clear();
@@ -329,14 +333,24 @@ void AudioService::AudioInputTask() {
 void AudioService::AudioOutputTask() {
     while (true) {
         std::unique_lock<std::mutex> lock(audio_queue_mutex_);
-        audio_queue_cv_.wait(
-            lock, [this]() { return !audio_playback_queue_.empty() || service_stopped_.load(); });
+        audio_queue_cv_.wait(lock, [this]() {
+            return !audio_playback_queue_.empty() || service_stopped_.load()
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                || !local_playback_queue_.empty()
+#endif
+                ;
+        });
         if (service_stopped_.load()) {
             break;
         }
 
-        auto task = std::move(audio_playback_queue_.front());
-        audio_playback_queue_.pop_front();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        auto& queue = audio_playback_queue_.empty() ? local_playback_queue_ : audio_playback_queue_;
+#else
+        auto& queue = audio_playback_queue_;
+#endif
+        auto task = std::move(queue.front());
+        queue.pop_front();
         output_in_flight_ = true;
         audio_queue_cv_.notify_all();
         lock.unlock();
@@ -810,6 +824,40 @@ bool AudioService::IsPlaybackIdle() {
     return IsPlaybackDrainedLocked();
 }
 
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+uint32_t AudioService::BeginLocalPlayback() {
+    std::lock_guard lock(audio_queue_mutex_);
+    local_playback_queue_.clear();
+    audio_queue_cv_.notify_all();
+    if (++local_playback_generation_ == 0) ++local_playback_generation_;
+    return local_playback_generation_;
+}
+
+void AudioService::CancelLocalPlayback() {
+    BeginLocalPlayback();
+}
+
+bool AudioService::IsLocalPlaybackCurrent(uint32_t generation) {
+    std::lock_guard lock(audio_queue_mutex_);
+    return !service_stopped_ && generation == local_playback_generation_;
+}
+
+bool AudioService::QueueLocalPcm(uint32_t generation, std::vector<int16_t> pcm) {
+    std::unique_lock lock(audio_queue_mutex_);
+    audio_queue_cv_.wait(lock, [&] {
+        return service_stopped_ || generation != local_playback_generation_ || !local_playback_queue_.full();
+    });
+    if (service_stopped_ || generation != local_playback_generation_) return false;
+    AudioTask task{};
+    task.type = kAudioTaskTypeDecodeToPlaybackQueue;
+    task.pcm = std::move(pcm);
+    local_playback_queue_.push_back(std::move(task));
+    playback_drained_notified_ = false;
+    audio_queue_cv_.notify_all();
+    return true;
+}
+#endif
+
 void AudioService::ResetDecoder() {
     bool notify_drained = false;
     {
@@ -833,8 +881,13 @@ void AudioService::ResetDecoder() {
 }
 
 bool AudioService::IsPlaybackDrainedLocked() const {
-    return audio_decode_queue_.empty() && audio_playback_queue_.empty() && !decode_in_flight_ &&
-           !output_in_flight_;
+    const bool dialogue_idle = audio_decode_queue_.empty() && audio_playback_queue_.empty()
+            && !decode_in_flight_ && !output_in_flight_;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    return dialogue_idle && local_playback_queue_.empty();
+#else
+    return dialogue_idle;
+#endif
 }
 
 bool AudioService::MarkPlaybackDrainedLocked() {

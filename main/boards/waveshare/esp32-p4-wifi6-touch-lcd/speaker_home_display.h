@@ -8,6 +8,7 @@
 #include "speaker_calendar_view.h"
 #include "speaker_home_widgets.h"
 #include "speaker_pomodoro_view.h"
+#include "speaker_music_view.h"
 
 class SpeakerHomeDisplay : public MipiLcdDisplay {
 public:
@@ -46,6 +47,7 @@ private:
     SpeakerCalendarView calendar_;
 #endif
     SpeakerPomodoroView pomodoro_;
+    SpeakerMusicView music_;
 };
 
 #endif

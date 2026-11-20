@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
+#include <cstring>
 
 namespace SpeakerHomeWidgets {
 
@@ -16,6 +17,12 @@ inline lv_obj_t* Label(lv_obj_t* parent, const char* text, uint32_t color) {
     lv_label_set_text(label, text);
     lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
     return label;
+}
+
+inline void UpdateLabel(lv_obj_t* label, const char* text) {
+    if (std::strcmp(lv_label_get_text(label), text) != 0) {
+        lv_label_set_text(label, text);
+    }
 }
 
 inline lv_obj_t* Button(lv_obj_t* parent, const char* text, lv_event_cb_t handler, void* context) {

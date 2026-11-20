@@ -129,6 +129,13 @@ public:
     bool IsVoiceDetected() const { return voice_detected_; }
     bool IsIdle();
     bool IsPlaybackIdle();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    uint32_t BeginLocalPlayback();
+    void CancelLocalPlayback();
+    bool IsLocalPlaybackCurrent(uint32_t generation);
+    bool QueueLocalPcm(uint32_t generation, std::vector<int16_t> pcm);
+    int LocalOutputSampleRate() const { return codec_->output_sample_rate(); }
+#endif
     bool IsWakeWordRunning() const {
         return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING;
     }
@@ -194,6 +201,10 @@ private:
         audio_testing_queue_;
     FixedQueue<AudioTask, MAX_ENCODE_TASKS_IN_QUEUE> audio_encode_queue_;
     FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> audio_playback_queue_;
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> local_playback_queue_;
+    uint32_t local_playback_generation_ = 0;
+#endif
     bool decode_in_flight_ = false;
     bool output_in_flight_ = false;
     bool playback_drained_notified_ = true;

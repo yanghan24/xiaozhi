@@ -14,15 +14,7 @@
 #include <ctime>
 #include <string>
 
-namespace {
-
-void UpdateLabel(lv_obj_t* label, const char* text) {
-    if (std::strcmp(lv_label_get_text(label), text) != 0) {
-        lv_label_set_text(label, text);
-    }
-}
-
-}  // namespace
+using SpeakerHomeWidgets::UpdateLabel;
 
 SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     DisplayLockGuard lock(this);
@@ -111,12 +103,18 @@ void SpeakerHomeDisplay::SetupUI() {
     }, this);
     lv_obj_set_size(pomodoro_button, 110, 40);
     lv_obj_set_pos(pomodoro_button, 304, 4);
+    auto* music_button = Button(home_, "音乐", [](lv_event_t* event) {
+        static_cast<SpeakerHomeDisplay*>(lv_event_get_user_data(event))->music_.Show();
+    }, this);
+    lv_obj_set_size(music_button, 84, 40);
+    lv_obj_set_pos(music_button, 104, 4);
 
     // Draw shared status controls above the independently managed pages.
 #if LV_USE_CALENDAR
     calendar_.Create(home_);
 #endif
     pomodoro_.Create(home_);
+    music_.Create(home_);
     auto* account_button = Button(home_, "账号", [](lv_event_t*) {
         ToggleSpeakerAccountDetails();
     }, nullptr);
@@ -266,6 +264,7 @@ void SpeakerHomeDisplay::RefreshHome() {
         calendar_.Hide();
 #endif
         pomodoro_.Hide();
+        music_.Hide();
         return;
     }
     UpdateLabel(home_network_, lv_label_get_text(network_label_));
@@ -310,6 +309,7 @@ void SpeakerHomeDisplay::RefreshHome() {
     UpdateLabel(weather_city_, weather.city.c_str());
     UpdateLabel(weather_condition_, summary.c_str());
     UpdateLabel(weather_details_, detail.c_str());
+    music_.Update();
 #if LV_USE_CALENDAR
     calendar_.Update();
 #endif

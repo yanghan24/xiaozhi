@@ -1203,6 +1203,9 @@ if(CONFIG_BOARD_TYPE_ESP32_P4_FUNCTION_EV_BOARD)
         sdmmc
     )
 endif()
+if(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 AND CONFIG_XIAOZHI_SPEAKER_ACCOUNT)
+    list(APPEND MAIN_PRIV_REQUIRES_EXTRA esp_driver_sdspi sdmmc)
+endif()
 # The Otto camera board uses the USB Serial/JTAG host connection to detect
 # charging from a USB port. The board is ESP32-S3 only, so require the driver
 # on that target and keep other target builds unchanged.
