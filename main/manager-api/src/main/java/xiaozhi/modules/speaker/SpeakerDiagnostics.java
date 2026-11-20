@@ -38,7 +38,7 @@ public class SpeakerDiagnostics {
     public record Toggle(@NotNull Boolean enabled) {}
 
     public record Entry(
-            @NotNull @Pattern(regexp = "boot|state|voice_network_error|ota_check_failed|ota_upgrade_failed|heartbeat_failed|voice_timing") String event,
+            @NotNull @Pattern(regexp = "boot|state|voice_network_error|ota_check_failed|ota_upgrade_failed|heartbeat_failed|voice_timing|display_underrun") String event,
             @Min(0) long uptime_ms,
             @Min(0) @Max(10) int state,
             int code,
@@ -46,12 +46,24 @@ public class SpeakerDiagnostics {
             @Min(0) @Max(64_000_000) int min_free_heap_bytes,
             @Pattern(regexp = "[a-f0-9]{32}") String trace_id,
             @Pattern(regexp = "wake|channel_open|listening|first_mic_frame|stt_received|first_audio_received|first_output|playback_drained") String phase,
-            @Min(0) @Max(600_000) Integer elapsed_ms) {
+            @Min(0) @Max(600_000) Integer elapsed_ms,
+            @Pattern(regexp = "idle|connecting|listening|waiting|speaking") String display_mode,
+            Boolean animation_active,
+            @Min(0) @Max(4_294_967_295L) Long underrun_count) {
         @AssertTrue
         @com.fasterxml.jackson.annotation.JsonIgnore
         public boolean isTimingComplete() {
             if ("voice_timing".equals(event)) return trace_id != null && phase != null && elapsed_ms != null;
             return trace_id == null && phase == null && elapsed_ms == null;
+        }
+
+        @AssertTrue
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean isDisplaySampleComplete() {
+            if ("display_underrun".equals(event)) {
+                return display_mode != null && animation_active != null && underrun_count != null;
+            }
+            return display_mode == null && animation_active == null && underrun_count == null;
         }
     }
 

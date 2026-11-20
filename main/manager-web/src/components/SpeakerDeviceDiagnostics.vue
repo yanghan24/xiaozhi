@@ -13,7 +13,7 @@
           aria-labelledby="speaker-diagnostic-switch" @change="load({ enabled: $event })"
         />
       </div>
-      <p v-if="enabled" class="diagnostics-note">开启至 {{ displayTime(diagnostics.until_ms) }}。语音耗时按轮次记录，音箱将在下次心跳后开始上传。</p>
+      <p v-if="enabled" class="diagnostics-note">开启至 {{ displayTime(diagnostics.until_ms) }}。音箱将在下次心跳后开始上传诊断。</p>
       <p v-else-if="diagnostics.supported" class="diagnostics-note">开启后 30 分钟自动关闭。</p>
       <p v-else class="diagnostics-note">音箱尚未上报诊断支持，请升级固件并等待心跳。</p>
       <el-table :data="rows" border max-height="290" empty-text="暂无诊断日志">
@@ -34,7 +34,9 @@
           <template slot-scope="{ row }">{{ (row.uptime_ms / 1000).toFixed(1) }}</template>
         </el-table-column>
         <el-table-column label="可用内存 / 最低值" min-width="132">
-          <template slot-scope="{ row }">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</template>
+          <template slot-scope="{ row }">
+            <span v-if="row.event !== 'display_underrun'">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
+          </template>
         </el-table-column>
         <el-table-column label="固件版本" min-width="105">
           <template slot-scope="{ row }">
@@ -63,6 +65,7 @@ const timingPhases = {
   stt_received: '收到识别结果', first_audio_received: '收到首个回复音频包',
   first_output: '首次写入音频输出', playback_drained: '播报队列播完',
 };
+const displayModes = { idle: '非对话', connecting: '连接中', listening: '收音', waiting: '等待回复', speaking: '播报' };
 
 export default {
   components: { CustomButton },
@@ -85,6 +88,9 @@ export default {
     kib(bytes) { return Math.round(bytes / 1024); },
     describe(row) {
       if (row.event === 'voice_timing') return timingPhases[row.phase] || row.phase;
+      if (row.event === 'display_underrun') {
+        return `LCD 扫描缺帧 ${row.underrun_count} 次 · ${displayModes[row.display_mode]} · 波带${row.animation_active ? '播放中' : '静止'}`;
+      }
       const state = states[row.state] || '未知';
       if (row.event === 'boot') {
         const reason = resetReasons[row.code] || `复位码 ${row.code}`;

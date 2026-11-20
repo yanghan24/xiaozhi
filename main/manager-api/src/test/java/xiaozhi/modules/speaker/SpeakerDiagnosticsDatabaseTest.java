@@ -120,6 +120,28 @@ class SpeakerDiagnosticsDatabaseTest {
                         Map.of("event", "voice_timing", "phase", "first_output")))).status);
     }
 
+    @Test void displayDiagnosticsRetainCountsAndRejectIncompleteOrInvalidSamples() throws Exception {
+        devices.heartbeat(devices.authenticate(auth, device), "p4", "2.6.10", true);
+        long until = enable();
+        var entry = Map.of("event", "display_underrun", "uptime_ms", 1800,
+                "display_mode", "speaking", "animation_active", true, "underrun_count", 3);
+        assertTrue(diagnostics.upload(auth, device, timingBody(until, entry)).get("accepted"));
+        assertTrue(diagnostics.upload(auth, device, timingBody(until, entry)).get("accepted"));
+        var logs = (List<?>) diagnostics.read(device).get("logs");
+        assertEquals(1, logs.size());
+        var stored = json.valueToTree(logs.getFirst()).path("entries").get(0);
+        assertEquals("speaking", stored.path("display_mode").asText());
+        assertEquals(3, stored.path("underrun_count").asInt());
+        assertTrue(stored.path("animation_active").asBoolean());
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "display_underrun", "display_mode", "listening")))).status);
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "display_underrun", "display_mode", "sleep",
+                        "animation_active", false, "underrun_count", 0)))).status);
+        assertEquals(409, assertThrows(SpeakerFailure.class,
+                () -> diagnostics.upload(auth, device, timingBody(until + 1, entry))).status);
+    }
+
     private MockHttpServletRequest timingBody(long until, Map<String, ?> entry) throws Exception {
         var request = new MockHttpServletRequest();
         request.setContent(json.writeValueAsBytes(Map.of("report_id", "2".repeat(32),
