@@ -30,7 +30,7 @@ public class SpeakerLogins {
         // Fail before creating an upstream transaction when private persistence is not ready.
         crypto.encrypt("storage-readiness");
         String id=devices.transactions.execute(tx -> {
-            var device=devices.load(identity,true);long now=System.currentTimeMillis();
+            var device=devices.loadForLogin(identity,true);long now=System.currentTimeMillis();
             if(device.get("login_id")!=null) {
                 var existing=db.queryForList("SELECT * FROM speaker_login WHERE id=?",device.get("login_id"));
                 if(!existing.isEmpty() && ACTIVE.contains(existing.getFirst().get("status")) && number(existing.getFirst(),"expires_at_ms")>now)
@@ -55,7 +55,7 @@ public class SpeakerLogins {
         return status(identity,id);
     }
     public Map<String,Object> status(SpeakerDevices.Identity identity,String id) {
-        devices.load(identity,false);
+        devices.loadForLogin(identity,false);
         var rows=db.queryForList("SELECT * FROM speaker_login WHERE id=? AND device_id=? AND credential_hash=?",id,identity.id(),identity.hash());
         if(rows.isEmpty()) throw new SpeakerFailure(404,"LOGIN_NOT_FOUND");
         var row=rows.getFirst();
@@ -110,7 +110,7 @@ public class SpeakerLogins {
         // tokens: a stale authorization must not overwrite a later user's grant.
         var profile=row.get("customer_id")==null ? market.profile(received) : null;
         String customer=devices.transactions.execute(tx -> {
-            var device=devices.load(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
+            var device=devices.loadForLogin(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
             var current=db.queryForMap("SELECT * FROM speaker_login WHERE id=? FOR UPDATE",id);
             if(!"polling".equals(current.get("status")) || !id.equals(device.get("login_id"))
                     || number(row,"binding_version")!=number(device,"binding_version")) {
@@ -126,7 +126,7 @@ public class SpeakerLogins {
         });
         if(customer==null) return;
         devices.transactions.executeWithoutResult(tx -> {
-            var device=devices.load(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
+            var device=devices.loadForLogin(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
             if(!id.equals(device.get("login_id")) || number(row,"binding_version")!=number(device,"binding_version")) {
                 fail(id,"cancelled","DEVICE_CHANGED");return;
             }

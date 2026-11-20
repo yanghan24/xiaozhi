@@ -27,6 +27,7 @@ class SpeakerLoginDatabaseTest {
     private String device;
     private SpeakerMarket.Tokens tokens;
     private final List<String> extraCustomers=new ArrayList<>();
+    private final List<String> enrollmentDevices = new ArrayList<>();
     @BeforeEach void setup() throws Exception {
         String url=System.getenv("SPRING_DATASOURCE_DRUID_URL");
         if(url==null || !url.startsWith("jdbc:mysql://172.16.18.104:13306/xiaozhi_dev?"))
@@ -48,16 +49,21 @@ class SpeakerLoginDatabaseTest {
     }
     @AfterEach void cleanup() {
         if(db==null || device==null) return;
-        db.update("DELETE FROM speaker_event WHERE device_id=?",device);
-        db.update("DELETE FROM speaker_device_operation WHERE device_id=?",device);
-        db.update("DELETE FROM speaker_login WHERE device_id=?",device);
-        db.update("DELETE FROM speaker_device_state WHERE device_id=?",device);
-        db.update("DELETE FROM dc_device_presence WHERE device_id=?",device);
-        db.update("DELETE FROM dc_device WHERE device_id=?",device);
+        removeDevice(device);
+        enrollmentDevices.forEach(this::removeDevice);
         var customers=db.queryForList("SELECT DISTINCT customer_id FROM speaker_grant WHERE client_id=?",settings.clientId());
         db.update("DELETE FROM speaker_grant WHERE client_id=?",settings.clientId());
         for(var customer:customers) db.update("DELETE FROM speaker_customer WHERE id=?",customer.get("customer_id"));
         for(String customer:extraCustomers) db.update("DELETE FROM speaker_customer WHERE id=?",customer);
+    }
+
+    private void removeDevice(String id) {
+        db.update("DELETE FROM speaker_event WHERE device_id=?", id);
+        db.update("DELETE FROM speaker_device_operation WHERE device_id=?", id);
+        db.update("DELETE FROM speaker_login WHERE device_id=?", id);
+        db.update("DELETE FROM speaker_device_state WHERE device_id=?", id);
+        db.update("DELETE FROM dc_device_presence WHERE device_id=?", id);
+        db.update("DELETE FROM dc_device WHERE device_id=?", id);
     }
     private void advance() {
         db.update("UPDATE speaker_login SET next_poll_at_ms=0 WHERE id=?",login);
@@ -98,6 +104,40 @@ class SpeakerLoginDatabaseTest {
         assertEquals(true,db.queryForMap("SELECT use_enabled FROM speaker_device_state WHERE device_id=?",device).get("use_enabled"));
         verify(market,times(1)).poll(anyString());
         verify(market,never()).credential(any());
+    }
+
+    @Test void freshSpeakerCanEnrollScanAndRecoverTheCredentialUntilAcknowledged() {
+        var enrollment = new SpeakerEnrollment(db, devices, crypto);
+        String id = "enr-" + UUID.randomUUID().toString().replace("-", "");
+        enrollmentDevices.add(id);
+        String proof = "Bearer " + SpeakerSupport.token();
+        var pending = enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2");
+        assertEquals(Map.of("device_id", id, "status", "pending"), pending);
+        assertEquals(pending, enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2"));
+        assertEquals(403, assertThrows(SpeakerFailure.class, () -> devices.authenticate(proof, id)).status);
+        assertEquals(403, assertThrows(SpeakerFailure.class,
+                () -> enrollment.beginOrClaim("Bearer " + SpeakerSupport.token(), id, "p4-test", "2.6.2")).status);
+        assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM speaker_event WHERE device_id=? AND action='registered'", Integer.class, id));
+
+        var loginIdentity = devices.authenticateForLogin(proof, id);
+        login = logins.begin(loginIdentity).get("id").toString();
+        authorize();
+        advance();
+        assertEquals("completed", logins.status(loginIdentity, login).get("status"));
+        assertEquals(403, assertThrows(SpeakerFailure.class, () -> devices.authenticate(proof, id)).status);
+
+        var issued = enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2");
+        assertEquals("issued", issued.get("status"));
+        assertEquals(issued, enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2"));
+        assertEquals(401, assertThrows(SpeakerFailure.class, () -> devices.authenticateForLogin(proof, id)).status);
+        var assigned = devices.authenticate("Bearer " + issued.get("credential"), id);
+        assertNotNull(devices.load(assigned, false).get("customer_id"));
+        assertEquals(id, devices.heartbeat(assigned, "p4-test", "2.6.2").get("device_id"));
+        enrollment.acknowledge(assigned);
+        enrollment.acknowledge(assigned);
+        assertEquals(403, assertThrows(SpeakerFailure.class,
+                () -> enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2")).status);
+        assertEquals(assigned, devices.authenticate("Bearer " + issued.get("credential"), id));
     }
     @Test void refreshFailureDoesNotRevokeKeyOrDisableDevice() {
         authorize();when(market.credential(any())).thenReturn(new SpeakerMarket.Credential("key-fixture","https://fixture.example",null));advance();
