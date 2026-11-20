@@ -37,7 +37,7 @@ def verify(build):
     required_sources = (
         "display/standby_dashboard.cc",
         "display/assets/hncig_logo_i2.c",
-        "services/environment_service.cc",
+        "services/environment_refresh.cc",
         "services/iot_telemetry_service.cc",
         "device_control/device_identity.cc",
         "device_control/control_transport.cc",
@@ -45,6 +45,10 @@ def verify(build):
     checks["product_sources"] = all(
         any(source.endswith("/main/" + required) for source in sources)
         for required in required_sources
+    )
+    checks["authenticated_environment"] = (
+        any(source.endswith("/main/services/product_environment.cc") for source in sources)
+        and not any(source.endswith("/main/services/environment_service.cc") for source in sources)
     )
     checks["no_maintenance_source"] = not any(
         source.endswith("/device_provisioning.cc") for source in sources
@@ -97,6 +101,7 @@ def verify(build):
     checks["preserved_16mb_layout"] = partitions == expected
     slots = [value[3] for value in partitions.values() if value[0] == 0]
     image = (build / "xiaozhi.bin").read_bytes()
+    checks["authenticated_environment"] &= b"restapi.amap.com" not in image
     capacity = min(slots) if slots else 0
     checks["image_fits_both_slots"] = 0 < len(image) <= capacity
     return {

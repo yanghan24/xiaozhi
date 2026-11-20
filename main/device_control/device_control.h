@@ -63,6 +63,7 @@ public:
     void Start(const std::string& trusted_ota_url, const std::string& discovered_base_url);
     void NotifyNetwork(bool connected);
     bool IsNetworkConnected() const;
+    bool GetEnvironment(const std::string& query, std::string& response);
     void SetMaintenanceActive(bool active);
     void SetMaintenanceCallbacks(std::function<std::string()> request,
                                  std::function<void(const device_control::HttpResult&)> response);
