@@ -27,6 +27,7 @@ public:
 
     enum class Page {
         Connecting,
+        Enrolling,
         Unprovisioned,
         Scan,
         Retry,
@@ -52,7 +53,7 @@ public:
     }
 
     void LoadIdentity();
-    const Identity& identity() const { return identity_; }
+    Identity identity() const;
     const std::string& hardware_id() const { return hardware_id_; }
     void NetworkChanged(bool connected);
     void Start();
@@ -70,6 +71,11 @@ private:
 
     void Run();
     Response Request(const char* method, const std::string& path, std::string body = {});
+    Response RequestWithIdentity(const Identity& identity, const char* method, const std::string& path,
+                                 std::string body = {});
+    enum class LoginResult { InProgress, Completed, InvalidCredential };
+    LoginResult PollLogin(const Identity& identity, std::string& login_id, bool& retry_login,
+                          const std::string& customer, bool bound, int64_t permission, uint32_t epoch);
     void Publish(View view, std::optional<VoiceAccess> access, int64_t lease_until,
                  int64_t permission_version, bool revoke_if_changed, uint32_t network_epoch);
     void Notify();
@@ -83,6 +89,7 @@ private:
     int64_t voice_until_ = 0;
     int64_t permission_version_ = 0;
     uint32_t network_epoch_ = 0;
+    bool enrollment_allowed_ = false;
     bool connected_ = false;
     bool upgrading_ = false;
     bool refresh_ = false;

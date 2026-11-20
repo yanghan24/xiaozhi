@@ -23,6 +23,13 @@ constexpr int64_t kStateInterval = 4000;
 constexpr int64_t kHeartbeatInterval = 20000;
 constexpr int64_t kMaxLease = 60000;
 constexpr size_t kResponseLimit = 16384;
+constexpr size_t kEnrollmentIdLength = 36;
+constexpr size_t kEnrollmentProofLength = 64;
+#ifdef CONFIG_XIAOZHI_SPEAKER_ENROLLMENT_ORIGIN
+constexpr std::string_view kEnrollmentOrigin = CONFIG_XIAOZHI_SPEAKER_ENROLLMENT_ORIGIN;
+#else
+constexpr std::string_view kEnrollmentOrigin;
+#endif
 
 int64_t Now() {
     return esp_timer_get_time() / 1000;
@@ -122,6 +129,88 @@ bool StoreUnbind(const PendingUnbind& value) {
     return saved;
 }
 
+// An empty value means a fresh device. A read error must not replace an existing identity.
+std::optional<std::string> ReadStored(const char* key) {
+    nvs_handle_t handle;
+    const auto opened = nvs_open("device_ctrl", NVS_READONLY, &handle);
+    if (opened == ESP_ERR_NVS_NOT_FOUND) {
+        return std::string();
+    }
+    if (opened != ESP_OK) {
+        return std::nullopt;
+    }
+    size_t length = 0;
+    const auto sized = nvs_get_blob(handle, key, nullptr, &length);
+    if (sized != ESP_OK || length == 0 || length > 2048) {
+        nvs_close(handle);
+        return sized == ESP_ERR_NVS_NOT_FOUND ? std::optional<std::string>(std::string()) : std::nullopt;
+    }
+    std::string data(length, '\0');
+    const auto result = nvs_get_blob(handle, key, data.data(), &length);
+    nvs_close(handle);
+    if (result != ESP_OK || length != data.size()) {
+        return std::nullopt;
+    }
+    return data;
+}
+
+bool StoreValue(const char* key, std::string_view value) {
+    nvs_handle_t handle;
+    if (nvs_open("device_ctrl", NVS_READWRITE, &handle) != ESP_OK) {
+        return false;
+    }
+    const auto result = value.empty() ? nvs_erase_key(handle, key)
+                                      : nvs_set_blob(handle, key, value.data(), value.size());
+    const bool saved = (result == ESP_OK || (value.empty() && result == ESP_ERR_NVS_NOT_FOUND)) &&
+                       nvs_commit(handle) == ESP_OK;
+    nvs_close(handle);
+    return saved;
+}
+
+bool SaveIdentity(const SpeakerAccount::Identity& identity, const std::string& hardware_id) {
+    CJsonUniquePtr document(cJSON_CreateObject());
+    if (!document || !cJSON_AddNumberToObject(document.get(), "version", 1) ||
+        !cJSON_AddStringToObject(document.get(), "hardware_id", hardware_id.c_str()) ||
+        !cJSON_AddStringToObject(document.get(), "device_id", identity.id.c_str()) ||
+        !cJSON_AddStringToObject(document.get(), "credential", identity.credential.c_str()) ||
+        !cJSON_AddStringToObject(document.get(), "control_origin", identity.origin.c_str()) ||
+        !cJSON_AddStringToObject(document.get(), "ota_url", identity.OtaUrl().c_str())) {
+        return false;
+    }
+    char* serialized = cJSON_PrintUnformatted(document.get());
+    if (!serialized) {
+        return false;
+    }
+    const bool saved = StoreValue("identity_v1", serialized);
+    cJSON_free(serialized);
+    return saved;
+}
+
+bool LowerHex(std::string_view value) {
+    return std::all_of(value.begin(), value.end(), [](char ch) {
+        return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f');
+    });
+}
+
+std::optional<SpeakerAccount::Identity> LoadOrCreateEnrollment() {
+    auto stored = ReadStored("enrollment_v1");
+    if (!stored) {
+        return std::nullopt;
+    }
+    if (stored->empty()) {
+        *stored = "enr-" + NewRequestKey() + NewRequestKey() + NewRequestKey();
+        if (!StoreValue("enrollment_v1", *stored)) {
+            return std::nullopt;
+        }
+    }
+    if (stored->size() != kEnrollmentIdLength + kEnrollmentProofLength ||
+        !stored->starts_with("enr-") || !LowerHex(std::string_view(*stored).substr(4))) {
+        return std::nullopt;
+    }
+    return SpeakerAccount::Identity{stored->substr(0, kEnrollmentIdLength),
+                                    stored->substr(kEnrollmentIdLength), std::string(kEnrollmentOrigin)};
+}
+
 }  // namespace
 
 SpeakerAccount& SpeakerAccount::Get() {
@@ -133,8 +222,14 @@ std::string SpeakerAccount::Identity::OtaUrl() const {
     return origin.empty() ? std::string() : origin + "/xiaozhi/ota/";
 }
 
+SpeakerAccount::Identity SpeakerAccount::identity() const {
+    std::lock_guard lock(mutex_);
+    return identity_;
+}
+
 void SpeakerAccount::LoadIdentity() {
     identity_ = {};
+    enrollment_allowed_ = false;
     std::array<uint8_t, 6> mac{};
     if (esp_efuse_mac_get_default(mac.data()) != ESP_OK) {
         return;
@@ -143,23 +238,12 @@ void SpeakerAccount::LoadIdentity() {
     std::snprintf(hardware, sizeof(hardware), "%02x%02x%02x%02x%02x%02x",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     hardware_id_ = hardware;
-    nvs_handle_t handle;
-    if (nvs_open("device_ctrl", NVS_READONLY, &handle) != ESP_OK) {
+    const auto data = ReadStored("identity_v1");
+    if (!data || data->empty()) {
+        enrollment_allowed_ = data.has_value() && SecureUrl(kEnrollmentOrigin, "https://", true);
         return;
     }
-    size_t length = 0;
-    if (nvs_get_blob(handle, "identity_v1", nullptr, &length) != ESP_OK ||
-        length == 0 || length > 2048) {
-        nvs_close(handle);
-        return;
-    }
-    std::string data(length, '\0');
-    const esp_err_t result = nvs_get_blob(handle, "identity_v1", data.data(), &length);
-    nvs_close(handle);
-    if (result != ESP_OK || length != data.size()) {
-        return;
-    }
-    const auto document = Parse(data);
+    const auto document = Parse(*data);
     if (!document || Number(document.get(), "version") != 1) {
         return;
     }
@@ -176,7 +260,7 @@ void SpeakerAccount::LoadIdentity() {
 
 void SpeakerAccount::Start() {
     std::lock_guard lock(mutex_);
-    if (worker_ == nullptr && !identity_.id.empty()) {
+    if (worker_ == nullptr && (!identity_.id.empty() || enrollment_allowed_)) {
         xTaskCreate([](void* context) { static_cast<SpeakerAccount*>(context)->Run(); },
                     "speaker_account", 8192, this, 2, &worker_);
     }
@@ -194,8 +278,13 @@ void SpeakerAccount::NetworkChanged(bool connected) {
             voice_.reset();
             voice_until_ = 0;
         }
-        view_ = {identity_.id.empty() ? Page::Unprovisioned
-                                    : (connected ? Page::Connecting : Page::Offline)};
+        if (identity_.id.empty() && !enrollment_allowed_) {
+            view_ = {Page::Unprovisioned};
+        } else if (!connected) {
+            view_ = {Page::Offline};
+        } else {
+            view_ = {identity_.id.empty() ? Page::Enrolling : Page::Connecting};
+        }
     }
     Notify();
     Application::GetInstance().Schedule([] {
@@ -263,6 +352,11 @@ void SpeakerAccount::Notify() {
 
 SpeakerAccount::Response SpeakerAccount::Request(const char* method, const std::string& path,
                                                  std::string body) {
+    return RequestWithIdentity(identity_, method, path, std::move(body));
+}
+
+SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& identity, const char* method,
+                                                             const std::string& path, std::string body) {
     {
         std::lock_guard lock(mutex_);
         if (!connected_ || upgrading_) {
@@ -274,13 +368,13 @@ SpeakerAccount::Response SpeakerAccount::Request(const char* method, const std::
         return {};
     }
     http->SetTimeout(5000);
-    http->SetHeader("Device-Id", identity_.id);
-    http->SetHeader("Authorization", "Bearer " + identity_.credential);
+    http->SetHeader("Device-Id", identity.id);
+    http->SetHeader("Authorization", "Bearer " + identity.credential);
     http->SetHeader("Content-Type", "application/json");
     if (!body.empty()) {
         http->SetContent(std::move(body));
     }
-    if (!http->Open(method, identity_.origin + "/xiaozhi/speaker/v1" + path)) {
+    if (!http->Open(method, identity.origin + "/xiaozhi/speaker/v1" + path)) {
         return {};
     }
     const auto status = http->GetStatusCode();
@@ -329,6 +423,44 @@ void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64
     }
 }
 
+SpeakerAccount::LoginResult SpeakerAccount::PollLogin(const Identity& identity, std::string& login_id,
+                                                       bool& retry_login, const std::string& customer,
+                                                       bool bound, int64_t permission, uint32_t epoch) {
+    if (retry_login) {
+        Publish({Page::Retry, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
+        return LoginResult::InProgress;
+    }
+    const auto login = login_id.empty() ? RequestWithIdentity(identity, "POST", "/login")
+                                         : RequestWithIdentity(identity, "GET", "/login/" + login_id);
+    const auto result = Parse(login.body);
+    if ((login.status != 200 && login.status != 201) || !result) {
+        retry_login = login.status == 404 || login.status == 409;
+        Publish({retry_login ? Page::Retry : Page::Connecting, {}, {}, customer, bound},
+                {}, 0, permission, true, epoch);
+        return login.status == 401 ? LoginResult::InvalidCredential : LoginResult::InProgress;
+    }
+    const auto transaction = Text(result.get(), "id", 128);
+    if (Token(transaction, 1, 128, "-_")) {
+        login_id = transaction;
+    }
+    const auto status = Text(result.get(), "status", 32);
+    if (status == "completed") {
+        login_id.clear();
+        return LoginResult::Completed;
+    }
+    auto qr_url = Text(result.get(), "verification_uri");
+    auto code = Text(result.get(), "user_code", 32);
+    if (!login_id.empty() && SecureUrl(qr_url, "https://") && Token(code, 1, 32, "- ")) {
+        Publish({Page::Scan, std::move(qr_url), std::move(code), customer, bound},
+                {}, 0, permission, true, epoch);
+    } else {
+        retry_login = status == "expired" || status == "denied" || status == "cancelled" || status == "failed";
+        Publish({retry_login ? Page::Retry : Page::Connecting, {}, {}, customer, bound},
+                {}, 0, permission, true, epoch);
+    }
+    return LoginResult::InProgress;
+}
+
 void SpeakerAccount::Run() {
     uint32_t epoch = 0;
     int64_t next_heartbeat = 0;
@@ -336,6 +468,10 @@ void SpeakerAccount::Run() {
     std::string login_id;
     bool retry_login = false;
     auto pending = ReadUnbind();
+    std::optional<Identity> enrollment;
+    bool enrollment_registered = false;
+    const auto saved_enrollment = ReadStored("enrollment_v1");
+    bool acknowledge_enrollment = identity_.id.starts_with("enr-") && saved_enrollment && !saved_enrollment->empty();
 
     while (true) {
         bool enabled, refresh, new_unbind;
@@ -361,7 +497,64 @@ void SpeakerAccount::Run() {
             retry_login = false;
             if (!refresh) {
                 next_heartbeat = 0;
+                enrollment_registered = false;
             }
+        }
+        if (identity_.id.empty()) {
+            if (now < next_state) {
+                ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(250));
+                continue;
+            }
+            next_state = now + kStateInterval;
+            if (!enrollment) {
+                enrollment = LoadOrCreateEnrollment();
+                if (!enrollment) {
+                    Publish({Page::Unprovisioned}, {}, 0, 0, true, epoch);
+                    continue;
+                }
+            }
+            if (!enrollment_registered) {
+                Publish({Page::Enrolling}, {}, 0, 0, true, epoch);
+                const std::string report = "{\"board_type\":\"" + std::string(RegisteredBoard()) +
+                    "\",\"firmware_version\":\"" + esp_app_get_description()->version + "\"}";
+                const auto response = RequestWithIdentity(*enrollment, "POST", "/enrollment", report);
+                const auto document = Parse(response.body);
+                if (response.status != 200 || !document || Text(document.get(), "device_id") != enrollment->id) {
+                    if (response.status == 401 || response.status == 403) {
+                        Publish({Page::Disabled}, {}, 0, 0, true, epoch);
+                    }
+                    continue;
+                }
+                const auto status = Text(document.get(), "status");
+                if (status == "issued") {
+                    auto credential = Text(document.get(), "credential", 128);
+                    Identity assigned{enrollment->id, std::move(credential), enrollment->origin};
+                    if (!Token(assigned.credential, 43, 128, "_-") || !SaveIdentity(assigned, hardware_id_)) {
+                        continue;
+                    }
+                    {
+                        std::lock_guard lock(mutex_);
+                        identity_ = std::move(assigned);
+                    }
+                    acknowledge_enrollment = true;
+                    enrollment.reset();
+                    login_id.clear();
+                    next_state = 0;
+                    next_heartbeat = 0;
+                    continue;
+                }
+                if (status != "pending") {
+                    continue;
+                }
+                enrollment_registered = true;
+            }
+            const auto result = PollLogin(*enrollment, login_id, retry_login, {}, false, 0, epoch);
+            if (result != LoginResult::InProgress) {
+                enrollment_registered = false;
+                login_id.clear();
+                next_state = 0;
+            }
+            continue;
         }
         if (new_unbind && !pending.active()) {
             pending.permission = permission;
@@ -380,7 +573,11 @@ void SpeakerAccount::Run() {
         if (now >= next_heartbeat) {
             std::string report = "{\"board_type\":\"" + std::string(RegisteredBoard()) +
                                  "\",\"firmware_version\":\"" + esp_app_get_description()->version + "\"}";
-            Request("POST", "/heartbeat", std::move(report));
+            const auto heartbeat = Request("POST", "/heartbeat", std::move(report));
+            if (heartbeat.status == 200 && acknowledge_enrollment &&
+                Request("POST", "/enrollment/ack").status == 204) {
+                acknowledge_enrollment = !StoreValue("enrollment_v1", {});
+            }
             next_heartbeat = Now() + kHeartbeatInterval;
         }
         if (now < next_state) {
@@ -451,40 +648,9 @@ void SpeakerAccount::Run() {
             Publish({Page::Connecting, {}, {}, customer, bound}, {}, 0,
                     permission_version, true, epoch);
         }
-        if (retry_login) {
-            Publish({Page::Retry, {}, {}, customer, bound}, {}, 0,
-                    permission_version, true, epoch);
-            continue;
-        }
-        const auto login = login_id.empty() ? Request("POST", "/login")
-                                             : Request("GET", "/login/" + login_id);
-        const auto result = Parse(login.body);
-        if ((login.status != 200 && login.status != 201) || !result) {
-            retry_login = login.status == 404 || login.status == 409;
-            Publish({retry_login ? Page::Retry : Page::Connecting, {}, {}, customer, bound},
-                    {}, 0, permission_version, true, epoch);
-            continue;
-        }
-        const auto transaction = Text(result.get(), "id", 128);
-        const auto login_status = Text(result.get(), "status", 32);
-        if (Token(transaction, 1, 128, "-_")) {
-            login_id = transaction;
-        }
-        if (login_status == "completed") {
-            login_id.clear();
+        if (PollLogin(identity_, login_id, retry_login, customer, bound, permission_version, epoch) ==
+            LoginResult::Completed) {
             next_state = 0;
-            continue;
-        }
-        auto qr_url = Text(result.get(), "verification_uri");
-        auto code = Text(result.get(), "user_code", 32);
-        if (!login_id.empty() && SecureUrl(qr_url, "https://") && Token(code, 1, 32, "- ")) {
-            Publish({Page::Scan, std::move(qr_url), std::move(code), customer, bound}, {},
-                    0, permission_version, true, epoch);
-        } else {
-            retry_login = login_status == "expired" || login_status == "denied" ||
-                          login_status == "cancelled" || login_status == "failed";
-            Publish({retry_login ? Page::Retry : Page::Connecting, {}, {}, customer, bound},
-                    {}, 0, permission_version, true, epoch);
         }
     }
 }

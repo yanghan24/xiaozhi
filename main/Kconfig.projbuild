@@ -14,6 +14,13 @@ config XIAOZHI_SPEAKER_ACCOUNT
         Use the provisioned speaker identity and the management API for device
         authorization. The product variant uses the existing WebSocket protocol.
 
+config XIAOZHI_SPEAKER_ENROLLMENT_ORIGIN
+    string "Speaker enrollment HTTPS origin"
+    depends on XIAOZHI_SPEAKER_ACCOUNT
+    default ""
+    help
+        Management API origin used after Wi-Fi connects on an unprovisioned speaker.
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE

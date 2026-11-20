@@ -75,6 +75,8 @@ const char* Description(Page page) {
     switch (page) {
         case Page::Connecting:
             return "正在连接账号服务";
+        case Page::Enrolling:
+            return "正在自动登记设备";
         case Page::Unprovisioned:
             return "设备身份尚未交付";
         case Page::Scan:
@@ -162,7 +164,7 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
         qr_buffer = nullptr;
     }
     const bool show = details_open || view.page == Page::Scan || view.page == Page::Retry ||
-                      view.page == Page::Unprovisioned || view.unbind_pending;
+                      view.page == Page::Enrolling || view.page == Page::Unprovisioned || view.unbind_pending;
     if (!show || Application::GetInstance().GetDeviceState() == kDeviceStateUpgrading) {
         return;
     }
