@@ -6,12 +6,13 @@
       <el-tab-pane label="字典管理" name="dictionaries" lazy><SystemDictionaries embedded /></el-tab-pane>
       <el-tab-pane label="模型供应商" name="providers" lazy><SystemProviders embedded /></el-tab-pane>
       <el-tab-pane label="服务管理" name="services" lazy><SystemServices embedded /></el-tab-pane>
+      <el-tab-pane label="第三方服务" name="third-party-services" lazy><ThirdPartyServices /></el-tab-pane>
     </el-tabs>
   </SpeakerPage>
 </template>
 <script>
 import SpeakerPage from '@/components/SpeakerPage.vue';
-const tabs = ['accounts', 'parameters', 'dictionaries', 'providers', 'services'];
+const tabs = ['accounts', 'parameters', 'dictionaries', 'providers', 'services', 'third-party-services'];
 export default {
   components: {
     SpeakerPage,
@@ -20,6 +21,7 @@ export default {
     SystemDictionaries: () => import('./DictManagement.vue'),
     SystemProviders: () => import('./ProviderManagement.vue'),
     SystemServices: () => import('./ServerSideManager.vue'),
+    ThirdPartyServices: () => import('./ThirdPartyServices.vue'),
   },
   computed: {
     activeTab: {

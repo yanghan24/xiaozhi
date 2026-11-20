@@ -42,6 +42,9 @@ public final class SpeakerCrypto {
         return encrypt(value, settings.issuer()+"\n"+settings.clientId());
     }
     public String encryptConfiguration(String value) { return "mcp1."+encrypt(value,"xiaozhi:mcp-configuration:v1"); }
+    String encryptThirdPartyCredential(String serviceId, String value) {
+        return "thirdparty1." + encrypt(value, "xiaozhi:third-party-service:v1\n" + serviceId);
+    }
     String encryptEnrollmentCredential(String value, String deviceId) {
         return encrypt(value, "xiaozhi:speaker-enrollment:v1\n" + deviceId);
     }
