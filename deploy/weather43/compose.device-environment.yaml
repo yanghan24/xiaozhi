@@ -1,0 +1,20 @@
+# Optional overlay on compose.acceptance.yaml for the private pilot cache.
+services:
+  result-cache:
+    networks:
+      default: {}
+      weather-device:
+        aliases: [weather-device-cache]
+    environment:
+      WEATHER_DEVICE_ENVIRONMENT: "1"
+      WEATHER_CITY_CATALOG: /location/china-city-catalog.json
+      WEATHER_IP_DATABASE: ${WEATHER_IP_DATABASE:-}
+    volumes:
+      - ./scripts/weather43/device_environment.py:/task/device_environment.py:ro
+      - ./scripts/weather43/location_candidates.py:/task/location_candidates.py:ro
+      - ./private/location:/location:ro
+
+networks:
+  weather-device:
+    external: true
+    name: xiaozhi-weather-device
