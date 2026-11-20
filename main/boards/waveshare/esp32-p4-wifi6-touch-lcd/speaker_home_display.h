@@ -30,6 +30,7 @@ private:
     lv_timer_t* refresh_timer_ = nullptr;
     bool standby_ = false;
     bool has_preview_ = false;
+    bool awaiting_reply_ = false;
     std::string message_role_;
     std::string message_;
 #if LV_USE_CALENDAR

@@ -112,12 +112,23 @@ void SpeakerHomeDisplay::SetTheme(Theme* theme) {
 }
 
 void SpeakerHomeDisplay::SetStatus(const char* status) {
-    MipiLcdDisplay::SetStatus(status);
-    DisplayLockGuard lock(this);
-    if (lock && home_) {
-        standby_ = status && std::strcmp(status, Lang::Strings::STANDBY) == 0;
-        RefreshHome();
+    const char* visible_status = status;
+    {
+        DisplayLockGuard lock(this);
+        if (lock && home_ && status) {
+            standby_ = std::strcmp(status, Lang::Strings::STANDBY) == 0;
+            const bool speaking = std::strcmp(status, Lang::Strings::SPEAKING) == 0
+                && Application::GetInstance().GetDeviceState() == kDeviceStateSpeaking;
+            if (speaking && awaiting_reply_) {
+                // The server can enter the speaking state before sending a reply sentence.
+                visible_status = "正在处理";
+            } else if (!speaking) {
+                awaiting_reply_ = false;
+            }
+            RefreshHome();
+        }
     }
+    MipiLcdDisplay::SetStatus(visible_status);
 }
 
 void SpeakerHomeDisplay::SetChatMessage(const char* role, const char* content) {
@@ -125,6 +136,10 @@ void SpeakerHomeDisplay::SetChatMessage(const char* role, const char* content) {
     if (!role || !content || !*content) {
         return;
     }
+    const auto state = Application::GetInstance().GetDeviceState();
+    const bool recognized = (state == kDeviceStateListening || state == kDeviceStateSpeaking)
+        && std::strcmp(role, "user") == 0;
+    const bool reply = state == kDeviceStateSpeaking && std::strcmp(role, "assistant") == 0;
     {
         DisplayLockGuard lock(this);
         if (!lock || !home_) {
@@ -132,14 +147,15 @@ void SpeakerHomeDisplay::SetChatMessage(const char* role, const char* content) {
         }
         message_role_ = role;
         message_ = content;
+        if (recognized || reply) {
+            awaiting_reply_ = recognized;
+        }
         lv_obj_add_flag(home_, LV_OBJ_FLAG_HIDDEN);
     }
 
-    const auto state = Application::GetInstance().GetDeviceState();
-    if ((state == kDeviceStateListening || state == kDeviceStateSpeaking)
-        && std::strcmp(role, "user") == 0) {
+    if (recognized) {
         MipiLcdDisplay::SetStatus("正在处理");
-    } else if (state == kDeviceStateSpeaking && std::strcmp(role, "assistant") == 0) {
+    } else if (reply) {
         MipiLcdDisplay::SetStatus(Lang::Strings::SPEAKING);
     }
 }
@@ -158,6 +174,7 @@ void SpeakerHomeDisplay::ClearChatMessages() {
     DisplayLockGuard lock(this);
     if (lock && home_) {
         message_.clear();
+        awaiting_reply_ = false;
         RefreshHome();
     }
 }
