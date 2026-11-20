@@ -1,0 +1,127 @@
+package xiaozhi.modules.speaker;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.net.InetAddresses;
+import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
+
+/** Standby weather for authenticated devices. Credentials and provider responses stay on the server. */
+@Service
+public class SpeakerWeather {
+    private static final String AMAP = "https://restapi.amap.com";
+
+    public record Report(String status, String city, String condition, String temperature,
+                         String humidity, String wind_direction, String wind_power, String reported_at) {
+        static Report unavailable() {
+            return new Report("unavailable", "", "", "", "", "", "", "");
+        }
+    }
+
+    private record Lookup(long configurationVersion, String value) {}
+    private record Location(String code, String city) {}
+
+    private final SpeakerThirdPartyServices services;
+    private final ObjectMapper json;
+    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
+    private final Cache<Lookup, Location> locations = CacheBuilder.newBuilder()
+            .maximumSize(4096).expireAfterWrite(Duration.ofHours(6)).build();
+    private final Cache<Lookup, Report> weather = CacheBuilder.newBuilder()
+            .maximumSize(1024).expireAfterWrite(Duration.ofMinutes(20)).build();
+
+    public SpeakerWeather(SpeakerThirdPartyServices services, ObjectMapper json) {
+        this.services = services;
+        this.json = json;
+    }
+
+    public Report current(String address) {
+        if (!publicIpv4(address)) {
+            return Report.unavailable();
+        }
+        var config = services.amapConfiguration();
+        if (config.isEmpty()) {
+            return Report.unavailable();
+        }
+        var selected = config.get();
+        try {
+            Location location = locations.get(new Lookup(selected.version(), address),
+                    () -> locate(selected.credential(), address));
+            return weather.get(new Lookup(selected.version(), location.code()),
+                    () -> fetchWeather(selected.credential(), location));
+        } catch (ExecutionException unavailable) {
+            return Report.unavailable();
+        }
+    }
+
+    static boolean publicIpv4(String value) {
+        if (value == null || value.length() > 15 || !InetAddresses.isInetAddress(value)
+                || !(InetAddresses.forString(value) instanceof Inet4Address ipv4)) {
+            return false;
+        }
+        byte[] bytes = ipv4.getAddress();
+        int first = Byte.toUnsignedInt(bytes[0]);
+        int second = Byte.toUnsignedInt(bytes[1]);
+        return first > 0 && first < 224 && !ipv4.isLoopbackAddress() && !ipv4.isSiteLocalAddress()
+                && !ipv4.isLinkLocalAddress() && !(first == 100 && second >= 64 && second <= 127)
+                && !(first == 198 && (second == 18 || second == 19));
+    }
+
+    private Location locate(String key, String address) throws IOException, InterruptedException {
+        JsonNode result = request("/v3/ip", key, Map.of("ip", address));
+        String code = text(result, "adcode");
+        if (!code.matches("[0-9]{6}")) {
+            throw new IOException("City unavailable");
+        }
+        String city = text(result, "city");
+        return new Location(code, city.isEmpty() ? text(result, "province") : city);
+    }
+
+    private Report fetchWeather(String key, Location location) throws IOException, InterruptedException {
+        JsonNode live = request("/v3/weather/weatherInfo", key,
+                Map.of("city", location.code(), "extensions", "base")).path("lives").path(0);
+        String condition = text(live, "weather");
+        if (condition.isEmpty()) {
+            throw new IOException("Weather unavailable");
+        }
+        String city = text(live, "city");
+        return new Report("ready", city.isEmpty() ? location.city() : city, condition, text(live, "temperature"),
+                text(live, "humidity"), text(live, "winddirection"), text(live, "windpower"), text(live, "reporttime"));
+    }
+
+    private JsonNode request(String path, String key, Map<String, String> parameters)
+            throws IOException, InterruptedException {
+        var builder = UriComponentsBuilder.fromUriString(AMAP).path(path).queryParam("key", "{key}");
+        parameters.forEach((name, value) -> builder.queryParam(name, "{" + name + "}"));
+        var values = new java.util.HashMap<>(parameters);
+        values.put("key", key);
+        URI uri = builder.encode().buildAndExpand(values).toUri();
+        var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(3)).GET().build();
+        var response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        if (response.statusCode() != 200 || response.body().length > 32768) {
+            throw new IOException("Weather service unavailable");
+        }
+        JsonNode body = json.readTree(response.body());
+        if (body == null || !"1".equals(body.path("status").asText())) {
+            throw new IOException("Weather request failed");
+        }
+        return body;
+    }
+
+    private static String text(JsonNode node, String name) {
+        JsonNode value = node.path(name);
+        if (!value.isTextual()) return "";
+        String text = value.textValue().strip();
+        return text.length() <= 64 && text.chars().noneMatch(Character::isISOControl) ? text : "";
+    }
+}

@@ -53,6 +53,7 @@ class SpeakerThirdPartyServicesTest {
             String encrypted = db.queryForObject("SELECT credential_cipher FROM speaker_third_party_service WHERE id='amap'", String.class);
             assertTrue(encrypted.startsWith("thirdparty1."));
             assertFalse(encrypted.contains("test-credential"));
+            assertTrue(services.amapConfiguration().isEmpty());
 
             services.save("amap", new SpeakerThirdPartyServices.Configuration("高德 II", entry.url(), endpoints,
                     "query", "key", null, false, true, 1));
@@ -64,6 +65,15 @@ class SpeakerThirdPartyServicesTest {
             services.save("amap", new SpeakerThirdPartyServices.Configuration("高德 II", entry.url(), endpoints,
                     "query", "key", null, true, false, 2));
             assertNull(db.queryForObject("SELECT credential_cipher FROM speaker_third_party_service WHERE id='amap'", String.class));
+
+            var amapEndpoints = List.of(new SpeakerThirdPartyServices.Endpoint("/v3/ip", "定位"),
+                    new SpeakerThirdPartyServices.Endpoint("/v3/weather/weatherInfo", "天气"));
+            services.save("amap", new SpeakerThirdPartyServices.Configuration("高德", "https://restapi.amap.com",
+                    amapEndpoints, "query", "key", "fixture-amap", false, true, 3));
+            var configuration = services.amapConfiguration().orElseThrow();
+            assertEquals(4, configuration.version());
+            assertEquals("fixture-amap", configuration.credential());
+            assertFalse(configuration.toString().contains(configuration.credential()));
         }
     }
 }
