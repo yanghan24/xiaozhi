@@ -142,6 +142,25 @@ class SpeakerDiagnosticsDatabaseTest {
                 () -> diagnostics.upload(auth, device, timingBody(until + 1, entry))).status);
     }
 
+    @Test void ttsPlaybackReportsRetainPendingWritesAndRejectInvalidStages() throws Exception {
+        devices.heartbeat(devices.authenticate(auth, device), "p4", "2.6.11", true);
+        long until = enable();
+        var samples = List.of(
+                Map.of("phase", "write_started", "uptime_ms", 4350, "count", 1, "code", 0),
+                Map.of("phase", "write_pending", "uptime_ms", 7600, "count", 1, "code", 3250));
+        var report = Map.of("event", "tts_playback", "uptime_ms", 7600, "playback_stages", samples);
+        assertTrue(diagnostics.upload(auth, device, timingBody(until, report)).get("accepted"));
+        var reports = (List<?>) diagnostics.read(device).get("logs");
+        var stored = json.valueToTree(reports.getFirst()).path("entries").get(0).path("playback_stages");
+        assertEquals("write_pending", stored.get(1).path("phase").asText());
+        assertEquals(3250, stored.get(1).path("code").asInt());
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "tts_playback", "playback_stages",
+                        List.of(Map.of("phase", "unexpected", "count", 1)))))).status);
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "tts_playback")))).status);
+    }
+
     private MockHttpServletRequest timingBody(long until, Map<String, ?> entry) throws Exception {
         var request = new MockHttpServletRequest();
         request.setContent(json.writeValueAsBytes(Map.of("report_id", "2".repeat(32),

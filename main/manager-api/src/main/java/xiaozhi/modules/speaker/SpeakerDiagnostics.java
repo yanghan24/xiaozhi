@@ -37,8 +37,17 @@ public class SpeakerDiagnostics {
 
     public record Toggle(@NotNull Boolean enabled) {}
 
+    public record PlaybackStage(
+            @NotNull @Pattern(regexp = "start_received|start_handled|packet_received|packet_dropped|decoded|decode_error"
+                    + "|output_begin|write_started|write_ok|write_error|write_pending|stop_received|stop_handled"
+                    + "|drained|channel_closed|channel_cleaned") String phase,
+            @Min(0) long uptime_ms,
+            @Min(1) @Max(4_294_967_295L) long count,
+            int code) {}
+
     public record Entry(
-            @NotNull @Pattern(regexp = "boot|state|voice_network_error|ota_check_failed|ota_upgrade_failed|heartbeat_failed|voice_timing|display_underrun") String event,
+            @NotNull @Pattern(regexp = "boot|state|voice_network_error|ota_check_failed|ota_upgrade_failed"
+                    + "|heartbeat_failed|voice_timing|display_underrun|tts_playback") String event,
             @Min(0) long uptime_ms,
             @Min(0) @Max(10) int state,
             int code,
@@ -49,7 +58,8 @@ public class SpeakerDiagnostics {
             @Min(0) @Max(600_000) Integer elapsed_ms,
             @Pattern(regexp = "idle|connecting|listening|waiting|speaking") String display_mode,
             Boolean animation_active,
-            @Min(0) @Max(4_294_967_295L) Long underrun_count) {
+            @Min(0) @Max(4_294_967_295L) Long underrun_count,
+            @Size(min = 1, max = 16) List<@NotNull @Valid PlaybackStage> playback_stages) {
         @AssertTrue
         @com.fasterxml.jackson.annotation.JsonIgnore
         public boolean isTimingComplete() {
@@ -64,6 +74,12 @@ public class SpeakerDiagnostics {
                 return display_mode != null && animation_active != null && underrun_count != null;
             }
             return display_mode == null && animation_active == null && underrun_count == null;
+        }
+
+        @AssertTrue
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean isPlaybackSampleComplete() {
+            return "tts_playback".equals(event) == (playback_stages != null);
         }
     }
 

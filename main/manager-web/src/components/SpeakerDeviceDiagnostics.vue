@@ -35,7 +35,7 @@
         </el-table-column>
         <el-table-column label="可用内存 / 最低值" min-width="132">
           <template slot-scope="{ row }">
-            <span v-if="row.event !== 'display_underrun'">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
+            <span v-if="row.event !== 'display_underrun' && row.event !== 'tts_playback'">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
           </template>
         </el-table-column>
         <el-table-column label="固件版本" min-width="105">
@@ -66,6 +66,15 @@ const timingPhases = {
   first_output: '首次写入音频输出', playback_drained: '播报队列播完',
 };
 const displayModes = { idle: '非对话', connecting: '连接中', listening: '收音', waiting: '等待回复', speaking: '播报' };
+const playbackStates = [...states.slice(0, 7), '通知播报', ...states.slice(7)];
+const playbackLabels = {
+  start_received: '收到 TTS 开始指令', start_handled: '处理开始指令',
+  packet_received: '收到 TTS 音频包', packet_dropped: '丢弃 TTS 音频包',
+  decoded: '解码并入播放队列', decode_error: '解码失败', output_begin: '音频输出任务取包',
+  write_started: '开始写入声卡', write_ok: '声卡写入成功', write_error: '声卡写入失败',
+  write_pending: '声卡写入未返回', stop_received: '收到 TTS 停止指令', stop_handled: '处理停止指令',
+  drained: '播放队列清空', channel_closed: '收到语音连接关闭', channel_cleaned: '语音连接清理完成',
+};
 
 export default {
   components: { CustomButton },
@@ -73,9 +82,13 @@ export default {
   data: () => ({ busy: false, error: '', diagnostics: null, enabled: false, timer: null, request: null }),
   computed: {
     rows() {
-      return (this.diagnostics?.logs || []).flatMap(batch => batch.entries.slice().reverse().map(entry => ({
-        ...entry, receivedAt: batch.received_at_ms, appSha: batch.app_sha256, firmware: batch.firmware_version,
-      })));
+      return (this.diagnostics?.logs || []).flatMap(batch => batch.entries.slice().reverse().flatMap(entry => {
+        const row = { ...entry, receivedAt: batch.received_at_ms, appSha: batch.app_sha256, firmware: batch.firmware_version };
+        if (entry.event !== 'tts_playback') return [row];
+        return entry.playback_stages.slice().sort((a, b) => b.uptime_ms - a.uptime_ms).map(stage => ({
+          ...row, uptime_ms: stage.uptime_ms, playbackStage: stage,
+        }));
+      }));
     },
   },
   mounted() { this.load(); },
@@ -90,6 +103,20 @@ export default {
       if (row.event === 'voice_timing') return timingPhases[row.phase] || row.phase;
       if (row.event === 'display_underrun') {
         return `LCD 扫描缺帧 ${row.underrun_count} 次 · ${displayModes[row.display_mode]} · 波带${row.animation_active ? '播放中' : '静止'}`;
+      }
+      if (row.event === 'tts_playback') {
+        const { phase, count, code } = row.playbackStage;
+        const label = playbackLabels[phase];
+        if (phase === 'write_pending') return `${label} · 已等待 ${code} ms`;
+        if (phase === 'decode_error' || phase === 'write_error') return `${label} · ${count} 次 · 错误码 ${code}`;
+        if (phase === 'packet_dropped') {
+          const reason = code === -1 ? '解码队列未接收' : code === -2 ? '解码后播放已切换' : playbackStates[code];
+          return `${label} · ${count} 包 · 最近一次：${reason || '未知状态'}`;
+        }
+        if (phase === 'stop_handled' || phase === 'channel_cleaned' || (phase === 'start_handled' && code)) {
+          return `${label} · ${playbackStates[code] || '未知状态'}`;
+        }
+        return `${label} · ${count} 次`;
       }
       const state = states[row.state] || '未知';
       if (row.event === 'boot') {
