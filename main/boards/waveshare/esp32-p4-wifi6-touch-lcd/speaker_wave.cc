@@ -85,8 +85,6 @@ void SpeakerWave::Render(lv_event_t* event) const {
 
     lv_draw_line_dsc_t line;
     lv_draw_line_dsc_init(&line);
-    line.round_start = 1;
-    line.round_end = 1;
     lv_draw_triangle_dsc_t fill;
     lv_draw_triangle_dsc_init(&fill);
     fill.opa = shape_ == Shape::Ribbon ? LV_OPA_20 : LV_OPA_10;
@@ -107,10 +105,14 @@ void SpeakerWave::Render(lv_event_t* event) const {
         line.color = color;
         line.width = 16;
         line.opa = static_cast<lv_opa_t>(36);
+        line.round_start = 0;
+        line.round_end = 0;
         lv_draw_line(layer, &line);
         line.color = lv_color_mix(lv_color_white(), color, 52);
         line.width = 3;
         line.opa = LV_OPA_COVER;
+        line.round_start = 1;
+        line.round_end = 1;
         lv_draw_line(layer, &line);
         left = right;
     }
