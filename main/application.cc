@@ -578,6 +578,9 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnIncomingAudio([this](std::unique_ptr<AudioStreamPacket> packet) {
+        if (packet->connection_id && reminder_connection_.load() == packet->connection_id &&
+            !reminder_playback_.ReceiveAudio(packet->connection_id))
+            return;
         if (VoiceGenerationCurrent(packet->generation) &&
             packet->connection_id == GetVoiceConnectionId() &&
             GetDeviceState() == kDeviceStateSpeaking) {
@@ -630,6 +633,20 @@ void Application::InitializeProtocol() {
         // Parse JSON data
         auto type = cJSON_GetObjectItem(root, "type");
         if (!cJSON_IsString(type)) {
+            return;
+        }
+        if (connection_id != 0 && reminder_connection_.load() == connection_id) {
+            // The dedicated reminder channel carries private speech. Do not route its
+            // text or audio events to ordinary conversation or IoT telemetry.
+            const auto state = cJSON_GetObjectItemCaseSensitive(root, "state");
+            if (!cJSON_IsString(state))
+                return;
+            const auto id = cJSON_GetObjectItemCaseSensitive(root, "id");
+            const auto frames = cJSON_GetObjectItemCaseSensitive(root, "frames");
+            const int count = cJSON_IsNumber(frames) && frames->valueint == frames->valuedouble ?
+                                  frames->valueint : 0;
+            reminder_playback_.Observe(connection_id, type->valuestring, state->valuestring,
+                                       cJSON_IsString(id) ? id->valuestring : "", count);
             return;
         }
         if (standby_requested_.load() &&
@@ -908,6 +925,8 @@ void Application::ContinueOpenAudioChannel(ListeningMode mode) {
 }
 
 void Application::HandleStartListeningEvent() {
+    if (reminder_connection_.load())
+        FinishScheduledReminder();
     if (!VoiceAllowed() && GetDeviceState() != kDeviceStateWifiConfiguring &&
         GetDeviceState() != kDeviceStateAudioTesting) {
         DeviceControl::GetInstance().Refresh();
@@ -963,6 +982,8 @@ void Application::HandleStopListeningEvent() {
 }
 
 void Application::HandleWakeWordDetectedEvent() {
+    if (reminder_connection_.load())
+        FinishScheduledReminder();
     if (!VoiceAllowed() && GetDeviceState() != kDeviceStateWifiConfiguring &&
         GetDeviceState() != kDeviceStateAudioTesting) {
         DeviceControl::GetInstance().Refresh();
@@ -1162,6 +1183,8 @@ void Application::Schedule(std::function<void()>&& callback) {
 }
 
 void Application::AbortSpeaking(AbortReason reason) {
+    if (reminder_connection_.load())
+        reminder_interrupted_.store(true);
     ESP_LOGI(TAG, "Abort speaking");
     aborted_ = true;
     if (protocol_) {
@@ -1576,6 +1599,7 @@ void Application::ApplyDeviceControlView(const DeviceControlView& view) {
         applied_control_generation_ = view.generation;
     }
     audio_service_.ApplyControlledAccess(view.generation, allowed);
+    PollScheduledReminder(view);
     Board::GetInstance().GetDisplay()->ShowDeviceBinding(view);
     if (view.sign_out_pending || view.permission_version == 0 ||
         view.permission_version == acknowledged_permission_version_) {
@@ -1585,6 +1609,71 @@ void Application::ApplyDeviceControlView(const DeviceControlView& view) {
         control.AcknowledgeState(view.revision, view.permission_version, !allowed);
         acknowledged_permission_version_ = view.permission_version;
     }
+}
+
+void Application::FinishScheduledReminder() {
+    const auto connection = reminder_connection_.load();
+    reminder_id_.clear();
+    if (connection && protocol_ && connection == GetVoiceConnectionId()) {
+        protocol_->CloseAudioChannel();
+        audio_service_.ResetDecoder();
+        SetDeviceState(kDeviceStateIdle);
+    }
+    audio_service_.TrackReminderOutput(0);
+    reminder_connection_.store(0);
+}
+
+void Application::PollScheduledReminder(const DeviceControlView& view) {
+    const auto now = esp_timer_get_time();
+    const auto connection = reminder_connection_.load();
+    if (connection) {
+        const int expected = reminder_playback_.ExpectedFrames();
+        if (view.generation != reminder_generation_ || !VoiceAllowed() ||
+            GetVoiceConnectionId() != connection || !protocol_ || !protocol_->IsAudioChannelOpened() ||
+            GetDeviceState() != kDeviceStateSpeaking || reminder_interrupted_.load() ||
+            expected < 0 || now >= reminder_deadline_us_) {
+            FinishScheduledReminder();
+            return;
+        }
+        if (expected > 0 && audio_service_.ReminderFramesWritten(connection) == expected) {
+            // Allow the codec DMA tail to drain after the final successful PCM write.
+            if (!reminder_drain_us_)
+                reminder_drain_us_ = now + 200000;
+            if (now >= reminder_drain_us_) {
+                if (VoiceGenerationCurrent(reminder_generation_) && !reminder_interrupted_.load())
+                    protocol_->SendReminder("played", reminder_id_);
+                FinishScheduledReminder();
+            }
+        }
+        return;
+    }
+    if (view.scheduled_reminder_id.empty() || !view.voice_allowed || !VoiceAllowed() ||
+        now < reminder_retry_us_ || !protocol_ || protocol_->IsAudioChannelOpened() ||
+        !MaintenanceIdle() || !SetDeviceState(kDeviceStateConnecting))
+        return;
+    reminder_retry_us_ = now + 15000000;
+    if (!protocol_->OpenAudioChannel() || !VoiceGenerationCurrent(view.generation) ||
+        !SetDeviceState(kDeviceStateSpeaking)) {
+        protocol_->CloseAudioChannel();
+        SetDeviceState(kDeviceStateIdle);
+        return;
+    }
+    standby_requested_.store(false);
+    listening_mode_ = kListeningModeManualStop;
+    reminder_id_ = view.scheduled_reminder_id;
+    reminder_generation_ = view.generation;
+    reminder_interrupted_.store(false);
+    reminder_drain_us_ = 0;
+    reminder_deadline_us_ = esp_timer_get_time() + 120000000;
+    reminder_playback_.Begin(GetVoiceConnectionId(), reminder_id_);
+    reminder_connection_.store(GetVoiceConnectionId());
+    audio_service_.TrackReminderOutput(reminder_connection_.load());
+    // Let the main loop prepare the speaking state and decoder before requesting audio.
+    ScheduleVoice(view.generation, GetVoiceConnectionId(), [this]() {
+        if (!reminder_connection_.load() || reminder_interrupted_.load() ||
+            !protocol_->SendReminder("claim", reminder_id_))
+            FinishScheduledReminder();
+    });
 }
 
 void Application::SetAecMode(AecMode mode) {

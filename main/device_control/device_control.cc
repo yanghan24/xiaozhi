@@ -499,6 +499,19 @@ struct DeviceControl::Impl {
                     retry = applied != device_control::ApplyResult::Applied;
                     if (!retry)
                         backoff = 1000;
+                    if (!retry && !create) {
+                        bool offered;
+                        {
+                            std::lock_guard<std::mutex> lock(mutex);
+                            offered = !model.View().scheduled_reminder_id.empty();
+                        }
+                        if (offered) {
+                            Publish();
+                            // A busy speaker may leave an offer pending. Its next long
+                            // poll would otherwise receive the same hint immediately.
+                            ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(2000));
+                        }
+                    }
                     if (create && !retry) {
                         std::lock_guard<std::mutex> lock(mutex);
                         pending_create.Complete(200);

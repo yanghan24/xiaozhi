@@ -185,6 +185,8 @@ public:
     void ApplyControlledAccess(uint64_t generation, bool allowed);
     // The audio tasks read this fence without dereferencing the protocol owner.
     void SetVoiceConnection(uint64_t connection_id) { voice_connection_id_.store(connection_id); }
+    void TrackReminderOutput(uint64_t connection);
+    int ReminderFramesWritten(uint64_t connection);
     // Safe in the control timer callback: revocation never takes a queue/driver lock.
     void RevokeControlledAccess(uint64_t generation);
     // Main task only. Returns true after old queues and driver output are stopped.
@@ -198,6 +200,9 @@ private:
     std::mutex audio_output_mutex_;
     std::atomic<uint64_t> voice_processing_generation_{0};
     std::atomic<uint64_t> voice_connection_id_{0};
+    // Access under audio_output_mutex_, including the final codec write.
+    uint64_t reminder_connection_ = 0;
+    int reminder_frames_written_ = 0;
     bool IsControlledAllowed(uint64_t generation) const;
     bool IsOutputCurrent(const AudioTask& task) const;
     AudioServiceCallbacks callbacks_;

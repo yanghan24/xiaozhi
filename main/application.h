@@ -16,6 +16,7 @@
 #include "audio_service.h"
 #include "device_control/device_control.h"
 #include "device_control/maintenance_model.h"
+#include "device_control/reminder_playback.h"
 #include "device_state.h"
 #include "device_state_machine.h"
 #include "ota.h"
@@ -175,6 +176,16 @@ private:
     void ScheduleVoice(uint64_t generation, uint64_t connection_id,
                        std::function<void()>&& callback);
     void ApplyDeviceControlView(const DeviceControlView& view);
+    void PollScheduledReminder(const DeviceControlView& view);
+    void FinishScheduledReminder();
+    std::atomic<uint64_t> reminder_connection_{0};
+    std::atomic<bool> reminder_interrupted_{false};
+    std::string reminder_id_;
+    uint64_t reminder_generation_ = 0;
+    int64_t reminder_deadline_us_ = 0;
+    int64_t reminder_retry_us_ = 0;
+    int64_t reminder_drain_us_ = 0;
+    ReminderPlayback reminder_playback_;
     void HandleControlRevoked();
     TaskHandle_t activation_task_handle_ = nullptr;
 

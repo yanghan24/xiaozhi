@@ -84,6 +84,10 @@ public:
     virtual void SendStopListening();
     virtual void SendAbortSpeaking(AbortReason reason);
     virtual void SendMcpMessage(const std::string& message);
+    bool SendReminder(const char* state, const std::string& id) {
+        return SendText(std::string("{\"type\":\"reminder\",\"state\":\"") + state +
+                        "\",\"id\":\"" + id + "\"}");
+    }
 
 protected:
     std::function<void(const cJSON* root, uint64_t generation, uint64_t connection_id)>

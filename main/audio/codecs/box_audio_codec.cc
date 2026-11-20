@@ -240,8 +240,9 @@ int BoxAudioCodec::Read(int16_t* dest, int samples) {
 }
 
 int BoxAudioCodec::Write(const int16_t* data, int samples) {
-    if (output_enabled_) {
-        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_codec_dev_write(output_dev_, (void*)data, samples * sizeof(int16_t)));
-    }
-    return samples;
+    if (!output_enabled_)
+        return 0;
+    const auto result = esp_codec_dev_write(output_dev_, (void*)data, samples * sizeof(int16_t));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(result);
+    return result == ESP_OK ? samples : 0;
 }
