@@ -1098,6 +1098,7 @@ export default {
   'modelConfig.disableSuccess': '禁用成功',
   'modelConfig.operationFailed': '操作失敗',
   'modelConfig.setDefaultSuccess': '設置默認模型成功，請及時手動重啟xiaozhi-server模組',
+  'modelConfig.setSystemDefaultSuccess': '已儲存系統預設模型。音箱的模型設定請在目前的預設智慧體中查看。',
   'modelConfig.itemsPerPage': '{items}條/頁',
   'modelConfig.firstPage': '首頁',
   'modelConfig.prevPage': '上一頁',

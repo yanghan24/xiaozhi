@@ -1098,6 +1098,7 @@ export default {
   'modelConfig.disableSuccess': 'Deaktivieren erfolgreich',
   'modelConfig.operationFailed': 'Operation fehlgeschlagen',
   'modelConfig.setDefaultSuccess': 'Standardmodell erfolgreich gesetzt, bitte starten Sie das xiaozhi-server-Modul zeitnah manuell neu',
+  'modelConfig.setSystemDefaultSuccess': 'Systemstandardmodell gespeichert. Die Modelleinstellungen des Lautsprechers finden Sie im aktuellen Standardagenten.',
   'modelConfig.itemsPerPage': '{items} Einträge/Seite',
   'modelConfig.firstPage': 'Erste Seite',
   'modelConfig.prevPage': 'Vorherige Seite',

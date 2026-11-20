@@ -1098,6 +1098,7 @@ export default {
   'modelConfig.disableSuccess': 'Desativado com sucesso',
   'modelConfig.operationFailed': 'Falha na operação',
   'modelConfig.setDefaultSuccess': 'Modelo padrão definido com sucesso. Por favor, reinicie o módulo xiaozhi-server manualmente',
+  'modelConfig.setSystemDefaultSuccess': 'Modelo padrão do sistema salvo. Consulte o agente padrão atual para ver as configurações de modelo da caixa de som.',
   'modelConfig.itemsPerPage': '{items} itens/página',
   'modelConfig.firstPage': 'Primeira Página',
   'modelConfig.prevPage': 'Página Anterior',
