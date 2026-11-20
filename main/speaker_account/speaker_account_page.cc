@@ -61,10 +61,14 @@ lv_obj_t* Label(lv_obj_t* parent, const char* text, lv_color_t color) {
 
 lv_obj_t* Button(lv_obj_t* parent, const char* content, lv_event_cb_t handler) {
     auto* button = lv_button_create(parent);
-    lv_obj_set_size(button, 116, 38);
+    lv_obj_set_size(button, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_radius(button, 12, 0);
     lv_obj_set_style_bg_color(button, lv_color_hex(0x175CD3), 0);
     lv_obj_set_style_shadow_width(button, 0, 0);
+    lv_obj_set_style_pad_hor(button, 16, 0);
+    // The visible CJK glyphs sit above the center of the theme font's line box.
+    lv_obj_set_style_pad_top(button, 10, 0);
+    lv_obj_set_style_pad_bottom(button, 2, 0);
     auto* label = lv_label_create(button);
     lv_label_set_text(label, content);
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
