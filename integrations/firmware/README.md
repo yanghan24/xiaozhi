@@ -24,3 +24,18 @@ git apply /absolute/path/xiaozhi/integrations/firmware/42-device-identity-recove
 应用后的操作说明位于固件 `docs/device-identity-recovery.md`，主项目对应入口为[身份恢复说明](../../docs/development/device-identity-recovery.md)。私有 sdkconfig、依赖缓存、Flash/NVS 备份、交付 journal、设备凭据和固件镜像均不包含在补丁中。两份受测构建的配置与现场基线逐项相同，产物标识及本机测试结果见[机器摘要](../../docs/verification/evidence/2026-11-11-device-identity-retention/build-and-tests.json)。
 
 本次 `git apply --check` 已在固定基点通过。构建需要 ESP-IDF v5.5.5 及原工程依赖；构建和主机测试命令见[验证记录](../../docs/verification/2026-11-11-device-identity-retention.md)。真实 B 只更新当前应用槽；不得使用全量 flash_args 覆盖 NVS、启动材料或资源区。
+
+## P4 恢复出厂入口增量
+
+2026-11-12 的本机准备保留上面的原始 19 文件补丁，另交付设置页恢复出厂入口。它基于 B 当前 `860e045` 的产品源码，包含已集成的身份保护和本机解绑能力；不能直接叠加在原 `00896ab` 或 `f03d98d` 上。
+
+| 项目 | 固定值 |
+| --- | --- |
+| 本增量基点 | `860e045ab7d9599ab2b0b9135a6cef6f4222069b` |
+| 最终候选提交 | `a30f6a8d3e47068004af0685d5c229cb7648cdae` |
+| 增量文件 | [42-p4-factory-reset.patch](42-p4-factory-reset.patch)，5 文件 |
+| 增量 SHA-256 | `04f4167206e7c8f55bbd47b474ef7da2669c01542285a774d22bd205db20d829` |
+
+在拥有该固定基点的干净独立固件 checkout 中，先核对 HEAD，再按上面的 `git apply --check` / `git apply` 方法应用此增量。完整重放后 5 个文件与最终提交逐字节一致。现场工程为 `42-firmware-maintenance-acceptance`，分支 `feat/42-p4-maintenance-acceptance`；完整构建、产物标识及恢复后步骤见[本机准备报告](../../docs/verification/2026-11-12-p4-maintenance-preparation.md)。
+
+本增量尚未刷入 B，也没有执行恢复出厂或真实 OTA。固件 bin/ELF、sdkconfig、依赖缓存、完整身份、journal 与 Flash/NVS 均留在本机私有目录。恢复原应用不需要恢复旧凭据，凭据已轮换后的旧 NVS 不能用于回退。

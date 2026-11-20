@@ -1,0 +1,91 @@
+{
+  "observed_at_utc": "2026-11-12T02:19:18.385533+00:00",
+  "scope": "local_preparation_only",
+  "device_alias": "B",
+  "source_base": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+  "firmware_source": "a30f6a8d3e47068004af0685d5c229cb7648cdae",
+  "board_type": "waveshare-esp32-p4-wifi6-touch-lcd-4.3",
+  "app_version": "2.2.6",
+  "product_sha256": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+  "product_elf_sha256": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+  "maintenance_sha256": "fa98219626bee420de3c25674bfb32f42e4aafb2e550589c56c93195c2826bea",
+  "maintenance_source": "f03d98d67a0262b64ca72db1f97010675310a45c",
+  "partition_table_sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5",
+  "product_checks": {
+    "product_config": true,
+    "maintenance_disabled": true,
+    "application_size_optimization": true,
+    "product_sources": true,
+    "no_maintenance_source": true,
+    "dashboard_and_control_linked": true,
+    "no_maintenance_entrypoint": true,
+    "identity_erase_guard": true,
+    "preserved_16mb_layout": true,
+    "image_fits_both_slots": true
+  },
+  "image_bytes": 4003072,
+  "smallest_app_partition_bytes": 4128768,
+  "remaining_bytes": 125696,
+  "generated_configuration_items": 2502,
+  "generated_configuration_matches_installed": true,
+  "dependency_lock_matches_installed": true,
+  "dependency_lock_sha256": "3f13ae3552abb9d1404a26f830f7fb969a5e4d52cb29974ae30875da8af3f27a",
+  "linked_reset_symbols": {
+    "Application::CanRestoreFactorySettings()": true,
+    "Application::RestoreFactorySettings()": true,
+    "StandbyDashboard::ShowFactoryResetConfirmation()": true,
+    "StandbyDashboard::CloseFactoryResetConfirmation()": true,
+    "device_control::ResetUserSettings()": true
+  },
+  "bundle_sha256": {
+    "product.bin": "b34b7ccf64ca50d2ae6052e8bdd24a5abfc6bacb50d7fca03b1c8495a36a84b7",
+    "product.elf": "364a1d6f2d33a9fa0d1312956aa22daae0076c758a8d5ff4e433b0e7d52022a3",
+    "maintenance.bin": "fa98219626bee420de3c25674bfb32f42e4aafb2e550589c56c93195c2826bea",
+    "partition-table.bin": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5"
+  },
+  "flash_written": false,
+  "identity_written": false,
+  "credentials_rotated": false,
+  "hardware_accessed_during_candidate_preparation": false,
+  "backend_requests_sent": false,
+  "factory_reset_hardware_accepted": false,
+  "ota_hardware_accepted": false,
+  "host_validation": {
+    "ctest": {
+      "passed": 28,
+      "total": 28,
+      "failed": 0
+    },
+    "python_unittest": {
+      "passed": 43,
+      "total": 43,
+      "failed": 0,
+      "source": "executed earlier in this local preparation; tested sources unchanged"
+    },
+    "hardware_test": false,
+    "backend_test": false
+  },
+  "patch_validation": {
+    "source_base": "860e045ab7d9599ab2b0b9135a6cef6f4222069b",
+    "firmware_source": "a30f6a8d3e47068004af0685d5c229cb7648cdae",
+    "patch_sha256": "04f4167206e7c8f55bbd47b474ef7da2669c01542285a774d22bd205db20d829",
+    "patch_files": 5,
+    "patch_apply_check": true,
+    "patch_replay_matches_commit": true
+  },
+  "local_tool_validation": {
+    "candidate_check_only_passed": true,
+    "installed_check_only_passed": true,
+    "existing_B_snapshots_identity_and_protected_namespace_match": true,
+    "corrupted_nvs_rejected": true,
+    "hardware_capture_executed": false,
+    "backend_requests_sent": false
+  },
+  "review": {
+    "standards_remaining_findings": 0,
+    "spec_initial_findings": 1,
+    "spec_remaining_findings": 0,
+    "spec_fix": "use actual sign_out_pending for unresolved unbinding",
+    "reviewed_firmware_source": "a30f6a8d3e47068004af0685d5c229cb7648cdae"
+  }
+}

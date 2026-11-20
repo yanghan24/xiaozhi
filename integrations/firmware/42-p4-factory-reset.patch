@@ -1,0 +1,237 @@
+diff --git a/docs/device-identity-recovery.md b/docs/device-identity-recovery.md
+index e4bf10d..3f437b7 100644
+--- a/docs/device-identity-recovery.md
++++ b/docs/device-identity-recovery.md
+@@ -11,12 +11,20 @@
+ | 应用槽重刷 | 交付适配器只写已确认的当前应用槽，读回核对应用、启动保护区及 assets；NVS 保持原值 |
+ | OTA | 原 `Ota::Upgrade` 使用 `esp_ota_get_next_update_partition`、`esp_ota_begin/write/end`，仅写应用槽；仍需真实 OTA 验收 |
+ | 重新配网 | 现有 WifiBoard 进入配网流程，不调用身份写入；仍需在当前 P4 实测 |
+-| 正常恢复出厂 | 产品 `SystemReset` 使用 `ResetUserSettings`，按命名空间清理，跳过 `device_ctrl`，不退回旧固件；当前 P4 界面的具体恢复入口仍需现场确认 |
++| 正常恢复出厂 | P4 设置页的「恢复出厂」经二次确认，在主任务停止音频和本机活动后调用 `ResetUserSettings`，按命名空间清理并跳过 `device_ctrl`，然后重启当前固件。通用 `SystemReset` 也保留身份且不退回旧固件；新增 P4 入口仍待真机验收 |
+ | 普通 NVS 初始化失败/修复 | 主程序已有停止启动保护；本候选另外在产品和维护镜像最终链接时包装 `nvs_flash_erase` 与 `nvs_flash_erase_partition`，依赖组件的整分区自动擦除也返回 `ESP_ERR_INVALID_STATE`。损坏时停止接入并进入受控恢复，不自动修复整个分区 |
+ | 全片擦除或身份损坏 | 身份不可用时关闭产品接入；核对原硬件档案后由管理员补发。整片擦除、原始 Flash 写入和运行其他固件不受上述 NVS 包装保护 |
+ 
+ 普通 `write` 只允许初次写入或同一身份重试，不能替换健康记录的凭据或可信地址。`repair` 仍只接受损坏记录及幸存的匹配 device_id anchor。新增 `recover` 允许在原 device_id 上写入管理员刚签发的完整身份；anchor 缺失且 blob 损坏时可重建后台已确认的原标识，完整且冲突的 anchor 始终拒绝。
+ 
++### P4 恢复出厂入口
++
++从当前产品基线 `860e045ab7d9599ab2b0b9135a6cef6f4222069b` 追加此入口，保留既有本机解绑能力。设置页点击「恢复出厂」后，确认框说明将清除 Wi-Fi 和本机设置，保留设备身份、账号归属和停用状态；「取消」只关闭确认框，「恢复并重启」才提交主任务。此操作不调用远端解绑，也不轮换凭据。
++
++仅在空闲、连接语音、聆听或回答状态下允许恢复，解绑尚未解决期间拒绝（包括显示失败或后台不支持的情况）；启动、激活、升级、音频测试、配网、未知及致命错误状态均不允许。主任务执行前重新核对状态。普通设置清理失败时显示失败并停止重启；已清理的普通设置不能自动还原，身份命名空间保持排除。
++
++实际验收须先保存当前应用/NVS 和后台即时状态，再验证取消无清理、确认后进入配网、重新配网后原身份和凭据不变、原归属及停用状态保持、完整语音行为符合当前许可。主机测试与链接检查不代替该真机流程。
++
+ 维护镜像是离线程序，不验证管理员登录或远程证明硬件。授权由联网工具在发送新秘密前通过服务端恢复接口检查；维护工作站和串口连接必须受控。新工具要求维护镜像声明 `credential_recovery` 能力，避免向旧镜像发送补发秘密。
+ 
+ ## 管理员补发工具
+diff --git a/main/application.cc b/main/application.cc
+index dfc403f..8fa21e1 100644
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -4,6 +4,7 @@
+ #include "audio_codec.h"
+ #include "board.h"
+ #include "device_control/delivery_bootstrap.h"
++#include "device_control/device_identity.h"
+ #include "display.h"
+ #include "features/audio_recorder.h"
+ #include "features/music_player.h"
+@@ -1248,6 +1249,47 @@ void Application::Reboot() {
+     esp_restart();
+ }
+ 
++bool Application::CanRestoreFactorySettings() const {
++#if CONFIG_XIAOZHI_DEVICE_CONTROL
++    const auto state = GetDeviceState();
++    return (state == kDeviceStateIdle || state == kDeviceStateConnecting ||
++            state == kDeviceStateListening || state == kDeviceStateSpeaking) &&
++           !DeviceControl::GetInstance().GetView().sign_out_pending;
++#else
++    return false;
++#endif
++}
++
++bool Application::RestoreFactorySettings() {
++#if CONFIG_XIAOZHI_DEVICE_CONTROL
++    // The settings dialog schedules this on the main task and confirms locally.
++    if (!CanRestoreFactorySettings()) {
++        Alert("暂时无法恢复", "请等待当前操作完成后重试", "circle_xmark");
++        return false;
++    }
++    MusicPlayer::GetInstance().Stop();
++    AudioRecorder::GetInstance().Stop();
++    PomodoroTimer::GetInstance().Cancel();
++    EndVoiceInteraction();
++    if (protocol_ && protocol_->IsAudioChannelOpened())
++        protocol_->CloseAudioChannel();
++    audio_service_.EnableVoiceProcessing(false);
++    audio_service_.EnableWakeWordDetection(false);
++    const auto result = device_control::ResetUserSettings();
++    if (result != ESP_OK) {
++        ESP_LOGE(TAG, "Local settings reset failed: %s", esp_err_to_name(result));
++        audio_service_.EnableWakeWordDetection(VoiceAllowed());
++        Alert("恢复失败", "本机设置恢复失败，请重试", "circle_xmark");
++        return false;
++    }
++    // Keep the installed application and all cloud ownership/permission state.
++    Reboot();
++    return true;
++#else
++    return false;
++#endif
++}
++
+ bool Application::UpgradeFirmware(const std::string& url, const std::string& version) {
+     auto& board = Board::GetInstance();
+     auto display = board.GetDisplay();
+diff --git a/main/application.h b/main/application.h
+index 532b4ed..8c9bf86 100644
+--- a/main/application.h
++++ b/main/application.h
+@@ -107,6 +107,8 @@ public:
+     void StopListening();
+ 
+     void Reboot();
++    bool CanRestoreFactorySettings() const;
++    bool RestoreFactorySettings();
+     void WakeWordInvoke(const std::string& wake_word);
+     bool UpgradeFirmware(const std::string& url, const std::string& version = "");
+     bool CanEnterSleepMode();
+diff --git a/main/display/standby_dashboard.cc b/main/display/standby_dashboard.cc
+index ea73e5e..6e85a28 100644
+--- a/main/display/standby_dashboard.cc
++++ b/main/display/standby_dashboard.cc
+@@ -1192,6 +1192,17 @@ void StandbyDashboard::CreateSettingsView() {
+     lv_obj_set_pos(icon, 18, 8);
+     label(settings_view_, SettingsText("设置", "Setup"), 54, 6, kColorText);
+     StyleRule(CreateObject(settings_view_, 0, 47, 800, 1), kColorBlue, LV_OPA_80);
++    settings_factory_reset_button_ =
++        CreateTechButton(settings_view_, text_font_, SettingsText("恢复出厂", "Factory reset"), 496,
++                         5, 184, 38, lv_color_hex(kColorAmber));
++    lv_obj_add_event_cb(
++        settings_factory_reset_button_,
++        [](lv_event_t* e) {
++            static_cast<StandbyDashboard*>(lv_event_get_user_data(e))
++                ->ShowFactoryResetConfirmation();
++        },
++        LV_EVENT_CLICKED, this);
++    SetHidden(settings_factory_reset_button_, !DeviceControl::GetInstance().Enabled());
+     auto* close = CreateTechButton(settings_view_, text_font_, SettingsText("关闭", "Back"), 698, 5,
+                                    84, 38, lv_color_hex(kColorAmber));
+     lv_obj_add_event_cb(
+@@ -1300,6 +1311,7 @@ void StandbyDashboard::CreateSettingsView() {
+ }
+ 
+ void StandbyDashboard::DestroySettingsView() {
++    CloseFactoryResetConfirmation();
+     if (settings_timer_ != nullptr) {
+         lv_timer_delete(settings_timer_);
+         settings_timer_ = nullptr;
+@@ -1324,6 +1336,7 @@ void StandbyDashboard::ShowSettingsView() {
+     if (settings_view_ == nullptr)
+         CreateSettingsView();
+     sign_out_confirmation_ = 0;
++    CloseFactoryResetConfirmation();
+     lv_obj_remove_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
+     SetSettingsShortcutVisible(settings_shortcut_needed_);
+     DeviceControl::GetInstance().ShowAccountDetails(true);
+@@ -1337,11 +1350,16 @@ void StandbyDashboard::CloseSettingsView() {
+     lv_timer_pause(settings_timer_);
+     lv_obj_add_flag(settings_view_, LV_OBJ_FLAG_HIDDEN);
+     sign_out_confirmation_ = 0;
++    CloseFactoryResetConfirmation();
+     DeviceControl::GetInstance().ShowAccountDetails(false);
+     SetSettingsShortcutVisible(settings_shortcut_needed_);
+ }
+ 
+ void StandbyDashboard::UpdateSettingsView() {
++    const bool can_reset = Application::GetInstance().CanRestoreFactorySettings();
++    SetButtonEnabled(settings_factory_reset_button_, can_reset);
++    if (!can_reset)
++        CloseFactoryResetConfirmation();
+     const auto wifi = Board::GetInstance().GetWifiLinkView();
+     auto account = DeviceControl::GetInstance().GetAccountView();
+     if (wifi.state != WifiLinkState::Connected && wifi.state != WifiLinkState::Unsupported) {
+@@ -1444,6 +1462,60 @@ void StandbyDashboard::UpdateSettingsView() {
+     SetButtonEnabled(settings_wifi_setup_button_, can_change && !provisioning);
+ }
+ 
++void StandbyDashboard::ShowFactoryResetConfirmation() {
++    if (!Application::GetInstance().CanRestoreFactorySettings() || settings_factory_reset_dialog_)
++        return;
++    sign_out_confirmation_ = 0;
++    settings_factory_reset_dialog_ = CreateObject(settings_view_, 0, 0, 800, 480);
++    lv_obj_add_flag(settings_factory_reset_dialog_, LV_OBJ_FLAG_CLICKABLE);
++    lv_obj_set_style_bg_color(settings_factory_reset_dialog_, lv_color_hex(kColorBackground), 0);
++    lv_obj_set_style_bg_opa(settings_factory_reset_dialog_, LV_OPA_90, 0);
++    lv_obj_set_style_border_width(settings_factory_reset_dialog_, 0, 0);
++    lv_obj_set_style_pad_all(settings_factory_reset_dialog_, 0, 0);
++    auto* panel = CreateObject(settings_factory_reset_dialog_, 140, 100, 520, 280);
++    StylePanel(panel, kColorPanel);
++    auto* title = CreateLabel(panel, text_font_, lv_color_hex(kColorAmber),
++                              SettingsText("恢复出厂设置？", "Restore factory settings?"));
++    lv_obj_set_pos(title, 24, 24);
++    auto* detail =
++        CreateLabel(panel, text_font_, lv_color_hex(kColorText),
++                    SettingsText("将清除 Wi-Fi 和本机设置。\n设备身份、账号归属和停用状态保留。",
++                                 "Clear Wi-Fi and local settings.\nKeep device identity, account "
++                                 "ownership and usage state."));
++    lv_obj_set_pos(detail, 24, 80);
++    lv_obj_set_width(detail, 472);
++    lv_label_set_long_mode(detail, LV_LABEL_LONG_WRAP);
++    auto* cancel = CreateTechButton(panel, text_font_, SettingsText("取消", "Cancel"), 24, 204, 224,
++                                    50, lv_color_hex(kColorBlue));
++    lv_obj_add_event_cb(
++        cancel,
++        [](lv_event_t* e) {
++            static_cast<StandbyDashboard*>(lv_event_get_user_data(e))
++                ->CloseFactoryResetConfirmation();
++        },
++        LV_EVENT_CLICKED, this);
++    auto* confirm =
++        CreateTechButton(panel, text_font_, SettingsText("恢复并重启", "Reset and reboot"), 272,
++                         204, 224, 50, lv_color_hex(kColorAmber));
++    lv_obj_add_event_cb(
++        confirm,
++        [](lv_event_t* e) {
++            lv_obj_add_state(static_cast<lv_obj_t*>(lv_event_get_target(e)), LV_STATE_DISABLED);
++            auto* self = static_cast<StandbyDashboard*>(lv_event_get_user_data(e));
++            self->CloseSettingsView();
++            Application::GetInstance().Schedule(
++                []() { Application::GetInstance().RestoreFactorySettings(); });
++        },
++        LV_EVENT_CLICKED, this);
++    lv_obj_move_foreground(settings_factory_reset_dialog_);
++}
++
++void StandbyDashboard::CloseFactoryResetConfirmation() {
++    if (settings_factory_reset_dialog_ && lv_obj_is_valid(settings_factory_reset_dialog_))
++        lv_obj_delete(settings_factory_reset_dialog_);
++    settings_factory_reset_dialog_ = nullptr;
++}
++
+ void StandbyDashboard::HandleSettingsSignOut() {
+     const auto account = DeviceControl::GetInstance().GetAccountView();
+     if (account.can_scan) {
+diff --git a/main/display/standby_dashboard.h b/main/display/standby_dashboard.h
+index 8b76298..9db0c38 100644
+--- a/main/display/standby_dashboard.h
++++ b/main/display/standby_dashboard.h
+@@ -84,6 +84,8 @@ private:
+     lv_obj_t* settings_wifi_button_ = nullptr;
+     lv_obj_t* settings_wifi_button_label_ = nullptr;
+     lv_obj_t* settings_wifi_setup_button_ = nullptr;
++    lv_obj_t* settings_factory_reset_button_ = nullptr;
++    lv_obj_t* settings_factory_reset_dialog_ = nullptr;
+     lv_timer_t* settings_timer_ = nullptr;
+     uint64_t sign_out_confirmation_ = 0;
+     bool settings_shortcut_needed_ = false;
+@@ -165,6 +167,8 @@ private:
+     void CloseSettingsView();
+     void UpdateSettingsView();
+     void HandleSettingsSignOut();
++    void ShowFactoryResetConfirmation();
++    void CloseFactoryResetConfirmation();
+     const char* SettingsText(const char* chinese, const char* fallback) const {
+         return settings_chinese_ ? chinese : fallback;
+     }
