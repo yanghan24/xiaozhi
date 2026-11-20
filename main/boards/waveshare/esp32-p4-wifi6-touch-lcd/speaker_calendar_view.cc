@@ -2,199 +2,177 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && LV_USE_CALENDAR
 
-#include "speaker_home_widgets.h"
 #include "speaker_account/speaker_account.h"
+#include "speaker_account/speaker_ui_widgets.h"
+#include "speaker_memos.h"
 
+#include <algorithm>
 #include <cstdio>
-#include <initializer_list>
-#include <string>
+#include <cstdlib>
+#include <ctime>
+#include <string_view>
 
-void SpeakerCalendarView::Create(lv_obj_t* parent) {
-    using namespace SpeakerHomeWidgets;
-    panel_ = Panel(parent);
-    lv_obj_set_pos(Label(panel_, "电子日历", kText), 18, 7);
-    auto* close = Button(panel_, "返回", [](lv_event_t* event) {
-        static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->Hide();
-    }, this);
-    lv_obj_set_size(close, 86, 40);
-    lv_obj_set_pos(close, 464, 4);
+using namespace SpeakerUi;
+using namespace std::chrono;
 
-    auto* calendar_card = Card(panel_, 18, 62, 532, 394);
-    lv_obj_set_style_border_color(calendar_card, lv_color_hex(kCyan), LV_PART_MAIN);
-    lv_obj_set_style_border_opa(calendar_card, LV_OPA_50, LV_PART_MAIN);
-    month_ = Label(calendar_card, "", kCyan);
-    lv_obj_set_pos(month_, 16, 18);
-    previous_ = Button(calendar_card, "上月", [](lv_event_t* event) {
-        static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->MoveMonth(-1);
-    }, this);
-    lv_obj_set_size(previous_, 78, 42);
-    lv_obj_set_pos(previous_, 250, 8);
-    next_ = Button(calendar_card, "下月", [](lv_event_t* event) {
-        static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->MoveMonth(1);
-    }, this);
-    lv_obj_set_size(next_, 78, 42);
-    lv_obj_set_pos(next_, 332, 8);
-    today_ = Button(calendar_card, "今天", [](lv_event_t* event) {
-        auto* view = static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event));
-        view->current_date_ = 0;
-        view->Update();
-    }, this);
-    lv_obj_set_size(today_, 88, 42);
-    lv_obj_set_pos(today_, 414, 8);
-    calendar_ = lv_calendar_create(calendar_card);
-    lv_obj_set_size(calendar_, 504, 316);
-    lv_obj_set_pos(calendar_, 13, 59);
-    lv_obj_set_style_bg_color(calendar_, lv_color_hex(kCard), LV_PART_MAIN);
-    lv_obj_set_style_border_color(calendar_, lv_color_hex(kEdge), LV_PART_MAIN);
-#if LV_CALENDAR_WEEK_STARTS_MONDAY
-    static const char* weekdays[] = {"一", "二", "三", "四", "五", "六", "日"};
-#else
-    static const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
-#endif
-    lv_calendar_set_day_names(calendar_, weekdays);
-    auto* dates = lv_calendar_get_btnmatrix(calendar_);
-    lv_obj_set_style_bg_color(dates, lv_color_hex(kCard), LV_PART_ITEMS);
-    lv_obj_set_style_border_color(dates, lv_color_hex(kEdge), LV_PART_ITEMS);
-    lv_obj_set_style_text_color(dates, lv_color_hex(kText), LV_PART_ITEMS);
-    lv_obj_add_event_cb(calendar_, [](lv_event_t* event) {
-        auto* view = static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event));
-        lv_calendar_date_t date{};
-        if (lv_calendar_get_pressed_date(view->calendar_, &date) == LV_RESULT_OK && date.day > 0) {
-            view->selected_ = date;
-            view->selection_changed_ = true;
-            view->UpdateMemos();
-        }
-    }, LV_EVENT_VALUE_CHANGED, this);
+namespace {
+constexpr int kStripWidth = 710;
 
-    auto* memo_card = Card(panel_, 564, 62, 218, 394);
-    lv_obj_set_pos(Label(memo_card, "日程记事", kCyan), 14, 14);
-    memo_date_ = Label(memo_card, "", kMuted);
-    lv_obj_set_pos(memo_date_, 14, 49);
-    auto* scroll = lv_obj_create(memo_card);
-    lv_obj_remove_style_all(scroll);
-    lv_obj_set_size(scroll, 190, 300);
-    lv_obj_set_pos(scroll, 14, 82);
-    lv_obj_set_scroll_dir(scroll, LV_DIR_VER);
-    lv_obj_set_scrollbar_mode(scroll, LV_SCROLLBAR_MODE_AUTO);
-    memo_text_ = Label(scroll, "", kText);
-    lv_obj_set_width(memo_text_, 184);
-    lv_label_set_long_mode(memo_text_, LV_LABEL_LONG_WRAP);
+std::optional<sys_days> LocalDate() {
+    const auto now = std::time(nullptr);
+    std::tm local{};
+    if (now < 1704067200 || !localtime_r(&now, &local)) {
+        return std::nullopt;
+    }
+    return sys_days(year{local.tm_year + 1900} / month{static_cast<unsigned>(local.tm_mon + 1)} /
+                    day{static_cast<unsigned>(local.tm_mday)});
+}
+
+unsigned DayInWeek(sys_days date) {
+    return weekday(date).iso_encoding() - 1;
+}
+}  // namespace
+
+void SpeakerCalendarView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
+    root_ = Panel(parent);
+    Header(root_, "日历", SpeakerNavigation::OnBack, &navigation);
+    week_ = Surface(root_, 45, 87, kStripWidth, 105);
+    lv_obj_add_flag(week_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
+    lv_obj_add_event_cb(week_, OnWeekTouch, LV_EVENT_ALL, this);
+    constexpr const char* names[] = {"一", "二", "三", "四", "五", "六", "日"};
+    for (size_t i = 0; i < days_.size(); ++i) {
+        const int left = kStripWidth * i / days_.size();
+        const int width = kStripWidth * (i + 1) / days_.size() - left;
+        auto* cell = Surface(week_, left, 0, width, 105);
+        lv_obj_align(Label(cell, names[i], kMuted), LV_ALIGN_TOP_MID, 0, 6);
+        auto* background = Surface(cell, (width - 78) / 2, 48, 78, 52);
+        lv_obj_set_style_radius(background, 15, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(background, lv_color_hex(kCyan), LV_PART_MAIN);
+        selection_[i] = background;
+        days_[i] = Label(cell, "");
+        lv_obj_align(days_[i], LV_ALIGN_TOP_MID, 0, 56);
+    }
+
+    list_ = Surface(root_, 45, 209, 710, 239);
+    lv_obj_add_flag(list_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE));
+    lv_obj_set_scroll_dir(list_, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(list_, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
+    clock_hint_ = Label(root_, "正在校时", kMuted);
+    lv_obj_center(clock_hint_);
 }
 
 void SpeakerCalendarView::Show() {
-    current_date_ = 0;
-    lv_obj_remove_flag(panel_, LV_OBJ_FLAG_HIDDEN);
+    today_.reset();
+    lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
     Update();
 }
 
 void SpeakerCalendarView::Hide() {
-    lv_obj_add_flag(panel_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    tracking_ = false;
 }
 
 void SpeakerCalendarView::Update() {
-    if (lv_obj_has_flag(panel_, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
         return;
     }
-    const auto now = std::time(nullptr);
-    std::tm date{};
-    if (now < 1704067200 || !localtime_r(&now, &date)) {
-        lv_label_set_text(month_, "正在校时");
-        SpeakerHomeWidgets::UpdateLabel(memo_date_, "");
-        SpeakerHomeWidgets::UpdateLabel(memo_text_, "正在校时");
-        for (auto* object : {calendar_, today_, previous_, next_}) {
-            lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+    const auto local = LocalDate();
+    lv_obj_set_flag(clock_hint_, LV_OBJ_FLAG_HIDDEN, local.has_value());
+    lv_obj_set_flag(week_, LV_OBJ_FLAG_HIDDEN, !local);
+    lv_obj_set_flag(list_, LV_OBJ_FLAG_HIDDEN, !local);
+    if (!local) {
+        today_.reset();
+        return;
+    }
+    bool selection_changed = !today_ || (*today_ != *local && selected_ == *today_);
+    today_ = local;
+    if (selection_changed) {
+        selected_ = *today_;
+        RenderWeek();
+    }
+    if (selection_changed || binding_ != SpeakerAccount::Get().MemoBindingVersion() ||
+        memo_revision_ != SpeakerMemos::Get().Revision()) {
+        RenderMemos();
+    }
+}
+
+void SpeakerCalendarView::OnWeekTouch(lv_event_t* event) {
+    auto* view = static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event));
+    const auto code = lv_event_get_code(event);
+    auto* input = lv_indev_active();
+    if (!input || lv_indev_get_type(input) != LV_INDEV_TYPE_POINTER) {
+        return;
+    }
+    if (code == LV_EVENT_PRESSED) {
+        lv_indev_get_point(input, &view->touch_start_);
+        view->tracking_ = true;
+    } else if (code == LV_EVENT_PRESS_LOST) {
+        view->tracking_ = false;
+    } else if (code == LV_EVENT_RELEASED && view->tracking_) {
+        view->tracking_ = false;
+        lv_point_t point;
+        lv_indev_get_point(input, &point);
+        const int dx = point.x - view->touch_start_.x;
+        const int dy = point.y - view->touch_start_.y;
+        if (std::abs(dx) >= 48 && std::abs(dx) > std::abs(dy)) {
+            view->selected_ += days(dx < 0 ? 7 : -7);
+        } else if (std::abs(dx) < 18 && std::abs(dy) < 18) {
+            lv_area_t area;
+            lv_obj_get_coords(view->week_, &area);
+            const int relative_x = static_cast<int>(point.x - area.x1);
+            const int cell = std::clamp(relative_x * 7 / kStripWidth, 0, 6);
+            view->selected_ += days(cell - static_cast<int>(DayInWeek(view->selected_)));
+        } else {
+            return;
         }
-        current_date_ = 0;
-        return;
-    }
-
-    const int year = date.tm_year + 1900;
-    const int month = date.tm_mon + 1;
-    const int day = date.tm_mday;
-    const int today = (year * 100 + month) * 100 + day;
-    if (today == current_date_) {
-        UpdateMemos();
-        return;
-    }
-    lv_calendar_set_today_date(calendar_, year, month, day);
-    if (current_date_ == 0) {
-        for (auto* object : {calendar_, today_, previous_, next_}) {
-            lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-    const int selected_date = (selected_.year * 100 + selected_.month) * 100 + selected_.day;
-    if (current_date_ == 0 || selected_date == current_date_) {
-        ShowMonth(year, month, day);
-    } else {
-        UpdateMemos();
-    }
-    current_date_ = today;
-}
-
-void SpeakerCalendarView::MoveMonth(int offset) {
-    const auto* date = lv_calendar_get_showed_date(calendar_);
-    int year = date->year;
-    int month = date->month + offset;
-    if (month == 0) {
-        month = 12;
-        --year;
-    } else if (month == 13) {
-        month = 1;
-        ++year;
-    }
-    if (year >= 1900 && year <= 2099) {
-        ShowMonth(year, month, 1);
+        view->RenderWeek();
+        view->RenderMemos();
     }
 }
 
-void SpeakerCalendarView::ShowMonth(int year, int month, int day) {
-    char title[40];
-    std::snprintf(title, sizeof(title), "%d 年 %d 月", year, month);
-    lv_label_set_text(month_, title);
-    lv_calendar_set_month_shown(calendar_, year, month);
-    selected_ = {static_cast<uint16_t>(year), static_cast<uint8_t>(month), static_cast<uint8_t>(day)};
-    selection_changed_ = true;
-    UpdateMemos();
+void SpeakerCalendarView::RenderWeek() {
+    const unsigned selected_index = DayInWeek(selected_);
+    const auto monday = selected_ - days(selected_index);
+    for (unsigned i = 0; i < days_.size(); ++i) {
+        const year_month_day day_of_week{monday + days(i)};
+        lv_label_set_text_fmt(days_[i], "%u", static_cast<unsigned>(day_of_week.day()));
+        lv_obj_set_style_bg_opa(selection_[i], i == selected_index ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_text_color(days_[i], lv_color_hex(i == selected_index ? kDeep : kText), LV_PART_MAIN);
+    }
 }
 
-void SpeakerCalendarView::UpdateMemos() {
-    const auto binding = SpeakerAccount::Get().MemoBindingVersion();
-    auto& memos = SpeakerMemos::Get();
-    const auto revision = memos.Revision();
-    if (!selection_changed_ && binding == memo_binding_ && revision == memo_revision_) {
-        return;
-    }
-    selection_changed_ = false;
-    memo_binding_ = binding;
-    memo_revision_ = revision;
+void SpeakerCalendarView::RenderMemos() {
+    binding_ = SpeakerAccount::Get().MemoBindingVersion();
+    memo_revision_ = SpeakerMemos::Get().Revision();
+    lv_obj_clean(list_);
+    lv_obj_scroll_to_y(list_, 0, LV_ANIM_OFF);
+    const year_month_day date{selected_};
+    char key[16];
+    std::snprintf(key, sizeof(key), "%04d-%02u-%02u", static_cast<int>(date.year()),
+                  static_cast<unsigned>(date.month()), static_cast<unsigned>(date.day()));
 
-    lv_label_set_text_fmt(memo_date_, "%02d 月 %02d 日", selected_.month, selected_.day);
-    size_t highlighted = 0;
-    std::string text;
-    for (const auto& entry : memos.Entries(binding)) {
-        int year, month, day;
-        if (std::sscanf(entry.when, "%d-%d-%d", &year, &month, &day) != 3 ||
-            year != selected_.year || month != selected_.month) {
+    for (const auto& entry : SpeakerMemos::Get().Entries(binding_)) {
+        if (!std::string_view(entry.when).starts_with(key)) {
             continue;
         }
-        if (highlighted == 0 || highlights_[highlighted - 1].day != day) {
-            highlights_[highlighted++] = {static_cast<uint16_t>(year), static_cast<uint8_t>(month),
-                                          static_cast<uint8_t>(day)};
-        }
-        if (day != selected_.day) {
-            continue;
-        }
-        if (!text.empty()) text += "\n\n";
-        if (entry.when[10] == ' ') {
-            text.append(entry.when + 11, 5);
-            text += "  ";
-        }
-        text += entry.content;
+        auto* row = Surface(list_, 0, 0, kStripWidth, LV_SIZE_CONTENT);
+        Rule(row, 0, 0, kStripWidth, 1);
+        const auto time = entry.when[10] == ' ' ? std::string_view(entry.when + 11, 5) : std::string_view("全天");
+        auto* time_label = Label(row, "", kMuted);
+        lv_label_set_text_fmt(time_label, "%.*s", static_cast<int>(time.size()), time.data());
+        lv_obj_set_pos(time_label, 14, 24);
+        auto* content = Label(row, entry.content);
+        lv_obj_set_width(content, 530);
+        lv_label_set_long_mode(content, LV_LABEL_LONG_WRAP);
+        lv_obj_set_pos(content, 158, 24);
+        lv_obj_set_style_pad_bottom(row, 22, LV_PART_MAIN);
     }
-    lv_calendar_set_highlighted_dates(calendar_, highlights_.data(), highlighted);
-    if (text.empty()) text = binding > 0 ? "当天暂无记事" : "登录后可查看记事";
-    SpeakerHomeWidgets::UpdateLabel(memo_text_, text.c_str());
-    lv_obj_scroll_to_y(lv_obj_get_parent(memo_text_), 0, LV_ANIM_OFF);
+    if (!lv_obj_get_child_count(list_)) {
+        Rule(list_, 0, 0, kStripWidth, 1);
+        auto* empty = Label(list_, binding_ > 0 ? "当天暂无提醒" : "登录后可查看记事", kMuted);
+        lv_obj_set_style_pad_top(empty, 25, LV_PART_MAIN);
+    }
 }
 
 #endif

@@ -1,102 +1,31 @@
-#include "speaker_account.h"
+#include "speaker_account_page.h"
+#include "speaker_ui_widgets.h"
 
 #include "application.h"
 #include "board.h"
 #include "display.h"
-#include "lvgl_font.h"
-
-#include <memory>
-#include <lvgl.h>
 #include <qrcode_wrapper.h>
 
+using namespace SpeakerUi;
+
 namespace {
-
 using Page = SpeakerAccount::Page;
-
-lv_obj_t* launcher = nullptr;
-lv_obj_t* panel = nullptr;
-std::shared_ptr<LvglFont> account_font;
-lv_draw_buf_t* qr_buffer = nullptr;
-bool details_open = false;
-bool launcher_visible = true;
-bool confirm_unbind = false;
-SpeakerAccount::View rendered;
-bool has_rendered = false;
-
-void RefreshView() {
-    Application::GetInstance().Schedule([] {
-        has_rendered = false;
-        RenderSpeakerAccount(SpeakerAccount::Get().GetView());
-    });
-}
-
-void ToggleDetails(lv_event_t*) {
-    ToggleSpeakerAccountDetails();
-}
-
-void Retry(lv_event_t*) {
-    SpeakerAccount::Get().RefreshCode();
-}
-
-void ToggleUnbind(lv_event_t*) {
-    if (confirm_unbind) {
-        SpeakerAccount::Get().Unbind();
-        confirm_unbind = false;
-    } else {
-        confirm_unbind = true;
-    }
-    RefreshView();
-}
-
-lv_obj_t* Label(lv_obj_t* parent, const char* text, lv_color_t color) {
-    auto* label = lv_label_create(parent);
-    lv_obj_set_width(label, lv_pct(100));
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_color(label, color, 0);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(label, text);
-    return label;
-}
-
-lv_obj_t* Button(lv_obj_t* parent, const char* content, lv_event_cb_t handler) {
-    auto* button = lv_button_create(parent);
-    lv_obj_set_size(button, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_radius(button, 12, 0);
-    lv_obj_set_style_bg_color(button, lv_color_hex(0x175CD3), 0);
-    lv_obj_set_style_shadow_width(button, 0, 0);
-    lv_obj_set_style_pad_hor(button, 16, 0);
-    // The visible CJK glyphs sit above the center of the theme font's line box.
-    lv_obj_set_style_pad_top(button, 10, 0);
-    lv_obj_set_style_pad_bottom(button, 2, 0);
-    auto* label = lv_label_create(button);
-    lv_label_set_text(label, content);
-    lv_obj_set_style_text_color(label, lv_color_white(), 0);
-    lv_obj_center(label);
-    lv_obj_add_event_cb(button, handler, LV_EVENT_CLICKED, nullptr);
-    return button;
-}
+SpeakerAccountPage* account_page = nullptr;
 
 const char* Description(Page page) {
     switch (page) {
-        case Page::Connecting:
-            return "正在加载";
-        case Page::Unprovisioned:
-            return "设备身份尚未交付";
-        case Page::Scan:
-            return "用手机扫描二维码并核对授权码";
-        case Page::Retry:
-            return "授权未完成，请重新获取二维码";
-        case Page::Disabled:
-            return "当前无法使用，请联系管理员";
-        case Page::Ready:
-            return "已登录";
-        case Page::Offline:
-            return "连接中断，正在恢复";
+        case Page::Connecting: return "正在加载";
+        case Page::Unprovisioned: return "设备身份尚未交付";
+        case Page::Scan: return "用手机扫描二维码并核对授权码";
+        case Page::Retry: return "授权未完成，请重新获取二维码";
+        case Page::Disabled: return "当前无法使用，请联系管理员";
+        case Page::Ready: return "已绑定";
+        case Page::Offline: return "连接中断，正在恢复";
     }
     return "";
 }
 
-bool RenderQr(lv_obj_t* parent, const std::string& url) {
+bool RenderQr(lv_obj_t* parent, const std::string& url, lv_draw_buf_t*& buffer) {
     constexpr int side = 240;
     constexpr int quiet_zone = 4;
     qrcode_wrapper_config_t config{
@@ -127,32 +56,162 @@ bool RenderQr(lv_obj_t* parent, const std::string& url) {
         },
         .max_qrcode_version = 40,
         .qrcode_ecc_level = QRCODE_WRAPPER_ECC_LOW,
-        .user_data = &qr_buffer,
+        .user_data = &buffer,
     };
-    if (qrcode_wrapper_generate(&config, url.c_str()) != ESP_OK || !qr_buffer) {
+    if (qrcode_wrapper_generate(&config, url.c_str()) != ESP_OK || !buffer) {
         return false;
     }
     auto* canvas = lv_canvas_create(parent);
-    lv_canvas_set_draw_buf(canvas, qr_buffer);
+    lv_canvas_set_draw_buf(canvas, buffer);
+    lv_obj_set_pos(canvas, 84, 123);
     return true;
 }
 
+
 }  // namespace
 
-void ToggleSpeakerAccountDetails() {
-    details_open = !details_open;
-    confirm_unbind = false;
-    RefreshView();
+void SpeakerAccountPage::Create(lv_obj_t* apps, lv_obj_t* system, lv_event_cb_t back, void* context) {
+    apps_ = apps;
+    system_ = system;
+    back_ = back;
+    back_context_ = context;
+    root_ = Panel(apps);
+    view_ = SpeakerAccount::Get().GetView();
+    account_page = this;
 }
 
-void SetSpeakerAccountLauncherVisible(bool visible) {
-    if (launcher_visible == visible) {
+void SpeakerAccountPage::Destroy() {
+    account_page = nullptr;
+    if (root_) {
+        lv_obj_delete(root_);
+        root_ = nullptr;
+    }
+    if (qr_buffer_) {
+        lv_draw_buf_destroy(qr_buffer_);
+        qr_buffer_ = nullptr;
+    }
+}
+
+void SpeakerAccountPage::Show() {
+    requested_ = true;
+    Render();
+}
+
+void SpeakerAccountPage::Hide() {
+    requested_ = false;
+    confirm_unbind_ = false;
+    Render();
+}
+
+void SpeakerAccountPage::SetPromptsAllowed(bool allowed) {
+    if (prompts_allowed_ != allowed) {
+        prompts_allowed_ = allowed;
+        Render();
+    }
+}
+
+void SpeakerAccountPage::Apply(const SpeakerAccount::View& view) {
+    if (view_ != view) {
+        const bool reset_confirmation = view_.page != view.page || view_.customer != view.customer ||
+                                        !view.can_unbind || view.unbind_pending;
+        if (reset_confirmation) {
+            confirm_unbind_ = false;
+        }
+        view_ = view;
+        Render();
+    }
+}
+
+bool SpeakerAccountPage::PromptVisible() const {
+    return prompts_allowed_ && (view_.page == Page::Scan || view_.page == Page::Retry ||
+                                view_.page == Page::Unprovisioned || view_.unbind_pending);
+}
+
+void SpeakerAccountPage::Render() {
+    lv_obj_clean(root_);
+    if (qr_buffer_) {
+        lv_draw_buf_destroy(qr_buffer_);
+        qr_buffer_ = nullptr;
+    }
+    const bool prompt = PromptVisible();
+    auto* parent = prompt ? system_ : apps_;
+    if (lv_obj_get_parent(root_) != parent) {
+        lv_obj_set_parent(root_, parent);
+    }
+    lv_obj_set_flag(root_, LV_OBJ_FLAG_CLICKABLE, prompt);
+    lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, !prompt && !requested_);
+    if (prompt || requested_) {
+        RenderContent(prompt);
+    }
+}
+
+void SpeakerAccountPage::RenderContent(bool prompt) {
+    const bool scan = view_.page == Page::Scan || view_.page == Page::Retry;
+    Header(root_, scan ? "扫码登录" : "账号", prompt ? nullptr : back_, back_context_);
+    auto* state = Label(root_, view_.unbind_pending ? "正在解除绑定" : Description(view_.page), kCyan);
+    lv_obj_align(state, LV_ALIGN_CENTER, 0, -18);
+    if (view_.unbind_pending) {
         return;
     }
-    launcher_visible = visible;
-    if (launcher) {
-        lv_obj_set_flag(launcher, LV_OBJ_FLAG_HIDDEN, !visible);
+
+    if (view_.page == Page::Scan && RenderQr(root_, view_.qr_url, qr_buffer_)) {
+        lv_obj_set_width(state, 346);
+        lv_obj_set_style_text_align(state, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_obj_align(state, LV_ALIGN_CENTER, 171, -42);
+        auto* code = Label(root_, view_.user_code.c_str());
+        Scale(code, 330);
+        lv_obj_align(code, LV_ALIGN_CENTER, 171, 42);
+        return;
     }
+    if (scan) {
+        if (view_.page == Page::Scan) {
+            UpdateLabel(state, "二维码生成失败，请重新获取");
+        }
+        auto* retry = Button(root_, "重新获取", [](lv_event_t*) {
+            SpeakerAccount::Get().RefreshCode();
+        }, nullptr, kCyan, kDeep);
+        lv_obj_set_size(retry, 225, 70);
+        lv_obj_align(retry, LV_ALIGN_CENTER, 0, 90);
+        return;
+    }
+    if (view_.page == Page::Unprovisioned) {
+        lv_obj_align(Label(root_, SpeakerAccount::Get().hardware_id().c_str(), kMuted),
+                     LV_ALIGN_CENTER, 0, 48);
+        return;
+    }
+    if (view_.page != Page::Ready && view_.customer.empty()) {
+        return;
+    }
+
+    auto* avatar = Surface(root_, 217, 158, 132, 132);
+    lv_obj_set_style_radius(avatar, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(avatar, lv_color_hex(kCard), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(avatar, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_center(Icon(avatar, MATERIAL_SYMBOLS_PERSON, kCyan, 640));
+    auto* name = Label(root_, view_.customer.empty() ? "已登录" : view_.customer.c_str());
+    lv_obj_set_width(name, 257);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
+    Scale(name, 352);
+    lv_obj_set_style_transform_pivot_x(name, 0, LV_PART_MAIN);
+    lv_obj_set_pos(name, 382, 167);
+    lv_obj_align(state, LV_ALIGN_TOP_LEFT, 382, 224);
+    if (view_.can_unbind) {
+        auto* button = Button(root_, confirm_unbind_ ? "确认解绑" : "解除绑定", OnUnbind, this);
+        Outline(button);
+        lv_obj_set_size(button, 278, 70);
+        lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -63);
+    }
+}
+
+void SpeakerAccountPage::OnUnbind(lv_event_t* event) {
+    auto* page = static_cast<SpeakerAccountPage*>(lv_event_get_user_data(event));
+    if (page->confirm_unbind_) {
+        page->confirm_unbind_ = false;
+        Application::GetInstance().Schedule([] { SpeakerAccount::Get().Unbind(); });
+    } else {
+        page->confirm_unbind_ = true;
+    }
+    page->Render();
 }
 
 void RenderSpeakerAccount(const SpeakerAccount::View& view) {
@@ -161,81 +220,7 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
         return;
     }
     DisplayLockGuard lock(display);
-    if (!lock) {
-        return;
-    }
-    auto* layer = lv_layer_top();
-    if (!launcher) {
-        launcher = Button(layer, "账号", ToggleDetails);
-        lv_obj_align(launcher, LV_ALIGN_TOP_RIGHT, -10, 45);
-        lv_obj_set_flag(launcher, LV_OBJ_FLAG_HIDDEN, !launcher_visible);
-    }
-    if (auto* theme = display->GetTheme()) {
-        const auto font = theme->GetTextFont();
-        if (font && font != account_font) {
-            lv_obj_set_style_text_font(launcher, font->font(), 0);
-            if (panel) {
-                lv_obj_set_style_text_font(panel, font->font(), 0);
-            }
-            account_font = font;
-        }
-    }
-    if (has_rendered && rendered == view) {
-        return;
-    }
-    has_rendered = true;
-    rendered = view;
-    if (!view.can_unbind || view.unbind_pending) {
-        confirm_unbind = false;
-    }
-    if (panel) {
-        lv_obj_delete(panel);
-        panel = nullptr;
-    }
-    if (qr_buffer) {
-        lv_draw_buf_destroy(qr_buffer);
-        qr_buffer = nullptr;
-    }
-    const bool show = details_open || view.page == Page::Scan || view.page == Page::Retry ||
-                      view.page == Page::Unprovisioned || view.unbind_pending;
-    if (!show || Application::GetInstance().GetDeviceState() == kDeviceStateUpgrading) {
-        return;
-    }
-
-    panel = lv_obj_create(layer);
-    lv_obj_set_size(panel, 392, LV_SIZE_CONTENT);
-    lv_obj_center(panel);
-    lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_radius(panel, 18, 0);
-    lv_obj_set_style_bg_color(panel, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_border_color(panel, lv_color_hex(0xD2DAE5), 0);
-    lv_obj_set_style_border_width(panel, 1, 0);
-    lv_obj_set_style_pad_all(panel, 22, 0);
-    lv_obj_set_style_pad_row(panel, 12, 0);
-    if (account_font) {
-        lv_obj_set_style_text_font(panel, account_font->font(), 0);
-    }
-    lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    const bool scan = view.page == Page::Scan || view.page == Page::Retry;
-    Label(panel, scan ? "扫码登录" : "账号", lv_color_hex(0x172334));
-    Label(panel, view.unbind_pending ? "正在解除绑定" : Description(view.page), lv_color_hex(0x34465B));
-    if (view.page == Page::Unprovisioned) {
-        Label(panel, SpeakerAccount::Get().hardware_id().c_str(), lv_color_hex(0x172334));
-    }
-
-    if (view.page == Page::Scan && !view.unbind_pending) {
-        if (!RenderQr(panel, view.qr_url)) {
-            Label(panel, "二维码生成失败，请重新获取", lv_color_hex(0x9B2525));
-            Button(panel, "重新获取", Retry);
-        }
-        Label(panel, view.user_code.c_str(), lv_color_hex(0x172334));
-    } else if (view.page == Page::Retry && !view.unbind_pending) {
-        Button(panel, "重新获取", Retry);
-    } else if (!view.customer.empty()) {
-        Label(panel, view.customer.c_str(), lv_color_hex(0x172334));
-    }
-    if (details_open && view.can_unbind && !view.unbind_pending) {
-        Button(panel, confirm_unbind ? "确认解绑" : "解除绑定", ToggleUnbind);
+    if (lock && account_page) {
+        account_page->Apply(view);
     }
 }

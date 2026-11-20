@@ -1,16 +1,23 @@
 #pragma once
+#include <sdkconfig.h>
 
 #include "display/lcd_display.h"
-#include <string>
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
+#include "speaker_account/speaker_account_page.h"
+#include "speaker_boot_view.h"
 #include "speaker_calendar_view.h"
-#include "speaker_home_widgets.h"
-#include "speaker_pomodoro_view.h"
-#include "speaker_music_view.h"
-#include "speaker_recording_view.h"
 #include "speaker_conversation_view.h"
+#include "speaker_launcher_view.h"
+#include "speaker_music_view.h"
+#include "speaker_pomodoro_view.h"
+#include "speaker_recording_view.h"
+#include "speaker_screensaver_view.h"
+#include "speaker_settings_view.h"
+
+#include <ctime>
+#include <string>
 
 class SpeakerHomeDisplay : public MipiLcdDisplay {
 public:
@@ -28,26 +35,30 @@ public:
 
 private:
     void SetIdleClock(const char* clock) override;
-    void RefreshHome();
+    void RefreshUi();
+    void RefreshClocks();
+    void ExitScreensaver();
 
-    lv_obj_t* home_ = nullptr;
-    SpeakerHomeWidgets::DigitalClock clock_;
-    lv_obj_t* date_ = nullptr;
-    lv_obj_t* account_ = nullptr;
-    lv_obj_t* weather_city_ = nullptr;
-    lv_obj_t* weather_condition_ = nullptr;
-    lv_obj_t* weather_details_ = nullptr;
-    lv_obj_t* home_network_ = nullptr;
-    lv_obj_t* home_mute_ = nullptr;
-    lv_obj_t* home_battery_ = nullptr;
-    lv_obj_t* home_notice_ = nullptr;
+    lv_obj_t* scene_ = nullptr;
+    lv_obj_t* desktop_ = nullptr;
+    lv_obj_t* notice_ = nullptr;
     lv_timer_t* refresh_timer_ = nullptr;
     bool standby_ = false;
+    bool desktop_allowed_ = false;
     bool has_preview_ = false;
     bool awaiting_reply_ = false;
     bool voice_playback_ = false;
     std::string message_role_;
     std::string message_;
+    std::string recognized_;
+    std::time_t last_clock_second_ = -1;
+
+    SpeakerNavigation navigation_;
+    SpeakerBootView boot_;
+    SpeakerLauncherView launcher_;
+    SpeakerScreensaverView screensaver_;
+    SpeakerSettingsView settings_;
+    SpeakerAccountPage account_;
 #if LV_USE_CALENDAR
     SpeakerCalendarView calendar_;
 #endif

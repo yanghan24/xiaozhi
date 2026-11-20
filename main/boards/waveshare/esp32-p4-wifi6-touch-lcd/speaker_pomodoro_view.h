@@ -4,14 +4,14 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
-#include "speaker_home_widgets.h"
+#include "speaker_navigation.h"
 
 #include <atomic>
 #include <cstdint>
 
 class SpeakerPomodoroView {
 public:
-    void Create(lv_obj_t* parent);
+    void Create(lv_obj_t* parent, SpeakerNavigation& navigation);
     void Show();
     void Hide();
     void Update();
@@ -25,7 +25,7 @@ private:
     void DispatchSound();
 
     lv_obj_t* panel_ = nullptr;
-    SpeakerHomeWidgets::DigitalClock clock_;
+    lv_obj_t* clock_ = nullptr;
 #if LV_USE_ARC
     lv_obj_t* progress_ = nullptr;
 #endif
