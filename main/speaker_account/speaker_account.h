@@ -42,6 +42,7 @@ public:
         std::string customer;
         bool can_unbind = false;
         bool unbind_pending = false;
+        bool standby_weather_allowed = false;
 
         bool operator==(const View&) const = default;
     };

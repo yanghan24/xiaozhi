@@ -334,6 +334,7 @@ void SpeakerAccount::Unbind() {
         }
         unbind_ = true;
         view_.unbind_pending = true;
+        view_.standby_weather_allowed = false;
         voice_.reset();
         voice_until_ = 0;
     }
@@ -646,6 +647,8 @@ void SpeakerAccount::Run() {
         const auto permission_version = Number(document.get(), "permission_version");
         const auto customer = Text(document.get(), "customer_name", 128);
         const bool bound = Text(document.get(), "binding_state") == "bound" && permission_version > 0;
+        const bool weather_allowed = bound && cJSON_IsTrue(
+                cJSON_GetObjectItemCaseSensitive(document.get(), "standby_weather_allowed"));
         if (status == "ready") {
             const auto* info = cJSON_GetObjectItemCaseSensitive(document.get(), "voice");
             VoiceAccess access{Text(info, "url"), Text(info, "token"), 1};
@@ -656,18 +659,19 @@ void SpeakerAccount::Run() {
                 Number(info, "protocol_version") == 1 &&
                 Number(info, "permission_version") == permission_version &&
                 SecureUrl(access.url, "wss://") && Token(access.token, 43, 128, "_-")) {
-                Publish({Page::Ready, {}, {}, customer, true}, std::move(access),
+                Publish({Page::Ready, {}, {}, customer, true, false, weather_allowed}, std::move(access),
                         Now() + std::min({lease, expiry - server_time, kMaxLease}),
                         permission_version, true, epoch);
             } else {
-                Publish({Page::Disabled}, {}, 0, permission_version, true, epoch);
+                Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed},
+                        {}, 0, permission_version, true, epoch);
             }
             login_id.clear();
             retry_login = false;
             continue;
         }
         if (status != "unbound" && status != "signed_out" && status != "authorization_required") {
-            Publish({Page::Disabled, {}, {}, customer, bound}, {}, 0,
+            Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed}, {}, 0,
                     permission_version, true, epoch);
             login_id.clear();
             continue;

@@ -40,12 +40,13 @@ void SpeakerStandbyWeather::Run() {
     int64_t next = 0;
     bool was_ready = false;
     for (;;) {
-        const auto page = account.GetView().page;
-        const bool ready = page == SpeakerAccount::Page::Ready;
+        const auto account_view = account.GetView();
+        const bool ready = account_view.standby_weather_allowed;
         if (!ready) {
             std::lock_guard lock(mutex_);
             snapshot_ = {};
-            snapshot_.state = page == SpeakerAccount::Page::Offline ? State::Offline : State::Unavailable;
+            snapshot_.state = account_view.page == SpeakerAccount::Page::Offline
+                ? State::Offline : State::Unavailable;
         } else if ((!was_ready || esp_timer_get_time() >= next) &&
                    Application::GetInstance().GetDeviceState() == kDeviceStateIdle) {
             if (next == 0) {
@@ -70,7 +71,7 @@ void SpeakerStandbyWeather::Run() {
                 }
             }
             next = esp_timer_get_time() + (data.state == State::Ready ? 20 : 1) * kMinuteUs;
-            if (account.GetView().page == SpeakerAccount::Page::Ready) {
+            if (account.GetView().standby_weather_allowed) {
                 std::lock_guard lock(mutex_);
                 snapshot_ = std::move(data);
             }
