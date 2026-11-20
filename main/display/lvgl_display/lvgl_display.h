@@ -34,6 +34,8 @@ public:
     virtual bool SupportsGuiOperations() const override { return true; }
 
 protected:
+    virtual void SetIdleClock(const char* clock) { SetStatus(clock); }
+
     esp_pm_lock_handle_t pm_lock_ = nullptr;
     lv_display_t* display_ = nullptr;
 

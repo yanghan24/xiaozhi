@@ -21,6 +21,7 @@ public:
     void SetTheme(Theme* theme) override;
 
 private:
+    void SetIdleClock(const char* clock) override;
     void RefreshHome();
 
     lv_obj_t* home_ = nullptr;

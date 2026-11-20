@@ -131,9 +131,22 @@ void SpeakerHomeDisplay::SetStatus(const char* status) {
     MipiLcdDisplay::SetStatus(visible_status);
 }
 
+void SpeakerHomeDisplay::SetIdleClock(const char* clock) {
+    // The status-bar clock is a display refresh. Standby follows application status.
+    MipiLcdDisplay::SetStatus(clock);
+}
+
 void SpeakerHomeDisplay::SetChatMessage(const char* role, const char* content) {
     MipiLcdDisplay::SetChatMessage(role, content);
-    if (!role || !content || !*content) {
+    if (!role) {
+        return;
+    }
+    if (!content || !*content) {
+        DisplayLockGuard lock(this);
+        if (lock && home_) {
+            message_.clear();
+            RefreshHome();
+        }
         return;
     }
     const auto state = Application::GetInstance().GetDeviceState();
