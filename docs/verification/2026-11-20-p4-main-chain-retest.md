@@ -17,9 +17,11 @@
 
 ## 当前阻塞
 
+开发者随后在群里确认新版固件尚未推送。其带屏工作流记录使用 `speaker/v1`，关闭旧 `ONLINE_DELIVERY` 流程；对应版本同样显示 `2.2.6`，但大小为 4,091,552 字节，SHA-256 为 `5f4aa6d9506a286b5153b26c9619a3c803f9eaa1267c62e09d5df24ef980de2f`。截图标明源分支为 `feat/p4-headless-local`，本轮核对远端未找到此分支。截图中在线、已绑定和许可就绪属于另一份构建的现场记录。本机接入 114 新后台仍待适配固件和后台日志证实。
+
 音箱成功接入 Wi‑Fi。启动日志记录了从 `starting` 进入 `activating`，随后版本检查连续返回 `-1`，出现 10、20、40、80 秒的退避重试。本次采样尚未观察到进入待机。固件会先做带设备凭据的交付校验，再发 OTA 发现请求；这个通用错误码无法单独区分这两个步骤。
 
-用开发机对设备已配置的同一公网主机独立复核：GET `/xiaozhi/ota/` 返回 200，未带凭据的 POST `/xiaozhi/device-delivery/v1/device-check` 和 GET `/xiaozhi/device-control/v1/state` 均返回 HTTP 404。核查当前入口的反向代理与产品 API 部署时，可对照 [入口配置](../../deploy/device-entry/nginx-tls.conf) 和[公网设备预检](../../scripts/check-public-device-preflight.py)。开发机未读取或重放本机音箱的凭据，服务端镜像和设备那一笔请求的响应仍待管理员日志确认。
+用开发机对设备已配置的同一公网主机独立复核：GET `/xiaozhi/ota/` 返回 200，未带凭据的 POST `/xiaozhi/device-delivery/v1/device-check` 和 GET `/xiaozhi/device-control/v1/state` 均返回 HTTP 404。这个表现与交接记录中的协议差异一致。仓库里的[入口配置](../../deploy/device-entry/nginx-tls.conf)和[公网设备预检](../../scripts/check-public-device-preflight.py)对应旧协议。后续应核对开发者交付的新版源码和路由。服务端镜像和设备那一笔请求的响应仍待管理员日志确认。
 
 ## 待接续的实机验收
 
