@@ -18,6 +18,8 @@ const errors = {
   INVALID_MCP: '请填写有效服务名称、传输方式和认证请求头；地址不包含查询参数。',
   MCP_CHANGED: '服务已被修改，请刷新后重试。',
   MCP_NOT_FOUND: 'MCP 服务不存在，请刷新目录。',
+  INVALID_THIRD_PARTY_SERVICE: '请检查服务名称、地址、接口和认证配置。启用时需填完整。',
+  THIRD_PARTY_SERVICE_CHANGED: '服务配置已变化，请刷新页面后重试。',
 };
 
 export function adminToken(store) {
