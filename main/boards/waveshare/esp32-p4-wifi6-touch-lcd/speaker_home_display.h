@@ -6,6 +6,7 @@
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
 #include "speaker_calendar_view.h"
+#include "speaker_home_widgets.h"
 #include "speaker_pomodoro_view.h"
 
 class SpeakerHomeDisplay : public MipiLcdDisplay {
@@ -25,7 +26,7 @@ private:
     void RefreshHome();
 
     lv_obj_t* home_ = nullptr;
-    lv_obj_t* clock_ = nullptr;
+    SpeakerHomeWidgets::DigitalClock clock_;
     lv_obj_t* date_ = nullptr;
     lv_obj_t* account_ = nullptr;
     lv_timer_t* refresh_timer_ = nullptr;

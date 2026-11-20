@@ -6,7 +6,6 @@
 #include "assets/lang_config.h"
 #include "board.h"
 #include "display.h"
-#include "speaker_home_widgets.h"
 
 #include <esp_timer.h>
 
@@ -18,43 +17,61 @@ constexpr int64_t kSecondUs = 1000000;
 }
 
 void SpeakerPomodoroView::Create(lv_obj_t* parent) {
-    panel_ = SpeakerHomeWidgets::Panel(parent);
-    auto* close = SpeakerHomeWidgets::Button(panel_, "返回", [](lv_event_t* event) {
+    using namespace SpeakerHomeWidgets;
+    panel_ = Panel(parent);
+    lv_obj_set_pos(Label(panel_, "番茄钟", kText), 18, 12);
+    auto* close = Button(panel_, "返回", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->Hide();
     }, this);
-    lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -20, 14);
-    auto* title = lv_label_create(panel_);
-    lv_label_set_text(title, "番茄钟");
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 22);
+    lv_obj_set_size(close, 86, 44);
+    lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -118, 6);
 
-    work_ = SpeakerHomeWidgets::Button(panel_, "专注 25 分钟", [](lv_event_t* event) {
+    auto* clock_card = Card(panel_, 18, 62, 408, 322);
+#if LV_USE_ARC
+    progress_ = lv_arc_create(clock_card);
+    lv_obj_set_size(progress_, 294, 294);
+    lv_obj_center(progress_);
+    lv_arc_set_rotation(progress_, 270);
+    lv_arc_set_bg_angles(progress_, 0, 360);
+    lv_arc_set_range(progress_, 0, 1000);
+    lv_obj_remove_flag(progress_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(progress_, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_style_arc_color(progress_, lv_color_hex(kEdge), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(progress_, lv_color_hex(0xFF5A67), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(progress_, 3, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(progress_, 6, LV_PART_INDICATOR);
+    lv_obj_remove_style(progress_, nullptr, LV_PART_KNOB);
+#endif
+    lv_obj_align(clock_.Create(clock_card, 0xFF5A67), LV_ALIGN_CENTER, 0, -15);
+    state_label_ = Label(clock_card, "", kMuted);
+    lv_obj_align(state_label_, LV_ALIGN_CENTER, 0, 79);
+
+    auto* control = Card(panel_, 446, 62, 336, 322);
+    lv_obj_set_pos(Label(control, "计时时长", kText), 18, 13);
+    work_ = Button(control, "专注 25 分钟", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->Reset(25);
     }, this);
-    lv_obj_align(work_, LV_ALIGN_CENTER, -145, -92);
-    rest_ = SpeakerHomeWidgets::Button(panel_, "休息 5 分钟", [](lv_event_t* event) {
+    lv_obj_set_size(work_, 296, 54);
+    lv_obj_set_pos(work_, 18, 64);
+    rest_ = Button(control, "休息 5 分钟", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->Reset(5);
     }, this);
-    lv_obj_align(rest_, LV_ALIGN_CENTER, 145, -92);
+    lv_obj_set_size(rest_, 296, 54);
+    lv_obj_set_pos(rest_, 18, 139);
 
-    value_ = lv_label_create(panel_);
-    lv_obj_set_style_text_color(value_, lv_color_hex(0x27E5FF), LV_PART_MAIN);
-#if LV_FONT_MONTSERRAT_48
-    lv_obj_set_style_text_font(value_, &lv_font_montserrat_48, LV_PART_MAIN);
-#endif
-    lv_obj_align(value_, LV_ALIGN_CENTER, 0, -10);
-    state_label_ = lv_label_create(panel_);
-    lv_obj_align(state_label_, LV_ALIGN_CENTER, 0, 52);
-
-    auto* action = SpeakerHomeWidgets::Button(panel_, "开始", [](lv_event_t* event) {
+    auto* action = Button(control, "开始", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->Toggle();
     }, this);
     action_label_ = lv_obj_get_child(action, 0);
-    lv_obj_align(action, LV_ALIGN_BOTTOM_MID, -80, -18);
-    auto* reset = SpeakerHomeWidgets::Button(panel_, "重置", [](lv_event_t* event) {
+    lv_obj_set_size(action, 172, 56);
+    lv_obj_set_pos(action, 18, 236);
+    lv_obj_set_style_border_color(action, lv_color_hex(kCyan), LV_PART_MAIN);
+    auto* reset = Button(control, "重置", [](lv_event_t* event) {
         auto* view = static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event));
         view->Reset(view->minutes_);
     }, this);
-    lv_obj_align(reset, LV_ALIGN_BOTTOM_MID, 80, -18);
+    lv_obj_set_size(reset, 110, 56);
+    lv_obj_set_pos(reset, 204, 236);
 
     Reset(minutes_);
 }
@@ -74,6 +91,7 @@ void SpeakerPomodoroView::Reset(int minutes) {
     remaining_us_ = minutes * 60 * kSecondUs;
     state_ = State::Ready;
     sound_pending_ = false;
+    displayed_seconds_ = -1;
     lv_obj_set_style_outline_width(work_, minutes == 25 ? 2 : 0, LV_PART_MAIN);
     lv_obj_set_style_outline_color(work_, lv_color_hex(0x27E5FF), LV_PART_MAIN);
     lv_obj_set_style_outline_width(rest_, minutes == 5 ? 2 : 0, LV_PART_MAIN);
@@ -144,7 +162,11 @@ void SpeakerPomodoroView::Render(int64_t now) {
         displayed_seconds_ = seconds;
         char time[16];
         std::snprintf(time, sizeof(time), "%02d:%02d", seconds / 60, seconds % 60);
-        lv_label_set_text(value_, time);
+        clock_.SetTime(time);
+#if LV_USE_ARC
+        const int total = minutes_ * 60;
+        lv_arc_set_value(progress_, (total - seconds) * 1000 / total);
+#endif
     }
     if (state_ == displayed_state_) {
         return;

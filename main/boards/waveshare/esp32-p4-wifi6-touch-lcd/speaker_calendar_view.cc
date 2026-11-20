@@ -8,39 +8,61 @@
 #include <initializer_list>
 
 void SpeakerCalendarView::Create(lv_obj_t* parent) {
-    panel_ = SpeakerHomeWidgets::Panel(parent);
-    auto* close = SpeakerHomeWidgets::Button(panel_, "返回", [](lv_event_t* event) {
+    using namespace SpeakerHomeWidgets;
+    panel_ = Panel(parent);
+    lv_obj_set_pos(Label(panel_, "电子日历", kText), 18, 12);
+    auto* close = Button(panel_, "返回", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->Hide();
     }, this);
-    lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -20, 14);
-    month_ = lv_label_create(panel_);
-    lv_obj_align(month_, LV_ALIGN_TOP_MID, 0, 20);
+    lv_obj_set_size(close, 86, 44);
+    lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -118, 6);
 
-    previous_ = SpeakerHomeWidgets::Button(panel_, "上月", [](lv_event_t* event) {
+    auto* calendar_card = Card(panel_, 18, 62, 506, 322);
+    month_ = Label(calendar_card, "", kCyan);
+    lv_obj_set_pos(month_, 16, 18);
+    previous_ = Button(calendar_card, "上月", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->MoveMonth(-1);
     }, this);
-    lv_obj_align(previous_, LV_ALIGN_LEFT_MID, 24, 0);
-    next_ = SpeakerHomeWidgets::Button(panel_, "下月", [](lv_event_t* event) {
+    lv_obj_set_size(previous_, 78, 42);
+    lv_obj_set_pos(previous_, 232, 8);
+    next_ = Button(calendar_card, "下月", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->MoveMonth(1);
     }, this);
-    lv_obj_align(next_, LV_ALIGN_RIGHT_MID, -24, 0);
-    today_ = SpeakerHomeWidgets::Button(panel_, "今天", [](lv_event_t* event) {
+    lv_obj_set_size(next_, 78, 42);
+    lv_obj_set_pos(next_, 314, 8);
+    today_ = Button(calendar_card, "今天", [](lv_event_t* event) {
         auto* view = static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event));
         view->current_date_ = 0;
         view->Update();
     }, this);
-    lv_obj_align(today_, LV_ALIGN_TOP_LEFT, 20, 14);
-    calendar_ = lv_calendar_create(panel_);
-    lv_obj_set_size(calendar_, lv_pct(70), lv_pct(75));
-    lv_obj_align(calendar_, LV_ALIGN_BOTTOM_MID, 0, -12);
+    lv_obj_set_size(today_, 88, 42);
+    lv_obj_set_pos(today_, 396, 8);
+    calendar_ = lv_calendar_create(calendar_card);
+    lv_obj_set_size(calendar_, 478, 248);
+    lv_obj_set_pos(calendar_, 13, 59);
+    lv_obj_set_style_bg_color(calendar_, lv_color_hex(kCard), LV_PART_MAIN);
+    lv_obj_set_style_border_color(calendar_, lv_color_hex(kEdge), LV_PART_MAIN);
 #if LV_CALENDAR_WEEK_STARTS_MONDAY
     static const char* weekdays[] = {"一", "二", "三", "四", "五", "六", "日"};
 #else
     static const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
 #endif
     lv_calendar_set_day_names(calendar_, weekdays);
-    lv_obj_set_style_text_color(lv_calendar_get_btnmatrix(calendar_), lv_color_hex(0x172334), LV_PART_ITEMS);
-    lv_obj_remove_flag(lv_calendar_get_btnmatrix(calendar_), LV_OBJ_FLAG_CLICKABLE);
+    auto* dates = lv_calendar_get_btnmatrix(calendar_);
+    lv_obj_set_style_bg_color(dates, lv_color_hex(kCard), LV_PART_ITEMS);
+    lv_obj_set_style_border_color(dates, lv_color_hex(kEdge), LV_PART_ITEMS);
+    lv_obj_set_style_text_color(dates, lv_color_hex(kText), LV_PART_ITEMS);
+    lv_obj_remove_flag(dates, LV_OBJ_FLAG_CLICKABLE);
+
+    auto* today_card = Card(panel_, 542, 62, 240, 322);
+    lv_obj_align(Label(today_card, "今天", kMuted), LV_ALIGN_TOP_MID, 0, 38);
+    day_ = Label(today_card, "--", kCyan);
+#if LV_FONT_MONTSERRAT_48
+    lv_obj_set_style_text_font(day_, &lv_font_montserrat_48, LV_PART_MAIN);
+#endif
+    lv_obj_center(day_);
+    weekday_ = Label(today_card, "", kText);
+    lv_obj_align(weekday_, LV_ALIGN_TOP_MID, 0, 211);
 }
 
 void SpeakerCalendarView::Show() {
@@ -62,6 +84,8 @@ void SpeakerCalendarView::Update() {
     std::tm date{};
     if (now < 1704067200 || !localtime_r(&now, &date)) {
         lv_label_set_text(month_, "正在校时");
+        lv_label_set_text(day_, "--");
+        lv_label_set_text(weekday_, "");
         for (auto* object : {calendar_, today_, previous_, next_}) {
             lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
         }
@@ -77,6 +101,9 @@ void SpeakerCalendarView::Update() {
         return;
     }
     lv_calendar_set_today_date(calendar_, year, month, day);
+    constexpr const char* weekdays[] = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+    lv_label_set_text_fmt(day_, "%02d", day);
+    lv_label_set_text(weekday_, weekdays[date.tm_wday]);
     if (current_date_ == 0) {
         for (auto* object : {calendar_, today_, previous_, next_}) {
             lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);

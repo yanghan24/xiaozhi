@@ -4,6 +4,8 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
+#include "speaker_home_widgets.h"
+
 #include <atomic>
 #include <cstdint>
 
@@ -23,7 +25,10 @@ private:
     void DispatchSound();
 
     lv_obj_t* panel_ = nullptr;
-    lv_obj_t* value_ = nullptr;
+    SpeakerHomeWidgets::DigitalClock clock_;
+#if LV_USE_ARC
+    lv_obj_t* progress_ = nullptr;
+#endif
     lv_obj_t* state_label_ = nullptr;
     lv_obj_t* action_label_ = nullptr;
     lv_obj_t* work_ = nullptr;

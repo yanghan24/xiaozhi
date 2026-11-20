@@ -19,6 +19,8 @@ private:
     lv_obj_t* panel_ = nullptr;
     lv_obj_t* calendar_ = nullptr;
     lv_obj_t* month_ = nullptr;
+    lv_obj_t* day_ = nullptr;
+    lv_obj_t* weekday_ = nullptr;
     lv_obj_t* previous_ = nullptr;
     lv_obj_t* next_ = nullptr;
     lv_obj_t* today_ = nullptr;
