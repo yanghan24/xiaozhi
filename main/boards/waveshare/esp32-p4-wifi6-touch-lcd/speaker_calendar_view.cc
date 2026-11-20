@@ -10,35 +10,37 @@
 void SpeakerCalendarView::Create(lv_obj_t* parent) {
     using namespace SpeakerHomeWidgets;
     panel_ = Panel(parent);
-    lv_obj_set_pos(Label(panel_, "电子日历", kText), 18, 12);
+    lv_obj_set_pos(Label(panel_, "电子日历", kText), 18, 7);
     auto* close = Button(panel_, "返回", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->Hide();
     }, this);
-    lv_obj_set_size(close, 86, 44);
-    lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -118, 6);
+    lv_obj_set_size(close, 86, 40);
+    lv_obj_set_pos(close, 464, 4);
 
-    auto* calendar_card = Card(panel_, 18, 62, 506, 322);
+    auto* calendar_card = Card(panel_, 18, 62, 532, 394);
+    lv_obj_set_style_border_color(calendar_card, lv_color_hex(kCyan), LV_PART_MAIN);
+    lv_obj_set_style_border_opa(calendar_card, LV_OPA_50, LV_PART_MAIN);
     month_ = Label(calendar_card, "", kCyan);
     lv_obj_set_pos(month_, 16, 18);
     previous_ = Button(calendar_card, "上月", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->MoveMonth(-1);
     }, this);
     lv_obj_set_size(previous_, 78, 42);
-    lv_obj_set_pos(previous_, 232, 8);
+    lv_obj_set_pos(previous_, 250, 8);
     next_ = Button(calendar_card, "下月", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->MoveMonth(1);
     }, this);
     lv_obj_set_size(next_, 78, 42);
-    lv_obj_set_pos(next_, 314, 8);
+    lv_obj_set_pos(next_, 332, 8);
     today_ = Button(calendar_card, "今天", [](lv_event_t* event) {
         auto* view = static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event));
         view->current_date_ = 0;
         view->Update();
     }, this);
     lv_obj_set_size(today_, 88, 42);
-    lv_obj_set_pos(today_, 396, 8);
+    lv_obj_set_pos(today_, 414, 8);
     calendar_ = lv_calendar_create(calendar_card);
-    lv_obj_set_size(calendar_, 478, 248);
+    lv_obj_set_size(calendar_, 504, 316);
     lv_obj_set_pos(calendar_, 13, 59);
     lv_obj_set_style_bg_color(calendar_, lv_color_hex(kCard), LV_PART_MAIN);
     lv_obj_set_style_border_color(calendar_, lv_color_hex(kEdge), LV_PART_MAIN);
@@ -54,7 +56,7 @@ void SpeakerCalendarView::Create(lv_obj_t* parent) {
     lv_obj_set_style_text_color(dates, lv_color_hex(kText), LV_PART_ITEMS);
     lv_obj_remove_flag(dates, LV_OBJ_FLAG_CLICKABLE);
 
-    auto* today_card = Card(panel_, 542, 62, 240, 322);
+    auto* today_card = Card(panel_, 564, 62, 218, 394);
     lv_obj_align(Label(today_card, "今天", kMuted), LV_ALIGN_TOP_MID, 0, 38);
     day_ = Label(today_card, "--", kCyan);
 #if LV_FONT_MONTSERRAT_48
@@ -62,12 +64,11 @@ void SpeakerCalendarView::Create(lv_obj_t* parent) {
 #endif
     lv_obj_center(day_);
     weekday_ = Label(today_card, "", kText);
-    lv_obj_align(weekday_, LV_ALIGN_TOP_MID, 0, 211);
+    lv_obj_align(weekday_, LV_ALIGN_CENTER, 0, 72);
 }
 
 void SpeakerCalendarView::Show() {
     current_date_ = 0;
-    lv_obj_move_foreground(panel_);
     lv_obj_remove_flag(panel_, LV_OBJ_FLAG_HIDDEN);
     Update();
 }

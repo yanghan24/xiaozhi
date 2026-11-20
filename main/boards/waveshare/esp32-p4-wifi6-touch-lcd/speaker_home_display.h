@@ -29,6 +29,10 @@ private:
     SpeakerHomeWidgets::DigitalClock clock_;
     lv_obj_t* date_ = nullptr;
     lv_obj_t* account_ = nullptr;
+    lv_obj_t* home_network_ = nullptr;
+    lv_obj_t* home_mute_ = nullptr;
+    lv_obj_t* home_battery_ = nullptr;
+    lv_obj_t* home_notice_ = nullptr;
     lv_timer_t* refresh_timer_ = nullptr;
     bool standby_ = false;
     bool has_preview_ = false;

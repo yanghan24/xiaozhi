@@ -36,6 +36,19 @@ inline lv_obj_t* Button(lv_obj_t* parent, const char* text, lv_event_cb_t handle
     return button;
 }
 
+inline lv_obj_t* Rule(lv_obj_t* parent, int x, int y, int width, int height, uint32_t color,
+                      lv_opa_t opacity) {
+    auto* rule = lv_obj_create(parent);
+    lv_obj_remove_style_all(rule);
+    lv_obj_remove_flag(rule, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(rule, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_pos(rule, x, y);
+    lv_obj_set_size(rule, width, height);
+    lv_obj_set_style_bg_color(rule, lv_color_hex(color), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(rule, opacity, LV_PART_MAIN);
+    return rule;
+}
+
 inline lv_obj_t* Panel(lv_obj_t* parent) {
     auto* panel = lv_obj_create(parent);
     lv_obj_set_size(panel, lv_pct(100), lv_pct(100));
@@ -50,6 +63,13 @@ inline lv_obj_t* Panel(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_text_color(panel, lv_color_hex(kText), LV_PART_MAIN);
     lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+    for (int x = 20; x < 800; x += 52) {
+        Rule(panel, x, 48, 1, 432, kEdge, LV_OPA_20);
+    }
+    for (int y = 74; y < 480; y += 44) {
+        Rule(panel, 0, y, 800, 1, kEdge, LV_OPA_20);
+    }
+    Rule(panel, 0, 47, 800, 1, kBlue, LV_OPA_80);
     return panel;
 }
 

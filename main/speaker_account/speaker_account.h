@@ -96,5 +96,8 @@ private:
 };
 
 void RenderSpeakerAccount(const SpeakerAccount::View& view);
+void ToggleSpeakerAccountDetails();
+// The caller holds the display lock when switching between the two launchers.
+void SetSpeakerAccountLauncherVisible(bool visible);
 
 #endif

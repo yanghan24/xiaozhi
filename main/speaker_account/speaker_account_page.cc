@@ -18,6 +18,7 @@ lv_obj_t* panel = nullptr;
 std::shared_ptr<LvglFont> account_font;
 lv_draw_buf_t* qr_buffer = nullptr;
 bool details_open = false;
+bool launcher_visible = true;
 bool confirm_unbind = false;
 SpeakerAccount::View rendered;
 bool has_rendered = false;
@@ -30,9 +31,7 @@ void RefreshView() {
 }
 
 void ToggleDetails(lv_event_t*) {
-    details_open = !details_open;
-    confirm_unbind = false;
-    RefreshView();
+    ToggleSpeakerAccountDetails();
 }
 
 void Retry(lv_event_t*) {
@@ -140,16 +139,36 @@ bool RenderQr(lv_obj_t* parent, const std::string& url) {
 
 }  // namespace
 
+void ToggleSpeakerAccountDetails() {
+    details_open = !details_open;
+    confirm_unbind = false;
+    RefreshView();
+}
+
+void SetSpeakerAccountLauncherVisible(bool visible) {
+    if (launcher_visible == visible) {
+        return;
+    }
+    launcher_visible = visible;
+    if (launcher) {
+        lv_obj_set_flag(launcher, LV_OBJ_FLAG_HIDDEN, !visible);
+    }
+}
+
 void RenderSpeakerAccount(const SpeakerAccount::View& view) {
     auto* display = Board::GetInstance().GetDisplay();
     if (!display->IsSetupUICalled() || !display->SupportsGuiOperations()) {
         return;
     }
     DisplayLockGuard lock(display);
+    if (!lock) {
+        return;
+    }
     auto* layer = lv_layer_top();
     if (!launcher) {
         launcher = Button(layer, "账号", ToggleDetails);
         lv_obj_align(launcher, LV_ALIGN_TOP_RIGHT, -10, 45);
+        lv_obj_set_flag(launcher, LV_OBJ_FLAG_HIDDEN, !launcher_visible);
     }
     if (auto* theme = display->GetTheme()) {
         const auto font = theme->GetTextFont();
