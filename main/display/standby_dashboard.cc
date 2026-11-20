@@ -512,11 +512,21 @@ void StandbyDashboard::CreateWeatherPanel() {
 
     const int metric_x[] = {10, 122, 234};
     const char* metric_icons[] = {
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+        FONT_AWESOME_CLOUD,
+        FONT_AWESOME_CLOUD_RAIN,
+        FONT_AWESOME_CLOUD,
+#else
         FONT_AWESOME_TEMPERATURE_HALF,
         FONT_AWESOME_CLOUD_RAIN,
         FONT_AWESOME_WIND,
+#endif
     };
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+    const char* metric_titles[] = {"PM2.5", "湿度", "PM10"};
+#else
     const char* metric_titles[] = {"体感", "湿度", "风向"};
+#endif
     lv_obj_t** metric_values[] = {&feels_like_label_, &humidity_label_, &wind_power_label_};
 
     for (int i = 0; i < 3; ++i) {
@@ -559,10 +569,17 @@ void StandbyDashboard::CreateWeatherPanel() {
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(air_capsule, 14, 0);
 
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+    air_value_label_ = CreateLabel(air_capsule, text_font_, lv_color_hex(kColorText), "");
+    lv_obj_set_width(air_value_label_, 260);
+    lv_label_set_long_mode(air_value_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_long_mode(weather_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+#else
     lv_obj_t* air_title = CreateLabel(air_capsule, text_font_, lv_color_hex(kColorText), "空气");
     air_category_label_ = CreateLabel(air_capsule, text_font_, lv_color_hex(0x5CFF73), "--");
     air_value_label_ = CreateLabel(air_capsule, text_font_, lv_color_hex(kColorText), "--");
     (void)air_title;
+#endif
 }
 
 void StandbyDashboard::CreatePulseIndicator() {
@@ -1798,6 +1815,17 @@ void StandbyDashboard::UpdateClock(time_t now) {
     lv_label_set_text(date_label_, date);
 }
 
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+static void UpdateScrollingLabel(lv_obj_t* label, const std::string& text) {
+    if (text != lv_label_get_text(label)) lv_label_set_text(label, text.c_str());
+}
+
+static std::string EnvironmentTime(const std::string& iso) {
+    // The environment contract supplies UTC timestamps. Show date and minute explicitly.
+    return iso.size() < 16 ? "" : iso.substr(0, 10) + " " + iso.substr(11, 5) + " UTC";
+}
+#endif
+
 void StandbyDashboard::UpdateEnvironment(bool force) {
     int64_t now_us = esp_timer_get_time();
     if (!force && last_environment_update_us_ != 0 &&
@@ -1815,7 +1843,11 @@ void StandbyDashboard::UpdateEnvironment(bool force) {
     } else if (snapshot.refresh_in_progress) {
         lv_label_set_text(city_label_, "正在定位");
     } else {
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+        lv_label_set_text(city_label_, snapshot.location_status == "unknown" ? "位置未知" : "本地天气");
+#else
         lv_label_set_text(city_label_, "本地天气");
+#endif
     }
 
     const char* primary_icon = FONT_AWESOME_CLOUD;
@@ -1834,15 +1866,35 @@ void StandbyDashboard::UpdateEnvironment(bool force) {
         snprintf(buffer, sizeof(buffer), "%s°C",
                  snapshot.temperature_c.empty() ? "--" : snapshot.temperature_c.c_str());
         lv_label_set_text(temperature_label_, buffer);
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+        std::string text = snapshot.weather_text.empty() ? "--" : snapshot.weather_text;
+        if (snapshot.weather_status == "stale") text += "  过期";
+        if (snapshot.weather_code >= 0) text += "  WMO " + std::to_string(snapshot.weather_code);
+        text += "  " + EnvironmentTime(snapshot.weather_valid_at);
+        UpdateScrollingLabel(weather_label_, text);
+#else
         lv_label_set_text(weather_label_, snapshot.weather_text.c_str());
+#endif
     } else {
         lv_label_set_text(temperature_label_, "--°C");
         lv_label_set_text(weather_label_,
                           snapshot.configured
-                              ? (snapshot.refresh_in_progress ? "正在更新" : "天气不可用")
+                              ? (snapshot.refresh_in_progress || snapshot.weather_status == "loading" ? "正在更新" : "天气不可用")
                               : "待配置天气");
     }
 
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+    lv_label_set_text(feels_like_label_, snapshot.pm25_text.empty() ? "--" : snapshot.pm25_text.c_str());
+    lv_label_set_text(wind_power_label_, snapshot.pm10_text.empty() ? "--" : snapshot.pm10_text.c_str());
+    std::string air = "PM ug/m3  模型估算";
+    if (snapshot.air_available) {
+        if (snapshot.air_status == "stale") air += "  过期";
+        air += "  " + snapshot.air_model + "  " + EnvironmentTime(snapshot.air_valid_at);
+    } else {
+        air += snapshot.air_status == "loading" ? "  正在更新" : "  暂无数据";
+    }
+    UpdateScrollingLabel(air_value_label_, air);
+#else
     int feels_like = 0;
     if (CalculateFeelsLikeC(snapshot.temperature_c, snapshot.humidity, feels_like)) {
         snprintf(buffer, sizeof(buffer), "%d°", feels_like);
@@ -1851,10 +1903,12 @@ void StandbyDashboard::UpdateEnvironment(bool force) {
         lv_label_set_text(feels_like_label_, "--°");
     }
 
+#endif
     snprintf(buffer, sizeof(buffer), "%s%%",
              snapshot.humidity.empty() ? "--" : snapshot.humidity.c_str());
     lv_label_set_text(humidity_label_, buffer);
 
+#if !CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
     std::string wind_title = WindTitle(snapshot.wind_direction);
     std::string wind_power = WindPower(snapshot.wind_power);
     lv_label_set_text(wind_title_label_, wind_title.c_str());
@@ -1870,6 +1924,7 @@ void StandbyDashboard::UpdateEnvironment(bool force) {
         lv_label_set_text(air_value_label_, "--");
     }
 
+#endif
     UpdateDeviceStatus();
 }
 

@@ -595,6 +595,19 @@ private:
                                return PomodoroTimer::GetInstance().GetStatusText();
                            });
 
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+        mcp_server.AddTool(
+            "self.environment.set_city",
+            "Set this speaker's weather city by name, or use city='auto' to restore IP location. "
+            "Call self.environment.get_status after lookup; if ambiguous ask the user for the "
+            "province, then retry with that province or the selected candidate ID as city.",
+            PropertyList({Property("city", kPropertyTypeString),
+                          Property("province", kPropertyTypeString, "")}),
+            [](const PropertyList& p) -> ReturnValue {
+                return EnvironmentService::GetInstance().SelectCity(
+                    p["city"].value<std::string>(), p["province"].value<std::string>());
+            });
+#else
         mcp_server.AddUserOnlyTool(
             "self.environment.set_config",
             "Configure standby weather using an AMap Web Service API key. The key is stored in "
@@ -617,6 +630,7 @@ private:
                 return std::string("Environment configuration saved and refresh started.");
             });
 
+#endif
         mcp_server.AddTool("self.environment.refresh",
                            "Refresh standby location, weather, and air-quality data now.",
                            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
@@ -634,7 +648,21 @@ private:
                 cJSON_AddBoolToObject(json, "refresh_in_progress", snapshot.refresh_in_progress);
                 cJSON_AddBoolToObject(json, "weather_available", snapshot.weather_available);
                 cJSON_AddStringToObject(json, "city", snapshot.city.c_str());
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+                cJSON_AddStringToObject(json, "sources",
+                    "Open-Meteo, NOAA/NCEP, Copernicus CAMS/ECMWF, GeoNames, DB-IP City Lite");
+                cJSON_AddStringToObject(json, "city_selection",
+                    EnvironmentService::GetInstance().CitySelectionStatus().c_str());
+                cJSON_AddStringToObject(json, "location_source", snapshot.location_source.c_str());
+                if (snapshot.weather_code >= 0)
+                    cJSON_AddNumberToObject(json, "weather_code", snapshot.weather_code);
+                cJSON_AddStringToObject(json, "weather_status", snapshot.weather_status.c_str());
+                cJSON_AddStringToObject(json, "weather_valid_at", snapshot.weather_valid_at.c_str());
+                cJSON_AddStringToObject(json, "air_status", snapshot.air_status.c_str());
+                cJSON_AddStringToObject(json, "air_valid_at", snapshot.air_valid_at.c_str());
+#else
                 cJSON_AddStringToObject(json, "adcode", snapshot.adcode.c_str());
+#endif
                 cJSON_AddStringToObject(json, "weather", snapshot.weather_text.c_str());
                 cJSON_AddStringToObject(json, "temperature_c", snapshot.temperature_c.c_str());
                 cJSON_AddStringToObject(json, "last_error", snapshot.last_error.c_str());

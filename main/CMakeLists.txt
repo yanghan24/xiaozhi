@@ -32,7 +32,7 @@ set(SOURCES "audio/audio_codec.cc"
             "features/audio_recorder.cc"
             "features/music_player.cc"
             "features/pomodoro_timer.cc"
-            "services/environment_service.cc"
+            "services/environment_refresh.cc"
             "services/iot_telemetry_service.cc"
             "protocols/protocol.cc"
             "protocols/mqtt_protocol.cc"
@@ -86,6 +86,11 @@ if(CONFIG_XIAOZHI_USE_ETHERNET)
 endif()
 if(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 AND CONFIG_XIAOZHI_DEVICE_CONTROL)
     list(APPEND SOURCES "display/fonts/font_puhui_binding_30_4.c")
+endif()
+if(CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT)
+    list(APPEND SOURCES "services/product_environment.cc" "services/product_weather.cc")
+else()
+    list(APPEND SOURCES "services/environment_service.cc")
 endif()
 list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/boards/common)
 

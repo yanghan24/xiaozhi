@@ -58,11 +58,6 @@ std::string AppendQueryParam(const std::string& url, const std::string& key, con
 }
 } // namespace
 
-EnvironmentService& EnvironmentService::GetInstance() {
-    static EnvironmentService instance;
-    return instance;
-}
-
 EnvironmentService::EnvironmentService() {
     std::lock_guard<std::mutex> lock(mutex_);
     LoadConfigLocked();
@@ -98,30 +93,6 @@ void EnvironmentService::SaveConfig(const EnvironmentConfig& config) {
         config_.amap_api_key.empty() ? "empty" : "set",
         config_.aggregate_url.empty() ? "empty" : "set",
         config_.refresh_interval_minutes);
-}
-
-void EnvironmentService::RefreshAsync(bool force) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    int64_t now_us = esp_timer_get_time();
-    if (refresh_task_handle_ != nullptr || !ShouldRefreshLocked(now_us, force)) {
-        return;
-    }
-
-    last_refresh_attempt_us_ = now_us;
-    snapshot_.refresh_in_progress = true;
-    BaseType_t ok = xTaskCreate(
-        &EnvironmentService::RefreshTask,
-        "env_refresh",
-        8192,
-        this,
-        3,
-        &refresh_task_handle_);
-    if (ok != pdPASS) {
-        refresh_task_handle_ = nullptr;
-        snapshot_.refresh_in_progress = false;
-        SetLastErrorLocked("Failed to create refresh task");
-        ESP_LOGW(TAG, "Failed to create refresh task");
-    }
 }
 
 esp_err_t EnvironmentService::RefreshNow() {
@@ -431,15 +402,4 @@ esp_err_t EnvironmentService::HttpGetJson(const std::string& url, std::string& r
 void EnvironmentService::SetLastErrorLocked(const std::string& error) {
     snapshot_.last_error = error;
     snapshot_.stale = true;
-}
-
-void EnvironmentService::RefreshTask(void* arg) {
-    auto* service = static_cast<EnvironmentService*>(arg);
-    if (service != nullptr) {
-        service->RefreshNow();
-        std::lock_guard<std::mutex> lock(service->mutex_);
-        service->refresh_task_handle_ = nullptr;
-        service->snapshot_.refresh_in_progress = false;
-    }
-    vTaskDelete(nullptr);
 }

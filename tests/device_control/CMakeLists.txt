@@ -13,7 +13,13 @@ add_executable(device_control_tests control_test.cc
   "${IDF_PATH}/components/http_parser/http_parser.c")
 target_include_directories(device_control_tests PRIVATE "${CONTROL_DIR}" "${IDF_PATH}/components/json/cJSON" "${IDF_PATH}/components/http_parser")
 target_compile_options(device_control_tests PRIVATE -Wall -Wextra -Werror)
+add_executable(product_weather_tests product_weather_test.cc
+  "${CONTROL_DIR}/../services/product_weather.cc" "${IDF_PATH}/components/json/cJSON/cJSON.c")
+target_include_directories(product_weather_tests PRIVATE "${CONTROL_DIR}/../services"
+  "${IDF_PATH}/components/json/cJSON")
+target_compile_options(product_weather_tests PRIVATE -Wall -Wextra -Werror)
 enable_testing()
+add_test(NAME product_weather_tests COMMAND product_weather_tests)
 add_test(NAME device_control_tests COMMAND device_control_tests)
 
 add_executable(maintenance_tests maintenance_test.cc

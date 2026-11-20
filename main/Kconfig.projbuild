@@ -26,7 +26,12 @@ config XIAOZHI_ONLINE_DELIVERY
         Requires the v1 delivery API. Only starts ordinary product control after
         the authorized host tool has completed issuance, writing and live device verification.
 
+config XIAOZHI_PRODUCT_ENVIRONMENT
+    bool
+    default y if BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3 && XIAOZHI_DEVICE_CONTROL
+
 config XIAOZHI_AMAP_API_KEY
+    depends on !XIAOZHI_PRODUCT_ENVIRONMENT
     string "AMap Web Service API key"
     default ""
     help

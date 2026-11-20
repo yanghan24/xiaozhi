@@ -8,6 +8,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_err.h>
+#include <sdkconfig.h>
+#include "environment_snapshot.h"
 
 struct EnvironmentConfig {
     std::string amap_api_key;
@@ -17,35 +19,17 @@ struct EnvironmentConfig {
     std::string fallback_city;
 };
 
-struct EnvironmentSnapshot {
-    bool configured = false;
-    bool location_available = false;
-    bool weather_available = false;
-    bool air_available = false;
-    bool stale = true;
-    bool refresh_in_progress = false;
-
-    std::string city;
-    std::string adcode;
-    std::string weather_text;
-    std::string temperature_c;
-    std::string humidity;
-    std::string wind_direction;
-    std::string wind_power;
-    int aqi = -1;
-    std::string air_category;
-    int pm25 = -1;
-    int pm10 = -1;
-    int64_t updated_at = 0;
-    std::string last_error;
-};
-
 class EnvironmentService {
 public:
     static EnvironmentService& GetInstance();
 
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+    std::string SelectCity(const std::string& city, const std::string& province);
+    std::string CitySelectionStatus();
+#else
     EnvironmentConfig GetConfig();
     void SaveConfig(const EnvironmentConfig& config);
+#endif
     void RefreshAsync(bool force = false);
     esp_err_t RefreshNow();
     EnvironmentSnapshot GetSnapshot();
@@ -55,21 +39,32 @@ private:
     EnvironmentService(const EnvironmentService&) = delete;
     EnvironmentService& operator=(const EnvironmentService&) = delete;
 
+#if CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
+    std::string cached_response_;
+    std::string manual_city_id_;
+    std::string selection_query_;
+    std::string selection_status_;
+    uint32_t selection_revision_ = 0;
+    int64_t next_refresh_us_ = 0;
+#else
     void LoadConfigLocked();
     void LoadCacheLocked();
     void SaveCacheLocked();
-    bool ShouldRefreshLocked(int64_t now_us, bool force) const;
     esp_err_t FetchLocation(const EnvironmentConfig& config, std::string& adcode, std::string& city);
     esp_err_t FetchWeather(const EnvironmentConfig& config, const std::string& adcode);
     esp_err_t FetchAirQuality(const EnvironmentConfig& config, const std::string& adcode);
     esp_err_t HttpGetJson(const std::string& url, std::string& response);
     void SetLastErrorLocked(const std::string& error);
+#endif
+    bool ShouldRefreshLocked(int64_t now_us, bool force) const;
     static void RefreshTask(void* arg);
 
     mutable std::mutex mutex_;
+#if !CONFIG_XIAOZHI_PRODUCT_ENVIRONMENT
     EnvironmentConfig config_;
-    EnvironmentSnapshot snapshot_;
     bool config_loaded_ = false;
+#endif
+    EnvironmentSnapshot snapshot_;
     int64_t last_refresh_attempt_us_ = 0;
     TaskHandle_t refresh_task_handle_ = nullptr;
 };

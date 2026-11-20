@@ -623,6 +623,23 @@ void DeviceControl::Start(const std::string& ota, const std::string& base) {
         revoked(generation);
     impl_->Wake(true);
 }
+bool DeviceControl::GetEnvironment(const std::string& query, std::string& response) {
+    std::string base, id, secret;
+    {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        if (!impl_->configured || !impl_->connected)
+            return false;
+        base = impl_->base;
+        id = impl_->device_id;
+        secret = impl_->credential;
+    }
+    auto result = device_control::ControlRequest(base + "environment" + query, "GET", id, secret,
+                                                 "", "", [this]() { return !IsNetworkConnected(); });
+    if (result.failure != device_control::HttpFailure::None || result.status != 200)
+        return false;
+    response = std::move(result.body);
+    return true;
+}
 void DeviceControl::NotifyNetwork(bool connected) {
     std::function<void(uint64_t)> revoked;
     std::function<void(const device_control::HttpResult&)> maintenance_reply;
@@ -788,6 +805,7 @@ DeviceControl::DeviceControl() : impl_(std::make_unique<Impl>()) {}
 DeviceControl::~DeviceControl() = default;
 bool DeviceControl::Enabled() const { return false; }
 bool DeviceControl::IsNetworkConnected() const { return false; }
+bool DeviceControl::GetEnvironment(const std::string&, std::string&) { return false; }
 void DeviceControl::SetMaintenanceActive(bool) {}
 void DeviceControl::SetMaintenanceCallbacks(
     std::function<std::string()>, std::function<void(const device_control::HttpResult&)>) {}
