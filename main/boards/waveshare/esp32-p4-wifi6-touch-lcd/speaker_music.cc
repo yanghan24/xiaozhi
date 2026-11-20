@@ -186,13 +186,19 @@ bool SpeakerMusic::Play(const std::string& path, uint32_t generation) {
         raw.buffer = input.data();
         raw.len = read;
         raw.eos = read < input.size();
+        unsigned buffered_frames = 0;
         while (raw.len) {
             if (!WaitToPlay(generation)) return true;
             esp_audio_simple_dec_out_t decoded{};
             decoded.buffer = reinterpret_cast<uint8_t*>(output.data());
             decoded.len = output.size() * sizeof(int16_t);
             if (esp_audio_simple_dec_process(decoder.get(), &raw, &decoded) != ESP_AUDIO_ERR_OK ||
-                raw.consumed == 0 || raw.consumed > raw.len || decoded.decoded_size > decoded.len) return false;
+                raw.consumed > raw.len || decoded.decoded_size > decoded.len) return false;
+            if (raw.consumed) {
+                buffered_frames = 0;
+            } else if (!decoded.decoded_size || ++buffered_frames > 4) {
+                return false;
+            }
             raw.buffer += raw.consumed;
             raw.len -= raw.consumed;
             if (!decoded.decoded_size) continue;

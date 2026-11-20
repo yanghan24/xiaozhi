@@ -358,7 +358,8 @@ SpeakerAccount::Response SpeakerAccount::Request(const char* method, const std::
 }
 
 SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& identity, const char* method,
-                                                             const std::string& path, std::string body, int channel) {
+                                                             const std::string& path, std::string body,
+                                                             int channel, int timeout_ms) {
     {
         std::lock_guard lock(mutex_);
         if (!connected_ || upgrading_) {
@@ -369,7 +370,7 @@ SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& ide
     if (!http) {
         return {};
     }
-    http->SetTimeout(5000);
+    http->SetTimeout(timeout_ms);
     http->SetHeader("Device-Id", identity.id);
     http->SetHeader("Authorization", "Bearer " + identity.credential);
     http->SetHeader("Content-Type", "application/json");

@@ -5,6 +5,7 @@
 #include "application.h"
 #include "hncig_logo_i2.h"
 #include "speaker_home_widgets.h"
+#include <initializer_list>
 
 using namespace SpeakerHomeWidgets;
 
@@ -69,11 +70,11 @@ void SpeakerConversationView::Update(bool visible, const char* status, const cha
         lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, !visible);
     }
     SetAnimating(visible && speaking);
-    if (!visible) return;
     if (font && font_ != font) {
         lv_obj_set_style_text_font(root_, font, LV_PART_MAIN);
         font_ = font;
     }
+    if (!visible) return;
     UpdateLabel(status_, status);
     UpdateLabel(subtitle_, subtitle);
 }

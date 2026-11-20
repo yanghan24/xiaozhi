@@ -97,11 +97,14 @@ void SpeakerRecorder::Stop() {
 void SpeakerRecorder::Push(const int16_t* pcm, size_t size, int channels) {
     if (!accepting_ || stop_ || overflow_ || channels <= 0) return;
     Frame frame{};
-    if (size != frame.size() * static_cast<size_t>(channels)) {
+    const size_t samples = size / channels;
+    if (size % channels || samples > frame.pcm.size()) {
         overflow_ = true;
         return;
     }
-    for (size_t i = 0; i < frame.size(); ++i) frame[i] = pcm[i * channels];
+    if (!samples) return;
+    frame.samples = samples;
+    for (size_t i = 0; i < samples; ++i) frame.pcm[i] = pcm[i * channels];
     if (xQueueSend(queue_, &frame, 0) != pdTRUE) overflow_ = true;
 }
 
@@ -149,6 +152,7 @@ void SpeakerRecorder::Record() {
         }
     }
     uint32_t bytes = 0;
+    uint32_t seconds = 0;
     Frame frame;
     while (success && !overflow_) {
         const bool capturing = Application::GetInstance().GetAudioService().IsLocalCaptureRunning();
@@ -157,16 +161,17 @@ void SpeakerRecorder::Record() {
             if (reading) continue;
             break;
         }
-        constexpr uint32_t frame_bytes = sizeof(Frame);
+        const uint32_t frame_bytes = sizeof(int16_t) * frame.samples;
         if (bytes > std::numeric_limits<uint32_t>::max() - 36 - frame_bytes ||
-            fwrite(frame.data(), 1, frame_bytes, file) != frame_bytes) {
+            fwrite(frame.pcm.data(), 1, frame_bytes, file) != frame_bytes) {
             success = false;
             break;
         }
         bytes += frame_bytes;
-        if (bytes % kByteRate == 0) {
+        if (bytes / kByteRate != seconds) {
+            seconds = bytes / kByteRate;
             std::lock_guard lock(mutex_);
-            snapshot_.seconds = bytes / kByteRate;
+            snapshot_.seconds = seconds;
         }
     }
     accepting_ = false;

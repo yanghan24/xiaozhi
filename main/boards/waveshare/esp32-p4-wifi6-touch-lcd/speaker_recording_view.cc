@@ -63,9 +63,11 @@ void SpeakerRecordingView::Update() {
     lv_obj_set_state(back_, LV_STATE_DISABLED, busy);
     lv_obj_set_state(start_, LV_STATE_DISABLED, busy);
     lv_obj_set_state(stop_, LV_STATE_DISABLED, !capturing);
-    char time[24];
-    std::snprintf(time, sizeof(time), "%02lu:%02lu", static_cast<unsigned long>(snapshot.seconds / 60),
-                  static_cast<unsigned long>(snapshot.seconds % 60));
+    const bool show_hours = snapshot.seconds >= 100 * 60;
+    const auto major = show_hours ? snapshot.seconds / 3600 : snapshot.seconds / 60;
+    const auto minor = show_hours ? snapshot.seconds / 60 % 60 : snapshot.seconds % 60;
+    char time[16];
+    std::snprintf(time, sizeof(time), "%02u:%02u", static_cast<unsigned>(major), static_cast<unsigned>(minor));
     elapsed_.SetTime(time);
     const char* status = "";
     switch (snapshot.state) {

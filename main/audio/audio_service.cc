@@ -176,6 +176,9 @@ void AudioService::Start() {
 void AudioService::Stop() {
     esp_timer_stop(audio_power_timer_);
     service_stopped_.store(true);
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    StopLocalCapture();
+#endif
     xEventGroupSetBits(event_group_, AS_EVENT_AUDIO_TESTING_RUNNING | AS_EVENT_WAKE_WORD_RUNNING |
                                          AS_EVENT_AUDIO_PROCESSOR_RUNNING);
 

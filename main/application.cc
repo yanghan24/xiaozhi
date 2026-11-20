@@ -68,6 +68,11 @@ Application::~Application() {
 bool Application::SetDeviceState(DeviceState state) {
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     if (state != kDeviceStateIdle && GetDeviceState() == kDeviceStateIdle) {
+        if (audio_service_.IsLocalCaptureRunning()) {
+            if (state == kDeviceStateConnecting || state == kDeviceStateListening ||
+                state == kDeviceStateSpeaking) return false;
+            audio_service_.StopLocalCapture();
+        }
         audio_service_.CancelLocalPlayback();
     }
 #endif

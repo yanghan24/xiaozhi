@@ -52,7 +52,7 @@ void SpeakerStandbyWeather::Run() {
                 std::lock_guard lock(mutex_);
                 snapshot_.state = State::Loading;
             }
-            auto response = account.RequestWithIdentity(account.identity(), "GET", "/weather", {}, 6);
+            auto response = account.RequestWithIdentity(account.identity(), "GET", "/weather", {}, 6, 8000);
             std::unique_ptr<cJSON, decltype(&cJSON_Delete)> json(
                 response.status == 200 ? cJSON_Parse(response.body.c_str()) : nullptr, cJSON_Delete);
             Snapshot data;

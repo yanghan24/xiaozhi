@@ -26,7 +26,10 @@ public:
     void Stop();
 
 private:
-    using Frame = std::array<int16_t, 320>;
+    struct Frame {
+        std::array<int16_t, 384> pcm;
+        uint16_t samples;
+    };
     void Run();
     void Record();
     void Finish(State state, uint32_t seconds, std::string filename = {});

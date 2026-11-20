@@ -168,6 +168,7 @@ void SpeakerHomeDisplay::SetTheme(Theme* theme) {
     DisplayLockGuard lock(this);
     if (lock && home_ && theme && theme->GetTextFont()) {
         lv_obj_set_style_text_font(home_, theme->GetTextFont()->font(), LV_PART_MAIN);
+        RefreshHome();
     }
 }
 
