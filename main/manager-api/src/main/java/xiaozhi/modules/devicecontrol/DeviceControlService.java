@@ -31,6 +31,7 @@ public class DeviceControlService {
     private final TransactionTemplate transactions;
     private final Clock clock;
     private final DevicePresence presence;
+    private final xiaozhi.modules.customer.CustomerReminders reminders;
     private final boolean enabled;
     private final String publicOrigin;
     private final xiaozhi.modules.customer.CustomerVoicePermissions permissions;
@@ -41,10 +42,12 @@ public class DeviceControlService {
             @Value("${device-control.enabled:false}") boolean enabled,
             @Value("${device-control.public-origin:${PUBLIC_ORIGIN:}}") String publicOrigin,
             xiaozhi.modules.customer.CustomerVoicePermissions permissions,
-            xiaozhi.modules.customer.CustomerAccountDetails accountDetails, DevicePresence presence) {
+            xiaozhi.modules.customer.CustomerAccountDetails accountDetails, DevicePresence presence,
+            xiaozhi.modules.customer.CustomerReminders reminders) {
         this.db = db; this.permissions=permissions;
         this.accountDetails = accountDetails;
         this.presence = presence;
+        this.reminders = reminders;
         this.transactions = new TransactionTemplate(transactionManager);
         this.clock = clock;
         this.enabled = enabled;
@@ -89,7 +92,7 @@ public class DeviceControlService {
         return row;
     }
 
-    Map<String, Object> state(Identity identity) {
+    Map<String, Object> state(Identity identity, boolean includeReminders) {
         return transactions.execute(tx -> {
             permissions.barrier();
             var row = load(identity, true);
@@ -108,6 +111,8 @@ public class DeviceControlService {
             state.put("binding_request", current == null ? null : requestBody(current, responseNow));
             state.put("lease", voice==null?null:Map.of("permission_version",row.get("permission_version"),"expires_at_ms",responseNow+60000,"expires_in_ms",60000));
             state.put("voice", voice);
+            if (includeReminders && voice != null)
+                reminders.nextDue(row).ifPresent(id -> state.put("scheduled_reminder_id", id));
             return state;
         });
     }
@@ -189,21 +194,21 @@ public class DeviceControlService {
         });
     }
 
-    Map<String, Object> poll(Identity identity, Long afterRevision, int waitMs) {
+    Map<String, Object> poll(Identity identity, Long afterRevision, int waitMs, boolean includeReminders) {
         // One received request proves contact. Internal long-poll reads must not renew it.
         presence.touch(identity);
-        var snapshot = state(identity);
+        var snapshot = state(identity, includeReminders);
         if (afterRevision == null || waitMs == 0 || number(snapshot, "revision") != afterRevision) return snapshot;
         if (!waiters.tryAcquire()) throw new ControlFailure(429, "RATE_LIMITED");
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(waitMs);
         try {
             // The database is the durable cross-instance notification source. No transaction or
             // connection is held while sleeping, and each read rechecks credential revocation.
-            while (number(snapshot, "revision") == afterRevision) {
+            while (number(snapshot, "revision") == afterRevision && !snapshot.containsKey("scheduled_reminder_id")) {
                 long remaining = deadline - System.nanoTime();
                 if (remaining <= 0) break;
                 TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(200)));
-                snapshot = state(identity);
+                snapshot = state(identity, includeReminders);
             }
             return snapshot;
         } catch (InterruptedException interrupted) {

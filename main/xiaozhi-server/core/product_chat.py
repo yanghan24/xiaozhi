@@ -12,6 +12,7 @@ import uuid
 from concurrent.futures import TimeoutError
 
 from core.product_voice import VoiceDenied, ModelUnavailable
+from core.product_reminders import ReminderConversation
 from core.providers.tts.dto.dto import ContentType, SentenceType, TTSMessageDTO
 from core.utils.dialogue import Message
 from plugins_func.register import Action
@@ -25,6 +26,7 @@ class ProductConversation:
         self.lock = threading.RLock()
         self.pending = set()
         self.wakeup_turn = None
+        self.reminders = ReminderConversation()
 
     def current(self, turn_id):
         conn = self.conn
@@ -122,6 +124,25 @@ class ProductConversation:
                 return
             self.guard(turn_id)
             conn.product_voice_gate.check()
+            gate = conn.product_voice_gate
+            def reminder_request(command):
+                self.guard(turn_id)
+                gate.check()
+                self.guard(turn_id)
+                try:
+                    return gate.authority.request('reminder', {'session': gate.session, 'command': command})
+                except VoiceDenied:
+                    # A transport failure can follow a committed write. Only a
+                    # still-authorized turn may explain the unknown result.
+                    gate.check()
+                    self.guard(turn_id)
+                    return None
+            reminder = self.reminders.reply(query, reminder_request, lambda: self.guard(turn_id))
+            if reminder is not None:
+                self._speech(turn_id, SentenceType.FIRST)
+                self._speech(turn_id, SentenceType.MIDDLE, reminder)
+                self._speech(turn_id, SentenceType.LAST)
+                return
             with self.lock:
                 self.guard(turn_id)
                 conn.dialogue.put(Message(role='user', content=query))
