@@ -318,6 +318,15 @@ SpeakerAccount::View SpeakerAccount::GetView() const {
     return view_;
 }
 
+int64_t SpeakerAccount::MemoBindingVersion() const {
+    std::lock_guard lock(mutex_);
+    if (upgrading_ || unbind_ || view_.unbind_pending ||
+        (view_.page != Page::Ready && view_.page != Page::Offline)) {
+        return 0;
+    }
+    return memo_binding_version_;
+}
+
 void SpeakerAccount::RefreshCode() {
     {
         std::lock_guard lock(mutex_);
@@ -335,6 +344,7 @@ void SpeakerAccount::Unbind() {
         unbind_ = true;
         view_.unbind_pending = true;
         view_.standby_weather_allowed = false;
+        memo_binding_version_ = 0;
         voice_.reset();
         voice_until_ = 0;
     }
@@ -402,7 +412,8 @@ SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& ide
 }
 
 void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64_t lease_until,
-                             int64_t permission, bool revoke_if_changed, uint32_t network_epoch) {
+                             int64_t permission, bool revoke_if_changed, uint32_t network_epoch,
+                             int64_t binding_version) {
     bool changed;
     bool revoke;
     {
@@ -413,6 +424,10 @@ void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64
         changed = view_ != view;
         revoke = voice_.has_value() && (!access ||
                  (revoke_if_changed && permission_version_ != permission));
+        if (view.page != Page::Offline) {
+            memo_binding_version_ = view.page == Page::Ready && binding_version > 0
+                ? binding_version : 0;
+        }
         view_ = std::move(view);
         voice_ = std::move(access);
         voice_until_ = lease_until;
@@ -661,7 +676,7 @@ void SpeakerAccount::Run() {
                 SecureUrl(access.url, "wss://") && Token(access.token, 43, 128, "_-")) {
                 Publish({Page::Ready, {}, {}, customer, true, false, weather_allowed}, std::move(access),
                         Now() + std::min({lease, expiry - server_time, kMaxLease}),
-                        permission_version, true, epoch);
+                        permission_version, true, epoch, Number(document.get(), "binding_version"));
             } else {
                 Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed},
                         {}, 0, permission_version, true, epoch);

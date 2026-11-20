@@ -1,4 +1,5 @@
 #include "speaker_home_display.h"
+#include "speaker_memos.h"
 #include "speaker_standby_weather.h"
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
@@ -159,6 +160,7 @@ void SpeakerHomeDisplay::SetupUI() {
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
         auto* display = static_cast<SpeakerHomeDisplay*>(lv_timer_get_user_data(timer));
         display->pomodoro_.Update();
+        SpeakerMemos::Get().Tick();
         display->RefreshHome();
     }, 250, this);
 }

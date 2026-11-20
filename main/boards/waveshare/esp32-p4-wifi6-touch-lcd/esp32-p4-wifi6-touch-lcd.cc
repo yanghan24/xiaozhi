@@ -3,6 +3,7 @@
 #include "application.h"
 #include "display/lcd_display.h"
 #include "speaker_home_display.h"
+#include "speaker_memos.h"
 // #include "display/no_display.h"
 #include "button.h"
 
@@ -455,6 +456,9 @@ public:
         InitializeTouch();
         InitializeCamera();
         InitializeButtons();
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        SpeakerMemos::Get().InitializeTools();
+#endif
         GetBacklight()->RestoreBrightness();
     }
 
