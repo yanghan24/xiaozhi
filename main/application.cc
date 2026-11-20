@@ -815,6 +815,7 @@ void Application::InitializeProtocol() {
             }
             if (strcmp(state->valuestring, "start") == 0) {
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                PlaybackDiag::BeginTransport(cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(root, "diagnostic_trace_id")));
                 PlaybackDiag::Record(PlaybackDiag::Phase::StartReceived);
 #endif
                 Schedule([this]() {
@@ -836,6 +837,7 @@ void Application::InitializeProtocol() {
                 });
             } else if (strcmp(state->valuestring, "stop") == 0) {
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+                PlaybackDiag::ReceiveTransportStop(cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(root, "diagnostic_trace_id")));
                 PlaybackDiag::Record(PlaybackDiag::Phase::StopReceived);
 #endif
                 Schedule([this]() {

@@ -62,6 +62,7 @@ void SpeakerVoiceTiming::SetLease(int64_t server_ms, int64_t until_ms) {
         display_count_ = 0;
         next_display_sample_ms_ = 0;
         playback_count_ = 0;
+        has_transport_sample_ = false;
 #endif
     }
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
@@ -159,14 +160,15 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
     if (report_id_.empty()) {
         size_t available = kBatchSize;
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
-        static_assert(std::tuple_size_v<SpeakerDisplayDiagnostics::Samples> + 1 < kBatchSize);
+        static_assert(std::tuple_size_v<SpeakerDisplayDiagnostics::Samples> + 2 < kBatchSize);
         display_sample_ms_ = NowMs();
         display_count_ = SpeakerDisplayDiagnostics::TakeSamples(
             display_samples_, display_sample_ms_ >= next_display_sample_ms_);
         if (display_count_) next_display_sample_ms_ = display_sample_ms_ + 60 * 1000;
         playback_sample_ms_ = display_sample_ms_;
         playback_count_ = SpeakerPlaybackDiagnostics::TakeSamples(playback_samples_);
-        available -= display_count_ + (playback_count_ != 0);
+        has_transport_sample_ = SpeakerPlaybackDiagnostics::TakeTransport(transport_sample_);
+        available -= display_count_ + (playback_count_ != 0) + has_transport_sample_;
 #endif
         report_count_ = std::min(available, events_.size());
         if (available == kBatchSize && report_count_ == 0) return {};
@@ -231,6 +233,24 @@ SpeakerVoiceTiming::Report SpeakerVoiceTiming::PrepareReport() {
             complete = samples && cJSON_GetArraySize(samples) == playback_count_;
         }
     }
+    if (has_transport_sample_ && entries) {
+        ++entry_count;
+        auto* entry = cJSON_CreateObject();
+        if (entry) {
+            cJSON_AddItemToArray(entries, entry);
+            cJSON_AddStringToObject(entry, "event", "tts_transport");
+            cJSON_AddNumberToObject(entry, "uptime_ms", playback_sample_ms_);
+            cJSON_AddStringToObject(entry, "trace_id", transport_sample_.trace_id.data());
+            auto* sample = cJSON_AddObjectToObject(entry, "transport");
+            complete = complete && sample &&
+                cJSON_AddNumberToObject(sample, "received_frames", transport_sample_.received_frames) &&
+                cJSON_AddNumberToObject(sample, "first_packet_ms", transport_sample_.first_packet_ms) &&
+                cJSON_AddNumberToObject(sample, "last_packet_ms", transport_sample_.last_packet_ms) &&
+                cJSON_AddNumberToObject(sample, "max_receive_gap_ms", transport_sample_.max_receive_gap_ms) &&
+                cJSON_AddBoolToObject(sample, "stop_received", transport_sample_.stop_received) &&
+                cJSON_AddBoolToObject(sample, "channel_closed", transport_sample_.channel_closed);
+        }
+    }
 #endif
     char* text = complete && entries && cJSON_GetArraySize(entries) == entry_count ? cJSON_PrintUnformatted(root) : nullptr;
     Report result{until_ms_, text ? text : ""};
@@ -248,5 +268,6 @@ void SpeakerVoiceTiming::Acknowledge(int64_t until_ms) {
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     display_count_ = 0;
     playback_count_ = 0;
+    has_transport_sample_ = false;
 #endif
 }

@@ -53,5 +53,7 @@ private:
     SpeakerPlaybackDiagnostics::Samples playback_samples_{};
     size_t playback_count_ = 0;
     int64_t playback_sample_ms_ = 0;
+    SpeakerPlaybackDiagnostics::TransportSample transport_sample_{};
+    bool has_transport_sample_ = false;
 #endif
 };

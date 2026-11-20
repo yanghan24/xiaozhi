@@ -2,7 +2,9 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
 
+#include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 
@@ -13,9 +15,36 @@ std::atomic<int64_t> deadline_ms{0};
 std::atomic<int64_t> writing_since_ms{0};
 portMUX_TYPE sample_lock = portMUX_INITIALIZER_UNLOCKED;
 Samples pending{};
+TransportSample transport;
+std::array<TransportSample, 4> completed_transports{};
+size_t completed_count = 0;
+bool transport_dirty = false;
 bool voice_output = false;
 
 int64_t NowMs() { return esp_timer_get_time() / 1000; }
+
+bool ValidTrace(const char* id) {
+    if (!id) return false;
+    for (size_t i = 0; i < 32; ++i) {
+        const char c = id[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    }
+    return id[32] == '\0';
+}
+
+void RecordTransport(Phase phase, int64_t now) {
+    if (!transport.trace_id.front()) return;
+    if (phase == Phase::PacketReceived && !transport.stop_received && !transport.channel_closed) {
+        if (!transport.received_frames) transport.first_packet_ms = now;
+        else transport.max_receive_gap_ms = std::max(transport.max_receive_gap_ms, now - transport.last_packet_ms);
+        transport.last_packet_ms = now;
+        ++transport.received_frames;
+        transport_dirty = true;
+    } else if (phase == Phase::ChannelClosed && !transport.channel_closed) {
+        transport.channel_closed = true;
+        transport_dirty = true;
+    }
+}
 }  // namespace
 
 void SetWindow(int64_t remaining_ms, bool reset) {
@@ -24,6 +53,9 @@ void SetWindow(int64_t remaining_ms, bool reset) {
         writing_since_ms.store(0);
         portENTER_CRITICAL(&sample_lock);
         pending.fill({});
+        transport = {};
+        completed_count = 0;
+        transport_dirty = false;
         portEXIT_CRITICAL(&sample_lock);
     }
     if (remaining_ms > 0) deadline_ms.store(NowMs() + remaining_ms);
@@ -40,8 +72,56 @@ void Record(Phase phase, int code) {
         ++sample.count;
         sample.uptime_ms = now;
         sample.code = code;
+        RecordTransport(phase, now);
     }
     portEXIT_CRITICAL(&sample_lock);
+}
+
+void BeginTransport(const char* trace_id) {
+    if (!deadline_ms.load(std::memory_order_relaxed)) return;
+    const auto now = NowMs();
+    const auto valid = ValidTrace(trace_id);
+    portENTER_CRITICAL(&sample_lock);
+    if (deadline_ms.load(std::memory_order_relaxed) > now) {
+        if (transport_dirty) {
+            if (completed_count == completed_transports.size()) {
+                std::move(completed_transports.begin() + 1, completed_transports.end(), completed_transports.begin());
+                --completed_count;
+            }
+            completed_transports[completed_count++] = transport;
+        }
+        transport = {};
+        if (valid) std::memcpy(transport.trace_id.data(), trace_id, transport.trace_id.size());
+        transport_dirty = valid;
+    }
+    portEXIT_CRITICAL(&sample_lock);
+}
+
+void ReceiveTransportStop(const char* trace_id) {
+    if (!deadline_ms.load(std::memory_order_relaxed) || !ValidTrace(trace_id)) return;
+    const auto now = NowMs();
+    portENTER_CRITICAL(&sample_lock);
+    if (deadline_ms.load(std::memory_order_relaxed) > now && std::strcmp(transport.trace_id.data(), trace_id) == 0) {
+        transport.stop_received = true;
+        transport_dirty = true;
+    }
+    portEXIT_CRITICAL(&sample_lock);
+}
+
+bool TakeTransport(TransportSample& sample) {
+    portENTER_CRITICAL(&sample_lock);
+    const bool available = completed_count || transport_dirty;
+    if (completed_count) {
+        sample = completed_transports.front();
+        std::move(completed_transports.begin() + 1, completed_transports.begin() + completed_count,
+                  completed_transports.begin());
+        --completed_count;
+    } else if (transport_dirty) {
+        sample = transport;
+        transport_dirty = false;
+    }
+    portEXIT_CRITICAL(&sample_lock);
+    return available;
 }
 
 size_t TakeSamples(Samples& samples) {
