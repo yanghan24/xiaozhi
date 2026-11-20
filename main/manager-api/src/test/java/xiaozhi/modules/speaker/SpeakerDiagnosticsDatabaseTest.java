@@ -104,6 +104,30 @@ class SpeakerDiagnosticsDatabaseTest {
         }
     }
 
+    @Test void voiceTimingRequiresBoundedMetadataAndTheSameLease() throws Exception {
+        devices.heartbeat(devices.authenticate(auth, device), "p4", "2.6.7", true);
+        long until = enable();
+        var entry = Map.of("event", "voice_timing", "uptime_ms", 1800,
+                "phase", "first_output", "trace_id", "a".repeat(32), "elapsed_ms", 900);
+        assertTrue(diagnostics.upload(auth, device, timingBody(until, entry)).get("accepted"));
+        var logs = (List<?>) diagnostics.read(device).get("logs");
+        assertEquals(1, logs.size());
+        assertTrue(logs.getFirst().toString().contains("first_output"));
+        assertEquals(409, assertThrows(SpeakerFailure.class,
+                () -> diagnostics.upload(auth, device, timingBody(until + 1, entry))).status);
+        assertEquals(400, assertThrows(SpeakerFailure.class,
+                () -> diagnostics.upload(auth, device, timingBody(until,
+                        Map.of("event", "voice_timing", "phase", "first_output")))).status);
+    }
+
+    private MockHttpServletRequest timingBody(long until, Map<String, ?> entry) throws Exception {
+        var request = new MockHttpServletRequest();
+        request.setContent(json.writeValueAsBytes(Map.of("report_id", "2".repeat(32),
+                "diagnostics_until_ms", until, "firmware_version", "2.6.7", "app_sha256", "a".repeat(64),
+                "entries", List.of(entry))));
+        return request;
+    }
+
     private MockHttpServletRequest body(long until, String kind) throws Exception {
         var request = new MockHttpServletRequest();
         var report = Map.of("report_id", "1".repeat(32), "diagnostics_until_ms", until,

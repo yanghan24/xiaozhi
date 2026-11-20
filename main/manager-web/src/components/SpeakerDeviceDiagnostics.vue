@@ -13,12 +13,19 @@
           aria-labelledby="speaker-diagnostic-switch" @change="load({ enabled: $event })"
         />
       </div>
-      <p v-if="enabled" class="diagnostics-note">开启至 {{ displayTime(diagnostics.until_ms) }}，音箱将在下次心跳后开始上传。</p>
+      <p v-if="enabled" class="diagnostics-note">开启至 {{ displayTime(diagnostics.until_ms) }}。语音耗时按轮次记录，音箱将在下次心跳后开始上传。</p>
       <p v-else-if="diagnostics.supported" class="diagnostics-note">开启后 30 分钟自动关闭。</p>
       <p v-else class="diagnostics-note">音箱尚未上报诊断支持，请升级固件并等待心跳。</p>
       <el-table :data="rows" border max-height="290" empty-text="暂无诊断日志">
         <el-table-column label="接收时间" min-width="165">
           <template slot-scope="{ row }">{{ displayTime(row.receivedAt) }}</template>
+        </el-table-column>
+        <el-table-column label="轮次耗时" min-width="140">
+          <template slot-scope="{ row }">
+            <el-tooltip v-if="row.trace_id" :content="row.trace_id" placement="top">
+              <span>{{ row.elapsed_ms }} ms · {{ row.trace_id.slice(0, 8) }}</span>
+            </el-tooltip>
+          </template>
         </el-table-column>
         <el-table-column label="事件" min-width="200">
           <template slot-scope="{ row }">{{ describe(row) }}</template>
@@ -51,6 +58,11 @@ const labels = {
   ota_upgrade_failed: 'OTA 安装失败',
   heartbeat_failed: '心跳失败',
 };
+const timingPhases = {
+  wake: '唤醒', channel_open: '语音连接就绪', listening: '开始收音', first_mic_frame: '首次上行音频',
+  stt_received: '收到识别结果', first_audio_received: '收到首个回复音频包',
+  first_output: '首次写入音频输出', playback_drained: '播报队列播完',
+};
 
 export default {
   components: { CustomButton },
@@ -72,6 +84,7 @@ export default {
     displayTime,
     kib(bytes) { return Math.round(bytes / 1024); },
     describe(row) {
+      if (row.event === 'voice_timing') return timingPhases[row.phase] || row.phase;
       const state = states[row.state] || '未知';
       if (row.event === 'boot') {
         const reason = resetReasons[row.code] || `复位码 ${row.code}`;

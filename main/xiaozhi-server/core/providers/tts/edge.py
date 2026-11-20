@@ -3,6 +3,7 @@ import uuid
 import edge_tts
 from datetime import datetime
 from core.providers.tts.base import TTSProviderBase
+from core.voice_timing import VoiceTiming
 
 
 class TTSProvider(TTSProviderBase):
@@ -43,6 +44,7 @@ class TTSProvider(TTSProviderBase):
         )
 
     async def text_to_speak(self, text, output_file):
+        timing = VoiceTiming.for_sentence(getattr(self, 'conn', None), getattr(self, 'current_sentence_id', None))
         try:
             communicate = edge_tts.Communicate(
                 text,
@@ -61,12 +63,16 @@ class TTSProvider(TTSProviderBase):
                 with open(output_file, "ab") as f:  # 改为追加模式避免覆盖
                     async for chunk in communicate.stream():
                         if chunk["type"] == "audio":  # 只处理音频数据块
+                            if timing:
+                                timing.mark('tts_first_audio')
                             f.write(chunk["data"])
             else:
                 # 返回音频二进制数据
                 audio_bytes = b""
                 async for chunk in communicate.stream():
                     if chunk["type"] == "audio":
+                        if timing:
+                            timing.mark('tts_first_audio')
                         audio_bytes += chunk["data"]
                 return audio_bytes
         except Exception as e:

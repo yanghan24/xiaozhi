@@ -61,7 +61,7 @@ public class SpeakerVoice {
     }
     private Map<String,Object> checked(String table,String key,String value) {
         // Table/key are private constants; authorization is one consistent read, with no global device lock.
-        var rows=db.queryForList("SELECT v.*,s.customer_id,s.use_enabled,s.admin_enabled,s.binding_version AS current_binding,"
+        var rows=db.queryForList("SELECT v.*,s.customer_id,s.use_enabled,s.admin_enabled,s.diagnostics_supported,s.diagnostics_until_ms,s.binding_version AS current_binding,"
                 + "s.permission_version AS current_permission,d.credential_hash AS current_credential,d.admitted FROM "+table+" v "
                 + "JOIN speaker_device_state s ON s.device_id=v.device_id JOIN dc_device d ON d.device_id=s.device_id WHERE v."+key+"=?",value);
         if(rows.isEmpty()) throw new SpeakerFailure(401,"VOICE_DENIED");
@@ -75,8 +75,11 @@ public class SpeakerVoice {
     }
     private Map<String,Object> scope(Map<String,Object> device) {
         String revision=agents.configurationRevision();
+        long until=yes(device.get("diagnostics_supported")) && device.get("diagnostics_until_ms") instanceof Number n
+                ? n.longValue() : 0;
         return Map.of("allowed",true,"device_id",device.get("device_id"),"agent_id",revision.split(":",2)[0],
                 "configuration_revision",revision,"permission_version",device.get("permission_version"),
+                "diagnostics_until_ms",until > System.currentTimeMillis() ? until : 0,
                 "memory_scope",hash(device.get("customer_id")+":"+device.get("device_id")+":"+revision));
     }
     public String customerForSession(String id,String session) {
