@@ -163,6 +163,9 @@ void SpeakerHomeDisplay::SetChatMessage(const char* role, const char* content) {
     }
     message_role_ = role;
     message_ = content ? content : "";
+    if (message_role_ == "assistant") {
+        conversation_.OnNewSubtitle();
+    }
     if (!message_.empty() && (state == kDeviceStateListening || state == kDeviceStateSpeaking) &&
         message_role_ == "user") {
         awaiting_reply_ = true;
@@ -273,15 +276,17 @@ void SpeakerHomeDisplay::RefreshUi() {
     const char* status = notice ? lv_label_get_text(notification_label_) : voice_playback_ ? Lang::Strings::SPEAKING :
         state == kDeviceStateConnecting ? Lang::Strings::CONNECTING :
         waiting ? "正在处理" : Lang::Strings::LISTENING;
+    const bool spoken_subtitle = voice_playback_ && message_role_ == "assistant";
     const char* subtitle = "";
     if (!hide_subtitle_ && !notice) {
-        if (voice_playback_ && message_role_ == "assistant") {
+        if (spoken_subtitle) {
             subtitle = message_.c_str();
         } else if (awaiting_reply_) {
             subtitle = recognized_.c_str();
         }
     }
-    conversation_.Update(voice, motion, status, subtitle, lv_obj_get_style_text_font(status_label_, LV_PART_MAIN));
+    conversation_.Update(voice, motion, status, subtitle,
+                         lv_obj_get_style_text_font(status_label_, LV_PART_MAIN), spoken_subtitle);
 #if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     using SpeakerDisplayDiagnostics::Mode;
     const auto display_mode = !voice ? Mode::Idle : voice_playback_ ? Mode::Speaking :
