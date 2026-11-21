@@ -79,6 +79,7 @@
                 "CONFIG_XIAOZHI_ENABLE_CAMERA_ENDIANNESS_SWAP=y",
                 "CONFIG_XIAOZHI_SPEAKER_ACCOUNT=y",
                 "CONFIG_LV_FONT_MONTSERRAT_48=y",
+                "CONFIG_LV_USE_FONT_COMPRESSED=y",
                 "CONFIG_LV_USE_CALENDAR=y",
                 "CONFIG_FATFS_LFN_HEAP=y",
                 "CONFIG_FATFS_API_ENCODING_UTF_8=y",

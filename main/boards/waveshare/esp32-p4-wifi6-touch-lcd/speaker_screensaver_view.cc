@@ -4,6 +4,10 @@
 
 #include "speaker_account/speaker_ui_widgets.h"
 
+#if LV_USE_FONT_COMPRESSED
+LV_FONT_DECLARE(speaker_clock_font);
+#endif
+
 using namespace SpeakerUi;
 
 void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, void* context) {
@@ -11,7 +15,14 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
     lv_obj_add_flag(root_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
     lv_obj_add_event_cb(root_, on_exit, LV_EVENT_CLICKED, context);
     wifi_ = Wifi(root_);
+#if LV_USE_FONT_COMPRESSED
+    clock_ = Label(root_, "--:--");
+    lv_obj_set_style_text_font(clock_, &speaker_clock_font, LV_PART_MAIN);
+    lv_obj_set_width(clock_, 720);
+    lv_obj_set_style_text_align(clock_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+#else
     clock_ = Digits(root_, "--:--", 316, 900);
+#endif
     lv_obj_align(clock_, LV_ALIGN_CENTER, 0, -60);
     date_weather_ = Label(root_, "正在校时", kMuted);
     lv_obj_set_width(date_weather_, 720);
