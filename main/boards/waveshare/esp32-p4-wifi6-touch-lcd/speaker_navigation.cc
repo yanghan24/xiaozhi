@@ -91,7 +91,9 @@ void SpeakerNavigation::Home() {
 }
 
 void SpeakerNavigation::Back() {
-    Open(current_ == Page::Account ? Page::Settings : Page::Home);
+    const bool settings_page = current_ == Page::Account || current_ == Page::ScreensaverSettings ||
+                               current_ == Page::About;
+    Open(settings_page ? Page::Settings : Page::Home);
 }
 
 void SpeakerNavigation::OnBack(lv_event_t* event) {

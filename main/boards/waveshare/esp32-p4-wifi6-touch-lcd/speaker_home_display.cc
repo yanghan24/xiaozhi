@@ -16,10 +16,6 @@
 
 using namespace SpeakerUi;
 
-namespace {
-constexpr uint32_t kScreensaverIdleMs = 5 * 60 * 1000;
-}
-
 SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     DisplayLockGuard lock(this);
     if (!lock || !scene_) {
@@ -62,7 +58,6 @@ void SpeakerHomeDisplay::SetupUI() {
 
     using Page = SpeakerNavigation::Page;
     navigation_.Register(Page::Home, [this] { launcher_.Show(); }, [this] { launcher_.Hide(); });
-    navigation_.Register(Page::Settings, [this] { settings_.Show(); }, [this] { settings_.Hide(); });
     navigation_.Register(Page::Account, [this] { account_.Show(); }, [this] { account_.Hide(); });
     navigation_.Register(Page::Music, [this] { music_.Show(); }, [this] { music_.Hide(); });
     navigation_.Register(Page::Recording, [this] { recording_.Show(); }, [this] { recording_.Hide(); },
@@ -254,7 +249,7 @@ void SpeakerHomeDisplay::RefreshUi() {
     if (!show_desktop) {
         screensaver_.SetVisible(false);
     } else if (!screensaver_.Visible() && navigation_.CanLeave() &&
-               lv_display_get_inactive_time(lv_obj_get_display(scene_)) >= kScreensaverIdleMs) {
+               lv_display_get_inactive_time(lv_obj_get_display(scene_)) >= settings_.ScreensaverDelayMs()) {
         screensaver_.SetVisible(true);
     }
     lv_obj_set_flag(desktop_, LV_OBJ_FLAG_HIDDEN, !show_desktop || screensaver_.Visible());
