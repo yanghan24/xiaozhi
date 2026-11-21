@@ -57,6 +57,12 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
 
     root_ = Panel(parent);
     Header(root_, "设置", SpeakerNavigation::OnBack, &navigation);
+    constexpr int kFirstRowY = 103;
+    constexpr int kRowHeight = 91;
+    constexpr int kGap = 16;
+    constexpr int kSideMargin = 45;
+    constexpr int kColumns = 2;
+    constexpr int kCardWidth = (kWidth - 2 * kSideMargin - kGap) / kColumns;
     struct Entry { const char* title; const char* icon; Page page; };
     constexpr Entry entries[] = {
         {"账号", MATERIAL_SYMBOLS_PERSON, Page::Account},
@@ -71,8 +77,11 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
             auto* action = static_cast<RouteAction*>(lv_event_get_user_data(event));
             action->navigation->Open(action->page);
         }, &routes_[index]);
-        lv_obj_set_pos(row, 45, 91 + static_cast<int>(index) * 91);
-        lv_obj_set_size(row, 710, 76);
+        const int column = static_cast<int>(index % kColumns);
+        const int row_index = static_cast<int>(index / kColumns);
+        lv_obj_set_pos(row, kSideMargin + column * (kCardWidth + kGap),
+                       kFirstRowY + row_index * (kRowHeight + kGap));
+        lv_obj_set_size(row, kCardWidth, kRowHeight);
         lv_obj_set_style_border_width(row, 1, LV_PART_MAIN);
         lv_obj_set_style_border_color(row, lv_color_hex(kEdge), LV_PART_MAIN);
         lv_obj_align(Icon(row, entry.icon, kCyan, 340), LV_ALIGN_LEFT_MID, 32, 0);
