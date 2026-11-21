@@ -58,8 +58,19 @@ describe('one AI Market adapter configuration', () => {
   it('does not fetch or enable out-of-scope model types' , async () => {
     const request = vi.fn(() => Promise.resolve({ publicId: '', items: [], enabled: false }));
     const vm = create(request); await settle(); request.mockClear();
-    vm.modelType = 'tts'; await Vue.nextTick();
+    vm.modelType = 'vad'; await Vue.nextTick();
     expect(request).not.toHaveBeenCalled();
     expect(vm.supported).toBe(false); expect(vm.canSave).toBe(false);
+  });
+
+  it('offers the speech adapter through the existing market form', async () => {
+    const request = vi.fn((token, type, action) => Promise.resolve(action === 'options'
+      ? { items: [{ publicId: 'super-smart-tts' }] }
+      : { publicId: 'super-smart-tts', enabled: true }));
+    const vm = create(request); await settle();
+    vm.modelType = 'tts'; await settle();
+    expect(vm.options.map(model => model.publicId)).toEqual(['super-smart-tts']);
+    expect(vm.capabilityLabels).toEqual(['双向流式合成']);
+    expect(vm.canSave).toBe(true);
   });
 });

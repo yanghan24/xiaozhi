@@ -26,6 +26,9 @@ public final class MarketModelCompatibility {
         String type=type(kind);
         if(type.equals("ASR")) return model.path("publicId").asText().equals("spark_zh_iat_new")
                 && model.path("protocol").asText().equals("xfyun_asr_v2") && has(model,"transcription");
+        if(type.equals("TTS")) return model.path("publicId").asText().equals("super-smart-tts")
+                && model.path("protocol").asText().equals("xfyun_super_tts") && has(model,"speech")
+                && contains(model.path("verifiedMethods").path("speech"),"xfyun-tts-stream");
         if(!model.path("protocol").asText().equals("openai") || !has(model,"chat")) return false;
         if(type.equals("VLLM")) return has(model,"vision")
                 && contains(model.path("verifiedMethods").path("vision"),"chat-image-data-uri");
