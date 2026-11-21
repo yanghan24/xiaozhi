@@ -35,6 +35,7 @@ public:
 
 private:
     void SetIdleClock(const char* clock) override;
+    void ApplySystemStyle();
     void RefreshUi();
     void RefreshClocks();
     void ExitScreensaver();
@@ -54,6 +55,7 @@ private:
     std::time_t last_clock_second_ = -1;
 
     SpeakerNavigation navigation_;
+    SpeakerBackground system_background_;
     SpeakerBootView boot_;
     SpeakerLauncherView launcher_;
     SpeakerScreensaverView screensaver_;

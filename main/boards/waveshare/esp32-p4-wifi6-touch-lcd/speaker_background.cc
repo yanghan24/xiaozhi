@@ -84,13 +84,12 @@ std::unique_ptr<LvglAllocatedImage> Decode(EmbeddedImage asset) {
 }
 
 void SpeakerBackground::Load(lv_obj_t* panel, Artwork artwork) {
-    if (image_) {
-        return;
-    }
-    image_ = Decode(Asset(artwork));
     if (!image_) {
-        ESP_LOGW(kTag, "Could not load background %d", static_cast<int>(artwork));
-        return;
+        image_ = Decode(Asset(artwork));
+        if (!image_) {
+            ESP_LOGW(kTag, "Could not load background %d", static_cast<int>(artwork));
+            return;
+        }
     }
     lv_obj_set_style_bg_image_src(panel, image_->image_dsc(), LV_PART_MAIN);
 }

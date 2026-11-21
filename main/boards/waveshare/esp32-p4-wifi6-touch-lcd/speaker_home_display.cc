@@ -29,6 +29,7 @@ SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     conversation_.Stop();
     account_.Destroy();
     lv_obj_delete(scene_);
+    system_background_.Release(container_);
 }
 
 void SpeakerHomeDisplay::SetupUI() {
@@ -79,7 +80,8 @@ void SpeakerHomeDisplay::SetupUI() {
         static_cast<SpeakerHomeDisplay*>(context)->navigation_.Home();
         Application::GetInstance().EndSpeakerConversation();
     }, this);
-    boot_.Create(scene_);
+    boot_.Create(scene_, system_background_);
+    ApplySystemStyle();
 
     notice_ = Label(scene_, "", kText);
     lv_obj_set_width(notice_, 690);
@@ -108,8 +110,30 @@ void SpeakerHomeDisplay::SetTheme(Theme* theme) {
     DisplayLockGuard lock(this);
     if (lock && scene_ && theme && theme->GetTextFont()) {
         lv_obj_set_style_text_font(scene_, theme->GetTextFont()->font(), LV_PART_MAIN);
+        ApplySystemStyle();
         RefreshUi();
     }
+}
+
+void SpeakerHomeDisplay::ApplySystemStyle() {
+    // Keep the original system display objects and their visibility rules.
+    lv_obj_set_style_bg_color(container_, lv_color_hex(kDeep), LV_PART_MAIN);
+    system_background_.Load(container_, SpeakerBackground::Artwork::Boot);
+
+    for (auto* bar : {top_bar_, bottom_bar_}) {
+        if (bar) {
+            lv_obj_set_style_bg_color(bar, lv_color_hex(kDeep), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
+        }
+    }
+    for (auto* label : {status_label_, notification_label_, chat_message_label_, network_label_,
+                        mute_label_, battery_label_, emoji_label_}) {
+        if (label) {
+            lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN);
+        }
+    }
+    lv_obj_set_style_image_recolor(emoji_image_, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_image_recolor_opa(emoji_image_, LV_OPA_COVER, LV_PART_MAIN);
 }
 
 void SpeakerHomeDisplay::SetStatus(const char* status) {

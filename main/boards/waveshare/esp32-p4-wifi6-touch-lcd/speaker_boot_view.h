@@ -7,7 +7,7 @@
 
 class SpeakerBootView {
 public:
-    void Create(lv_obj_t* parent);
+    void Create(lv_obj_t* parent, SpeakerBackground& background);
     bool Visible() const;
     void Update(bool interrupted);
 
@@ -15,7 +15,6 @@ private:
     lv_obj_t* root_ = nullptr;
     lv_obj_t* logo_ = nullptr;
     lv_obj_t* title_ = nullptr;
-    SpeakerBackground background_;
     uint32_t started_ = 0;
 };
 

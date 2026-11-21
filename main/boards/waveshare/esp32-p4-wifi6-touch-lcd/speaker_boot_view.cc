@@ -7,10 +7,10 @@
 
 using namespace SpeakerUi;
 
-void SpeakerBootView::Create(lv_obj_t* parent) {
+void SpeakerBootView::Create(lv_obj_t* parent, SpeakerBackground& background) {
     root_ = Panel(parent);
     lv_obj_add_flag(root_, LV_OBJ_FLAG_CLICKABLE);
-    background_.Load(root_, SpeakerBackground::Artwork::Boot);
+    background.Load(root_, SpeakerBackground::Artwork::Boot);
     logo_ = lv_image_create(root_);
     lv_image_set_src(logo_, &hncig_logo_i2);
     lv_obj_align(logo_, LV_ALIGN_CENTER, 0, -43);
@@ -34,7 +34,6 @@ void SpeakerBootView::Update(bool interrupted) {
     const uint32_t elapsed = lv_tick_elaps(started_);
     if (interrupted || elapsed >= 1500) {
         lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
-        background_.Release(root_);
         return;
     }
     const uint32_t reveal = elapsed < 760 ? elapsed : 760;
