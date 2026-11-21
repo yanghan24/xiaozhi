@@ -1,5 +1,9 @@
 # 当前部署与公网入口
 
+## 2026-11-21 P4X 两行滚动字幕 2.6.16
+
+23:47:27（Asia/Shanghai），Waveshare ESP32-P4X 4.3 寸应用固件 2.6.16（`9eaea4ea42cb`，字幕改动 `324992d`）通过原版固件管理发布。播报字幕两行以内静止，超过两行时立即上滚，每 2.5 秒移动一行，最后两行停住。P4X 构建和 LVGL 局部刷新验证通过。应用包为 4,077,216 字节，生产本机和公网下载件的 SHA-256 均为 `b69320801af1c72c14eb1dff3edab332eab1efa4b71772aec54704accff2a216`。管理 API、管理页和语音服务仍运行 `132e1bacfc61`，原 2.6.15 目录记录备份在 `/data/backup/xiaozhi/ota-before-2.6.16/`。
+
 ## 2026-11-21 音箱积分、通用诊断与 P4X 固件 2.6.15
 
 19:19:35（Asia/Shanghai），管理 API、管理页和语音服务更新到 `132e1bacfc61`。上线音箱积分接口、通用诊断指标、用户管理的集市账号 ID 和第三方服务列表修复，并加入 AI 集市讯飞语音合成及 9 个发音人。生产本机和公网管理入口、新接口的设备鉴权、语音 WebSocket 鉴权和运行件校验通过。MySQL、Redis 和网关保持运行。发布包及校验清单位于 `/data/packages/xiaozhi/132e1bacfc61/`，原 Compose 位于 `/data/backup/xiaozhi/before-132e1bacfc61/`。
