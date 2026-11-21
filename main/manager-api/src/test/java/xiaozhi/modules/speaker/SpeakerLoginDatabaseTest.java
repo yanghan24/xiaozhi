@@ -204,5 +204,6 @@ class SpeakerLoginDatabaseTest {
         var summary=(Map<?,?>)customers.list(tokens.subject(),1,50);
         var row=(Map<?,?>)((List<?>)summary.get("items")).getFirst();
         assertEquals(1,((Number)row.get("device_count")).intValue());assertEquals(1,((Number)row.get("online_count")).intValue());
+        assertEquals(tokens.subject(),row.get("subject"));
     }
 }

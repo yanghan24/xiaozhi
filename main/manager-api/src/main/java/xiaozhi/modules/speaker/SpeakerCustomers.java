@@ -20,7 +20,7 @@ public class SpeakerCustomers {
         settings.requireEnabled();
         int size=Math.max(1,Math.min(100,limit)),offset=Math.max(0,Math.min(10000,page-1))*size;
         String search="%"+(keyword==null?"":keyword.strip())+"%";long now=System.currentTimeMillis();
-        var rows=db.queryForList("SELECT c.id,c.display_name,c.username,c.account_type,c.balance_status,COUNT(s.device_id) AS device_count,"
+        var rows=db.queryForList("SELECT c.id,c.display_name,c.username,c.subject,c.account_type,c.balance_status,COUNT(s.device_id) AS device_count,"
                 + "COALESCE(SUM(s.last_seen_at_ms>? AND s.last_seen_at_ms<=?),0) AS online_count FROM speaker_customer c "
                 + "LEFT JOIN speaker_device_state s ON s.customer_id=c.id WHERE c.display_name LIKE ? OR c.username LIKE ? OR c.subject LIKE ? "
                 + "GROUP BY c.id ORDER BY c.created_at_ms DESC,c.id LIMIT ? OFFSET ?",now-75000,now,search,search,search,size,offset);

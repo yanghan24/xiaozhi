@@ -1,12 +1,12 @@
 <template>
   <SpeakerPage title="用户管理">
-    <template slot="tools"><el-input v-model="keyword" placeholder="搜索集市姓名、用户名或用户标识" clearable @keyup.enter.native="search" />
+    <template slot="tools"><el-input v-model="keyword" placeholder="搜索姓名、集市账号 ID 或用户名" clearable @keyup.enter.native="search" />
       <CustomButton type="confirm" icon="el-icon-search" @click="search">查询</CustomButton></template>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
     <el-alert title="客户通过音箱扫码登录，身份与组织资料来自 AI 集市。" type="info" :closable="false" />
     <CustomTable :data="items" :columns="columns" :loading="loading" :show-operations="true" :total="total" :current-page="page" :page-size="limit"
       @page-change="changePage" @size-change="changeSize">
-      <template slot="display_name" slot-scope="scope">{{ scope.row.display_name || scope.row.username || '未提供姓名' }}</template>
+      <template slot="display_name" slot-scope="scope">{{ scope.row.display_name || '未提供姓名' }}</template>
       <template slot="device_count" slot-scope="scope"><el-tag :type="Number(scope.row.device_count) ? 'success' : 'info'">{{ scope.row.device_count }} 台</el-tag></template>
       <template slot="online_count" slot-scope="scope">{{ scope.row.online_count }} 台在线</template>
       <template slot="operations" slot-scope="scope"><el-button type="text" @click="open(scope.row.id)">用户详情</el-button></template>
@@ -28,7 +28,7 @@
             <section class="dialog-section">
               <h3 class="section-heading">集市关联</h3>
               <el-descriptions :column="2" border class="detail-descriptions">
-                <el-descriptions-item label="集市用户标识" :span="2">{{ detail.subject }}</el-descriptions-item>
+                <el-descriptions-item label="集市账号 ID" :span="2">{{ detail.subject }}</el-descriptions-item>
                 <el-descriptions-item label="身份来源" :span="2">{{ detail.issuer }}</el-descriptions-item>
                 <el-descriptions-item label="应用授权" :span="2">{{ authorizationLabel(detail.authorization) }}</el-descriptions-item>
                 <el-descriptions-item label="关联应用" :span="2">{{ detail.authorization ? detail.authorization.client_id : '未关联' }}</el-descriptions-item>
@@ -66,7 +66,7 @@ import { adminToken, speakerRequest, displayTime, balanceText, organizationText,
 export default {
   components: { SpeakerPage, CustomTable, CustomButton, CustomDialog },
   data() { return { keyword: '', items: [], total: 0, page: 1, limit: 10, loading: false, error: '', visible: false, detail: null, detailLoading: false, refreshing: false, detailRequest: 0,
-    columns: [{ prop: 'display_name', label: '用户姓名' }, { prop: 'username', label: '集市用户名' }, { prop: 'device_count', label: '绑定音箱' }, { prop: 'online_count', label: '在线音箱' }] }; },
+    columns: [{ prop: 'display_name', label: '用户姓名' }, { prop: 'subject', label: '集市账号 ID', minWidth: 300 }, { prop: 'device_count', label: '绑定音箱' }, { prop: 'online_count', label: '在线音箱' }] }; },
   mounted() { this.load(); if (this.$route.query.id) this.open(this.$route.query.id); },
   methods: {
     displayTime, balanceText, organizationText,
