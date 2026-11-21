@@ -49,4 +49,15 @@ class MarketModelCompatibilityTest {
         assertFalse(MarketModelCompatibility.supports("ASR",m));
         for(String type:List.of("VAD","TTS","RAG")) assertFalse(MarketModelCompatibility.supports(type,model("openai","chat","streaming")));
     }
+
+    @Test void onlyOffersTheTestedNativeTtsWithVerifiedStreaming() {
+        var speech = (com.fasterxml.jackson.databind.node.ObjectNode) model("xfyun_super_tts", "speech");
+        speech.put("publicId", "super-smart-tts");
+        speech.set("verifiedMethods", json.valueToTree(Map.of("speech", List.of("xfyun-tts-single"))));
+        assertFalse(MarketModelCompatibility.supports("TTS", speech));
+        speech.set("verifiedMethods", json.valueToTree(Map.of("speech", List.of("xfyun-tts-stream"))));
+        assertTrue(MarketModelCompatibility.supports("TTS", speech));
+        speech.put("publicId", "different-voice-catalogue");
+        assertFalse(MarketModelCompatibility.supports("TTS", speech));
+    }
 }

@@ -81,10 +81,11 @@ export default {
       const model = this.options.find(item => item.publicId === this.selection);
       if (!model) return [];
       if (this.modelType === "asr") return ["流式听写", "单轮不超过 60 秒"];
+      if (this.modelType === "tts") return ["双向流式合成"];
       const names = { streaming: "流式输出", tools: "工具调用", vision: "图片理解", "structured-output": "结构化输出" };
       return Object.keys(names).filter(key => (model.capabilities || []).includes(key) && (model.verifiedCapabilities || []).includes(key)).map(key => names[key]);
     },
-    supported() { return ["llm", "vllm", "asr", "intent", "memory"].includes(this.modelType); },
+    supported() { return ["llm", "vllm", "asr", "tts", "intent", "memory"].includes(this.modelType); },
     selectedAvailable() { return this.options.some(model => model.publicId === this.selection); },
     canSave() {
       return this.bindingLoaded && !this.loading && !this.saving && Boolean(this.selection)
@@ -92,6 +93,7 @@ export default {
     },
     help() {
       if (this.modelType === "asr") return "使用语音听写 V2.0，单次音频不超过 60 秒。";
+      if (this.modelType === "tts") return "使用讯飞超拟人双向流式合成，播报音色在角色配置中选择。";
       if (this.modelType === "intent") return "此处配置独立意图模型。工具调用模式可继续在小智系统中选择，并复用主大语言模型。";
       if (this.modelType === "memory") return "使用集市模型生成摘要记忆，记忆的保存和使用仍由小智负责。";
       if (this.modelType === "vllm") return "仅展示支持当前图片输入方式的视觉模型。";

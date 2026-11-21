@@ -13,8 +13,9 @@ import websockets
 from asyncio import Task
 from typing import Callable, Any
 from config.logger import setup_logging
+from core.voice_timing import VoiceTiming
 from core.utils.tts import MarkdownCleaner
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse, urlsplit, urlunsplit
 from core.providers.tts.base import TTSProviderBase
 from core.providers.tts.dto.dto import SentenceType, ContentType, InterfaceType
 
@@ -77,12 +78,15 @@ class TTSProvider(TTSProviderBase):
         self.api_key = config.get("api_key")
         self.api_secret = config.get("api_secret")
         self.report_on_last = True
+        self.market = config.get("source") == "aimarket"
 
         # 接口地址
         self.api_url = config.get("api_url", "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6")
+        if self.market:
+            self.api_url = self._market_url(config)
 
         # 音色配置
-        self.voice = config.get("voice", "x5_lingxiaoxuan_flow")
+        self.voice = config.get("voice", "x6_lingxiaoxuan_pro" if self.market else "x5_lingxiaoxuan_flow")
         if config.get("private_voice"):
             self.voice = config.get("private_voice")
 
@@ -100,7 +104,7 @@ class TTSProvider(TTSProviderBase):
         self._apply_percentage_params(config)
 
         # 音频编码配置
-        self.format = config.get("format", "raw")
+        self.format = "raw" if self.market else config.get("format", "raw")
 
         # 口语化配置
         self.oral_level = config.get("oral_level", "mid")
@@ -121,27 +125,42 @@ class TTSProvider(TTSProviderBase):
 
         # 序列号管理
         self.text_seq = 0
+        self._market_input_finished = False
 
         # 验证必需参数
-        if not all([self.app_id, self.api_key, self.api_secret]):
+        if self.market and not self.api_key:
+            raise ValueError("MARKET_CREDENTIAL_REQUIRED")
+        if not self.market and not all([self.app_id, self.api_key, self.api_secret]):
             raise ValueError("讯飞TTS需要配置app_id、api_key和api_secret")
+
+    @staticmethod
+    def _market_url(config):
+        model = config.get("model_name")
+        if model != "super-smart-tts":
+            raise ValueError("Unsupported AI Market TTS model")
+        root = urlsplit(config.get("base_url", "https://aimarket.hncig.cn"))
+        known = root.scheme == "https" and root.netloc == "aimarket.hncig.cn"
+        fixture = root.scheme == "http" and root.hostname == "127.0.0.1"
+        if not (known or fixture) or root.path not in ("", "/") or root.query or root.fragment or root.username:
+            raise ValueError("Invalid AI Market TTS endpoint")
+        return urlunsplit(("wss" if known else "ws", root.netloc,
+                           "/v1/private/mcd9m97e6", urlencode({"model": model}), ""))
+
+    def _open_websocket(self):
+        options = {"ping_interval": 30, "ping_timeout": 10, "close_timeout": 10}
+        if self.market:
+            options.update(additional_headers={"Authorization": "Bearer " + self.api_key},
+                           open_timeout=8, close_timeout=2)
+            return websockets.connect(self.api_url, **options)
+        url = XunfeiWSAuth.create_auth_url(self.api_key, self.api_secret, self.api_url)
+        return websockets.connect(url, **options)
 
     async def _ensure_connection(self):
         """确保WebSocket连接可用"""
         try:
             logger.bind(tag=TAG).debug("开始建立新连接...")
 
-            # 生成认证URL
-            auth_url = XunfeiWSAuth.create_auth_url(
-                self.api_key, self.api_secret, self.api_url
-            )
-
-            self.ws = await websockets.connect(
-                auth_url,
-                ping_interval=30,
-                ping_timeout=10,
-                close_timeout=10,
-            )
+            self.ws = await self._open_websocket()
             logger.bind(tag=TAG).debug("WebSocket连接建立成功")
             return self.ws
         except Exception as e:
@@ -173,7 +192,8 @@ class TTSProvider(TTSProviderBase):
                     # 重置序列号
                     self.text_seq = 0
                 # 增加序列号
-                self.text_seq += 1
+                if not self.market:
+                    self.text_seq += 1
 
                 if message.sentence_type == SentenceType.FIRST:
                     # 初始化参数
@@ -184,7 +204,7 @@ class TTSProvider(TTSProviderBase):
 
                         logger.bind(tag=TAG).debug("开始启动TTS会话...")
                         future = asyncio.run_coroutine_threadsafe(
-                            self.start_session(self.conn.sentence_id),
+                            self.start_session(message.sentence_id),
                             loop=self.conn.loop,
                         )
                         future.result(timeout=self.tts_timeout)
@@ -225,7 +245,7 @@ class TTSProvider(TTSProviderBase):
                     try:
                         logger.bind(tag=TAG).debug("开始结束TTS会话...")
                         asyncio.run_coroutine_threadsafe(
-                            self.finish_session(self.conn.sentence_id),
+                            self.finish_session(message.sentence_id),
                             loop=self.conn.loop,
                         )
                     except Exception as e:
@@ -241,6 +261,9 @@ class TTSProvider(TTSProviderBase):
 
     async def text_to_speak(self, text, _):
         """发送文本到TTS服务进行合成"""
+        if self.market:
+            await self._send_market_text(text)
+            return
         try:
             if self.ws is None:
                 logger.bind(tag=TAG).warning(f"WebSocket连接不存在，终止发送文本")
@@ -272,6 +295,14 @@ class TTSProvider(TTSProviderBase):
 
     async def start_session(self, session_id):
         logger.bind(tag=TAG).debug(f"开始会话～～{session_id}")
+        if self.market:
+            await self._close_market_stream()
+            self.current_sentence_id = session_id
+            self.opus_encoder.reset_state()
+            self.text_seq = 0
+            self._market_input_finished = False
+            self.activate_session = True
+            return
         try:
             # 上个会话处于激活状态时关闭上个连接新建链接
             if self.activate_session:
@@ -301,6 +332,27 @@ class TTSProvider(TTSProviderBase):
 
     async def finish_session(self, session_id):
         logger.bind(tag=TAG).debug(f"关闭会话～～{session_id}")
+        if self.market:
+            if not self._market_turn_active(session_id) or not self.activate_session:
+                return
+            pending, self._pending_prefix = self._pending_prefix, ""
+            if pending and self.ws is None:
+                await self._send_market_segment(sentence_id, pending)
+                pending = ""
+            if self._market_turn_active(session_id) and self.ws and not self._market_input_finished:
+                self._market_input_finished = True
+                try:
+                    await self.ws.send(json.dumps(self._build_base_request(status=2, text=pending)))
+                except (websockets.ConnectionClosed, OSError):
+                    await self._close_market_stream()
+                    if self._market_turn_active(session_id):
+                        self._process_before_stop_play_files()
+                if self._monitor_task is not None:
+                    await asyncio.gather(self._monitor_task, return_exceptions=True)
+            elif not self.ws and self.activate_session and self._market_turn_active(session_id):
+                self._process_before_stop_play_files()
+                self.activate_session = False
+            return
         try:
             if self.ws:
                 # 发送会话结束请求
@@ -322,6 +374,10 @@ class TTSProvider(TTSProviderBase):
 
     async def close(self):
         """资源清理"""
+        if self.market:
+            await self._close_market_stream()
+            await super().close()
+            return
         await super().close()
         self.activate_session = False
         if self._monitor_task:
@@ -340,6 +396,96 @@ class TTSProvider(TTSProviderBase):
             except:
                 pass
             self.ws = None
+
+    def _market_turn_active(self, sentence_id):
+        return (
+            sentence_id == self.current_sentence_id == self.conn.sentence_id
+            and not self.conn.client_abort and not self.conn.stop_event.is_set() and not self._closed
+        )
+
+    async def _send_market_text(self, text):
+        sentence_id = self.current_sentence_id
+        if not self.activate_session or self._market_input_finished or not self._market_turn_active(sentence_id):
+            return
+        filtered = MarkdownCleaner.clean_markdown(text)
+        if not filtered:
+            return
+        confirmed, self._pending_prefix = self._match_stream_text(filtered)
+        if confirmed:
+            await self._send_market_segment(sentence_id, "".join(confirmed))
+
+    async def _send_market_segment(self, sentence_id, text):
+        try:
+            status = 1
+            if self.ws is None:
+                timing = VoiceTiming.for_sentence(self.conn, sentence_id)
+                if timing:
+                    timing.mark("tts_request")
+                ws = await self._ensure_connection()
+                if not self._market_turn_active(sentence_id):
+                    await self._close_market_stream()
+                    return
+                status = 0
+                self._monitor_task = asyncio.create_task(self._receive_market_audio(ws, sentence_id))
+            await self.ws.send(json.dumps(self._build_base_request(status=status, text=text)))
+            self.text_seq += 1
+        except (websockets.WebSocketException, OSError, asyncio.TimeoutError):
+            await self._close_market_stream()
+            if self._market_turn_active(sentence_id):
+                self._process_before_stop_play_files()
+            raise
+
+    async def _close_market_stream(self):
+        ws, task = self.ws, self._monitor_task
+        self.ws = self._monitor_task = None
+        self.activate_session = False
+        if task:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        if ws:
+            await ws.close()
+
+    async def _receive_market_audio(self, ws, sentence_id):
+        started = False
+        try:
+            while self._market_turn_active(sentence_id):
+                message = await asyncio.wait_for(ws.recv(), timeout=self.tts_timeout)
+                if not self._market_turn_active(sentence_id):
+                    break
+                data = json.loads(message)
+                header = data.get("header", {})
+                code = header.get("code", data.get("code"))
+                if code != 0:
+                    logger.bind(tag=TAG).warning("集市讯飞 TTS 返回错误码: {}", code)
+                    break
+                audio = data.get("payload", {}).get("audio", {})
+                if audio.get("audio"):
+                    if audio.get("encoding", "raw") != "raw" or audio.get("sample_rate", self.conn.sample_rate) != self.conn.sample_rate:
+                        raise ValueError("Unexpected AI Market PCM format")
+                    pcm = base64.b64decode(audio["audio"], validate=True)
+                    text = self.get_tts_text(sentence_id)
+                    if not started:
+                        timing = VoiceTiming.for_sentence(self.conn, sentence_id)
+                        if timing:
+                            timing.mark("tts_first_audio")
+                    if not started or text:
+                        self.tts_audio_queue.put((SentenceType.FIRST, [], text, sentence_id))
+                        if text:
+                            self.clear_tts_text(sentence_id)
+                        started = True
+                    self.opus_encoder.encode_pcm_to_opus_stream(pcm, False, self.handle_opus)
+                if self._market_input_finished and (header.get("status") == 2 or audio.get("status") == 2):
+                    self.opus_encoder.encode_pcm_to_opus_stream(b"", True, self.handle_opus)
+                    break
+        except (websockets.ConnectionClosed, asyncio.TimeoutError, ValueError, TypeError) as error:
+            logger.bind(tag=TAG).warning("集市讯飞 TTS 音频流终止: {}", type(error).__name__)
+        finally:
+            if self.ws is ws:
+                if self._market_turn_active(sentence_id):
+                    self._process_before_stop_play_files()
+                self.ws = self._monitor_task = None
+                self.activate_session = False
+                await ws.close()
 
     async def _start_monitor_tts_response(self):
         """监听TTS响应"""
@@ -435,18 +581,7 @@ class TTSProvider(TTSProviderBase):
             audio_data = []
 
             async def _generate_audio():
-                # 生成认证URL
-                auth_url = XunfeiWSAuth.create_auth_url(
-                    self.api_key, self.api_secret, self.api_url
-                )
-
-                # 建立WebSocket连接
-                ws = await websockets.connect(
-                    auth_url,
-                    ping_interval=30,
-                    ping_timeout=10,
-                    close_timeout=10,
-                )
+                ws = await self._open_websocket()
 
                 try:
                     filtered_text = MarkdownCleaner.clean_markdown(text)
@@ -524,7 +659,7 @@ class TTSProvider(TTSProviderBase):
 
     def _build_base_request(self, status, text=" "):
         """构建基础请求结构"""
-        return {
+        frame = {
             "header": {
                 "app_id": self.app_id,
                 "status": status,
@@ -565,3 +700,7 @@ class TTSProvider(TTSProviderBase):
                 }
             }
         }
+        if self.market:
+            del frame["header"]["app_id"]
+            del frame["parameter"]["oral"]
+        return frame

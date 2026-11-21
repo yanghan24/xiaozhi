@@ -63,6 +63,27 @@ class MarketModelRuntimeTest {
         var system=Map.<String,Object>of("LLM",Map.of("original",Map.of("type","openai","api_key","system-key")));
         assertEquals(system,runtime.configure(system,null));verifyNoInteractions(keys,catalog);
     }
+    @Test void injectsEachCustomersKeyIntoNativeTtsAndKeepsTheSelectedVoice() throws Exception {
+        when(catalog.list()).thenReturn(List.of(new ObjectMapper().readTree("""
+            {"publicId":"super-smart-tts","protocol":"xfyun_super_tts",
+             "capabilities":["speech"],"verifiedCapabilities":["speech"],
+             "verifiedMethods":{"speech":["xfyun-tts-stream"]}}
+            """)));
+        var model = new ModelConfigEntity();
+        model.setIsEnabled(1);
+        when(models.getModelByIdFromCache("MARKET_TTS")).thenReturn(model);
+        var tts = Map.of("source","aimarket","type","xunfei_stream","model_name","super-smart-tts",
+                "private_voice","x6_lingfeiyi_pro");
+        var config = Map.<String,Object>of("TTS", Map.of("MARKET_TTS", tts));
+        for (String customer : List.of("a", "b")) {
+            var resolved = new ObjectMapper().valueToTree(runtime.configure(config, customer)).at("/TTS/MARKET_TTS");
+            assertEquals("user-"+customer+"-key", resolved.path("api_key").asText());
+            assertEquals("https://aimarket.hncig.cn", resolved.path("base_url").asText());
+            assertEquals("x6_lingfeiyi_pro", resolved.path("private_voice").asText());
+            assertTrue(resolved.path("reasoning_effort").isMissingNode());
+        }
+        assertFalse(tts.containsKey("api_key"));
+    }
     @Test void functionCallRequiresToolsAndUnavailableSelectionIsNotSilentlyChanged() throws Exception {
         var config=configuration();
         config.put("Intent",Map.of("original",Map.of("type","function_call")));

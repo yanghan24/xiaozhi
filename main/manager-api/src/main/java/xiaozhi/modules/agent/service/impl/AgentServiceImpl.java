@@ -588,6 +588,12 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         selected.put("VAD",agent.getVadModelId());selected.put("TTS",agent.getTtsModelId());
         selected.put("VLLM",agent.getVllmModelId());selected.put("SLM",agent.getSlmModelId());
         selected.put("Intent",agent.getIntentModelId());selected.put("Memory",agent.getMemModelId());
+        if ("MARKET_TTS".equals(agent.getTtsModelId())) {
+            var voice = timbreModelService.get(agent.getTtsVoiceId());
+            if (voice == null || !agent.getTtsModelId().equals(voice.getTtsModelId())) {
+                throw new RenException("请选择 AI 集市语音合成的音色");
+            }
+        }
         if(selected.values().stream().filter(java.util.Objects::nonNull).anyMatch(id->id.startsWith("MARKET_"))) {
             try { marketBindings.validateSelections(selected); }
             catch(xiaozhi.modules.speaker.SpeakerFailure unavailable) {
