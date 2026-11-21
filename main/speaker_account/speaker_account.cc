@@ -81,6 +81,25 @@ CJsonUniquePtr Parse(const std::string& body) {
     return CJsonUniquePtr(cJSON_ParseWithOpts(body.c_str(), nullptr, true));
 }
 
+std::string BalanceAmount(const cJSON* object) {
+    auto amount = Text(object, "balance", 32);
+    std::string_view digits(amount);
+    if (digits.starts_with('-')) {
+        digits.remove_prefix(1);
+    }
+    const auto point = digits.find('.');
+    const auto is_digits = [](std::string_view text, size_t limit) {
+        return !text.empty() && text.size() <= limit && std::all_of(text.begin(), text.end(), [](char ch) {
+            return ch >= '0' && ch <= '9';
+        });
+    };
+    if (!is_digits(digits.substr(0, point), 22) ||
+        (point != std::string_view::npos && !is_digits(digits.substr(point + 1), 8))) {
+        return {};
+    }
+    return amount;
+}
+
 std::string NewRequestKey() {
     std::array<uint8_t, 16> random{};
     esp_fill_random(random.data(), random.size());
@@ -302,6 +321,9 @@ void SpeakerAccount::SetUpgrading(bool upgrading) {
         if (upgrading) {
             voice_.reset();
             voice_until_ = 0;
+            view_.balance_permission = 0;
+            view_.balance_loading = false;
+            view_.balance.clear();
         }
     }
     Notify();
@@ -335,6 +357,60 @@ void SpeakerAccount::RefreshCode() {
     Notify();
 }
 
+void SpeakerAccount::RefreshBalance() {
+    std::lock_guard lock(mutex_);
+    if (!connected_ || upgrading_ || view_.balance_permission <= 0 || view_.balance_loading) {
+        return;
+    }
+    view_.balance_loading = true;
+    if (!balance_task_running_) {
+        balance_task_running_ = xTaskCreate([](void* context) {
+            static_cast<SpeakerAccount*>(context)->FetchBalance();
+            vTaskDelete(nullptr);
+        }, "account_balance", 6144, this, 1, nullptr) == pdPASS;
+        if (!balance_task_running_) {
+            view_.balance_loading = false;
+            view_.balance.clear();
+        }
+    }
+}
+
+void SpeakerAccount::FetchBalance() {
+    for (;;) {
+        Identity identity;
+        uint32_t epoch;
+        int64_t permission;
+        {
+            std::lock_guard lock(mutex_);
+            if (!view_.balance_loading) {
+                balance_task_running_ = false;
+                return;
+            }
+            identity = identity_;
+            epoch = network_epoch_;
+            permission = view_.balance_permission;
+        }
+
+        constexpr int kBalanceHttpChannel = 7;
+        const auto response = RequestWithIdentity(identity, "GET", "/account/balance", {}, kBalanceHttpChannel, 9000);
+        const auto document = response.status == 200 ? Parse(response.body) : nullptr;
+        auto balance = Number(document.get(), "permission_version") == permission
+            ? BalanceAmount(document.get()) : std::string();
+
+        {
+            std::lock_guard lock(mutex_);
+            if (network_epoch_ != epoch || view_.balance_permission != permission) {
+                continue;
+            }
+            view_.balance = std::move(balance);
+            view_.balance_loading = false;
+        }
+        Application::GetInstance().Schedule([] {
+            RenderSpeakerAccount(SpeakerAccount::Get().GetView());
+        });
+    }
+}
+
 void SpeakerAccount::Unbind() {
     {
         std::lock_guard lock(mutex_);
@@ -344,6 +420,9 @@ void SpeakerAccount::Unbind() {
         unbind_ = true;
         view_.unbind_pending = true;
         view_.standby_weather_allowed = false;
+        view_.balance_permission = 0;
+        view_.balance_loading = false;
+        view_.balance.clear();
         memo_binding_version_ = 0;
         voice_.reset();
         voice_until_ = 0;
@@ -420,6 +499,10 @@ void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64
         std::lock_guard lock(mutex_);
         if (network_epoch_ != network_epoch || upgrading_ || unbind_) {
             return;
+        }
+        if (view.balance_permission > 0 && view.balance_permission == view_.balance_permission) {
+            view.balance_loading = view_.balance_loading;
+            view.balance = view_.balance;
         }
         changed = view_ != view;
         revoke = voice_.has_value() && (!access ||
@@ -664,6 +747,8 @@ void SpeakerAccount::Run() {
         const bool bound = Text(document.get(), "binding_state") == "bound" && permission_version > 0;
         const bool weather_allowed = bound && cJSON_IsTrue(
                 cJSON_GetObjectItemCaseSensitive(document.get(), "standby_weather_allowed"));
+        const int64_t balance_permission = bound && cJSON_IsTrue(
+                cJSON_GetObjectItemCaseSensitive(document.get(), "account_balance_allowed")) ? permission_version : 0;
         if (status == "ready") {
             const auto* info = cJSON_GetObjectItemCaseSensitive(document.get(), "voice");
             VoiceAccess access{Text(info, "url"), Text(info, "token"), 1};
@@ -674,11 +759,11 @@ void SpeakerAccount::Run() {
                 Number(info, "protocol_version") == 1 &&
                 Number(info, "permission_version") == permission_version &&
                 SecureUrl(access.url, "wss://") && Token(access.token, 43, 128, "_-")) {
-                Publish({Page::Ready, {}, {}, customer, true, false, weather_allowed}, std::move(access),
+                Publish({Page::Ready, {}, {}, customer, true, false, weather_allowed, balance_permission}, std::move(access),
                         Now() + std::min({lease, expiry - server_time, kMaxLease}),
                         permission_version, true, epoch, Number(document.get(), "binding_version"));
             } else {
-                Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed},
+                Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission},
                         {}, 0, permission_version, true, epoch);
             }
             login_id.clear();
@@ -686,7 +771,7 @@ void SpeakerAccount::Run() {
             continue;
         }
         if (status != "unbound" && status != "signed_out" && status != "authorization_required") {
-            Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed}, {}, 0,
+            Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission}, {}, 0,
                     permission_version, true, epoch);
             login_id.clear();
             continue;

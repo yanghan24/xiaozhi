@@ -43,6 +43,9 @@ public:
         bool can_unbind = false;
         bool unbind_pending = false;
         bool standby_weather_allowed = false;
+        int64_t balance_permission = 0;
+        bool balance_loading = false;
+        std::string balance;
 
         bool operator==(const View&) const = default;
     };
@@ -62,6 +65,7 @@ public:
     View GetView() const;
     int64_t MemoBindingVersion() const;
     void RefreshCode();
+    void RefreshBalance();
     void Unbind();
 
 private:
@@ -72,6 +76,7 @@ private:
     };
 
     void Run();
+    void FetchBalance();
     Response Request(const char* method, const std::string& path, std::string body = {});
     Response RequestWithIdentity(const Identity& identity, const char* method, const std::string& path,
                                  std::string body = {}, int channel = 5, int timeout_ms = 5000);
@@ -98,6 +103,7 @@ private:
     bool upgrading_ = false;
     bool refresh_ = false;
     bool unbind_ = false;
+    bool balance_task_running_ = false;
 };
 
 void RenderSpeakerAccount(const SpeakerAccount::View& view);

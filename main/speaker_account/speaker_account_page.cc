@@ -94,6 +94,9 @@ void SpeakerAccountPage::Destroy() {
 
 void SpeakerAccountPage::Show() {
     requested_ = true;
+    auto& account = SpeakerAccount::Get();
+    account.RefreshBalance();
+    view_ = account.GetView();
     Render();
 }
 
@@ -117,7 +120,13 @@ void SpeakerAccountPage::Apply(const SpeakerAccount::View& view) {
         if (reset_confirmation) {
             confirm_unbind_ = false;
         }
-        view_ = view;
+        if (requested_ && view.balance_permission > 0 && view_.balance_permission != view.balance_permission) {
+            auto& account = SpeakerAccount::Get();
+            account.RefreshBalance();
+            view_ = account.GetView();
+        } else {
+            view_ = view;
+        }
         Render();
     }
 }
@@ -179,7 +188,7 @@ void SpeakerAccountPage::RenderContent(bool prompt) {
                      LV_ALIGN_CENTER, 0, 48);
         return;
     }
-    if (view_.page != Page::Ready && view_.customer.empty()) {
+    if (view_.page != Page::Ready && view_.customer.empty() && view_.balance_permission <= 0) {
         return;
     }
 
@@ -195,6 +204,23 @@ void SpeakerAccountPage::RenderContent(bool prompt) {
     lv_obj_set_style_transform_pivot_x(name, 0, LV_PART_MAIN);
     lv_obj_set_pos(name, 382, 167);
     lv_obj_align(state, LV_ALIGN_TOP_LEFT, 382, 224);
+    if (view_.balance_permission > 0) {
+        auto* caption = Label(root_, "积分", kMuted);
+        lv_obj_set_pos(caption, 382, 266);
+        const char* value = view_.balance_loading ? "正在查询" :
+                            view_.balance.empty() ? "暂时无法获取" : view_.balance.c_str();
+        auto* balance = Label(root_, value);
+        constexpr int kBalanceWidth = 318;
+        const auto* font = lv_obj_get_style_text_font(balance, LV_PART_MAIN);
+        lv_point_t size;
+        lv_text_get_size(&size, value, font, lv_obj_get_style_text_letter_space(balance, LV_PART_MAIN),
+                         lv_obj_get_style_text_line_space(balance, LV_PART_MAIN), kBalanceWidth, LV_TEXT_FLAG_NONE);
+        if (!view_.balance_loading && !view_.balance.empty() && size.y > lv_font_get_line_height(font)) {
+            lv_obj_set_style_text_font(balance, LV_FONT_DEFAULT, LV_PART_MAIN);
+        }
+        lv_obj_set_width(balance, kBalanceWidth);
+        lv_obj_align_to(balance, caption, LV_ALIGN_OUT_RIGHT_MID, 20, 0);
+    }
     if (view_.can_unbind) {
         auto* button = Button(root_, confirm_unbind_ ? "确认解绑" : "解除绑定", OnUnbind, this);
         Outline(button);
