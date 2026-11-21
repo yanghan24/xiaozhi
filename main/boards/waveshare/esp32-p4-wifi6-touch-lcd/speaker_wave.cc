@@ -7,6 +7,10 @@
 
 namespace {
 constexpr int kSegments = 32;
+constexpr uint32_t kListeningIntervalMs = 84;
+constexpr uint32_t kSpeakingIntervalMs = 42;
+constexpr float kSpeakingRadiansPerMs = 0.42f / 84.0f;
+constexpr float kFullCycle = 6.2832f;
 
 lv_color_t Gradient(float x, SpeakerWave::Shape shape) {
     const bool horizon = shape == SpeakerWave::Shape::Horizon;
@@ -35,14 +39,18 @@ void SpeakerWave::SetMotion(Motion motion) {
     if (motion == Motion::Still || motion == Motion::Waiting) {
         phase_ = 0;
     } else {
+        last_update_ms_ = lv_tick_get();
         timer_ = lv_timer_create([](lv_timer_t* timer) {
             auto* wave = static_cast<SpeakerWave*>(lv_timer_get_user_data(timer));
-            wave->phase_ += wave->motion_ == Motion::Speaking ? 0.42f : 0.30f;
-            if (wave->phase_ > 6.2832f) {
-                wave->phase_ -= 6.2832f;
+            const auto now = lv_tick_get();
+            const auto elapsed = now - wave->last_update_ms_;
+            wave->last_update_ms_ = now;
+            wave->phase_ += wave->motion_ == Motion::Speaking ? elapsed * kSpeakingRadiansPerMs : 0.30f;
+            if (wave->phase_ > kFullCycle) {
+                wave->phase_ = std::fmod(wave->phase_, kFullCycle);
             }
             lv_obj_invalidate(wave->region_);
-        }, 84, this);
+        }, motion == Motion::Speaking ? kSpeakingIntervalMs : kListeningIntervalMs, this);
     }
     lv_obj_invalidate(region_);
 }

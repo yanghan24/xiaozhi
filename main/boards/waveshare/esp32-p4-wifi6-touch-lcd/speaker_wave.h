@@ -23,6 +23,7 @@ private:
     lv_timer_t* timer_ = nullptr;
     Shape shape_ = Shape::Sweep;
     Motion motion_ = Motion::Still;
+    uint32_t last_update_ms_ = 0;
     float phase_ = 0;
 };
 
