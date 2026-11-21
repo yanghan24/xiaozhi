@@ -115,6 +115,13 @@ export default {
 <style lang="scss" scoped>
 @import "@/styles/managementDialog.scss";
 
+.third-party-services {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .endpoint-row {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) minmax(180px, 2fr) auto;
