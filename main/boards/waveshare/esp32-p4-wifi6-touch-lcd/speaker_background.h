@@ -11,6 +11,7 @@ public:
     enum class Artwork { Home, Screensaver, Boot };
 
     void Load(lv_obj_t* panel, Artwork artwork);
+    void Detach(lv_obj_t* panel) const;
     void Release(lv_obj_t* panel);
 
 private:

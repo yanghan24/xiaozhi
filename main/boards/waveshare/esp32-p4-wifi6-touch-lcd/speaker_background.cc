@@ -94,9 +94,15 @@ void SpeakerBackground::Load(lv_obj_t* panel, Artwork artwork) {
     lv_obj_set_style_bg_image_src(panel, image_->image_dsc(), LV_PART_MAIN);
 }
 
+void SpeakerBackground::Detach(lv_obj_t* panel) const {
+    if (image_ && lv_obj_get_style_bg_image_src(panel, LV_PART_MAIN) == image_->image_dsc()) {
+        lv_obj_set_style_bg_image_src(panel, nullptr, LV_PART_MAIN);
+    }
+}
+
 void SpeakerBackground::Release(lv_obj_t* panel) {
     if (image_) {
-        lv_obj_set_style_bg_image_src(panel, nullptr, LV_PART_MAIN);
+        Detach(panel);
         lv_image_cache_drop(image_->image_dsc());
         image_.reset();
     }

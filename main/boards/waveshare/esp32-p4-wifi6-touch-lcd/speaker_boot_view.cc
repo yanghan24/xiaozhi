@@ -27,13 +27,14 @@ bool SpeakerBootView::Visible() const {
     return root_ && !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN);
 }
 
-void SpeakerBootView::Update(bool interrupted) {
+void SpeakerBootView::Update(bool interrupted, SpeakerBackground& background) {
     if (!Visible()) {
         return;
     }
     const uint32_t elapsed = lv_tick_elaps(started_);
     if (interrupted || elapsed >= 1500) {
         lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+        background.Detach(root_);
         return;
     }
     const uint32_t reveal = elapsed < 760 ? elapsed : 760;

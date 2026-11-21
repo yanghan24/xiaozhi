@@ -46,6 +46,7 @@ private:
     lv_timer_t* refresh_timer_ = nullptr;
     bool standby_ = false;
     bool desktop_allowed_ = false;
+    bool system_background_visible_ = false;
     bool has_preview_ = false;
     bool awaiting_reply_ = false;
     bool voice_playback_ = false;

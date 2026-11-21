@@ -9,7 +9,7 @@ class SpeakerBootView {
 public:
     void Create(lv_obj_t* parent, SpeakerBackground& background);
     bool Visible() const;
-    void Update(bool interrupted);
+    void Update(bool interrupted, SpeakerBackground& background);
 
 private:
     lv_obj_t* root_ = nullptr;

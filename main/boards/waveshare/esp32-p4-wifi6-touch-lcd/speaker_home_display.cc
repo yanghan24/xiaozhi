@@ -113,7 +113,9 @@ void SpeakerHomeDisplay::SetTheme(Theme* theme) {
 void SpeakerHomeDisplay::ApplySystemStyle() {
     // Keep the original system display objects and their visibility rules.
     lv_obj_set_style_bg_color(container_, lv_color_hex(kDeep), LV_PART_MAIN);
-    system_background_.Load(container_, SpeakerBackground::Artwork::Boot);
+    if (system_background_visible_) {
+        system_background_.Load(container_, SpeakerBackground::Artwork::Boot);
+    }
 
     for (auto* bar : {top_bar_, bottom_bar_}) {
         if (bar) {
@@ -236,11 +238,14 @@ void SpeakerHomeDisplay::RefreshUi() {
         state == kDeviceStateListening || state == kDeviceStateSpeaking);
     const bool system_page = state == kDeviceStateWifiConfiguring || state == kDeviceStateUpgrading ||
         state == kDeviceStateFatalError || state == kDeviceStateAudioTesting || has_preview_;
-    boot_.Update(voice || has_preview_ || state == kDeviceStateUpgrading || state == kDeviceStateFatalError);
-    account_.SetPromptsAllowed(!system_page && !boot_.Visible() && !voice);
+    boot_.Update(voice || has_preview_ || state == kDeviceStateUpgrading || state == kDeviceStateFatalError,
+                 system_background_);
+    const bool boot_visible = boot_.Visible();
+    account_.SetPromptsAllowed(!system_page && !boot_visible && !voice);
+    const bool account_prompt = account_.PromptVisible();
 
     const bool show_desktop = standby_ && state == kDeviceStateIdle && !voice &&
-        !boot_.Visible() && !account_.PromptVisible() && !has_preview_ && message_.empty();
+        !boot_visible && !account_prompt && !has_preview_ && message_.empty();
     const bool notice = !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
     if (show_desktop && !desktop_allowed_) {
         lv_display_trigger_activity(lv_obj_get_display(scene_));
@@ -253,6 +258,14 @@ void SpeakerHomeDisplay::RefreshUi() {
         screensaver_.SetVisible(true);
     }
     lv_obj_set_flag(desktop_, LV_OBJ_FLAG_HIDDEN, !show_desktop || screensaver_.Visible());
+
+    const bool show_system_background = !boot_visible && !show_desktop && !voice && !account_prompt;
+    if (show_system_background && !system_background_visible_) {
+        system_background_.Load(container_, SpeakerBackground::Artwork::Boot);
+    } else if (!show_system_background && !boot_visible) {
+        system_background_.Release(container_);
+    }
+    system_background_visible_ = show_system_background;
 
     const bool waiting = state == kDeviceStateSpeaking || awaiting_reply_;
     const auto motion = voice_playback_ ? SpeakerWave::Motion::Speaking :
