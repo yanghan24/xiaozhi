@@ -57,3 +57,28 @@
 2026-11-21 07:48:26（Asia/Shanghai），管理 API、管理页和语音服务更新到 `c4dcf3502509`。分别校验在运行的 API JAR、管理页入口及语音诊断源文件。本机与公网管理入口、诊断接口鉴权及公网语音 WSS 握手与鉴权通过。镜像发布包位于 `/data/packages/xiaozhi/c4dcf3502509/`，原 Compose 位于 `/data/backup/xiaozhi/before-c4dcf3502509/`。
 
 07:48:29，原版固件管理发布 P4X 4.3 寸应用固件 2.6.12（`2f428692aa17`）。上传件与公网下载件的 SHA-256 均为 `bb7ca349181673c15d714b5a33b67c1a6d1cf6bc9c3b7fd13bc56c3548fd81ed`。固件包位于 `/data/packages/xiaozhi/2f428692aa17/`，2.6.11 的原 OTA 目录记录保存在 `/data/backup/xiaozhi/ota-before-2.6.12/`。发布复查时尚未收到 2.6.12 心跳或 TTS 收发诊断。
+
+## 新增设备诊断指标
+
+固件在 `POST /speaker/v1/diagnostics` 的原报告 `entries` 中追加 `metric` 事件。指标可以和已有事件合批，管理页在「设备诊断」自动显示。
+
+```json
+{
+  "event": "metric",
+  "uptime_ms": 1800,
+  "trace_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "metric": {
+    "name": "audio.queue_peak",
+    "label": "音频队列峰值",
+    "value": 12,
+    "unit": "帧"
+  }
+}
+```
+
+- `name` 是稳定的指标标识，以英文字母开头，可用英文字母、数字、下划线、短横线和点，最长 64 字符。
+- `value` 支持布尔值或有限数值，数值绝对值上限为 `9007199254740991`。计数、耗时和错误码用数值上报。
+- `label` 可选，使用固件中预设的简短显示名称，最长 64 字符。省略时显示 `name`。数值可以附带最长 16 字符的 `unit`，例如 `ms`、`KiB` 或 `帧`。
+- `uptime_ms` 使用开机后毫秒数。按轮次采集时可附带 32 位小写十六进制的 `trace_id`。一批最多 16 条、8192 字节，沿用设备鉴权、30 分钟有效期和最近 50 批保留规则。
+
+指标只上报技术测量和固定显示名称。对话、录音、用户资料和凭据均不属于设备诊断指标。

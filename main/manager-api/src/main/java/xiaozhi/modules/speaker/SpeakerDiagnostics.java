@@ -1,6 +1,9 @@
 package xiaozhi.modules.speaker;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -62,9 +65,24 @@ public class SpeakerDiagnostics {
         }
     }
 
+    public record Metric(
+            @NotNull @Pattern(regexp = "[A-Za-z][A-Za-z0-9_.-]{0,63}") String name,
+            @Pattern(regexp = "[\\p{L}\\p{N}][\\p{L}\\p{N} _./()+%\\-]{0,63}") String label,
+            @NotNull JsonNode value,
+            @Pattern(regexp = "[\\p{L}\\p{N}%°/._-]{1,16}") String unit) {
+        @AssertTrue
+        @JsonIgnore
+        public boolean isValueValid() {
+            if (value == null) return false;
+            if (value.isBoolean()) return unit == null;
+            // Keep integer counts within JavaScript's exact range and reject non-finite numbers.
+            return value.isNumber() && Math.abs(value.doubleValue()) <= 9_007_199_254_740_991d;
+        }
+    }
+
     public record Entry(
             @NotNull @Pattern(regexp = "boot|state|voice_network_error|ota_check_failed|ota_upgrade_failed"
-                    + "|heartbeat_failed|voice_timing|display_underrun|tts_playback|tts_transport") String event,
+                    + "|heartbeat_failed|voice_timing|display_underrun|tts_playback|tts_transport|metric") String event,
             @Min(0) long uptime_ms,
             @Min(0) @Max(10) int state,
             int code,
@@ -77,12 +95,14 @@ public class SpeakerDiagnostics {
             Boolean animation_active,
             @Min(0) @Max(4_294_967_295L) Long underrun_count,
             @Size(min = 1, max = 16) List<@NotNull @Valid PlaybackStage> playback_stages,
-            @Valid TransportSample transport) {
+            @Valid TransportSample transport,
+            @JsonInclude(JsonInclude.Include.NON_NULL) @Valid Metric metric) {
         @AssertTrue
         @com.fasterxml.jackson.annotation.JsonIgnore
         public boolean isTimingComplete() {
             if ("voice_timing".equals(event)) return trace_id != null && phase != null && elapsed_ms != null;
             if ("tts_transport".equals(event)) return trace_id != null && phase == null && elapsed_ms == null;
+            if ("metric".equals(event)) return phase == null && elapsed_ms == null;
             return trace_id == null && phase == null && elapsed_ms == null;
         }
 
@@ -105,6 +125,12 @@ public class SpeakerDiagnostics {
         @com.fasterxml.jackson.annotation.JsonIgnore
         public boolean isTransportSampleComplete() {
             return "tts_transport".equals(event) == (transport != null);
+        }
+
+        @AssertTrue
+        @JsonIgnore
+        public boolean isMetricComplete() {
+            return "metric".equals(event) == (metric != null);
         }
     }
 
