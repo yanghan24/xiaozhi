@@ -25,6 +25,7 @@ public class SpeakerOperations {
             result.put("binding_state",device.get("customer_id")==null?"unbound":"bound");
             String status=useStatus(device);result.put("voice",null);
             result.put("standby_weather_allowed","authorized".equals(status));
+            result.put("account_balance_allowed","authorized".equals(status));
             if("authorized".equals(status)) {
                 try { result.put("voice",voice.ticket(device)); status="ready"; }
                 catch(SpeakerFailure failure) {
@@ -46,6 +47,25 @@ public class SpeakerOperations {
         if(!yes(device.get("use_enabled"))) return "signed_out";
         var grant=grants.grant(device.get("customer_id").toString());
         return SpeakerGrants.usable(grant,System.currentTimeMillis())?"authorized":"authorization_required";
+    }
+
+    public record AccountBalance(long permission_version, String balance) {}
+
+    public AccountBalance accountBalance(SpeakerDevices.Identity identity) {
+        var device = devices.load(identity, false);
+        if (!"authorized".equals(useStatus(device))) {
+            throw new SpeakerFailure(403, "DEVICE_BALANCE_UNAVAILABLE");
+        }
+        String customer = device.get("customer_id").toString();
+        long permission = number(device, "permission_version");
+        String balance = grants.deviceBalance(customer);
+        // The Market request runs without a device lock. Recheck ownership before returning it.
+        var current = devices.load(identity, false);
+        if (!customer.equals(current.get("customer_id")) || number(current, "permission_version") != permission
+                || !"authorized".equals(useStatus(current))) {
+            throw new SpeakerFailure(409, "DEVICE_CHANGED");
+        }
+        return new AccountBalance(permission, balance);
     }
     public Map<String,Object> action(SpeakerDevices.Identity identity,String action,long expected,String requestKey,String actor) {
         if(!Set.of("sign-out","unbind").contains(action) || requestKey==null || !requestKey.matches("[A-Za-z0-9_.:-]{1,128}"))

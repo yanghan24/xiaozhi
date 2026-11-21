@@ -2,6 +2,7 @@ package xiaozhi.modules.speaker;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import java.math.BigDecimal;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
@@ -203,7 +204,50 @@ class SpeakerLoginDatabaseTest {
         assertFalse(result.contains("access-fixture"));assertFalse(result.contains("refresh-fixture"));
         var summary=(Map<?,?>)customers.list(tokens.subject(),1,50);
         var row=(Map<?,?>)((List<?>)summary.get("items")).getFirst();
-        assertEquals(1,((Number)row.get("device_count")).intValue());assertEquals(1,((Number)row.get("online_count")).intValue());
         assertEquals(tokens.subject(),row.get("subject"));
+        assertEquals(1,((Number)row.get("device_count")).intValue());assertEquals(1,((Number)row.get("online_count")).intValue());
+    }
+
+    @Test void accountBalanceUsesTheBoundIdentityAndCachesNumbersAndFailures() {
+        var voice = mock(SpeakerVoice.class);
+        when(voice.ticket(any())).thenThrow(new SpeakerFailure(503, "DEFAULT_AGENT_REQUIRED"));
+        var operations = new SpeakerOperations(db, devices, grants, voice);
+        var controller = new SpeakerDeviceController(devices, logins, operations, null);
+        assertEquals(401, assertThrows(SpeakerFailure.class, () -> controller.accountBalance(null, device)).status);
+        assertEquals(403, assertThrows(SpeakerFailure.class, () -> operations.accountBalance(identity)).status);
+        verify(market, never()).balance(any());
+        bind();
+
+        assertEquals(true, operations.state(identity).get("account_balance_allowed"));
+        when(market.balance(any())).thenReturn(new BigDecimal("0.00000000"));
+        assertEquals("0", operations.accountBalance(identity).balance());
+        assertEquals("0", operations.accountBalance(identity).balance());
+        verify(market).balance(argThat(grant -> tokens.subject().equals(grant.subject())));
+
+        String customer = db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?", String.class, device);
+        db.update("UPDATE speaker_customer SET balance_checked_at_ms=? WHERE id=?", 1L, customer);
+        when(market.balance(any())).thenReturn(new BigDecimal("1234567890123456789012.34567890"));
+        assertEquals("1234567890123456789012.3456789", operations.accountBalance(identity).balance());
+        assertEquals("1234567890123456789012.3456789", operations.accountBalance(identity).balance());
+
+        db.update("UPDATE speaker_customer SET balance_checked_at_ms=? WHERE id=?", 1L, customer);
+        when(market.balance(any())).thenThrow(new SpeakerFailure(503, "MARKET_UNAVAILABLE"));
+        long permission = operations.accountBalance(identity).permission_version();
+        assertNull(operations.accountBalance(identity).balance());
+        verify(market, times(3)).balance(any());
+        operations.action(identity, "unbind", permission, "balance-test-unbind", "device");
+        assertEquals(false, operations.state(identity).get("account_balance_allowed"));
+        assertEquals(403, assertThrows(SpeakerFailure.class, () -> operations.accountBalance(identity)).status);
+    }
+
+    @Test void aBalanceResponseCannotFollowADeviceUnbind() {
+        bind();
+        var operations = new SpeakerOperations(db, devices, grants, mock(SpeakerVoice.class));
+        long permission = SpeakerSupport.number(devices.load(identity, false), "permission_version");
+        when(market.balance(any())).thenAnswer(grant -> {
+            operations.action(identity, "unbind", permission, "balance-pending-unbind", "device");
+            return BigDecimal.TEN;
+        });
+        assertEquals(409, assertThrows(SpeakerFailure.class, () -> operations.accountBalance(identity)).status);
     }
 }

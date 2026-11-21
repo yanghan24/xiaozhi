@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
@@ -42,6 +44,13 @@ public class SpeakerDeviceController {
     public Object state(@RequestHeader(name="Authorization",required=false) String auth,
             @RequestHeader(name="Device-Id",required=false) String id) {
         return operations.state(devices.authenticate(auth,id));
+    }
+    @GetMapping("/account/balance")
+    public ResponseEntity<SpeakerOperations.AccountBalance> accountBalance(
+            @RequestHeader(name="Authorization", required=false) String auth,
+            @RequestHeader(name="Device-Id", required=false) String id) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(operations.accountBalance(devices.authenticate(auth, id)));
     }
     @GetMapping("/weather")
     public SpeakerWeather.Report weather(@RequestHeader(name="Authorization",required=false) String auth,
