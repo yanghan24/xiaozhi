@@ -301,6 +301,9 @@ void SpeakerHomeDisplay::RefreshUi() {
     if (show_desktop) {
         RefreshClocks();
         if (!screensaver_.Visible()) {
+            if (navigation_.Current() == SpeakerNavigation::Page::SoundAndDisplay) {
+                settings_.UpdateSoundAndDisplay();
+            }
             music_.Update();
             recording_.Update();
 #if LV_USE_CALENDAR

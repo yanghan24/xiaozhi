@@ -6,6 +6,7 @@
 #include <driver/i2s_std.h>
 #include <esp_idf_version.h>
 
+#include <atomic>
 #include <vector>
 #include <string>
 #include <functional>
@@ -61,7 +62,7 @@ protected:
     int output_sample_rate_ = 0;
     int input_channels_ = 1;
     int output_channels_ = 1;
-    int output_volume_ = 70;
+    std::atomic<int> output_volume_{70};
     float input_gain_ = 0.0;
 
     virtual int Read(int16_t* dest, int samples) = 0;

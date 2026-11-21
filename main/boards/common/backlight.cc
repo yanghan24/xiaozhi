@@ -48,33 +48,38 @@ void Backlight::SetBrightness(uint8_t brightness, bool permanent) {
         brightness = 100;
     }
 
-    if (brightness_ == brightness) {
-        return;
-    }
-
     if (permanent) {
+        // The slider preview may already have reached this brightness.
         Settings settings("display", true);
         settings.SetInt("brightness", brightness);
     }
 
+    std::lock_guard<std::mutex> lock(transition_mutex_);
     target_brightness_ = brightness;
-    step_ = (target_brightness_ > brightness_) ? 1 : -1;
-
-    if (transition_timer_ != nullptr) {
-        // 启动定时器，每 5ms 更新一次
+    if (brightness_ != target_brightness_ && !esp_timer_is_active(transition_timer_)) {
         esp_timer_start_periodic(transition_timer_, 5 * 1000);
     }
-    ESP_LOGI(TAG, "Set brightness to %d", brightness);
+    if (permanent) {
+        ESP_LOGI(TAG, "Set brightness to %d", brightness);
+    }
+}
+
+uint8_t Backlight::brightness() const {
+    std::lock_guard<std::mutex> lock(transition_mutex_);
+    return brightness_;
+}
+
+uint8_t Backlight::target_brightness() const {
+    std::lock_guard<std::mutex> lock(transition_mutex_);
+    return target_brightness_;
 }
 
 void Backlight::OnTransitionTimer() {
-    if (brightness_ == target_brightness_) {
-        esp_timer_stop(transition_timer_);
-        return;
+    std::lock_guard<std::mutex> lock(transition_mutex_);
+    if (brightness_ != target_brightness_) {
+        brightness_ += brightness_ < target_brightness_ ? 1 : -1;
+        SetBrightnessImpl(brightness_);
     }
-
-    brightness_ += step_;
-    SetBrightnessImpl(brightness_);
 
     if (brightness_ == target_brightness_) {
         esp_timer_stop(transition_timer_);

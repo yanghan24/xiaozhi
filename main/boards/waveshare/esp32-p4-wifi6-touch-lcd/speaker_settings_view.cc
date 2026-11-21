@@ -2,6 +2,10 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
+#include "application.h"
+#include "audio_codec.h"
+#include "backlight.h"
+#include "board.h"
 #include "settings.h"
 #include "speaker_account/speaker_account.h"
 #include "speaker_account/speaker_ui_widgets.h"
@@ -16,6 +20,8 @@ constexpr char kNamespace[] = "speaker_ui";
 constexpr char kScreensaverMinutes[] = "screen_idle_min";
 constexpr std::array kMinutes{1, 3, 5, 10};
 constexpr std::array kTimeoutLabels{"1 分钟", "3 分钟", "5 分钟", "10 分钟"};
+constexpr int kMinBrightness = 10;
+constexpr int kMaxLevel = 100;
 
 bool SaveTimeout(int minutes) {
     nvs_handle_t handle;
@@ -54,6 +60,7 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     struct Entry { const char* title; const char* icon; Page page; };
     constexpr Entry entries[] = {
         {"账号", MATERIAL_SYMBOLS_PERSON, Page::Account},
+        {"声音和显示", MATERIAL_SYMBOLS_VOLUME_UP, Page::SoundAndDisplay},
         {"屏保", MATERIAL_SYMBOLS_SCHEDULE, Page::ScreensaverSettings},
         {"关于设备", MATERIAL_SYMBOLS_INFO, Page::About},
     };
@@ -64,8 +71,8 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
             auto* action = static_cast<RouteAction*>(lv_event_get_user_data(event));
             action->navigation->Open(action->page);
         }, &routes_[index]);
-        lv_obj_set_pos(row, 45, 103 + static_cast<int>(index) * 107);
-        lv_obj_set_size(row, 710, 91);
+        lv_obj_set_pos(row, 45, 91 + static_cast<int>(index) * 91);
+        lv_obj_set_size(row, 710, 76);
         lv_obj_set_style_border_width(row, 1, LV_PART_MAIN);
         lv_obj_set_style_border_color(row, lv_color_hex(kEdge), LV_PART_MAIN);
         lv_obj_align(Icon(row, entry.icon, kCyan, 340), LV_ALIGN_LEFT_MID, 32, 0);
@@ -73,8 +80,121 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_align(Icon(row, MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT), LV_ALIGN_RIGHT_MID, -29, 0);
     }
     RegisterPage(navigation, Page::Settings, root_);
+    CreateSoundAndDisplay(parent, navigation);
     CreateScreensaver(parent, navigation);
     CreateAbout(parent, navigation);
+}
+
+void SpeakerSettingsView::CreateSoundAndDisplay(lv_obj_t* parent, SpeakerNavigation& navigation) {
+    auto* panel = Panel(parent);
+    Header(panel, "声音和显示", SpeakerNavigation::OnBack, &navigation);
+    CreateLevelSlider(panel, volume_, "音量", MATERIAL_SYMBOLS_VOLUME_UP, 103, false);
+    CreateLevelSlider(panel, brightness_, "屏幕亮度", MATERIAL_SYMBOLS_BRIGHTNESS_6, 264, true);
+    navigation.Register(Page::SoundAndDisplay, [this, panel] {
+        UpdateSoundAndDisplay();
+        lv_obj_remove_flag(panel, LV_OBJ_FLAG_HIDDEN);
+    }, [panel] { lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN); });
+}
+
+void SpeakerSettingsView::UpdateSoundAndDisplay() {
+    auto& board = Board::GetInstance();
+    auto* codec = board.GetAudioCodec();
+    auto* backlight = board.GetBacklight();
+    for (auto* slider : {&volume_, &brightness_}) {
+        if (slider->editing) {
+            continue;
+        }
+        const bool available = slider->brightness ? backlight != nullptr : codec != nullptr;
+        lv_obj_set_state(slider->control, LV_STATE_DISABLED, !available);
+        if (!available) {
+            UpdateLabel(slider->value_label, "暂不可用");
+            continue;
+        }
+        const int value = slider->brightness ? backlight->target_brightness() : codec->output_volume();
+        if (slider->displayed_value != value) {
+            slider->displayed_value = value;
+            lv_slider_set_value(slider->control, value, LV_ANIM_OFF);
+            lv_label_set_text_fmt(slider->value_label, "%d%%", value);
+        }
+    }
+}
+
+void SpeakerSettingsView::CreateLevelSlider(lv_obj_t* panel, LevelSlider& slider, const char* title,
+                                            const char* icon, int y, bool brightness) {
+    auto* card = Surface(panel, 45, y, 710, 138);
+    lv_obj_set_style_radius(card, 18, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(card, lv_color_hex(kCard), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(card, 1, LV_PART_MAIN);
+    lv_obj_set_style_border_color(card, lv_color_hex(kEdge), LV_PART_MAIN);
+    lv_obj_set_pos(Icon(card, icon, kCyan), 25, 24);
+    lv_obj_set_pos(Label(card, title), 76, 12);
+    slider.value_label = Label(card, "", kMuted);
+    lv_obj_align(slider.value_label, LV_ALIGN_TOP_RIGHT, -27, 12);
+    slider.brightness = brightness;
+
+    auto* control = lv_slider_create(card);
+    slider.control = control;
+    lv_obj_remove_style_all(control);
+    lv_obj_set_pos(control, 42, 92);
+    lv_obj_set_size(control, 624, 14);
+    lv_obj_set_ext_click_area(control, 23);
+    lv_obj_add_flag(control, LV_OBJ_FLAG_PRESS_LOCK);
+    lv_obj_set_style_bg_color(control, lv_color_hex(kEdge), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(control, lv_color_hex(kCyan), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(control, lv_color_hex(kText), LV_PART_KNOB);
+    for (auto part : {LV_PART_MAIN, LV_PART_INDICATOR, LV_PART_KNOB}) {
+        lv_obj_set_style_bg_opa(control, LV_OPA_COVER, part);
+        lv_obj_set_style_radius(control, LV_RADIUS_CIRCLE, part);
+    }
+    lv_obj_set_style_pad_all(control, 9, LV_PART_KNOB);
+    lv_slider_set_range(control, brightness ? kMinBrightness : 0, kMaxLevel);
+    for (auto code : {LV_EVENT_PRESSED, LV_EVENT_VALUE_CHANGED, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST}) {
+        lv_obj_add_event_cb(control, OnLevelSlider, code, &slider);
+    }
+}
+
+void SpeakerSettingsView::OnLevelSlider(lv_event_t* event) {
+    auto& slider = *static_cast<LevelSlider*>(lv_event_get_user_data(event));
+    const auto code = lv_event_get_code(event);
+    if (code == LV_EVENT_PRESSED) {
+        slider.editing = true;
+        slider.changed = false;
+        return;
+    }
+    if (!slider.editing) {
+        return;
+    }
+    const int value = lv_slider_get_value(slider.control);
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        slider.changed = true;
+        slider.displayed_value = value;
+        lv_label_set_text_fmt(slider.value_label, "%d%%", value);
+        if (slider.brightness) {
+            if (auto* backlight = Board::GetInstance().GetBacklight()) {
+                backlight->SetBrightness(static_cast<uint8_t>(value));
+            }
+        }
+        return;
+    }
+
+    slider.editing = false;
+    if (!slider.changed && (code == LV_EVENT_PRESS_LOST || value == slider.displayed_value)) {
+        return;
+    }
+    slider.displayed_value = value;
+    lv_label_set_text_fmt(slider.value_label, "%d%%", value);
+    // Commit on the application task, which also handles the voice MCP controls.
+    Application::GetInstance().Schedule([value, brightness = slider.brightness] {
+        auto& board = Board::GetInstance();
+        if (brightness) {
+            if (auto* backlight = board.GetBacklight()) {
+                backlight->SetBrightness(static_cast<uint8_t>(value), true);
+            }
+        } else if (auto* codec = board.GetAudioCodec(); codec && codec->output_volume() != value) {
+            codec->SetOutputVolume(value);
+        }
+    });
 }
 
 void SpeakerSettingsView::CreateScreensaver(lv_obj_t* parent, SpeakerNavigation& navigation) {

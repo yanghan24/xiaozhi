@@ -187,8 +187,16 @@ void BoxAudioCodec::CreateDuplexChannels(gpio_num_t mclk, gpio_num_t bclk, gpio_
 }
 
 void BoxAudioCodec::SetOutputVolume(int volume) {
-    ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, volume));
+    std::lock_guard<std::mutex> lock(data_if_mutex_);
+    if (output_enabled_) {
+        ApplyOutputVolume(volume);
+    }
     AudioCodec::SetOutputVolume(volume);
+}
+
+void BoxAudioCodec::ApplyOutputVolume(int volume) {
+    ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, volume));
+    ESP_ERROR_CHECK(esp_codec_dev_set_out_mute(output_dev_, volume == 0));
 }
 
 void BoxAudioCodec::EnableInput(bool enable) {
@@ -238,7 +246,7 @@ void BoxAudioCodec::EnableOutput(bool enable) {
             .mclk_multiple = 0,
         };
         ESP_ERROR_CHECK(esp_codec_dev_open(output_dev_, &fs));
-        ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, output_volume_));
+        ApplyOutputVolume(output_volume());
     } else {
         ESP_ERROR_CHECK(esp_codec_dev_close(output_dev_));
     }
