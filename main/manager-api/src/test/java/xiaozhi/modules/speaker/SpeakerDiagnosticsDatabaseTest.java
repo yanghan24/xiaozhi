@@ -181,11 +181,64 @@ class SpeakerDiagnosticsDatabaseTest {
                         Map.of("received_frames", 10, "stop_received", false))))).status);
     }
 
+    @Test void genericMetricsAndLegacyEventsCanShareAReport() throws Exception {
+        devices.heartbeat(devices.authenticate(auth, device), "p4", "2.6.15", true);
+        long until = enable();
+        String trace = "a".repeat(32);
+        var count = Map.of("event", "metric", "uptime_ms", 1800, "trace_id", trace,
+                "metric", Map.of("name", "audio.queue_peak", "label", "音频队列峰值", "value", 12, "unit", "帧"));
+        var flag = Map.of("event", "metric", "uptime_ms", 1900,
+                "metric", Map.of("name", "audio.stop_received", "value", false));
+        var error = Map.of("event", "metric", "uptime_ms", 2000,
+                "metric", Map.of("name", "audio.write_error_code", "value", -5));
+        var latency = Map.of("event", "metric", "uptime_ms", 2100,
+                "metric", Map.of("name", "audio.write_time", "value", 24.5, "unit", "ms"));
+        var boot = Map.of("event", "boot", "uptime_ms", 0, "code", 4);
+
+        assertTrue(diagnostics.upload(auth, device, reportBody(until, List.of(boot, count, flag, error, latency)))
+                .get("accepted"));
+        var logs = (List<?>) diagnostics.read(device).get("logs");
+        var entries = json.valueToTree(logs.getFirst()).path("entries");
+        assertEquals("boot", entries.get(0).path("event").asText());
+        assertFalse(entries.get(0).has("metric"));
+        assertEquals(trace, entries.get(1).path("trace_id").asText());
+        assertEquals(json.valueToTree(count.get("metric")), entries.get(1).path("metric"));
+        assertEquals(json.valueToTree(false), entries.get(2).path("metric").path("value"));
+        assertEquals(-5, entries.get(3).path("metric").path("value").asInt());
+        assertEquals(24.5, entries.get(4).path("metric").path("value").asDouble());
+        assertEquals(409, assertThrows(SpeakerFailure.class,
+                () -> diagnostics.upload(auth, device, timingBody(until + 1, count))).status);
+    }
+
+    @Test void genericMetricsRejectInvalidMetadataAndNonScalarValues() throws Exception {
+        devices.heartbeat(devices.authenticate(auth, device), "p4", "2.6.15", true);
+        long until = enable();
+        for (var metric : List.of(
+                Map.of("name", "audio peak", "value", 12),
+                Map.of("name", "audio.peak", "label", "<b>label</b>", "value", 12),
+                Map.of("name", "audio.peak", "value", "12"),
+                Map.of("name", "audio.peak", "value", Map.of("count", 12)),
+                Map.of("name", "audio.peak", "value", 9_007_199_254_740_992L),
+                Map.of("name", "audio.peak", "value", true, "unit", "ms"))) {
+            assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                    timingBody(until, Map.of("event", "metric", "metric", metric)))).status);
+        }
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "metric")))).status);
+        assertEquals(400, assertThrows(SpeakerFailure.class, () -> diagnostics.upload(auth, device,
+                timingBody(until, Map.of("event", "boot", "metric", Map.of("name", "audio.peak", "value", 12))))).status);
+        assertEquals(List.of(), diagnostics.read(device).get("logs"));
+    }
+
     private MockHttpServletRequest timingBody(long until, Map<String, ?> entry) throws Exception {
+        return reportBody(until, List.of(entry));
+    }
+
+    private MockHttpServletRequest reportBody(long until, List<? extends Map<String, ?>> entries) throws Exception {
         var request = new MockHttpServletRequest();
         request.setContent(json.writeValueAsBytes(Map.of("report_id", "2".repeat(32),
                 "diagnostics_until_ms", until, "firmware_version", "2.6.7", "app_sha256", "a".repeat(64),
-                "entries", List.of(entry))));
+                "entries", entries)));
         return request;
     }
 

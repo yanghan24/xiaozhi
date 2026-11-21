@@ -35,7 +35,7 @@
         </el-table-column>
         <el-table-column label="可用内存 / 最低值" min-width="132">
           <template slot-scope="{ row }">
-            <span v-if="row.event !== 'display_underrun' && row.event !== 'tts_playback' && row.event !== 'tts_transport'">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
+            <span v-if="!eventsWithoutHeap.includes(row.event)">{{ kib(row.free_heap_bytes) }} / {{ kib(row.min_free_heap_bytes) }} KiB</span>
           </template>
         </el-table-column>
         <el-table-column label="固件版本" min-width="105">
@@ -67,6 +67,7 @@ const timingPhases = {
 };
 const displayModes = { idle: '非对话', connecting: '连接中', listening: '收音', waiting: '等待回复', speaking: '播报' };
 const playbackStates = [...states.slice(0, 7), '通知播报', ...states.slice(7)];
+const eventsWithoutHeap = ['display_underrun', 'tts_playback', 'tts_transport', 'metric'];
 const playbackLabels = {
   start_received: '收到 TTS 开始指令', start_handled: '处理开始指令',
   packet_received: '收到 TTS 音频包', packet_dropped: '丢弃 TTS 音频包',
@@ -81,6 +82,7 @@ export default {
   props: { deviceId: { type: String, required: true } },
   data: () => ({ busy: false, error: '', diagnostics: null, enabled: false, timer: null, request: null }),
   computed: {
+    eventsWithoutHeap() { return eventsWithoutHeap; },
     rows() {
       return (this.diagnostics?.logs || []).flatMap(batch => batch.entries.slice().reverse().flatMap(entry => {
         const row = { ...entry, receivedAt: batch.received_at_ms, appSha: batch.app_sha256, firmware: batch.firmware_version };
@@ -100,6 +102,11 @@ export default {
     displayTime,
     kib(bytes) { return Math.round(bytes / 1024); },
     describe(row) {
+      if (row.event === 'metric' && row.metric) {
+        const { name, label, value, unit } = row.metric;
+        const displayValue = typeof value === 'boolean' ? (value ? '是' : '否') : value;
+        return `${label || name} · ${displayValue}${unit ? ` ${unit}` : ''}`;
+      }
       if (row.event === 'voice_timing') return timingPhases[row.phase] || row.phase;
       if (row.event === 'display_underrun') {
         return `LCD 扫描缺帧 ${row.underrun_count} 次 · ${displayModes[row.display_mode]} · 波带${row.animation_active ? '播放中' : '静止'}`;
