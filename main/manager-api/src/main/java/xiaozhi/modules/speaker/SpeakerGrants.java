@@ -1,9 +1,12 @@
 package xiaozhi.modules.speaker;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.locks.Lock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.Striped;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -14,11 +17,14 @@ import static xiaozhi.modules.speaker.SpeakerSupport.*;
 /** Long-term business credentials are independent of short-lived identity access tokens. */
 @Service
 public class SpeakerGrants {
+    private static final long BALANCE_CACHE_MS = 60_000;
+    private static final long BALANCE_RETRY_MS = 15_000;
     private final JdbcTemplate db;
     private final SpeakerSettings settings;
     private final SpeakerCrypto crypto;
     private final SpeakerMarket market;
     private final TransactionTemplate transactions;
+    private final Striped<Lock> balanceLocks = Striped.lazyWeakLock(64);
     public SpeakerGrants(JdbcTemplate db,SpeakerSettings settings,SpeakerCrypto crypto,SpeakerMarket market,
             PlatformTransactionManager manager) {
         this.db=db;this.settings=settings;this.crypto=crypto;this.market=market;
@@ -78,18 +84,55 @@ public class SpeakerGrants {
     }
     public void refreshBalance(String customer) {
         settings.requireEnabled();
+        var lock = balanceLocks.get(customer);
+        lock.lock();
+        try {
+            fetchBalance(customer);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    String deviceBalance(String customer) {
+        settings.requireEnabled();
+        var lock = balanceLocks.get(customer);
+        lock.lock();
+        try {
+            var row = db.queryForMap("SELECT balance,balance_status,balance_checked_at_ms FROM speaker_customer WHERE id=?", customer);
+            boolean available = "available".equals(row.get("balance_status"));
+            if (row.get("balance_checked_at_ms") instanceof Number checked) {
+                long age = System.currentTimeMillis() - checked.longValue();
+                if (age >= 0 && age < (available ? BALANCE_CACHE_MS : BALANCE_RETRY_MS)) {
+                    return available && row.get("balance") instanceof BigDecimal balance ? balanceText(balance) : null;
+                }
+            }
+            var balance = fetchBalance(customer);
+            return balance == null ? null : balanceText(balance);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private BigDecimal fetchBalance(String customer) {
         var grant=grant(customer);
         long now=System.currentTimeMillis();
         if(grant==null || number(grant,"access_expires_at_ms")<=now || !"active".equals(grant.get("token_status"))) {
             db.update("UPDATE speaker_customer SET balance_status='unavailable',balance_checked_at_ms=? WHERE id=?",now,customer);
-            return;
+            return null;
         }
         try {
             var balance=market.balance(tokens(grant));
+            now=System.currentTimeMillis();
             db.update("UPDATE speaker_customer SET balance=?,balance_status='available',balance_updated_at_ms=?,balance_checked_at_ms=? WHERE id=?",balance,now,now,customer);
+            return balance;
         } catch(SpeakerFailure unavailable) {
-            db.update("UPDATE speaker_customer SET balance_status='unavailable',balance_checked_at_ms=? WHERE id=?",now,customer);
+            db.update("UPDATE speaker_customer SET balance_status='unavailable',balance_checked_at_ms=? WHERE id=?",System.currentTimeMillis(),customer);
+            return null;
         }
+    }
+
+    private static String balanceText(BigDecimal balance) {
+        return balance.stripTrailingZeros().toPlainString();
     }
     @Scheduled(fixedDelayString="${speaker.refresh-delay-ms:10000}")
     public void refreshDue() {
