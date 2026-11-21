@@ -10,7 +10,6 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
     root_ = Panel(parent);
     lv_obj_add_flag(root_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
     lv_obj_add_event_cb(root_, on_exit, LV_EVENT_CLICKED, context);
-    wave_.Create(root_, 350, 130, SpeakerWave::Shape::Sweep);
     wifi_ = Wifi(root_);
     clock_ = Digits(root_, "--:--", 316, 900);
     lv_obj_align(clock_, LV_ALIGN_CENTER, 0, -60);
@@ -22,7 +21,13 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
 }
 
 void SpeakerScreensaverView::SetVisible(bool visible) {
+    if (visible) {
+        background_.Load(root_, SpeakerBackground::Artwork::Screensaver);
+    }
     lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, !visible);
+    if (!visible) {
+        background_.Release(root_);
+    }
 }
 
 bool SpeakerScreensaverView::Visible() const {

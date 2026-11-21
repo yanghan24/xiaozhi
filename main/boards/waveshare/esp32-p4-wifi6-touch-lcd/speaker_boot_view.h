@@ -3,7 +3,7 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
-#include "speaker_wave.h"
+#include "speaker_background.h"
 
 class SpeakerBootView {
 public:
@@ -15,7 +15,7 @@ private:
     lv_obj_t* root_ = nullptr;
     lv_obj_t* logo_ = nullptr;
     lv_obj_t* title_ = nullptr;
-    SpeakerWave wave_;
+    SpeakerBackground background_;
     uint32_t started_ = 0;
 };
 

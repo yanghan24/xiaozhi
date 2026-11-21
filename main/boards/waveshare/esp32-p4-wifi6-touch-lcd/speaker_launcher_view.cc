@@ -29,7 +29,6 @@ lv_obj_t* Tomato(lv_obj_t* parent) {
 void SpeakerLauncherView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     using Page = SpeakerNavigation::Page;
     root_ = Panel(parent);
-    wave_.Create(root_, 381, 99, SpeakerWave::Shape::Sweep);
     wifi_ = Wifi(root_);
     clock_ = Digits(root_, "--:--", 230, 360);
     lv_obj_align(clock_, LV_ALIGN_RIGHT_MID, -17, -18);
@@ -65,6 +64,7 @@ void SpeakerLauncherView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
 }
 
 void SpeakerLauncherView::Show() {
+    background_.Load(root_, SpeakerBackground::Artwork::Home);
     lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
 }
 

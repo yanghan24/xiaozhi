@@ -1146,6 +1146,16 @@ endif()
 
 file(GLOB COMMON_SOUNDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/common/*.ogg)
 
+set(SPEAKER_BACKGROUNDS "")
+if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT AND BOARD_DIR STREQUAL "waveshare/esp32-p4-wifi6-touch-lcd")
+    set(background_dir "${CMAKE_CURRENT_SOURCE_DIR}/boards/${BOARD_DIR}/backgrounds")
+    list(APPEND SPEAKER_BACKGROUNDS
+        "${background_dir}/speaker_home.jpg"
+        "${background_dir}/speaker_screensaver.jpg"
+        "${background_dir}/speaker_boot.jpg"
+    )
+endif()
+
 # If target chip is ESP32, exclude specific files to avoid build errors
 if(CONFIG_IDF_TARGET_ESP32)
     list(REMOVE_ITEM SOURCES "audio/codecs/box_audio_codec.cc"
@@ -1217,7 +1227,7 @@ if(IDF_TARGET STREQUAL "esp32s3")
     list(APPEND MAIN_PRIV_REQUIRES_EXTRA esp_driver_usb_serial_jtag)
 endif()
 idf_component_register(SRCS ${SOURCES}
-                    EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS}
+                    EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS} ${SPEAKER_BACKGROUNDS}
                     INCLUDE_DIRS ${INCLUDE_DIRS}
                     WHOLE_ARCHIVE
                     PRIV_REQUIRES

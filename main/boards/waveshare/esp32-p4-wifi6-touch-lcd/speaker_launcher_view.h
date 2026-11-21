@@ -3,8 +3,8 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
+#include "speaker_background.h"
 #include "speaker_navigation.h"
-#include "speaker_wave.h"
 
 class SpeakerLauncherView {
 public:
@@ -30,7 +30,7 @@ private:
     lv_obj_t* root_ = nullptr;
     lv_obj_t* clock_ = nullptr;
     lv_obj_t* wifi_ = nullptr;
-    SpeakerWave wave_;
+    SpeakerBackground background_;
 };
 
 #endif
