@@ -66,6 +66,9 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     struct Entry { const char* title; const char* icon; Page page; };
     constexpr Entry entries[] = {
         {"账号", MATERIAL_SYMBOLS_PERSON, Page::Account},
+#if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
+        {"Wi-Fi", MATERIAL_SYMBOLS_WIFI, Page::Wifi},
+#endif
         {"声音和显示", MATERIAL_SYMBOLS_VOLUME_UP, Page::SoundAndDisplay},
         {"屏保", MATERIAL_SYMBOLS_SCHEDULE, Page::ScreensaverSettings},
         {"关于设备", MATERIAL_SYMBOLS_INFO, Page::About},

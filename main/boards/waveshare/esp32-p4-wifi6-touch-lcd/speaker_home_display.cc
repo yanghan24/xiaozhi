@@ -76,6 +76,9 @@ void SpeakerHomeDisplay::SetupUI() {
         Application::GetInstance().EndSpeakerConversation();
     }, this);
     boot_.Create(scene_, system_background_);
+#if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
+    wifi_.Create(scene_, navigation_);
+#endif
     ApplySystemStyle();
 
     notice_ = Label(scene_, "", kText);
@@ -262,7 +265,15 @@ void SpeakerHomeDisplay::RefreshUi() {
     }
     lv_obj_set_flag(desktop_, LV_OBJ_FLAG_HIDDEN, !show_desktop || screensaver_.Visible());
 
-    const bool show_system_background = !boot_visible && !show_desktop && !voice && !account_prompt;
+    bool show_wifi = false;
+#if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
+    const bool configuring = state == kDeviceStateWifiConfiguring;
+    show_wifi = !boot_visible && !voice && !account_prompt && !has_preview_ &&
+        (configuring || (show_desktop && !screensaver_.Visible() &&
+                         navigation_.Current() == SpeakerNavigation::Page::Wifi));
+    wifi_.Update(show_wifi, configuring);
+#endif
+    const bool show_system_background = !boot_visible && !show_desktop && !voice && !account_prompt && !show_wifi;
     if (show_system_background && !system_background_visible_) {
         system_background_.Load(container_, SpeakerBackground::Artwork::Boot);
     } else if (!show_system_background && !boot_visible) {
@@ -297,7 +308,7 @@ void SpeakerHomeDisplay::RefreshUi() {
     if (show_desktop && notice) {
         UpdateLabel(notice_, lv_label_get_text(notification_label_));
     }
-    lv_obj_set_flag(notice_, LV_OBJ_FLAG_HIDDEN, !show_desktop || !notice);
+    lv_obj_set_flag(notice_, LV_OBJ_FLAG_HIDDEN, !show_desktop || !notice || show_wifi);
     if (show_desktop) {
         RefreshClocks();
         if (!screensaver_.Visible()) {

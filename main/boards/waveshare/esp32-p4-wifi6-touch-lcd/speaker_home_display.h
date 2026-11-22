@@ -15,6 +15,7 @@
 #include "speaker_recording_view.h"
 #include "speaker_screensaver_view.h"
 #include "speaker_settings_view.h"
+#include "speaker_wifi_view.h"
 
 #include <ctime>
 #include <string>
@@ -61,6 +62,9 @@ private:
     SpeakerLauncherView launcher_;
     SpeakerScreensaverView screensaver_;
     SpeakerSettingsView settings_;
+#if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
+    SpeakerWifiView wifi_;
+#endif
     SpeakerAccountPage account_;
 #if LV_USE_CALENDAR
     SpeakerCalendarView calendar_;

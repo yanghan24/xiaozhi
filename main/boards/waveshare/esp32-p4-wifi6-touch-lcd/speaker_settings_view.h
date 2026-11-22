@@ -42,7 +42,11 @@ private:
     lv_obj_t* root_ = nullptr;
     lv_obj_t* timeout_hint_ = nullptr;
     int screensaver_minutes_ = 1;
+#if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
+    std::array<RouteAction, 5> routes_{};
+#else
     std::array<RouteAction, 4> routes_{};
+#endif
     LevelSlider volume_;
     LevelSlider brightness_;
     std::array<TimeoutAction, 4> timeouts_{};

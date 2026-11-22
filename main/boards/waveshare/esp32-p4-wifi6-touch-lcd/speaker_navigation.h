@@ -25,7 +25,7 @@ private:
 
 class SpeakerNavigation {
 public:
-    enum class Page { Home, Settings, Account, SoundAndDisplay, ScreensaverSettings, About, Calendar, Music, Recording, Pomodoro, Count };
+    enum class Page { Home, Settings, Account, Wifi, SoundAndDisplay, ScreensaverSettings, About, Calendar, Music, Recording, Pomodoro, Count };
 
     void Create(lv_obj_t* parent);
     void Register(Page page, std::function<void()> show, std::function<void()> hide,
