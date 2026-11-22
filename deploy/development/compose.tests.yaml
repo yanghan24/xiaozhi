@@ -15,8 +15,8 @@ services:
   api-tests:
     image: xiaozhi-manager-api-tests:${BUILD_TAG:-baseline-local}
     build:
-      context: .
-      dockerfile: deploy/manager/Dockerfile
+      context: ../..
+      dockerfile: deploy/development/manager/Dockerfile
       target: api-tests
     environment:
       CI: "true"

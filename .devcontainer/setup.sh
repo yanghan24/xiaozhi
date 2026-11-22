@@ -4,10 +4,10 @@ cd /workspace
 if [ ! -x /home/dev/.venv/bin/python ]; then
     /usr/local/bin/python -m venv /home/dev/.venv
 fi
-python_inputs=$({ python --version; cat deploy/voice/requirements.txt .devcontainer/requirements-dev.txt; } | sha256sum | cut -d ' ' -f 1)
+python_inputs=$({ python --version; cat main/xiaozhi-server/requirements-runtime.txt .devcontainer/requirements-dev.txt; } | sha256sum | cut -d ' ' -f 1)
 if [ "$(cat /home/dev/.venv/.xiaozhi-inputs.sha256 2>/dev/null || true)" != "$python_inputs" ]; then
     python -m pip install --upgrade pip==25.3
-    python -m pip install -r deploy/voice/requirements.txt -r .devcontainer/requirements-dev.txt
+    python -m pip install -r main/xiaozhi-server/requirements-runtime.txt -r .devcontainer/requirements-dev.txt
     printf '%s\n' "$python_inputs" > /home/dev/.venv/.xiaozhi-inputs.sha256
 fi
 node_inputs=$({ node --version; cat main/manager-web/package-lock.json; } | sha256sum | cut -d ' ' -f 1)

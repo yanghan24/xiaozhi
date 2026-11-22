@@ -22,7 +22,7 @@
 | `xiaozhi-manager-api:fd104daaa3fc7c3017ece00d13deb319778f69c7` | `sha256:b1201771f4c166507b639f6c4f52681229c26a72d570e38ae41d3b488606d04d` |
 | `xiaozhi-manager-web:fd104daaa3fc7c3017ece00d13deb319778f69c7` | `sha256:ff32cbd3d291dc71ab588c7916610124719d6e3f873c7d39acaca16f92396c75` |
 
-写入提交标签时，Maven 编译、前端依赖、前端测试和生产打包步骤全部命中此前通过验证的构建缓存；应用产物沿用已验收内容。最终镜像已用于恢复管理环境。基础镜像的完整摘要固定在 [Dockerfile](../../../../../deploy/manager/Dockerfile)，MySQL 和 Redis 的摘要固定在 [compose.yaml](../../../../../compose.yaml)。这是本机构建产物记录，未发布镜像仓库或软件版本。
+写入提交标签时，Maven 编译、前端依赖、前端测试和生产打包步骤全部命中此前通过验证的构建缓存；应用产物沿用已验收内容。最终镜像已用于恢复管理环境。基础镜像的完整摘要固定在 [Dockerfile](../../../../../deploy/development/manager/Dockerfile)，MySQL 和 Redis 的摘要固定在 [compose.yaml](../../../../../deploy/development/compose.yaml)。这是本机构建产物记录，未发布镜像仓库或软件版本。
 
 ## 已执行结果
 

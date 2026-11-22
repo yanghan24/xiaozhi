@@ -19,7 +19,7 @@ docker compose up -d --wait --wait-timeout 360
 python3 scripts/check-manager.py
 ```
 
-`.env` 从 [.env.example](../../../../../.env.example) 创建，权限为 `0600`，数据库密码随机生成。初始化脚本拒绝覆盖已有文件；凭据和运行数据不提交到 Git。已有数据库初始化后须保留同一份 `.env`，修改密码环境变量不会修改数据库中的密码。默认 Compose 项目名 `xiaozhi-baseline`，默认页面入口 <http://127.0.0.1:18002>。启动前可在 `.env` 修改 `MANAGER_PORT` 或项目名；检查脚本使用非默认端口时加 `--url http://127.0.0.1:端口`。
+`.env` 从 [.env.example](../../../../../deploy/development/.env.example) 创建，权限为 `0600`，数据库密码随机生成。初始化脚本拒绝覆盖已有文件；凭据和运行数据不提交到 Git。已有数据库初始化后须保留同一份 `.env`，修改密码环境变量不会修改数据库中的密码。默认 Compose 项目名 `xiaozhi-baseline`，默认页面入口 <http://127.0.0.1:18002>。启动前可在 `.env` 修改 `MANAGER_PORT` 或项目名；检查脚本使用非默认端口时加 `--url http://127.0.0.1:端口`。
 
 MySQL、Redis 和 Java API 均不向宿主机发布端口。Nginx 只监听本机回环地址。这份配置用于本机管理验证，音箱局域网接入在 #4／#6 中另行落实。
 

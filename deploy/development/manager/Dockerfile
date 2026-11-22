@@ -17,7 +17,7 @@ ARG SOURCE_REVISION
 LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
 LABEL org.opencontainers.image.source="https://github.com/yanghan24/xiaozhi"
 LABEL io.xiaozhi.upstream.revision="c8e60d1325650c8a31d00e36d8528f8bb74aeb11"
-COPY deploy/manager/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/development/manager/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=web-builder /build/dist/ /usr/share/nginx/html/
 
 FROM ${MAVEN_IMAGE} AS api-builder
