@@ -3,7 +3,7 @@
   "base_commit": "c7aa89c3a38dc02e8f29a844a700161d5a523fd9",
   "base_image": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
   "mode": "read-only source file overlays in network-none containers; not deployed",
-  "raw_directory": "/home/jt/pr93-fix-20261113",
+  "raw_directory": "/redacted/historical-deployment/pr93-fix-20261113",
   "stages": {
     "red-audio": {
       "cases": [

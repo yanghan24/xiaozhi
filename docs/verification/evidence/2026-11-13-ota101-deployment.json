@@ -29,5 +29,5 @@
   "bridge_host_port_published": false,
   "ota_operations": 0,
   "physical_ota_sent": false,
-  "backup": "/home/jt/ota101-rollout-20261113/backup-before"
+  "backup": "/redacted/historical-deployment/ota101-rollout-20261113/backup-before"
 }

@@ -20,7 +20,7 @@ flowchart LR
     API -->|管理和调用| External["天气等第三方业务服务"]
 ```
 
-管理 Web 使用 Vue 2 和 Element UI。Java 21 管理 API 管理业务数据与权限，Python 语音服务运行对话。服务端源自[小智上游服务端](docs/development/upstream-baseline.md)，配套音箱固件以小智官方 v2.6.0 为基线，在固件工程中独立维护。
+管理 Web 使用 Vue 2 和 Element UI。Java 21 管理 API 管理业务数据与权限，Python 语音服务运行对话。服务端源自[小智上游服务端](docs/archive/upstream/upstream-baseline.md)，配套音箱固件以小智官方 v2.6.0 为基线，在固件工程中独立维护。
 
 ## 服务端模块
 

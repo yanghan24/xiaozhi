@@ -1,7 +1,7 @@
 {
   "observed_at": "2026-11-12T03:35:43.246213+00:00",
-  "before": "/home/jt/issue42-p4-ota-20261112/20261112T033309Z",
-  "after": "/home/jt/issue42-p4-ota-20261112/20261112T033507Z",
+  "before": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T033309Z",
+  "after": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T033507Z",
   "b_changed_fields": {
     "credential_hash": false,
     "admitted": false,

@@ -1,6 +1,10 @@
 {
   "file": "raw-results.tar.gz",
-  "sha256": "da4647480ff0034b4e78c2c79b8a3aed834951eeb803032f4faac6fa9fe34b1a",
-  "bytes": 22152891,
-  "files": 394
+  "sha256": "8925a7f324bc7e81e92100ed4b3863b0a61f0d8d3b753690ca886ea6b787d788",
+  "bytes": 22153465,
+  "files": 394,
+  "unredacted_sha256": "da4647480ff0034b4e78c2c79b8a3aed834951eeb803032f4faac6fa9fe34b1a",
+  "unredacted_bytes": 22152891,
+  "redacted_members": 59,
+  "redaction": "Historical host address, login user and private deployment path"
 }

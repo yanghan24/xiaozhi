@@ -18,4 +18,4 @@ status: accepted
 
 管理员维护角色并明确设置初始默认角色。所有音箱暂时跟随默认角色；切换在当前回答完成后的下一轮生效并清空会话上下文。用户后续在音箱选择角色属于后续范围。
 
-实施顺序、每阶段验证边界和未满足条件见 [第一阶段实施记录](../development/speaker-phase1-implementation.md)。
+实施顺序、每阶段验证边界和未满足条件见 [第一阶段实施记录](../archive/completed/identity/speaker-phase1-implementation.md)。

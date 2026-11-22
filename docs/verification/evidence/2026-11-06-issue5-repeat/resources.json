@@ -1,5 +1,5 @@
 {
-  "host": "192.168.168.114",
+  "host": "historical-host.invalid",
   "scope": "idle_after_service_restart",
   "docker_stats": [
     "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"1.95%\",\"Container\":\"xiaozhi-ubuntu-test-api-1\",\"ID\":\"37d11e5f3a3f\",\"MemPerc\":\"35.97%\",\"MemUsage\":\"322.3MiB / 896MiB\",\"Name\":\"xiaozhi-ubuntu-test-api-1\",\"NetIO\":\"418kB / 227kB\",\"PIDs\":\"35\"}",

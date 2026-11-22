@@ -72,7 +72,7 @@ python deploy/local-zhou/speaker-simulator.py \
   --identity-file /opt/xiaozhi-dev/speaker/development-device.json --begin --duration 600
 ```
 
-当前方案与检查见[原版恢复实施记录](../../docs/development/upstream-restoration-progress.md)和[第一批交付](../../docs/development/upstream-restoration-batch1-delivery.md)。原版调用链的本地协议联调为 `check-upstream-voice.py`：真实 API 配置、WebSocket/Opus 与原版提供者适配器连接本地 ASR/LLM/TTS 替身，临时数据用完清理，不调用集市模型。不同使用默认角色的数据库/浏览器联调顺序运行，避免同时更改同一开发默认项。回退须恢复配套服务端、固件与私有配置；保留新增表和加密文件，不能单独关闭身份模式代替回退。
+当前方案与检查见[原版恢复实施记录](../../docs/archive/completed/voice/upstream-restoration-progress.md)和[第一批交付](../../docs/archive/completed/voice/upstream-restoration-batch1-delivery.md)。原版调用链的本地协议联调为 `check-upstream-voice.py`：真实 API 配置、WebSocket/Opus 与原版提供者适配器连接本地 ASR/LLM/TTS 替身，临时数据用完清理，不调用集市模型。不同使用默认角色的数据库/浏览器联调顺序运行，避免同时更改同一开发默认项。回退须恢复配套服务端、固件与私有配置；保留新增表和加密文件，不能单独关闭身份模式代替回退。
 
 固件从小智官方 `v2.6.0` 的 P4X 4.3 寸变体构建。ESP-IDF 6.1 commit `f0114250e205e33a945e2f3e7ec40085c5a029a2` 与工具链位于容器 runtime 卷的 `tools/idf-v6.1-f011425/`。在 `xiaozhi-dev` 运行 `bash deploy/local-zhou/build-speaker-firmware.sh`，使用 `/opt/xiaozhi-dev/run/p4x-260-rebuild/product` 的同步源码副本及其组件锁构建中文集市版，最多 4 个 Ninja 任务。完整镜像 ZIP 在该副本的 `releases/`，应用镜像在 `build/xiaozhi.bin`。编辑兄弟固件目录后先同步源码，再执行构建。构建与实机刷写分别执行。工具临时文件使用 `/opt/xiaozhi-dev/run/tmp`。
 
@@ -103,7 +103,7 @@ ASR 本期仅 spark_zh_iat_new / xfyun_asr_v2，使用已有 PCM/Opus 处理和�
 
 限定验收入口为 deploy/local-zhou/check-market-models.py 和 main/manager-web/scripts/check-market-ui.cjs。前者仅接受 runtime 下、已明确授权的临时模拟设备夹具，临时切换适配和角色后恢复，不能作为日常启动步骤；--live-voice 才会执行真实模型对话，产生用户集市用量。浏览器工具及字体缓存继续使用已有 runtime 卷。真实设备验收仍按 CONTRIBUTING 的独立 Ubuntu 环境规则执行。
 
-结果及提交见[模型接入交付](../../docs/development/ai-market-model-integration-delivery.md)。
+结果及提交见[模型接入交付](../../docs/archive/completed/models/ai-market-model-integration-delivery.md)。
 
 ## 语音服务地址与运维（2026-11-17）
 

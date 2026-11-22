@@ -5,7 +5,7 @@
   "candidate_image_id": "sha256:19070d27ddd2332d43799c3caff669a6a131f180f98d500ef37824c3cc1bd7ca",
   "base_image": "xiaozhi-product-voice:p4-maintenance-20261112",
   "base_image_id": "sha256:3e347b8397c4bf8a19d62cd29fb169a0dd4eeb6afdb9395a15c66833cdc974b9",
-  "private_directory": "/home/jt/issue42-pr79-deploy-f830a8c/20261112T045312Z",
+  "private_directory": "/redacted/historical-deployment/issue42-pr79-deploy-f830a8c/20261112T045312Z",
   "candidate_image_modules_verified": {
     "core/product_maintenance.py": "d5544dc41dbc62047b3da581ccb74b038a7b2c16ae4a82e598e598d414a91277",
     "core/product_voice.py": "c131613f028e89e2adba0ae4b4781b624ea3c3ae1e891dc2d43acfb797c3a57c"
@@ -24,7 +24,7 @@
   "live_compose_unchanged": true,
   "deployment_performed": false,
   "ota_sent": false,
-  "candidate_compose": "/home/jt/issue42-pr79-deploy-f830a8c/20261112T045312Z/compose-candidate.json",
-  "rollback_compose_reference": "/home/jt/issue42-pr79-deploy-f830a8c/20261112T045312Z/compose-before.json",
+  "candidate_compose": "/redacted/historical-deployment/issue42-pr79-deploy-f830a8c/20261112T045312Z/compose-candidate.json",
+  "rollback_compose_reference": "/redacted/historical-deployment/issue42-pr79-deploy-f830a8c/20261112T045312Z/compose-before.json",
   "requires_fresh_baseline_and_compose_comparison_before_deploy": true
 }

@@ -1,7 +1,7 @@
 {
   "source_commit": "5f01f35fb156463cbedf7dd1737256419d69267d",
   "image_id": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
-  "run": "/home/jt/issue14-live-20261113/results/candidate-20261113T040147Z",
+  "run": "/redacted/historical-deployment/issue14-live-20261113/results/candidate-20261113T040147Z",
   "exit_code": 0,
   "unit_tests": {
     "tests": 66,

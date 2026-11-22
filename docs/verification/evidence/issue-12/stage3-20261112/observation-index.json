@@ -1,7 +1,7 @@
 {
   "schema": "issue12-stage3-observation-index-v1",
   "evidence_kind": "manual summary of browser terminal observations; not original server JSON",
-  "server_root": "/home/jt/issue12-stage3-discovery-20261112",
+  "server_root": "/redacted/historical-deployment/issue12-stage3-discovery-20261112",
   "original_reports_copied_to_local": false,
   "discovery": {
     "server_path": "discovery01/discovery.json",

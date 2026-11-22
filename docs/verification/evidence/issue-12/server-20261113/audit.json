@@ -42,7 +42,7 @@
     "action": "metadata inspection only; no regression rerun"
   },
   "config": {
-    "path": "/home/jt/.private-mcp/config.json",
+    "path": "/redacted/historical-deployment/.private-mcp/config.json",
     "mode": "0o600",
     "uid": 1000,
     "url_matches_contract": true,
@@ -56,12 +56,12 @@
     "authorization_source": "Direct human reply in Codex chat 01a1d297-23e1-7bc0-ab82-2b6c4d172e2a on 2026-11-13",
     "authorization_text": "确认使用 B 及其当前归属测试账号，按上述范围测试",
     "device_mapping_source": "Existing B PRODUCT_MAINTENANCE_DEVICE_ID and current dc_device row",
-    "config_reference": "/home/jt/.private-mcp/config.json",
+    "config_reference": "/redacted/historical-deployment/.private-mcp/config.json",
     "service": "service-669a396c73",
     "tool": "ask_knowledge",
     "fixed_public_question": "怎么申请成立社会团体",
     "permission_boundary": "Only this device and its current owner; no other customers, model calls, TTS, firmware, or deployment",
-    "private_mapping_path": "/home/jt/issue12-minimal-verification-20261113T015751Z/scope-private.json",
+    "private_mapping_path": "/redacted/historical-deployment/issue12-minimal-verification-20261113T015751Z/scope-private.json",
     "current_device_state": {
       "admitted": "1",
       "local_enabled": "1",
@@ -74,42 +74,42 @@
   },
   "original_reports": {
     "installed01": {
-      "path": "/home/jt/issue12-main6bf-20261112/results/installed01/result.json",
+      "path": "/redacted/historical-deployment/issue12-main6bf-20261112/results/installed01/result.json",
       "bytes": 13185,
       "sha256": "e7411021ae983b15d4fdc5e53eb2c22dea109f37a970a65af824ca221ccb48ba",
       "historical_document_sha256": null,
       "matches_historical_document_hash": null
     },
     "installed02": {
-      "path": "/home/jt/issue12-main6bf-20261112/results/installed02/result.json",
+      "path": "/redacted/historical-deployment/issue12-main6bf-20261112/results/installed02/result.json",
       "bytes": 13185,
       "sha256": "e7411021ae983b15d4fdc5e53eb2c22dea109f37a970a65af824ca221ccb48ba",
       "historical_document_sha256": null,
       "matches_historical_document_hash": null
     },
     "discovery": {
-      "path": "/home/jt/issue12-stage3-discovery-20261112/discovery01/discovery.json",
+      "path": "/redacted/historical-deployment/issue12-stage3-discovery-20261112/discovery01/discovery.json",
       "bytes": 2045,
       "sha256": "a8ac41feb034101973e42ab07a83de232f25eb40dadaab06e36ff04ce8dd6d10",
       "historical_document_sha256": "a8ac41feb034101973e42ab07a83de232f25eb40dadaab06e36ff04ce8dd6d10",
       "matches_historical_document_hash": true
     },
     "normal": {
-      "path": "/home/jt/issue12-sdk-final81-20261112/results/live-tool05/result.json",
+      "path": "/redacted/historical-deployment/issue12-sdk-final81-20261112/results/live-tool05/result.json",
       "bytes": 4028,
       "sha256": "311426c20915fcc074b90be4ae2072107ec47a17497a3b520033573168f7ba8f",
       "historical_document_sha256": "311426c20915fcc074b90be4ae2072107ec47a17497a3b520033573168f7ba8f",
       "matches_historical_document_hash": true
     },
     "behaviour": {
-      "path": "/home/jt/issue12-a2-20261112/run01/result.json",
+      "path": "/redacted/historical-deployment/issue12-a2-20261112/run01/result.json",
       "bytes": 4340,
       "sha256": "a8be4d736a5a3711859ed07216cd91217deda9a07993578f6480ec160c057d31",
       "historical_document_sha256": "a8be4d736a5a3711859ed07216cd91217deda9a07993578f6488ec160c057d31",
       "matches_historical_document_hash": false
     },
     "invalid_input": {
-      "path": "/home/jt/issue12-a2-20261112/errors01/result.json",
+      "path": "/redacted/historical-deployment/issue12-a2-20261112/errors01/result.json",
       "bytes": 940,
       "sha256": "b5262ba7dc487997f561f6ee6a3e339816a5f0fbecbf84113977fef9407aac43",
       "historical_document_sha256": "b5262ba7dc487997f561f6ee6a3e339816a5f0febcfb84113977fef9407aac43",
@@ -273,7 +273,7 @@
     }
   ],
   "source_manifest": {
-    "path": "/home/jt/issue12-main6bf-20261112/src/test-manifest.json",
+    "path": "/redacted/historical-deployment/issue12-main6bf-20261112/src/test-manifest.json",
     "raw_sha256": "88264bbff3844688cef3ae770851ef27f606b266ac96a3547be92184fccb510e",
     "lf_sha256": "88264bbff3844688cef3ae770851ef27f606b266ac96a3547be92184fccb510e"
   },
@@ -425,7 +425,7 @@
     },
     "probe_files_matching_report_hash": [
       {
-        "path": "/home/jt/issue12-cleanup79-20261112/live-client-tool.py",
+        "path": "/redacted/historical-deployment/issue12-cleanup79-20261112/live-client-tool.py",
         "sha256": "0dad910f9c9814c68451355b429b582b86a6ddf6789758bdd818b26dfa73289c",
         "contains_fixed_public_question": true
       }

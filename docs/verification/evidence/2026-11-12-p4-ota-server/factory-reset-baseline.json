@@ -1,6 +1,6 @@
 {
   "recorded_at": "2026-11-12T03:39:23.881462+00:00",
-  "private_snapshot": "/home/jt/issue42-p4-ota-20261112/20261112T033820Z",
+  "private_snapshot": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T033820Z",
   "snapshot_observed_at": "2026-11-12T03:38:20Z",
   "scope": "ready-state normal factory reset; hardware action pending",
   "b_state": {

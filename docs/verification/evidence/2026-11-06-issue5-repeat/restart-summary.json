@@ -1,7 +1,7 @@
 {
   "status": "passed",
   "at": "2026-11-06T10:46:07.526350+00:00",
-  "host": "192.168.168.114",
+  "host": "historical-host.invalid",
   "scope": "compose_service_restart",
   "containers": [
     {

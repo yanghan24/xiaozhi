@@ -1,7 +1,7 @@
 {
   "status": "passed",
   "at": "2026-11-06T10:51:51.636204+00:00",
-  "host": "192.168.168.114",
+  "host": "historical-host.invalid",
   "scope": "clean_manager_api_source_build",
   "command": [
     "mvn",
