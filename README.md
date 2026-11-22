@@ -88,4 +88,4 @@ flowchart LR
 
 生产在开发环境构建发布包，由部署机校验并导入镜像。服务端、网关、持久数据、发布包和备份分别存放。固件通过已有的管理后台和 OTA 目录发布。详细流程见[生产部署规范](deploy/production/README.md)，版本、业务入口和证据见[当前部署记录](docs/deployment/current.md)。
 
-开发者按各自适用的环境说明构建和验证。参考[团队协作与安全回退](CONTRIBUTING.md)、[架构决策记录](docs/adr/)和[文档整理方案](docs/planning/project-documentation-plan-2026-11-22.md)。
+开发者按各自适用的环境说明构建和验证。参考[团队协作与安全回退](CONTRIBUTING.md)、[架构决策记录](docs/adr/)和[项目文档导航](docs/README.md)。

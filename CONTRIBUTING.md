@@ -30,7 +30,7 @@ git push -u origin HEAD
 
 代理可以提交、推送任务分支和准备 PR；合并到 `main` 前须获得管理员针对该 PR 的明确同意，即使代理使用的 GitHub 凭据属于管理员也一样。
 
-管理端构建与本机验证步骤见 [运行说明](docs/development/manager-baseline.md)。新增 GitHub 必需检查时，应先确保对应 CI 任务能够真实运行；不要将不存在的检查名称设为合并门槛。
+管理端构建与本机验证步骤见 [开发指南](docs/development/README.md)。新增 GitHub 必需检查时，应先确保对应 CI 任务能够真实运行；不要将不存在的检查名称设为合并门槛。
 
 ## 测试环境
 
