@@ -3,45 +3,11 @@
 #if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
 
 #include <algorithm>
-#include <cJSON.h>
-#include <esp_network.h>
 #include <esp_wifi_types_generic.h>
-#include <memory>
 #include <utility>
 #include <wifi_manager.h>
 
 namespace {
-using Json = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
-
-// First-boot touch setup shares the existing submission handler with the phone.
-bool SubmitToStartupPortal(const SpeakerWifiSetup::Request& request) {
-    Json payload(cJSON_CreateObject(), cJSON_Delete);
-    if (!cJSON_AddStringToObject(payload.get(), "ssid", request.ssid.c_str()) ||
-        !cJSON_AddStringToObject(payload.get(), "password", request.password.c_str()) ||
-        !cJSON_AddBoolToObject(payload.get(), "exit", true)) {
-        return false;
-    }
-    std::unique_ptr<char, decltype(&cJSON_free)> body(cJSON_PrintUnformatted(payload.get()), cJSON_free);
-    if (!body) {
-        return false;
-    }
-    EspNetwork network;
-    auto http = network.CreateHttp(0);
-    if (!http) {
-        return false;
-    }
-    http->SetTimeout(60000);
-    http->SetHeader("Content-Type", "application/json");
-    http->SetContent(std::string(body.get()));
-    if (!http->Open("POST", "http://127.0.0.1/submit") || http->GetStatusCode().value_or(0) != 200) {
-        return false;
-    }
-    const auto response = http->ReadAll();
-    http->Close();
-    Json result(cJSON_ParseWithLength(response.c_str(), response.size() + 1), cJSON_Delete);
-    return cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(result.get(), "success"));
-}
-
 std::vector<SpeakerWifiSetup::Network> ReadNetworks(const std::vector<wifi_ap_record_t>& records) {
     std::vector<SpeakerWifiSetup::Network> networks;
     for (const auto& record : records) {
@@ -129,9 +95,9 @@ SpeakerWifiSetup::Result SpeakerWifiSetup::Perform(const Request& request) {
             result.networks = ReadNetworks(manager.SettingsNetworks(request.action == Action::Refresh));
             break;
         case Action::Connect:
-            result.ok = !request.ssid.empty() && request.ssid.size() <= 32 && request.password.size() <= 64 &&
-                (manager.IsConfigMode() ? SubmitToStartupPortal(request) :
-                                           manager.TrySettingsNetwork(request.ssid, request.password));
+            result.ok = manager.IsConfigMode()
+                ? manager.SubmitConfigNetwork(request.ssid, request.password)
+                : manager.TrySettingsNetwork(request.ssid, request.password);
             break;
     }
     if (manager.IsConnected()) {

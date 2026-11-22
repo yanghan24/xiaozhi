@@ -30,7 +30,7 @@ index e79098b..a249f44 100644
      memset(&server_addr, 0, sizeof(server_addr));
      server_addr.sin_family = AF_INET;
 diff --git a/wifi_configuration_ap.cc b/wifi_configuration_ap.cc
-index 62f435c..7932061 100644
+index 62f435c..585692b 100644
 --- a/wifi_configuration_ap.cc
 +++ b/wifi_configuration_ap.cc
 @@ -20,6 +20,8 @@
@@ -42,13 +42,12 @@ index 62f435c..7932061 100644
  
  #define TAG "WifiConfigurationAp"
  
-@@ -29,6 +31,63 @@
+@@ -29,6 +31,43 @@
  extern const char index_html_start[] asm("_binary_wifi_configuration_html_start");
  extern const char done_html_start[] asm("_binary_wifi_configuration_done_html_start");
  
 +namespace {
 +esp_netif_t* trial_netif = nullptr;
-+bool portal_closing = false;  // Accessed by the single HTTP task, reset before it starts.
 +std::mutex preference_mutex;
 +std::string preferred_station;
 +
@@ -75,25 +74,6 @@ index 62f435c..7932061 100644
 +    return {cJSON_ParseWithLength(body.c_str(), body.size() + 1), cJSON_Delete};
 +}
 +
-+bool SchedulePortalExit(std::function<void()>* on_exit) {
-+    if (portal_closing) {
-+        return true;
-+    }
-+    portal_closing = true;
-+    if (xTaskCreate([](void* context) {
-+            // Let the current HTTP response reach the caller before stopping the portal.
-+            vTaskDelay(pdMS_TO_TICKS(200));
-+            auto& callback = *static_cast<std::function<void()>*>(context);
-+            if (callback) {
-+                callback();
-+            }
-+            vTaskDelete(nullptr);
-+        }, "exit_config_task", 4096, on_exit, 5, nullptr) != pdPASS) {
-+        portal_closing = false;
-+        return false;
-+    }
-+    return true;
-+}
 +}  // namespace
 +
 +std::string TakePreferredProvisioningNetwork() {
@@ -106,7 +86,7 @@ index 62f435c..7932061 100644
  WifiConfigurationAp::WifiConfigurationAp()
  {
      event_group_ = xEventGroupCreate();
-@@ -42,6 +101,9 @@ WifiConfigurationAp::WifiConfigurationAp()
+@@ -42,6 +81,9 @@ WifiConfigurationAp::WifiConfigurationAp()
  
  std::vector<wifi_ap_record_t> WifiConfigurationAp::GetAccessPoints()
  {
@@ -116,7 +96,7 @@ index 62f435c..7932061 100644
      std::lock_guard<std::mutex> lock(mutex_);
      return ap_records_;
  }   
-@@ -89,11 +151,13 @@ void WifiConfigurationAp::Start()
+@@ -89,11 +131,13 @@ void WifiConfigurationAp::Start()
                                                          this,
                                                          &instance_got_ip_));
  
@@ -128,14 +108,14 @@ index 62f435c..7932061 100644
 +    trial_netif = esp_netif_create_default_wifi_sta();
 +    ESP_ERROR_CHECK(trial_netif ? ESP_OK : ESP_ERR_NO_MEM);
 +    ap_records_.clear();
-+    portal_closing = false;
++    portal_closing_ = false;
 +    PreferStation("");
 +    ESP_ERROR_CHECK(StartAccessPoint());
 +    ESP_ERROR_CHECK(StartWebServer());
      // Setup periodic WiFi scan timer.
      // skip_unhandled_events = false so the timer can wake the CPU from light
      // sleep on its own; otherwise the AP-mode scan list would stop refreshing
-@@ -112,6 +176,26 @@ void WifiConfigurationAp::Start()
+@@ -112,6 +156,26 @@ void WifiConfigurationAp::Start()
          .skip_unhandled_events = false
      };
      ESP_ERROR_CHECK(esp_timer_create(&timer_args, &scan_timer_));
@@ -144,7 +124,7 @@ index 62f435c..7932061 100644
 +
 +bool WifiConfigurationAp::StartSettingsHotspot(WifiStation& station) {
 +    settings_station_ = &station;
-+    portal_closing = false;
++    portal_closing_ = false;
 +    if (StartAccessPoint() != ESP_OK || StartWebServer() != ESP_OK) {
 +        Stop();
 +        return false;
@@ -162,7 +142,7 @@ index 62f435c..7932061 100644
  }
  
  std::string WifiConfigurationAp::GetSsid()
-@@ -130,22 +214,38 @@ std::string WifiConfigurationAp::GetSsid()
+@@ -130,22 +194,38 @@ std::string WifiConfigurationAp::GetSsid()
  
  std::string WifiConfigurationAp::GetWebServerUrl()
  {
@@ -205,7 +185,7 @@ index 62f435c..7932061 100644
      IP4_ADDR(&ip_info.netmask, 255, 255, 255, 0);
      esp_netif_dhcps_stop(ap_netif_);
      esp_netif_set_ip_info(ap_netif_, &ip_info);
-@@ -153,7 +253,14 @@ void WifiConfigurationAp::StartAccessPoint()
+@@ -153,7 +233,14 @@ void WifiConfigurationAp::StartAccessPoint()
  
      // Start the DNS server
      dns_server_ = std::make_unique<DnsServer>();
@@ -221,7 +201,7 @@ index 62f435c..7932061 100644
  
      // Get the SSID
      std::string ssid = GetSsid();
-@@ -166,16 +273,31 @@ void WifiConfigurationAp::StartAccessPoint()
+@@ -166,16 +253,31 @@ void WifiConfigurationAp::StartAccessPoint()
      wifi_config.ap.authmode = WIFI_AUTH_OPEN;
  
      // Start the WiFi Access Point
@@ -259,7 +239,7 @@ index 62f435c..7932061 100644
  
      ESP_LOGI(TAG, "Access Point started with SSID %s", ssid.c_str());
  
-@@ -237,9 +359,10 @@ void WifiConfigurationAp::StartAccessPoint()
+@@ -237,9 +339,10 @@ void WifiConfigurationAp::StartAccessPoint()
  
          nvs_close(nvs);
      }
@@ -271,7 +251,7 @@ index 62f435c..7932061 100644
  {
      // Start the web server
      httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-@@ -248,7 +371,18 @@ void WifiConfigurationAp::StartWebServer()
+@@ -248,7 +351,18 @@ void WifiConfigurationAp::StartWebServer()
      // 5G Network takes longer to connect
      config.recv_wait_timeout = 15;
      config.send_wait_timeout = 15;
@@ -291,7 +271,7 @@ index 62f435c..7932061 100644
  
      // Register the index.html file
      httpd_uri_t index_html = {
-@@ -338,34 +472,44 @@ void WifiConfigurationAp::StartWebServer()
+@@ -338,34 +452,44 @@ void WifiConfigurationAp::StartWebServer()
          .method = HTTP_GET,
          .handler = [](httpd_req_t *req) -> esp_err_t {
              auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
@@ -299,9 +279,9 @@ index 62f435c..7932061 100644
 -
 -            // Check if 5G is supported
 -            bool support_5g = false;
-+            if (this_->settings_station_ && !portal_closing) {
++            if (this_->settings_station_ && !this_->portal_closing_) {
 +                this_->RefreshAccessPoints();
-+            } else if (!portal_closing && httpd_req_get_url_query_len(req) != 0) {
++            } else if (!this_->portal_closing_ && httpd_req_get_url_query_len(req) != 0) {
 +                char query[24];
 +                char refresh[4];
 +                if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK &&
@@ -360,7 +340,7 @@ index 62f435c..7932061 100644
          },
          .user_ctx = this
      };
-@@ -376,69 +520,34 @@ void WifiConfigurationAp::StartWebServer()
+@@ -376,69 +500,26 @@ void WifiConfigurationAp::StartWebServer()
          .uri = "/submit",
          .method = HTTP_POST,
          .handler = [](httpd_req_t *req) -> esp_err_t {
@@ -375,11 +355,7 @@ index 62f435c..7932061 100644
 -            if (!buf) {
 -                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to allocate memory");
 -                return ESP_FAIL;
-+            httpd_resp_set_type(req, "application/json");
-+            httpd_resp_set_hdr(req, "Connection", "close");
-+            if (portal_closing) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Already leaving setup\"}");
-             }
+-            }
 -
 -            int ret = httpd_req_recv(req, buf, buf_len);
 -            if (ret <= 0) {
@@ -390,27 +366,16 @@ index 62f435c..7932061 100644
 -                    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Failed to receive request");
 -                }
 -                return ESP_FAIL;
-+            const auto form = ReadForm(req);
-+            const auto* ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "ssid"));
-+            const auto* password = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "password"));
-+            if (!ssid || !*ssid || strlen(ssid) > 32 || (password && strlen(password) > 64)) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Invalid SSID or password\"}");
-             }
+-            }
 -            buf[ret] = '\0';
- 
+-
 -            // 解析 JSON 数据
 -            cJSON *json = cJSON_Parse(buf);
 -            free(buf);
 -            if (!json) {
 -                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
 -                return ESP_FAIL;
-+            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
-+            const std::string secret = password ? password : "";
-+            const bool connected = portal->settings_station_ ?
-+                portal->settings_station_->TryNetwork(ssid, secret) : portal->ConnectToWifi(ssid, secret);
-+            if (!connected) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}");
-             }
+-            }
 -
 -            cJSON *ssid_item = cJSON_GetObjectItemCaseSensitive(json, "ssid");
 -            cJSON *password_item = cJSON_GetObjectItemCaseSensitive(json, "password");
@@ -419,19 +384,13 @@ index 62f435c..7932061 100644
 -                cJSON_Delete(json);
 -                httpd_resp_send(req, "{\"success\":false,\"error\":\"Invalid SSID\"}", HTTPD_RESP_USE_STRLEN);
 -                return ESP_OK;
-+            if (!portal->settings_station_) {
-+                portal->Save(ssid, secret);
-+                PreferStation(ssid);
-             }
+-            }
 -
 -            std::string ssid_str = ssid_item->valuestring;
 -            std::string password_str = "";
 -            if (cJSON_IsString(password_item) && (password_item->valuestring != NULL) && (strlen(password_item->valuestring) < 65)) {
 -                password_str = password_item->valuestring;
-+            const bool exit_now = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(form.get(), "exit"));
-+            if (exit_now && !SchedulePortalExit(&portal->on_exit_requested_)) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Unable to leave setup\"}");
-             }
+-            }
 -
 -            // 获取当前对象
 -            auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
@@ -444,30 +403,42 @@ index 62f435c..7932061 100644
 -            this_->Save(ssid_str, password_str);
 -            cJSON_Delete(json);
 -            // 设置成功响应
--            httpd_resp_set_type(req, "application/json");
--            httpd_resp_set_hdr(req, "Connection", "close");
+             httpd_resp_set_type(req, "application/json");
+             httpd_resp_set_hdr(req, "Connection", "close");
 -            httpd_resp_send(req, "{\"success\":true}", HTTPD_RESP_USE_STRLEN);
 -            return ESP_OK;
-+            return httpd_resp_sendstr(req, "{\"success\":true}");
++            const auto form = ReadForm(req);
++            const auto* ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "ssid"));
++            const auto* password = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "password"));
++            const bool exit_now = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(form.get(), "exit"));
++            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
++            switch (portal->SubmitNetwork(ssid ? ssid : "", password ? password : "", exit_now)) {
++                case SubmitResult::Invalid:
++                    return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Invalid SSID or password\"}");
++                case SubmitResult::Busy:
++                    return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Setup is busy\"}");
++                case SubmitResult::ConnectionFailed:
++                    return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}");
++                case SubmitResult::ExitFailed:
++                    return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Unable to leave setup\"}");
++                case SubmitResult::Success:
++                    return httpd_resp_sendstr(req, "{\"success\":true}");
++            }
++            return ESP_FAIL;
          },
          .user_ctx = this
      };
-@@ -462,30 +571,21 @@ void WifiConfigurationAp::StartWebServer()
+@@ -462,30 +543,16 @@ void WifiConfigurationAp::StartWebServer()
          .uri = "/exit",
          .method = HTTP_POST,
          .handler = [](httpd_req_t *req) -> esp_err_t {
 -            auto* this_ = static_cast<WifiConfigurationAp*>(req->user_ctx);
 -            
 -            // 设置响应头，防止浏览器缓存
-+            if (!portal_closing) {
-+                const auto form = ReadForm(req);
-+                const auto* resume = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "resume"));
-+                if (resume && *resume && strlen(resume) <= 32) {
-+                    PreferStation(resume);
-+                }
-+            }
++            const auto form = ReadForm(req);
++            const auto* resume = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "resume"));
 +            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
-+            if (!SchedulePortalExit(&portal->on_exit_requested_)) {
++            if (!portal->RequestExit(resume)) {
 +                return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
 +            }
              httpd_resp_set_type(req, "application/json");
@@ -495,15 +466,73 @@ index 62f435c..7932061 100644
          },
          .user_ctx = this
      };
-@@ -784,6 +884,7 @@ void WifiConfigurationAp::StartWebServer()
+@@ -784,6 +851,65 @@ void WifiConfigurationAp::StartWebServer()
      ESP_ERROR_CHECK(httpd_register_uri_handler(server_, &advanced_submit));
  
      ESP_LOGI(TAG, "Web server started");
 +    return ESP_OK;
++}
++
++WifiConfigurationAp::SubmitResult WifiConfigurationAp::SubmitNetwork(
++    const std::string& ssid, const std::string& password, bool exit_on_success) {
++    std::unique_lock submission(submission_mutex_, std::try_to_lock);
++    if (!submission.owns_lock() || portal_closing_) {
++        return SubmitResult::Busy;
++    }
++    if (ssid.empty() || ssid.size() > 32 || password.size() > 64) {
++        return SubmitResult::Invalid;
++    }
++
++    if (settings_station_) {
++        if (!settings_station_->TryNetwork(ssid, password)) {
++            return SubmitResult::ConnectionFailed;
++        }
++    } else {
++        if (!ConnectToWifi(ssid, password)) {
++            return SubmitResult::ConnectionFailed;
++        }
++        Save(ssid, password);
++        PreferStation(ssid);
++    }
++
++    if (exit_on_success && !SchedulePortalExit()) {
++        return SubmitResult::ExitFailed;
++    }
++    return SubmitResult::Success;
++}
++
++bool WifiConfigurationAp::RequestExit(const char* resume) {
++    std::unique_lock submission(submission_mutex_, std::try_to_lock);
++    if (!submission.owns_lock()) {
++        return false;
++    }
++    if (!portal_closing_ && resume && *resume && strlen(resume) <= 32) {
++        PreferStation(resume);
++    }
++    return SchedulePortalExit();
++}
++
++bool WifiConfigurationAp::SchedulePortalExit() {
++    if (portal_closing_.exchange(true)) {
++        return true;
++    }
++    if (xTaskCreate([](void* context) {
++            auto* portal = static_cast<WifiConfigurationAp*>(context);
++            // Let the current HTTP response reach the caller before stopping the portal.
++            vTaskDelay(pdMS_TO_TICKS(200));
++            if (portal->on_exit_requested_) {
++                portal->on_exit_requested_();
++            }
++            vTaskDelete(nullptr);
++        }, "exit_config_task", 4096, this, 5, nullptr) != pdPASS) {
++        portal_closing_ = false;
++        return false;
++    }
++    return true;
  }
  
  bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::string &password)
-@@ -958,8 +1059,6 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
+@@ -958,8 +1084,6 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
      } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
          wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
          ESP_LOGI(TAG, "Station " MACSTR " left, AID=%d", MAC2STR(event->mac), event->aid);
@@ -512,7 +541,7 @@ index 62f435c..7932061 100644
      } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
          xEventGroupSetBits(self->event_group_, WIFI_FAIL_BIT);
      } else if (event_id == WIFI_EVENT_SCAN_DONE) {
-@@ -980,6 +1079,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
+@@ -980,6 +1104,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
      WifiConfigurationAp* self = static_cast<WifiConfigurationAp*>(arg);
      if (event_id == IP_EVENT_STA_GOT_IP) {
          ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
@@ -522,7 +551,44 @@ index 62f435c..7932061 100644
          ESP_LOGI(TAG, "Got IP:" IPSTR, IP2STR(&event->ip_info.ip));
          xEventGroupSetBits(self->event_group_, WIFI_CONNECTED_BIT);
      }
-@@ -1086,9 +1188,18 @@ void WifiConfigurationAp::Stop() {
+@@ -1048,6 +1175,7 @@ void WifiConfigurationAp::SmartConfigEventHandler(void *arg, esp_event_base_t ev
+ #endif // !CONFIG_IDF_TARGET_ESP32P4
+ 
+ void WifiConfigurationAp::Stop() {
++    portal_closing_ = true;
+ #if !CONFIG_IDF_TARGET_ESP32P4
+     // 停止SmartConfig服务
+     if (sc_event_instance_) {
+@@ -1057,6 +1185,15 @@ void WifiConfigurationAp::Stop() {
+     esp_smartconfig_stop();
+ #endif
+ 
++    // 停止Web服务器
++    if (server_) {
++        httpd_stop(server_);
++        server_ = nullptr;
++    }
++
++    // Touch setup may still be using the radio outside the HTTP server task.
++    std::lock_guard submission(submission_mutex_);
++
+     // 停止定时器
+     if (scan_timer_) {
+         esp_timer_stop(scan_timer_);
+@@ -1064,12 +1201,6 @@ void WifiConfigurationAp::Stop() {
+         scan_timer_ = nullptr;
+     }
+ 
+-    // 停止Web服务器
+-    if (server_) {
+-        httpd_stop(server_);
+-        server_ = nullptr;
+-    }
+-
+     // 停止DNS服务器
+     if (dns_server_) {
+         dns_server_->Stop();
+@@ -1086,9 +1217,18 @@ void WifiConfigurationAp::Stop() {
          instance_got_ip_ = nullptr;
      }
  
@@ -544,7 +610,7 @@ index 62f435c..7932061 100644
      if (ap_netif_) {
          esp_netif_destroy_default_wifi(ap_netif_);
 diff --git a/wifi_manager.cc b/wifi_manager.cc
-index a79008a..9ac809b 100644
+index a79008a..0e55992 100644
 --- a/wifi_manager.cc
 +++ b/wifi_manager.cc
 @@ -23,6 +23,7 @@ WifiManager& WifiManager::GetInstance() {
@@ -563,7 +629,7 @@ index a79008a..9ac809b 100644
      std::unique_lock<std::mutex> lock(mutex_);
  
      if (!initialized_) {
-@@ -280,6 +282,62 @@ void WifiManager::StopConfigAp() {
+@@ -280,6 +282,72 @@ void WifiManager::StopConfigAp() {
      lock.lock();
  }
  
@@ -612,6 +678,16 @@ index a79008a..9ac809b 100644
 +    return station_active_ ? station_->NearbyNetworks(refresh) : std::vector<wifi_ap_record_t>{};
 +}
 +
++bool WifiManager::SubmitConfigNetwork(const std::string& ssid, const std::string& password) {
++    {
++        std::lock_guard lock(mutex_);
++        if (!config_mode_active_) {
++            return false;
++        }
++    }
++    return config_ap_->SubmitNetwork(ssid, password, true) == WifiConfigurationAp::SubmitResult::Success;
++}
++
 +bool WifiManager::TrySettingsNetwork(const std::string& ssid, const std::string& password) {
 +    {
 +        std::lock_guard lock(mutex_);
@@ -626,7 +702,7 @@ index a79008a..9ac809b 100644
  bool WifiManager::IsConfigMode() const {
      std::lock_guard<std::mutex> lock(mutex_);
      return config_mode_active_;
-@@ -287,13 +345,13 @@ bool WifiManager::IsConfigMode() const {
+@@ -287,13 +355,13 @@ bool WifiManager::IsConfigMode() const {
  
  std::string WifiManager::GetApSsid() const {
      std::lock_guard<std::mutex> lock(mutex_);
@@ -872,7 +948,7 @@ index db65307..a98bbed 100644
  
  private:
 diff --git a/include/wifi_configuration_ap.h b/include/wifi_configuration_ap.h
-index 7f71c80..628a492 100644
+index 7f71c80..fcb3d8a 100644
 --- a/include/wifi_configuration_ap.h
 +++ b/include/wifi_configuration_ap.h
 @@ -1,6 +1,7 @@
@@ -892,7 +968,7 @@ index 7f71c80..628a492 100644
  class WifiConfigurationAp {
  public:
      WifiConfigurationAp();
-@@ -38,6 +41,8 @@ public:
+@@ -38,10 +41,14 @@ public:
      void SetShowOtaConfig(bool show) { show_ota_config_ = show; }
      void SetShowSleepConfig(bool show) { show_sleep_config_ = show; }
      void Start();
@@ -901,7 +977,22 @@ index 7f71c80..628a492 100644
      void Stop();
  #if !CONFIG_IDF_TARGET_ESP32P4
      void StartSmartConfig();
-@@ -64,7 +69,8 @@ private:
+ #endif
++    enum class SubmitResult { Success, Invalid, Busy, ConnectionFailed, ExitFailed };
++    SubmitResult SubmitNetwork(const std::string& ssid, const std::string& password, bool exit_on_success);
+     bool ConnectToWifi(const std::string &ssid, const std::string &password);
+     void Save(const std::string &ssid, const std::string &password);
+     std::vector<wifi_ap_record_t> GetAccessPoints();
+@@ -56,6 +63,8 @@ public:
+ 
+ private:
+     std::mutex mutex_;
++    std::mutex submission_mutex_;
++    std::atomic<bool> portal_closing_{true};
+     std::unique_ptr<DnsServer> dns_server_;
+     httpd_handle_t server_ = NULL;
+     EventGroupHandle_t event_group_;
+@@ -64,7 +73,8 @@ private:
      esp_event_handler_instance_t instance_any_id_;
      esp_event_handler_instance_t instance_got_ip_;
      esp_timer_handle_t scan_timer_ = nullptr;
@@ -911,7 +1002,7 @@ index 7f71c80..628a492 100644
      esp_netif_t* ap_netif_ = nullptr;
      std::vector<wifi_ap_record_t> ap_records_;
      uint8_t last_connected_channel_ = 0;
-@@ -83,8 +89,8 @@ private:
+@@ -83,8 +93,10 @@ private:
      // Callbacks
      std::function<void()> on_exit_requested_;
  
@@ -919,26 +1010,29 @@ index 7f71c80..628a492 100644
 -    void StartWebServer();
 +    esp_err_t StartAccessPoint();
 +    esp_err_t StartWebServer();
++    bool RequestExit(const char* resume);
++    bool SchedulePortalExit();
  
      // Event handlers
      static void WifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 diff --git a/include/wifi_manager.h b/include/wifi_manager.h
-index e1d6bb2..5a23ba6 100644
+index e1d6bb2..fe90550 100644
 --- a/include/wifi_manager.h
 +++ b/include/wifi_manager.h
-@@ -98,6 +98,11 @@ public:
+@@ -98,6 +98,12 @@ public:
      std::string GetApSsid() const;
      std::string GetApWebUrl() const;
  
 +    bool StartSettingsHotspot();
 +    void StopSettingsHotspot();
 +    std::vector<wifi_ap_record_t> SettingsNetworks(bool refresh);
++    bool SubmitConfigNetwork(const std::string& ssid, const std::string& password);
 +    bool TrySettingsNetwork(const std::string& ssid, const std::string& password);
 +
      // ==================== Power ====================
      
      void SetPowerSaveLevel(WifiPowerSaveLevel level);
-@@ -125,6 +130,8 @@ private:
+@@ -125,6 +131,8 @@ private:
      bool initialized_ = false;
      bool station_active_ = false;
      bool config_mode_active_ = false;
