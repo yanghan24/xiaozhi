@@ -114,6 +114,11 @@ inline lv_obj_t* Button(lv_obj_t* parent, const char* text, lv_event_cb_t handle
     return button;
 }
 
+inline void CardBorder(lv_obj_t* card) {
+    lv_obj_set_style_border_width(card, 1, LV_PART_MAIN);
+    lv_obj_set_style_border_color(card, lv_color_hex(kEdge), LV_PART_MAIN);
+}
+
 inline void Outline(lv_obj_t* button, uint32_t color = kMuted) {
     lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(button, 1, LV_PART_MAIN);

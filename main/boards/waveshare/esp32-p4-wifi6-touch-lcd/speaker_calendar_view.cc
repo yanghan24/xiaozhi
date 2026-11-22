@@ -16,9 +16,12 @@ using namespace SpeakerUi;
 using namespace std::chrono;
 
 namespace {
-constexpr int kStripWidth = 710;
-constexpr int kStripHeight = 105;
 constexpr int kDayWidth = 102;
+constexpr int kStripWidth = 7 * kDayWidth;
+constexpr int kStripHeight = 105;
+constexpr int kListWidth = 710;
+constexpr int kDotSize = 6;
+constexpr int kDotBottomGap = 6;
 constexpr sys_days kFirstDate{year{1} / January / 1};
 constexpr sys_days kLastDate{year{9999} / December / 31};
 constexpr int32_t kMaxOffset = ((kLastDate - kFirstDate).count() - (kStripWidth - 1) / kDayWidth) * kDayWidth;
@@ -64,15 +67,15 @@ void SpeakerCalendarView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     lv_obj_align(month_, LV_ALIGN_TOP_RIGHT, -45, 26);
     today_button_ = Button(root_, "今天", [](lv_event_t* event) {
         static_cast<SpeakerCalendarView*>(lv_event_get_user_data(event))->GoToToday();
-    }, this, kCard, kCyan);
-    lv_obj_set_pos(today_button_, 100, 17);
-    lv_obj_set_size(today_button_, 84, 44);
+    }, this);
+    lv_obj_set_pos(today_button_, 100, 13);
+    lv_obj_set_size(today_button_, 100, 52);
+    CardBorder(today_button_);
     lv_obj_add_flag(today_button_, LV_OBJ_FLAG_HIDDEN);
 
-    dates_ = Surface(root_, 45, 87, kStripWidth, kStripHeight);
+    dates_ = Surface(root_, (kWidth - kStripWidth) / 2, 87, kStripWidth, kStripHeight);
     lv_obj_add_flag(dates_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
     lv_obj_add_event_cb(dates_, OnDateTouch, LV_EVENT_ALL, this);
-    static_assert(7 * kDayWidth >= kStripWidth);
     for (auto& cell : cells_) {
         cell.root = Surface(dates_, 0, 0, kDayWidth, kStripHeight);
         cell.weekday = Label(cell.root, "", kMuted);
@@ -81,17 +84,27 @@ void SpeakerCalendarView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_set_style_radius(cell.selection, 15, LV_PART_MAIN);
         lv_obj_set_style_bg_color(cell.selection, lv_color_hex(kCyan), LV_PART_MAIN);
         cell.number = Label(cell.root, "");
-        lv_obj_align(cell.number, LV_ALIGN_TOP_MID, 0, 56);
-        cell.memo_dot = Surface(cell.root, (kDayWidth - 6) / 2, kStripHeight - 6, 6, 6);
+        lv_obj_align(cell.number, LV_ALIGN_TOP_MID, 0, 48);
+        cell.memo_dot = Surface(cell.root, (kDayWidth - kDotSize) / 2,
+                                kStripHeight - kDotSize - kDotBottomGap, kDotSize, kDotSize);
         lv_obj_set_style_radius(cell.memo_dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(cell.memo_dot, LV_OPA_COVER, LV_PART_MAIN);
     }
 
-    list_ = Surface(root_, 45, 209, 710, 239);
+    constexpr int kSideMargin = (kWidth - kListWidth) / 2;
+    list_ = Surface(root_, kSideMargin, 209, kListWidth, 239);
     lv_obj_add_flag(list_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE));
     lv_obj_set_scroll_dir(list_, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(list_, LV_SCROLLBAR_MODE_AUTO);
     lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
+    memo_hint_ = Surface(root_, 0, 0, kListWidth, 60);
+    lv_obj_align(memo_hint_, LV_ALIGN_BOTTOM_MID, 0, -32);
+    lv_obj_set_style_radius(memo_hint_, 18, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(memo_hint_, lv_color_hex(kCard), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(memo_hint_, LV_OPA_COVER, LV_PART_MAIN);
+    CardBorder(memo_hint_);
+    lv_obj_center(Label(memo_hint_, "请说「明天上午九点提醒我开会」", kMuted));
+    lv_obj_add_flag(memo_hint_, LV_OBJ_FLAG_HIDDEN);
     clock_hint_ = Label(root_, "正在校时", kMuted);
     lv_obj_center(clock_hint_);
 }
@@ -120,6 +133,7 @@ void SpeakerCalendarView::Update() {
     if (!local) {
         lv_anim_delete(this, AnimateOffset);
         lv_obj_add_flag(today_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(memo_hint_, LV_OBJ_FLAG_HIDDEN);
         tracking_ = false;
         today_.reset();
         return;
@@ -238,8 +252,8 @@ void SpeakerCalendarView::GoToToday() {
     lv_anim_delete(this, AnimateOffset);
     tracking_ = false;
     selected_ = *today_;
-    const auto center_day = days(kStripWidth / 2 / kDayWidth);
-    offset_ = std::clamp(OffsetForDate(selected_ - center_day), int32_t{0}, kMaxOffset);
+    const auto monday = selected_ - days(DayInWeek(selected_));
+    offset_ = std::clamp(OffsetForDate(monday), int32_t{0}, kMaxOffset);
     RefreshEntries();
     RenderDates(true);
     RenderMemos();
@@ -312,8 +326,8 @@ void SpeakerCalendarView::RenderMemos() {
         if (!std::string_view(entry.when).starts_with(key.data())) {
             continue;
         }
-        auto* row = Surface(list_, 0, 0, kStripWidth, LV_SIZE_CONTENT);
-        Rule(row, 0, 0, kStripWidth, 1);
+        auto* row = Surface(list_, 0, 0, kListWidth, LV_SIZE_CONTENT);
+        Rule(row, 0, 0, kListWidth, 1);
         const auto time = entry.when[10] == ' ' ? std::string_view(entry.when + 11, 5) : std::string_view("全天");
         auto* time_label = Label(row, "", kMuted);
         lv_label_set_text_fmt(time_label, "%.*s", static_cast<int>(time.size()), time.data());
@@ -324,15 +338,12 @@ void SpeakerCalendarView::RenderMemos() {
         lv_obj_set_pos(content, 158, 24);
         lv_obj_set_style_pad_bottom(row, 22, LV_PART_MAIN);
     }
-    if (!lv_obj_get_child_count(list_)) {
-        Rule(list_, 0, 0, kStripWidth, 1);
+    const bool empty_day = lv_obj_get_child_count(list_) == 0;
+    lv_obj_set_flag(memo_hint_, LV_OBJ_FLAG_HIDDEN, !empty_day || binding_ <= 0);
+    if (empty_day) {
+        Rule(list_, 0, 0, kListWidth, 1);
         auto* empty = Label(list_, binding_ > 0 ? "当天暂无提醒" : "登录后可查看记事", kMuted);
         lv_obj_set_style_pad_top(empty, 25, LV_PART_MAIN);
-        if (binding_ > 0) {
-            auto* hint = Label(list_, "请说「明天上午九点提醒我开会」", kMuted);
-            lv_obj_set_width(hint, kStripWidth);
-            lv_obj_set_style_pad_top(hint, 10, LV_PART_MAIN);
-        }
     }
 }
 

@@ -47,6 +47,7 @@ private:
     lv_obj_t* dates_ = nullptr;
     lv_obj_t* list_ = nullptr;
     lv_obj_t* clock_hint_ = nullptr;
+    lv_obj_t* memo_hint_ = nullptr;
     lv_obj_t* month_ = nullptr;
     lv_obj_t* today_button_ = nullptr;
     std::array<DateCell, 8> cells_{};

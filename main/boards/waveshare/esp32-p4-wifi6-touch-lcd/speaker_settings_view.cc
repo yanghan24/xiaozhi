@@ -85,8 +85,7 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_set_pos(row, kSideMargin + column * (kCardWidth + kGap),
                        kFirstRowY + row_index * (kRowHeight + kGap));
         lv_obj_set_size(row, kCardWidth, kRowHeight);
-        lv_obj_set_style_border_width(row, 1, LV_PART_MAIN);
-        lv_obj_set_style_border_color(row, lv_color_hex(kEdge), LV_PART_MAIN);
+        CardBorder(row);
         lv_obj_align(Icon(row, entry.icon, kCyan, 340), LV_ALIGN_LEFT_MID, 32, 0);
         lv_obj_align(Label(row, entry.title), LV_ALIGN_LEFT_MID, 105, 0);
         lv_obj_align(Icon(row, MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT), LV_ALIGN_RIGHT_MID, -29, 0);

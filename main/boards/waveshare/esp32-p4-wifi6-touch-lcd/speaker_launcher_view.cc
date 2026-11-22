@@ -8,7 +8,7 @@ using namespace SpeakerUi;
 
 namespace {
 constexpr int kClockWidth = 230;
-constexpr int kClockDetailsScale = 171; // About 20 px with the existing 30 px theme font.
+constexpr int kClockDetailsScale = 205;  // 24 px with the existing 30 px theme font.
 
 lv_obj_t* Tomato(lv_obj_t* parent) {
     auto* icon = Surface(parent, 0, 0, 50, 51);
@@ -34,7 +34,7 @@ void SpeakerLauncherView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     root_ = Panel(parent);
     wifi_ = Wifi(root_);
 
-    auto* clock_group = Surface(root_, 0, 0, kClockWidth, 140);
+    auto* clock_group = Surface(root_, 0, 0, kClockWidth, 160);
     lv_obj_align(clock_group, LV_ALIGN_RIGHT_MID, -17, -26);
     clock_ = Digits(clock_group, "--:--", kClockWidth, 360);
     lv_obj_align(clock_, LV_ALIGN_CENTER, 0, -28);
@@ -42,8 +42,8 @@ void SpeakerLauncherView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     weather_ = Label(clock_group, "", kMuted);
     Scale(date_, kClockDetailsScale);
     Scale(weather_, kClockDetailsScale);
-    lv_obj_align(date_, LV_ALIGN_CENTER, 0, 18);
-    lv_obj_align(weather_, LV_ALIGN_CENTER, 0, 43);
+    lv_obj_align(date_, LV_ALIGN_CENTER, 0, 22);
+    lv_obj_align(weather_, LV_ALIGN_CENTER, 0, 56);
 
     constexpr Entry entries[] = {
         {"设置", MATERIAL_SYMBOLS_SETTINGS, 0x8BC9FA, Page::Settings},
