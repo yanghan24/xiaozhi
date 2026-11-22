@@ -28,7 +28,7 @@
 
 ## 工具与服务
 
-VS Code 可使用 `.devcontainer/devcontainer.json` 打开。已有 `xiaozhi-dev` 时优先 Attach to Running Container，避免创建第二个实例。创建配置需要先有上述私有 `dev.env` 和独立 access 目录。用户明确授权后才可创建或重建容器。
+VS Code 可使用 `.devcontainer/devcontainer.json` 打开。已有 `xiaozhi-dev` 时优先 Attach to Running Container，避免创建第二个实例。从 [`dev.env.example`](dev.env.example)复制到本机私有运行目录的 `config/dev.env`，再填写开发数据库和缓存配置。启动 Compose 前使用 `XIAOZHI_RUNTIME_DIR` 指定运行目录。访问材料使用独立目录。用户明确授权后才可创建或重建容器。
 
 宿主机仅用现有 Docker 管理容器。开发命令在容器中运行：
 
