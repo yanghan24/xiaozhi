@@ -49,19 +49,22 @@ flowchart LR
 
 | 发布对象 | 基线与核对方式 |
 | --- | --- |
-| 服务端 | 记录本次更新前后的提交、受影响组件和镜像 ID。Web、API 和语音镜像的 `org.opencontainers.image.revision` 与 `images.manifest` 的 `source` 对应。部署模板从本次提交导出。若各组件运行在不同提交，部署视图分别记录。 |
+| 服务端 | 按组件记录更新前后的完整提交、镜像 ID 和镜像层。镜像的 `org.opencontainers.image.revision` 与发布清单中的提交对应。部署模板从本次提交导出。各组件可以运行在不同提交，部署视图分别记录。 |
 | 固件 | 记录本次更新前后的固件版本和提交、上游基线、构建变体、OTA 板型和应用包 SHA-256。发布后用目录版本、下载校验和设备版本心跳分别确认对应状态。 |
 
 产物与发布记录放在对应的 `/data/packages/xiaozhi/<源码版本>/` 目录。发布后更新部署视图、更新日志和[当前部署记录](../../docs/deployment/current.md)。只发布服务端或固件时，保留另一端最近核验的基线。回退也记录回退前后的基线及结果。
 
-## 服务端构建与传包
+## 首次部署
 
-1. 在对应开发环境从同一个发布提交取构建源码、镜像 Dockerfile 和 Web 代理模板，构建 Web、API 和语音镜像。使用目标机兼容的平台。个人构建入口和环境配置在各自的开发部署目录。
-2. 生成 `images.tar`、`images.manifest`、`deployment.tar.gz` 和 `SHA256SUMS`。镜像清单记录完整提交 SHA、平台、镜像名称、ID 和层摘要。部署模板包通过 `git archive` 从该提交的 `deploy/production/` 导出。生产 `.env`、凭据和证书按[配置说明](#环境变量及配置示例)管理。
-3. 上传到该版本的包目录。文件传输完成后执行 `sha256sum -c SHA256SUMS`，再核对空间、目标平台与发布清单。模板先解到暂存目录，按本次发布范围比较差异。
-4. 生产用已有 Docker 执行 `docker load -i images.tar`，导入后核对实际镜像。服务启用时使用 `--no-build --pull never`。
+首次部署使用全量离线包。已有环境升级按[日常更新、验证与回退](#日常更新验证与回退)执行。
 
-## 首次初始化
+### 全量离线包
+
+1. 在开发环境从同一发布提交构建 Java API、管理 Web 和 Python 语音镜像，取该提交的 Dockerfile、Web 代理配置和部署模板。开发入口与依赖按各自的开发环境文档执行。构建平台与目标机一致。
+2. 将三种应用镜像及模板指定的 MySQL、Redis、Nginx 镜像一起导出到 `images.tar`。生成记录完整提交、平台、镜像标签、ID 和镜像层的 `images.manifest`。用 `git archive` 导出目标提交的 `deploy/production/` 作为 `deployment.tar.gz`，对三个文件生成 `SHA256SUMS`。
+3. 上传到该版本的包目录。在生产核对空间和平台，执行 `sha256sum -c SHA256SUMS`，用已有 Docker 执行 `docker image load -i images.tar`，对照清单核对已导入镜像。将模板解到暂存目录后再安装。私有 `.env`、凭据和证书按[配置说明](#环境变量及配置示例)准备。
+
+### 首次初始化
 
 1. 将校验通过的应用、网关模板和运维脚本安装到下表位置。按[配置模板](xiaozhi/speaker.properties.example)准备环境配置、TLS 和服务端凭据。
 2. 在空数据目录使用 [`init-config.sh`](bin/init-config.sh) 初始化小智自己的 MySQL、Redis、管理员及应用加密配置。将生产专用的设备授权客户端和模型目录客户端配置到 Java 私有配置。初始化完成后按现有流程移除管理员的临时引导文件。
@@ -85,11 +88,44 @@ flowchart LR
 
 ## 日常更新、验证与回退
 
-1. **发布前核对**。确认当前镜像、服务状态、目标提交、现网数据库迁移与空间。备份将要替换的 Compose、服务配置及对应版本记录。涉及数据或结构变更时，按恢复要求备份必要业务数据并记录回退条件。现行首版备份排除对话正文，也不得通过整库、卷或日志快照间接保留正文。备份和恢复验收须核对排除结果。详见[备份数据边界](../../docs/adr/0006-exclude-conversation-content-from-backups.md)。
-2. **更新应用**。沿用当前部署目录和持久数据，按发布范围更新镜像标签和必要模板。使用现有 Compose 更新目标服务，核对数据库与缓存健康。日常发布使用已有配置和已初始化的存储。
-3. **检查发布**。核对运行镜像、服务状态和启动日志。检查管理入口、目标 API、内部配置获取和语音 WSS 鉴权。核对本次变更涉及的功能与对应依赖。实机结果单独记录设备型号、固件版本和检查项。
-4. **更新记录**。确认上线结果后填写部署视图和更新日志，记录版本、校验、备份路径、验证范围和时间。
-5. **回退**。按备份恢复受影响的配置与已验证的旧镜像。确认数据库结构和当前数据与回退版本兼容。需要恢复业务数据时，执行单独的数据恢复流程并复核结果。
+### 确定本次升级范围
+
+对照各组件的现网提交与目标提交，列出需要更新的组件、配置和数据库迁移。记录运行镜像标签和完整层摘要、存储健康状态、可用空间和回退条件。只构建、打包和切换涉及的组件。日常升级沿用现有目录、私有配置与数据，首次初始化脚本只用于空环境。固件按[固件构建与 OTA 发布](#固件构建与-ota-发布)独立处理。
+
+### 构建和打包
+
+- **应用层升级包**。应用产物可以在已验证的现网镜像上完整替换、且运行依赖兼容时，从目标提交构建该组件的产物。以对应现网镜像为 `FROM`，将完整的新产物装到原运行路径，镜像标签使用目标提交简写，并在 `org.opencontainers.image.revision` 标记完整目标提交。逐项核对需删除的旧文件、运行权限和代理配置。API 原路径为 `/app/app.jar`，Web 静态文件原路径为 `/usr/share/nginx/html/`。API 的完整 JAR 和 Web 的完整构建产物一并归入各自的新层；新增层可以直接由 Docker 加载。
+- **独立镜像升级包**。变更基础镜像、系统或运行依赖时，按目标提交的 Dockerfile 完整构建受影响的镜像，并用 `docker image save` 导出这些镜像。现网镜像层与记录不符时，先重新核对发布基线，也可选择这种包。数据库、缓存或网关有变更时，单独列出其版本、兼容性检查与回退步骤。
+
+在开发环境使用 `docker image save` 导出候选镜像供[升级包工具](tools/upgrade-images.py)读取。下面示例是 API 和 Web 同时更新时的应用层包，`API_BASE_IMAGE` 和 `WEB_BASE_IMAGE` 填各自已核对的现网镜像标签，`PACKAGE` 指向本次新建的包目录。
+
+```bash
+docker image save -o "$WORK/candidates.tar" \
+  "xiaozhi-release-api:${REVISION:0:12}" "xiaozhi-release-web:${REVISION:0:12}"
+python3 deploy/production/tools/upgrade-images.py pack \
+  --revision "$REVISION" --archive "$WORK/candidates.tar" --output "$PACKAGE" \
+  --base "api=$API_BASE_IMAGE" --base "web=$WEB_BASE_IMAGE"
+```
+
+将 `services.tar`、`release-manifest.json`、`SHA256SUMS` 和与目标提交对应的配置模板（仅在本次需要应用配置变更时）传到 `/data/packages/xiaozhi/<源码版本>/`。清单含基线与目标镜像层、目标镜像 ID 和目标提交。模板有变更时，从目标提交导出并把使用的模板包加入 `SHA256SUMS`。传输完成后先校验，目录和校验记录保留供回退排查。
+
+### 导入、切换与核验
+
+1. 在包目录执行 `sha256sum -c SHA256SUMS`。应用层包在小智应用目录运行下列检查与导入步骤，基线检查失败时停在导入前。独立镜像包按清单核对导入后的平台、镜像 ID、层和提交。
+
+   ```bash
+   cd /data/apps/xiaozhi
+   python3 "$UPGRADE_TOOL" verify-base "$PACKAGE/release-manifest.json"
+   docker image load -i "$PACKAGE/services.tar"
+   python3 "$UPGRADE_TOOL" verify-target "$PACKAGE/release-manifest.json"
+   ```
+
+   `UPGRADE_TOOL` 指向经过核对的版本库发布工具副本。基线检查、导入和候选镜像核验阶段都在服务切换前完成。应用层包采用现网 Docker Engine 经典镜像存储支持的导入格式，检查工具使用 Python 3.8 或更新版本。更换 Docker 镜像存储类型时，先验证导入兼容性，或使用对应引擎导出的独立镜像包。
+
+2. 在 `/data/backup/xiaozhi/` 备份将要替换的 Compose、相关配置和镜像基线，保留可用旧镜像。涉及结构或数据变更时先备份必要业务数据并准备回退。现行首版备份排除对话正文，也不得通过整库、卷或日志快照间接保留正文。备份和恢复验收须核对排除结果。详见[备份数据边界](../../docs/adr/0006-exclude-conversation-content-from-backups.md)。
+3. 对暂存的 Compose 执行 `docker compose config --quiet`，检查实际变更只涉及发布范围，再应用。使用 `docker compose up -d --no-deps --no-build --pull never api web` 切换目标服务，此例更新 API 和 Web。其余服务沿用原配置、镜像和实例。更新网关等独立服务时使用其自己的 Compose。
+4. 核对运行镜像、启动日志和数据库与缓存健康。按范围检查管理入口、目标 API、设备鉴权、内部配置和语音 WSS。对未更新服务核对容器 ID。实机结果单独记录设备型号、固件版本与实测项。
+5. 检查失败立即恢复已备份的 Compose 和配置，用同样的 Compose 命令切回受影响服务的旧镜像，再核对入口与存储。若涉及数据库结构或数据变更，按发布前确认的兼容条件及数据恢复计划处理。通过或回退后更新部署视图和更新日志，记下各组件基线、产物校验、备份、可复核结果与发布时间。
 
 ## 固件构建与 OTA 发布
 
