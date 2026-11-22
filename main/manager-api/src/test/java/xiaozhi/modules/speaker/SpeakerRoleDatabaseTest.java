@@ -141,4 +141,29 @@ class SpeakerRoleDatabaseTest {
         assertEquals("属于原用户和角色的记忆",conversations.memory(old.get("memory_scope").toString()));
         assertEquals(firstRole,conversations.find(receipt.get("history_id").toString()).get("agent_id"));
     }
+
+    @Test
+    void conversationDisplayUsesHistoricalOwnerAfterDeviceRebinding() {
+        String agentId = role("共享智能体", "original");
+        var firstDevice = devices.load(identity, false);
+        String oldSession = conversations.create(firstDevice, agentId + ":1", "a".repeat(64));
+        String oldSubject = db.queryForObject("SELECT subject FROM speaker_customer WHERE id=?", String.class, customer);
+        db.update("UPDATE speaker_customer SET display_name=? WHERE id=?", "原用户", customer);
+
+        String nextCustomer = UUID.randomUUID().toString();
+        String nextSubject = "next-owner-" + UUID.randomUUID();
+        db.update("INSERT INTO speaker_customer(id,issuer,subject,display_name,created_at_ms) VALUES (?,?,?,?,?)",
+                nextCustomer, "https://fixture.example/oidc", nextSubject, "新用户", System.currentTimeMillis());
+        db.update("UPDATE speaker_device_state SET customer_id=? WHERE device_id=?", nextCustomer, identity.id());
+        String newSession = conversations.create(devices.load(identity, false), agentId + ":1", "b".repeat(64));
+
+        var owners = conversations.findOwners(agentId, List.of(oldSession, newSession, UUID.randomUUID().toString()));
+        assertEquals(Set.of(oldSession, newSession), owners.keySet());
+        assertEquals("原用户", owners.get(oldSession).customerName());
+        assertEquals(oldSubject, owners.get(oldSession).marketAccountId());
+        assertEquals(firstDevice.get("name"), owners.get(oldSession).deviceName());
+        assertEquals(identity.id(), owners.get(oldSession).deviceId());
+        assertEquals(nextSubject, owners.get(newSession).marketAccountId());
+        assertTrue(conversations.findOwners(role("另一智能体", "original"), List.of(oldSession)).isEmpty());
+    }
 }

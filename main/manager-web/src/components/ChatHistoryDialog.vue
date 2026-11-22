@@ -10,7 +10,7 @@
         <template v-slot:title>
             <span style="font-size: 18px;">
                 {{ $t('chatHistory.with') + agentName + $t('chatHistory.dialogTitle') }}
-                <template v-if="currentMacAddress">
+                <template v-if="!speakerMode && currentMacAddress">
                     [<MacAddressMask :macAddress="currentMacAddress" />]
                 </template>
             </span>
@@ -21,14 +21,31 @@
                     :class="{ active: currentSessionId === session.sessionId }" @click="selectSession(session)">
                     <img :src="getUserAvatar(session.sessionId)" class="avatar" />
                     <div class="session-info">
-                        <div class="session-time">{{ session.title || formatTime(session.createdAt) }}</div>
-                        <div class="message-count">{{ session.chatCount > 99 ? '99' : session.chatCount }}</div>
+                        <div class="session-heading">
+                            <div class="session-time">{{ session.title || formatTime(session.createdAt) }}</div>
+                            <div class="message-count">{{ session.chatCount > 99 ? '99' : session.chatCount }}</div>
+                        </div>
+                        <div v-if="speakerMode" class="session-owner-line" :title="sessionOwnerLabel(session)">
+                            {{ sessionOwnerLabel(session) }}
+                        </div>
                     </div>
                 </div>
                 <div v-if="loading" class="loading">{{ $t('chatHistory.loading') }}</div>
                 <div v-if="!hasMore" class="no-more">{{ $t('chatHistory.noMoreRecords') }}</div>
             </div>
             <div class="chat-content">
+                <div v-if="speakerMode && currentSessionId" class="session-owner">
+                    <span><span class="owner-label">绑定用户</span>{{ currentCustomerName }}</span>
+                    <span v-if="currentSessionOwner && currentSessionOwner.marketAccountId">
+                        <span class="owner-label">集市账号 ID</span>{{ currentSessionOwner.marketAccountId }}
+                    </span>
+                    <span v-if="currentSessionOwner && currentSessionOwner.deviceName">
+                        <span class="owner-label">设备名称</span>{{ currentSessionOwner.deviceName }}
+                    </span>
+                    <span v-if="currentDeviceId">
+                        <span class="owner-label">设备标识</span><MacAddressMask :mac-address="currentDeviceId" />
+                    </span>
+                </div>
                 <div v-if="currentSessionId" class="messages">
                     <div v-for="(message, index) in messagesWithTime" :key="message.id">
                         <div v-if="message.type === 'time'" class="time-divider">
@@ -113,7 +130,8 @@ export default {
             sessions: [],
             messages: [],
             currentSessionId: '',
-            currentMacAddress: '',
+            sessionListRequest: 0,
+            messageRequest: 0,
             page: 1,
             limit: 20,
             loading: false,
@@ -148,6 +166,25 @@ export default {
         }
     },
     computed: {
+        speakerMode() {
+            return this.$store.state.pubConfig.speakerMode === true;
+        },
+        currentSessionOwner() {
+            return this.sessions.find(session => session.sessionId === this.currentSessionId)?.speakerOwner;
+        },
+        currentCustomerName() {
+            const owner = this.currentSessionOwner;
+            if (!owner) return '无归属记录';
+            return owner.customerName || '未提供姓名';
+        },
+        currentMacAddress() {
+            return this.messages[0]?.macAddress || '';
+        },
+        currentDeviceId() {
+            const id = this.currentSessionOwner?.deviceId || this.currentMacAddress;
+            if (!id || /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(id)) return id;
+            return id.length > 8 ? `${id.slice(0, 4)}…${id.slice(-4)}` : '****';
+        },
         messagesWithTime() {
             if (!this.messages || this.messages.length === 0) return [];
 
@@ -237,11 +274,17 @@ export default {
             const firstLine = text.split('\n')[0];
             return firstLine.length < text.length ? firstLine + '...' : text;
         },
+        sessionOwnerLabel(session) {
+            const owner = session.speakerOwner;
+            if (!owner) return '无归属记录';
+            return `${owner.customerName || '未提供姓名'} · ${owner.deviceName || '未提供设备名称'}`;
+        },
         resetData() {
+            ++this.sessionListRequest;
+            ++this.messageRequest;
             this.sessions = [];
             this.messages = [];
             this.currentSessionId = '';
-            this.currentMacAddress = '';
             this.page = 1;
             this.loading = false;
             this.hasMore = true;
@@ -254,12 +297,14 @@ export default {
             }
 
             this.loading = true;
+            const request = ++this.sessionListRequest;
             const params = {
                 page: this.page,
                 limit: this.limit
             };
 
             Api.agent.getAgentSessions(this.agentId, params, (res) => {
+                if (request !== this.sessionListRequest || !this.dialogVisible) return;
                 if (res.data && res.data.data && Array.isArray(res.data.data.list)) {
                     const list = res.data.data.list;
                     this.hasMore = list.length === this.limit;
@@ -276,13 +321,13 @@ export default {
             });
         },
         selectSession(session) {
+            const request = ++this.messageRequest;
             this.currentSessionId = session.sessionId;
+            this.messages = [];
             Api.agent.getAgentChatHistory(this.agentId, session.sessionId, (res) => {
+                if (request !== this.messageRequest || !this.dialogVisible) return;
                 if (res.data && res.data.data) {
                     this.messages = res.data.data;
-                    if (this.messages.length > 0 && this.messages[0].macAddress) {
-                        this.currentMacAddress = this.messages[0].macAddress;
-                    }
                     // 更新会话列表中的聊天记录数量
                     this.sessions = this.sessions.map(item => {
                         if (item.sessionId === session.sessionId) {
@@ -450,20 +495,34 @@ export default {
 }
 
 .session-info {
-    width: calc(100% - 50px);
+    flex: 1;
+    min-width: 0;
+}
+
+.session-heading {
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .session-time {
     font-size: 14px;
     color: #272727;
-    float: left;
-    height: 30px;
     line-height: 30px;
-    width: calc(100% - 30px);
-    /* 为消息数量留出空间 */
+    flex: 1;
+}
+
+.session-time,
+.session-owner-line {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.session-owner-line {
+    font-size: 12px;
+    line-height: 18px;
+    color: #606266;
 }
 
 .message-count {
@@ -471,16 +530,40 @@ export default {
     color: #fff;
     background-color: #b4b4b4;
     border-radius: 20px;
-    float: left;
+    flex: none;
     width: 20px;
     height: 20px;
     line-height: 20px;
-    margin-top: 5px;
-    margin-left: 5px;
+    text-align: center;
 }
 
 .chat-content {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.session-owner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #ebeef5;
+    background-color: #f5f7fa;
+    color: #303133;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.owner-label {
+    margin-right: 6px;
+    color: #606266;
+}
+
+.messages {
+    flex: 1;
+    min-height: 0;
     padding: 20px;
     overflow-y: auto;
 }
