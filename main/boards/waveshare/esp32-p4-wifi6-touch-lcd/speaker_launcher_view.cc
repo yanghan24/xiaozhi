@@ -7,6 +7,9 @@
 using namespace SpeakerUi;
 
 namespace {
+constexpr int kClockWidth = 230;
+constexpr int kClockDetailsScale = 171; // About 20 px with the existing 30 px theme font.
+
 lv_obj_t* Tomato(lv_obj_t* parent) {
     auto* icon = Surface(parent, 0, 0, 50, 51);
     auto* fruit = Surface(icon, 1, 8, 48, 43);
@@ -30,8 +33,17 @@ void SpeakerLauncherView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     using Page = SpeakerNavigation::Page;
     root_ = Panel(parent);
     wifi_ = Wifi(root_);
-    clock_ = Digits(root_, "--:--", 230, 360);
-    lv_obj_align(clock_, LV_ALIGN_RIGHT_MID, -17, -18);
+
+    auto* clock_group = Surface(root_, 0, 0, kClockWidth, 140);
+    lv_obj_align(clock_group, LV_ALIGN_RIGHT_MID, -17, -26);
+    clock_ = Digits(clock_group, "--:--", kClockWidth, 360);
+    lv_obj_align(clock_, LV_ALIGN_CENTER, 0, -28);
+    date_ = Label(clock_group, "正在校时", kMuted);
+    weather_ = Label(clock_group, "", kMuted);
+    Scale(date_, kClockDetailsScale);
+    Scale(weather_, kClockDetailsScale);
+    lv_obj_align(date_, LV_ALIGN_CENTER, 0, 18);
+    lv_obj_align(weather_, LV_ALIGN_CENTER, 0, 43);
 
     constexpr Entry entries[] = {
         {"设置", MATERIAL_SYMBOLS_SETTINGS, 0x8BC9FA, Page::Settings},
@@ -72,8 +84,10 @@ void SpeakerLauncherView::Hide() {
     lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 }
 
-void SpeakerLauncherView::Update(const char* time, const char* wifi) {
+void SpeakerLauncherView::Update(const char* time, const char* date, const char* weather, const char* wifi) {
     UpdateLabel(clock_, time);
+    UpdateLabel(date_, date);
+    UpdateLabel(weather_, weather);
     UpdateLabel(wifi_, wifi);
 }
 

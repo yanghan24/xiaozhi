@@ -339,17 +339,21 @@ void SpeakerHomeDisplay::RefreshClocks() {
         std::snprintf(date, sizeof(date), "%d月%d日 周%s", local.tm_mon + 1, local.tm_mday, days[local.tm_wday]);
     }
     const auto weather = SpeakerStandbyWeather::Get().GetSnapshot();
-    std::string summary(date);
+    std::string weather_line;
     if (weather.state == SpeakerStandbyWeather::State::Ready) {
-        summary += "  ·  " + weather.condition;
+        weather_line = weather.condition;
         if (!weather.temperature.empty()) {
-            summary += " " + weather.temperature + "°C";
+            weather_line += " " + weather.temperature + "°C";
         }
     } else if (weather.state == SpeakerStandbyWeather::State::Unavailable) {
-        summary += "  ·  暂无天气";
+        weather_line = "暂无天气";
+    }
+    std::string summary(date);
+    if (!weather_line.empty()) {
+        summary += "  ·  " + weather_line;
     }
     const char* wifi = lv_label_get_text(network_label_);
-    launcher_.Update(time, *wifi ? wifi : MATERIAL_SYMBOLS_WIFI_OFF);
+    launcher_.Update(time, date, weather_line.c_str(), *wifi ? wifi : MATERIAL_SYMBOLS_WIFI_OFF);
     screensaver_.Update(time, summary.c_str(), *wifi ? wifi : MATERIAL_SYMBOLS_WIFI_OFF);
 }
 

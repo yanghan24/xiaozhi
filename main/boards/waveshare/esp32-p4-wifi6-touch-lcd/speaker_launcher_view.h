@@ -11,7 +11,7 @@ public:
     void Create(lv_obj_t* parent, SpeakerNavigation& navigation);
     void Show();
     void Hide();
-    void Update(const char* time, const char* wifi);
+    void Update(const char* time, const char* date, const char* weather, const char* wifi);
 
 private:
     struct Entry {
@@ -29,6 +29,8 @@ private:
     std::array<LaunchAction, 5> actions_{};
     lv_obj_t* root_ = nullptr;
     lv_obj_t* clock_ = nullptr;
+    lv_obj_t* date_ = nullptr;
+    lv_obj_t* weather_ = nullptr;
     lv_obj_t* wifi_ = nullptr;
     SpeakerBackground background_;
 };
