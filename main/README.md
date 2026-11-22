@@ -411,7 +411,7 @@ xiaozhi-esp32-server
     4.  **调试与联调定位:**
         *   启动后可通过浏览器访问本地页面，验证音频播放、接收和交互逻辑。
         *   通过事件桥可以将唤醒词状态同步到页面，便于排查本地链路问题。
-        *   详细的模型下载、运行时配置和使用说明已整理在 `docs/digital-human-wakeword.md` 中。
+        *   详细的模型下载、运行时配置和使用说明已整理在 `docs/archive/upstream/guides/digital-human-wakeword.md` 中。
 
 `digital-human` 的存在使得数字人相关能力可以脱离主服务独立验证，降低了页面调试、唤醒词联调和本地环境搭建的复杂度。
 

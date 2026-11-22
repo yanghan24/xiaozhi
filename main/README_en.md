@@ -310,7 +310,7 @@ The `digital-human` component is an independent digital human test module respon
     4.  **Debugging and Integration Positioning:**
         *   After startup, developers can open the local page in a browser to validate playback, reception, and interaction logic.
         *   The event bridge synchronizes wake word state to the page, which helps with local debugging.
-        *   Detailed model download, runtime configuration, and usage instructions are documented in `docs/digital-human-wakeword.md`.
+        *   Detailed model download, runtime configuration, and usage instructions are documented in `docs/archive/upstream/guides/digital-human-wakeword.md`.
 
 The `digital-human` module allows digital human related capabilities to be validated independently from the main service, reducing the complexity of page debugging, wake word integration, and local environment setup.
 
