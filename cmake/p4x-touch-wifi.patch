@@ -1,8 +1,48 @@
+diff --git a/dns_server.cc b/dns_server.cc
+index e79098b..a249f44 100644
+--- a/dns_server.cc
++++ b/dns_server.cc
+@@ -12,7 +12,7 @@ DnsServer::~DnsServer() {
+     Stop();
+ }
+ 
+-void DnsServer::Start(esp_ip4_addr_t gateway) {
++void DnsServer::Start(esp_ip4_addr_t gateway, const char* interface) {
+     // If already running, stop first
+     if (running_) {
+         Stop();
+@@ -27,6 +27,17 @@ void DnsServer::Start(esp_ip4_addr_t gateway) {
+         return;
+     }
+ 
++    if (interface) {
++        struct ifreq binding{};
++        snprintf(binding.ifr_name, sizeof(binding.ifr_name), "%s", interface);
++        if (setsockopt(fd_, SOL_SOCKET, SO_BINDTODEVICE, &binding, sizeof(binding)) < 0) {
++            ESP_LOGE(TAG, "Failed to bind DNS to the setup interface");
++            close(fd_);
++            fd_ = -1;
++            return;
++        }
++    }
++
+     struct sockaddr_in server_addr;
+     memset(&server_addr, 0, sizeof(server_addr));
+     server_addr.sin_family = AF_INET;
 diff --git a/wifi_configuration_ap.cc b/wifi_configuration_ap.cc
-index 62f435c..628ff82 100644
+index 62f435c..7932061 100644
 --- a/wifi_configuration_ap.cc
 +++ b/wifi_configuration_ap.cc
-@@ -29,6 +29,63 @@
+@@ -20,6 +20,8 @@
+ #endif
+ #include "ssid_manager.h"
+ #include "sdkconfig.h"
++#include "wifi_station.h"
++#include <lwip/sockets.h>
+ 
+ #define TAG "WifiConfigurationAp"
+ 
+@@ -29,6 +31,63 @@
  extern const char index_html_start[] asm("_binary_wifi_configuration_html_start");
  extern const char done_html_start[] asm("_binary_wifi_configuration_done_html_start");
  
@@ -66,32 +106,192 @@ index 62f435c..628ff82 100644
  WifiConfigurationAp::WifiConfigurationAp()
  {
      event_group_ = xEventGroupCreate();
-@@ -89,11 +146,13 @@ void WifiConfigurationAp::Start()
+@@ -42,6 +101,9 @@ WifiConfigurationAp::WifiConfigurationAp()
+ 
+ std::vector<wifi_ap_record_t> WifiConfigurationAp::GetAccessPoints()
+ {
++    if (settings_station_) {
++        return settings_station_->NearbyNetworks(false);
++    }
+     std::lock_guard<std::mutex> lock(mutex_);
+     return ap_records_;
+ }   
+@@ -89,11 +151,13 @@ void WifiConfigurationAp::Start()
                                                          this,
                                                          &instance_got_ip_));
  
+-    StartAccessPoint();
+-    StartWebServer();
+-    
+-    // Start scan immediately
+-    esp_wifi_scan_start(nullptr, false);
 +    trial_netif = esp_netif_create_default_wifi_sta();
 +    ESP_ERROR_CHECK(trial_netif ? ESP_OK : ESP_ERR_NO_MEM);
 +    ap_records_.clear();
 +    portal_closing = false;
 +    PreferStation("");
-     StartAccessPoint();
-     StartWebServer();
--    
--    // Start scan immediately
--    esp_wifi_scan_start(nullptr, false);
++    ESP_ERROR_CHECK(StartAccessPoint());
++    ESP_ERROR_CHECK(StartWebServer());
      // Setup periodic WiFi scan timer.
      // skip_unhandled_events = false so the timer can wake the CPU from light
      // sleep on its own; otherwise the AP-mode scan list would stop refreshing
-@@ -112,6 +171,7 @@ void WifiConfigurationAp::Start()
+@@ -112,6 +176,26 @@ void WifiConfigurationAp::Start()
          .skip_unhandled_events = false
      };
      ESP_ERROR_CHECK(esp_timer_create(&timer_args, &scan_timer_));
 +    esp_wifi_scan_start(nullptr, false);
++}
++
++bool WifiConfigurationAp::StartSettingsHotspot(WifiStation& station) {
++    settings_station_ = &station;
++    portal_closing = false;
++    if (StartAccessPoint() != ESP_OK || StartWebServer() != ESP_OK) {
++        Stop();
++        return false;
++    }
++    RefreshAccessPoints();
++    return true;
++}
++
++void WifiConfigurationAp::RefreshAccessPoints() {
++    if (settings_station_) {
++        settings_station_->NearbyNetworks(true);
++    } else if (!is_connecting_) {
++        esp_wifi_scan_start(nullptr, false);
++    }
  }
  
  std::string WifiConfigurationAp::GetSsid()
-@@ -338,34 +398,42 @@ void WifiConfigurationAp::StartWebServer()
+@@ -130,22 +214,38 @@ std::string WifiConfigurationAp::GetSsid()
+ 
+ std::string WifiConfigurationAp::GetWebServerUrl()
+ {
+-    // http://192.168.4.1
+-    return "http://192.168.4.1";
++    esp_netif_ip_info_t info{};
++    if (!ap_netif_ || esp_netif_get_ip_info(ap_netif_, &info) != ESP_OK) {
++        return {};
++    }
++    char address[16];
++    esp_ip4addr_ntoa(&info.ip, address, sizeof(address));
++    return std::string("http://") + address;
+ }
+ 
+-void WifiConfigurationAp::StartAccessPoint()
++esp_err_t WifiConfigurationAp::StartAccessPoint()
+ {
+     // Note: esp_netif_init() and esp_wifi_init() should be called once before calling this method
+     // WiFi driver is initialized by WifiManager::Initialize() and kept alive
+     
+     // Create the default WiFi AP interface
+     ap_netif_ = esp_netif_create_default_wifi_ap();
++    if (!ap_netif_) {
++        return ESP_ERR_NO_MEM;
++    }
+ 
+     // Set the router IP address to 192.168.4.1
+     esp_netif_ip_info_t ip_info;
+     IP4_ADDR(&ip_info.ip, 192, 168, 4, 1);
+-    IP4_ADDR(&ip_info.gw, 192, 168, 4, 1);
++    if (settings_station_) {
++        auto* station_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
++        esp_netif_ip_info_t current{};
++        if (station_netif && esp_netif_get_ip_info(station_netif, &current) == ESP_OK && current.ip.addr &&
++            (current.ip.addr & current.netmask.addr) == (ip_info.ip.addr & current.netmask.addr)) {
++            IP4_ADDR(&ip_info.ip, 172, 30, 254, 1);
++        }
++    }
++    ip_info.gw = ip_info.ip;
+     IP4_ADDR(&ip_info.netmask, 255, 255, 255, 0);
+     esp_netif_dhcps_stop(ap_netif_);
+     esp_netif_set_ip_info(ap_netif_, &ip_info);
+@@ -153,7 +253,14 @@ void WifiConfigurationAp::StartAccessPoint()
+ 
+     // Start the DNS server
+     dns_server_ = std::make_unique<DnsServer>();
+-    dns_server_->Start(ip_info.gw);
++    char interface[IFNAMSIZ]{};
++    if (settings_station_) {
++        const auto error = esp_netif_get_netif_impl_name(ap_netif_, interface);
++        if (error != ESP_OK) {
++            return error;
++        }
++    }
++    dns_server_->Start(ip_info.gw, settings_station_ ? interface : nullptr);
+ 
+     // Get the SSID
+     std::string ssid = GetSsid();
+@@ -166,16 +273,31 @@ void WifiConfigurationAp::StartAccessPoint()
+     wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+ 
+     // Start the WiFi Access Point
+-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+-    ESP_ERROR_CHECK(esp_wifi_start());
++    if (settings_station_) {
++        const auto channel = settings_station_->GetChannel();
++        wifi_config.ap.channel = channel ? channel : 1;
++        auto error = esp_wifi_set_mode(WIFI_MODE_APSTA);
++        if (error != ESP_OK) {
++            return error;
++        }
++        error = esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
++        if (error != ESP_OK) {
++            return error;
++        }
++    } else {
++        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
++        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
++        ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
++        ESP_ERROR_CHECK(esp_wifi_start());
++    }
+ 
++    if (!settings_station_) {
+ #ifdef CONFIG_SOC_WIFI_SUPPORT_5G
+-    ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_AUTO));
++        ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_AUTO));
+ #else
+-    ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_2G_ONLY));
++        ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_2G_ONLY));
+ #endif
++    }
+ 
+     ESP_LOGI(TAG, "Access Point started with SSID %s", ssid.c_str());
+ 
+@@ -237,9 +359,10 @@ void WifiConfigurationAp::StartAccessPoint()
+ 
+         nvs_close(nvs);
+     }
++    return ESP_OK;
+ }
+ 
+-void WifiConfigurationAp::StartWebServer()
++esp_err_t WifiConfigurationAp::StartWebServer()
+ {
+     // Start the web server
+     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+@@ -248,7 +371,18 @@ void WifiConfigurationAp::StartWebServer()
+     // 5G Network takes longer to connect
+     config.recv_wait_timeout = 15;
+     config.send_wait_timeout = 15;
+-    ESP_ERROR_CHECK(httpd_start(&server_, &config));
++    struct ifreq interface{};
++    if (settings_station_) {
++        const auto error = esp_netif_get_netif_impl_name(ap_netif_, interface.ifr_name);
++        if (error != ESP_OK) {
++            return error;
++        }
++        config.if_name = &interface;
++    }
++    const auto error = httpd_start(&server_, &config);
++    if (error != ESP_OK) {
++        return error;
++    }
+ 
+     // Register the index.html file
+     httpd_uri_t index_html = {
+@@ -338,34 +472,44 @@ void WifiConfigurationAp::StartWebServer()
          .method = HTTP_GET,
          .handler = [](httpd_req_t *req) -> esp_err_t {
              auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
@@ -99,13 +299,15 @@ index 62f435c..628ff82 100644
 -
 -            // Check if 5G is supported
 -            bool support_5g = false;
-+            if (httpd_req_get_url_query_len(req) != 0 && !portal_closing) {
++            if (this_->settings_station_ && !portal_closing) {
++                this_->RefreshAccessPoints();
++            } else if (!portal_closing && httpd_req_get_url_query_len(req) != 0) {
 +                char query[24];
 +                char refresh[4];
 +                if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK &&
 +                    httpd_query_key_value(query, "refresh", refresh, sizeof(refresh)) == ESP_OK &&
 +                    strcmp(refresh, "1") == 0) {
-+                    esp_wifi_scan_start(nullptr, false);
++                    this_->RefreshAccessPoints();
 +                }
 +            }
 +            Form document(cJSON_CreateObject(), cJSON_Delete);
@@ -158,7 +360,7 @@ index 62f435c..628ff82 100644
          },
          .user_ctx = this
      };
-@@ -376,69 +444,31 @@ void WifiConfigurationAp::StartWebServer()
+@@ -376,69 +520,34 @@ void WifiConfigurationAp::StartWebServer()
          .uri = "/submit",
          .method = HTTP_POST,
          .handler = [](httpd_req_t *req) -> esp_err_t {
@@ -173,7 +375,11 @@ index 62f435c..628ff82 100644
 -            if (!buf) {
 -                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to allocate memory");
 -                return ESP_FAIL;
--            }
++            httpd_resp_set_type(req, "application/json");
++            httpd_resp_set_hdr(req, "Connection", "close");
++            if (portal_closing) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Already leaving setup\"}");
+             }
 -
 -            int ret = httpd_req_recv(req, buf, buf_len);
 -            if (ret <= 0) {
@@ -184,19 +390,26 @@ index 62f435c..628ff82 100644
 -                    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Failed to receive request");
 -                }
 -                return ESP_FAIL;
--            }
++            const auto form = ReadForm(req);
++            const auto* ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "ssid"));
++            const auto* password = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "password"));
++            if (!ssid || !*ssid || strlen(ssid) > 32 || (password && strlen(password) > 64)) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Invalid SSID or password\"}");
+             }
 -            buf[ret] = '\0';
--
+ 
 -            // 解析 JSON 数据
 -            cJSON *json = cJSON_Parse(buf);
 -            free(buf);
 -            if (!json) {
 -                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
 -                return ESP_FAIL;
-+            httpd_resp_set_type(req, "application/json");
-+            httpd_resp_set_hdr(req, "Connection", "close");
-+            if (portal_closing) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Already leaving setup\"}");
++            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
++            const std::string secret = password ? password : "";
++            const bool connected = portal->settings_station_ ?
++                portal->settings_station_->TryNetwork(ssid, secret) : portal->ConnectToWifi(ssid, secret);
++            if (!connected) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}");
              }
 -
 -            cJSON *ssid_item = cJSON_GetObjectItemCaseSensitive(json, "ssid");
@@ -206,35 +419,27 @@ index 62f435c..628ff82 100644
 -                cJSON_Delete(json);
 -                httpd_resp_send(req, "{\"success\":false,\"error\":\"Invalid SSID\"}", HTTPD_RESP_USE_STRLEN);
 -                return ESP_OK;
-+            const auto form = ReadForm(req);
-+            const auto* ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "ssid"));
-+            const auto* password = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "password"));
-+            if (!ssid || !*ssid || strlen(ssid) > 32 || (password && strlen(password) > 64)) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Invalid SSID or password\"}");
++            if (!portal->settings_station_) {
++                portal->Save(ssid, secret);
++                PreferStation(ssid);
              }
- 
+-
 -            std::string ssid_str = ssid_item->valuestring;
 -            std::string password_str = "";
 -            if (cJSON_IsString(password_item) && (password_item->valuestring != NULL) && (strlen(password_item->valuestring) < 65)) {
 -                password_str = password_item->valuestring;
-+            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
-+            const std::string secret = password ? password : "";
-+            if (!portal->ConnectToWifi(ssid, secret)) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}");
++            const bool exit_now = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(form.get(), "exit"));
++            if (exit_now && !SchedulePortalExit(&portal->on_exit_requested_)) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Unable to leave setup\"}");
              }
- 
+-
 -            // 获取当前对象
 -            auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
 -            if (!this_->ConnectToWifi(ssid_str, password_str)) {
 -                cJSON_Delete(json);
 -                httpd_resp_send(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}", HTTPD_RESP_USE_STRLEN);
 -                return ESP_OK;
-+            portal->Save(ssid, secret);
-+            PreferStation(ssid);
-+            const bool exit_now = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(form.get(), "exit"));
-+            if (exit_now && !SchedulePortalExit(&portal->on_exit_requested_)) {
-+                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Unable to leave setup\"}");
-             }
+-            }
 -
 -            this_->Save(ssid_str, password_str);
 -            cJSON_Delete(json);
@@ -247,7 +452,7 @@ index 62f435c..628ff82 100644
          },
          .user_ctx = this
      };
-@@ -462,30 +492,21 @@ void WifiConfigurationAp::StartWebServer()
+@@ -462,30 +571,21 @@ void WifiConfigurationAp::StartWebServer()
          .uri = "/exit",
          .method = HTTP_POST,
          .handler = [](httpd_req_t *req) -> esp_err_t {
@@ -290,7 +495,15 @@ index 62f435c..628ff82 100644
          },
          .user_ctx = this
      };
-@@ -958,8 +979,6 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
+@@ -784,6 +884,7 @@ void WifiConfigurationAp::StartWebServer()
+     ESP_ERROR_CHECK(httpd_register_uri_handler(server_, &advanced_submit));
+ 
+     ESP_LOGI(TAG, "Web server started");
++    return ESP_OK;
+ }
+ 
+ bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::string &password)
+@@ -958,8 +1059,6 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
      } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
          wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
          ESP_LOGI(TAG, "Station " MACSTR " left, AID=%d", MAC2STR(event->mac), event->aid);
@@ -299,7 +512,7 @@ index 62f435c..628ff82 100644
      } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
          xEventGroupSetBits(self->event_group_, WIFI_FAIL_BIT);
      } else if (event_id == WIFI_EVENT_SCAN_DONE) {
-@@ -980,6 +999,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
+@@ -980,6 +1079,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
      WifiConfigurationAp* self = static_cast<WifiConfigurationAp*>(arg);
      if (event_id == IP_EVENT_STA_GOT_IP) {
          ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
@@ -309,9 +522,18 @@ index 62f435c..628ff82 100644
          ESP_LOGI(TAG, "Got IP:" IPSTR, IP2STR(&event->ip_info.ip));
          xEventGroupSetBits(self->event_group_, WIFI_CONNECTED_BIT);
      }
-@@ -1089,6 +1111,11 @@ void WifiConfigurationAp::Stop() {
-     // 停止WiFi（但不 deinit，WiFi 驱动由 WifiManager 管理）
-     esp_wifi_stop();
+@@ -1086,9 +1188,18 @@ void WifiConfigurationAp::Stop() {
+         instance_got_ip_ = nullptr;
+     }
+ 
+-    // 停止WiFi（但不 deinit，WiFi 驱动由 WifiManager 管理）
+-    esp_wifi_stop();
++    if (settings_station_) {
++        esp_wifi_set_mode(WIFI_MODE_STA);
++        settings_station_ = nullptr;
++    } else {
++        esp_wifi_stop();
++    }
      
 +    if (trial_netif) {
 +        esp_netif_destroy_default_wifi(trial_netif);
@@ -321,20 +543,238 @@ index 62f435c..628ff82 100644
      // 销毁网络接口
      if (ap_netif_) {
          esp_netif_destroy_default_wifi(ap_netif_);
+diff --git a/wifi_manager.cc b/wifi_manager.cc
+index a79008a..9ac809b 100644
+--- a/wifi_manager.cc
++++ b/wifi_manager.cc
+@@ -23,6 +23,7 @@ WifiManager& WifiManager::GetInstance() {
+ WifiManager::WifiManager() = default;
+ 
+ WifiManager::~WifiManager() {
++    StopSettingsHotspot();
+     std::lock_guard<std::mutex> lock(mutex_);
+     if (station_active_ && station_) {
+         station_->Stop();
+@@ -222,6 +223,7 @@ std::string WifiManager::GetMacAddress() const {
+ // ==================== Config AP Mode ====================
+ 
+ void WifiManager::StartConfigAp() {
++    StopSettingsHotspot();
+     std::unique_lock<std::mutex> lock(mutex_);
+ 
+     if (!initialized_) {
+@@ -280,6 +282,62 @@ void WifiManager::StopConfigAp() {
+     lock.lock();
+ }
+ 
++bool WifiManager::StartSettingsHotspot() {
++    std::lock_guard lifecycle(settings_hotspot_mutex_);
++    {
++        std::lock_guard lock(mutex_);
++        if (config_mode_active_ || settings_hotspot_active_) {
++            return true;
++        }
++        if (!station_active_) {
++            return false;
++        }
++    }
++    config_ap_->SetSsidPrefix(config_.ssid_prefix);
++    config_ap_->SetLanguage(config_.language);
++    config_ap_->SetShowOtaConfig(config_.show_ota_config);
++    config_ap_->SetShowSleepConfig(config_.show_sleep_config);
++    config_ap_->OnExitRequested([this] { StopSettingsHotspot(); });
++    const bool started = config_ap_->StartSettingsHotspot(*station_);
++    std::lock_guard lock(mutex_);
++    settings_hotspot_active_ = started;
++    return started;
++}
++
++void WifiManager::StopSettingsHotspot() {
++    std::lock_guard lifecycle(settings_hotspot_mutex_);
++    {
++        std::lock_guard lock(mutex_);
++        if (!settings_hotspot_active_) {
++            return;
++        }
++        settings_hotspot_active_ = false;
++    }
++    config_ap_->Stop();
++}
++
++std::vector<wifi_ap_record_t> WifiManager::SettingsNetworks(bool refresh) {
++    std::lock_guard lock(mutex_);
++    if (config_mode_active_) {
++        if (refresh) {
++            config_ap_->RefreshAccessPoints();
++        }
++        return config_ap_->GetAccessPoints();
++    }
++    return station_active_ ? station_->NearbyNetworks(refresh) : std::vector<wifi_ap_record_t>{};
++}
++
++bool WifiManager::TrySettingsNetwork(const std::string& ssid, const std::string& password) {
++    {
++        std::lock_guard lock(mutex_);
++        if (!station_active_) {
++            return false;
++        }
++    }
++    // The station publishes disconnect/connect notifications during the trial.
++    return station_->TryNetwork(ssid, password);
++}
++
+ bool WifiManager::IsConfigMode() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+     return config_mode_active_;
+@@ -287,13 +345,13 @@ bool WifiManager::IsConfigMode() const {
+ 
+ std::string WifiManager::GetApSsid() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+-    if (!config_mode_active_ || !config_ap_) return "";
++    if ((!config_mode_active_ && !settings_hotspot_active_) || !config_ap_) return "";
+     return config_ap_->GetSsid();
+ }
+ 
+ std::string WifiManager::GetApWebUrl() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+-    if (!config_mode_active_ || !config_ap_) return "";
++    if ((!config_mode_active_ && !settings_hotspot_active_) || !config_ap_) return "";
+     return config_ap_->GetWebServerUrl();
+ }
+ 
 diff --git a/wifi_station.cc b/wifi_station.cc
-index 9dfe5b0..319b985 100644
+index 9dfe5b0..a61733d 100644
 --- a/wifi_station.cc
 +++ b/wifi_station.cc
-@@ -224,6 +224,8 @@ void WifiStation::StartScan() {
+@@ -17,6 +17,8 @@
+ #define WIFI_EVENT_CONNECTED BIT0
+ #define WIFI_EVENT_STOPPED BIT1
+ #define WIFI_EVENT_SCAN_DONE_BIT BIT2
++#define WIFI_TRIAL_DOWN BIT3
++#define WIFI_TRIAL_ADDRESS BIT4
+ #define MAX_RECONNECT_COUNT 5
+ 
+ WifiStation::WifiStation() {
+@@ -177,6 +179,9 @@ bool WifiStation::WaitForConnected(int timeout_ms) {
+ }
+ 
+ void WifiStation::StartScan() {
++    if (trial_active_) {
++        return;
++    }
+     std::vector<uint8_t> channels;
+     if (use_saved_channels_scan_) {
+         channels = SsidManager::GetInstance().GetSavedChannels();
+@@ -224,11 +229,108 @@ void WifiStation::StartScan() {
      }
  }
  
 +std::string TakePreferredProvisioningNetwork();
 +
++std::vector<wifi_ap_record_t> WifiStation::NearbyNetworks(bool refresh) {
++    if (refresh && !trial_active_) {
++        esp_wifi_scan_start(nullptr, false);
++    }
++    std::lock_guard lock(scan_mutex_);
++    return nearby_;
++}
++
++void WifiStation::TakeScanSnapshot() {
++    std::lock_guard lock(scan_mutex_);
++    uint16_t count = 0;
++    esp_wifi_scan_get_ap_num(&count);
++    nearby_.resize(count);
++    esp_wifi_scan_get_ap_records(&count, nearby_.data());
++    nearby_.resize(count);
++}
++
++bool WifiStation::DisconnectForTrial() {
++    xEventGroupClearBits(event_group_, WIFI_TRIAL_DOWN);
++    if (esp_wifi_disconnect() != ESP_OK) {
++        return false;
++    }
++    return xEventGroupWaitBits(event_group_, WIFI_TRIAL_DOWN, pdTRUE, pdFALSE,
++                              pdMS_TO_TICKS(2000)) & WIFI_TRIAL_DOWN;
++}
++
++bool WifiStation::TryNetwork(const std::string& ssid, const std::string& password) {
++    std::unique_lock attempt(trial_mutex_, std::try_to_lock);
++    if (!attempt.owns_lock() || !station_netif_ || ssid.empty() || ssid.size() > 32 ||
++        password.size() > 64) {
++        return false;
++    }
++    wifi_config_t previous{};
++    if (esp_wifi_get_config(WIFI_IF_STA, &previous) != ESP_OK) {
++        return false;
++    }
++
++    const bool was_online = IsConnected();
++    trial_active_ = true;
++    esp_wifi_scan_stop();
++    if (!DisconnectForTrial() && was_online) {
++        trial_active_ = false;
++        if (!IsConnected()) {
++            esp_wifi_connect();
++        }
++        return false;
++    }
++
++    wifi_config_t candidate = previous;
++    memset(candidate.sta.ssid, 0, sizeof(candidate.sta.ssid));
++    memcpy(candidate.sta.ssid, ssid.data(), ssid.size());
++    memset(candidate.sta.password, 0, sizeof(candidate.sta.password));
++    memcpy(candidate.sta.password, password.data(), password.size());
++    candidate.sta.bssid_set = false;
++    candidate.sta.channel = 0;
++    candidate.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
++    candidate.sta.threshold.authmode = WIFI_AUTH_OPEN;
++    xEventGroupClearBits(event_group_, WIFI_TRIAL_ADDRESS | WIFI_TRIAL_DOWN);
++    const bool started = esp_wifi_set_config(WIFI_IF_STA, &candidate) == ESP_OK &&
++                         esp_wifi_connect() == ESP_OK;
++    if (started && (xEventGroupWaitBits(event_group_, WIFI_TRIAL_ADDRESS | WIFI_TRIAL_DOWN,
++                                       pdTRUE, pdFALSE, pdMS_TO_TICKS(15000)) & WIFI_TRIAL_ADDRESS)) {
++        esp_netif_ip_info_t address{};
++        wifi_ap_record_t network{};
++        if (esp_netif_get_ip_info(station_netif_, &address) == ESP_OK && address.ip.addr &&
++            esp_wifi_sta_get_ap_info(&network) == ESP_OK &&
++            ssid == reinterpret_cast<const char*>(network.ssid)) {
++            SsidManager::GetInstance().AddSsid(ssid, password, network.primary);
++            ssid_ = ssid;
++            password_ = password;
++            trial_active_ = false;
++            AcceptAddress(address.ip);
++            return true;
++        }
++    }
++
++    if (started) {
++        DisconnectForTrial();
++    }
++    const bool restored = esp_wifi_set_config(WIFI_IF_STA, &previous) == ESP_OK;
++    trial_active_ = false;
++    if (!restored || esp_wifi_connect() != ESP_OK) {
++        esp_timer_start_once(timer_handle_, scan_min_interval_microseconds_);
++    }
++    return false;
++}
++
  void WifiStation::HandleScanResult() {
      uint16_t ap_num = 0;
      esp_wifi_scan_get_ap_num(&ap_num);
-@@ -274,6 +276,12 @@ void WifiStation::HandleScanResult() {
+     wifi_ap_record_t *ap_records = (wifi_ap_record_t *)malloc(ap_num * sizeof(wifi_ap_record_t));
+     esp_wifi_scan_get_ap_records(&ap_num, ap_records);
++    {
++        std::lock_guard lock(scan_mutex_);
++        if (ap_num) {
++            nearby_.assign(ap_records, ap_records + ap_num);
++        } else {
++            nearby_.clear();
++        }
++    }
+     // sort by rssi descending
+     std::sort(ap_records, ap_records + ap_num, [](const wifi_ap_record_t& a, const wifi_ap_record_t& b) {
+         return a.rssi > b.rssi;
+@@ -274,6 +376,12 @@ void WifiStation::HandleScanResult() {
          return;
      }
  
@@ -347,3 +787,199 @@ index 9dfe5b0..319b985 100644
      StartConnect();
  }
  
+@@ -414,7 +522,11 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
+         }
+     } else if (event_id == WIFI_EVENT_SCAN_DONE) {
+         xEventGroupSetBits(this_->event_group_, WIFI_EVENT_SCAN_DONE_BIT);
+-        this_->HandleScanResult();
++        if (this_->IsConnected() || this_->trial_active_) {
++            this_->TakeScanSnapshot();
++        } else {
++            this_->HandleScanResult();
++        }
+     } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
+         xEventGroupClearBits(this_->event_group_, WIFI_EVENT_CONNECTED);
+         
+@@ -427,6 +539,11 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
+             this_->on_disconnected_(event->reason);
+         }
+         
++        if (this_->trial_active_) {
++            xEventGroupSetBits(this_->event_group_, WIFI_TRIAL_DOWN);
++            return;
++        }
++
+         if (this_->reconnect_count_ < MAX_RECONNECT_COUNT) {
+             esp_wifi_connect();
+             this_->reconnect_count_++;
+@@ -451,25 +568,33 @@ void WifiStation::IpEventHandler(void* arg, esp_event_base_t event_base, int32_t
+     auto* this_ = static_cast<WifiStation*>(arg);
+     auto* event = static_cast<ip_event_got_ip_t*>(event_data);
+ 
++    if (this_->trial_active_) {
++        xEventGroupSetBits(this_->event_group_, WIFI_TRIAL_ADDRESS);
++        return;
++    }
++    this_->AcceptAddress(event->ip_info.ip);
++}
++
++void WifiStation::AcceptAddress(const esp_ip4_addr_t& ip) {
+     char ip_address[16];
+-    esp_ip4addr_ntoa(&event->ip_info.ip, ip_address, sizeof(ip_address));
+-    this_->ip_address_ = ip_address;
+-    ESP_LOGI(TAG, "Got IP: %s", this_->ip_address_.c_str());
++    esp_ip4addr_ntoa(&ip, ip_address, sizeof(ip_address));
++    ip_address_ = ip_address;
++    ESP_LOGI(TAG, "Got IP: %s", ip_address_.c_str());
+     
+-    xEventGroupSetBits(this_->event_group_, WIFI_EVENT_CONNECTED);
+-    this_->was_connected_ = true;  // Mark as connected for disconnect notification
+-    if (this_->on_connected_) {
+-        this_->on_connected_(this_->ssid_);
++    xEventGroupSetBits(event_group_, WIFI_EVENT_CONNECTED);
++    was_connected_ = true;  // Mark as connected for disconnect notification
++    if (on_connected_) {
++        on_connected_(ssid_);
+     }
+-    this_->connect_queue_.clear();
+-    this_->reconnect_count_ = 0;
+-    this_->use_saved_channels_scan_ = true;
++    connect_queue_.clear();
++    reconnect_count_ = 0;
++    use_saved_channels_scan_ = true;
+ 
+     wifi_ap_record_t ap_info;
+     if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+-        SsidManager::GetInstance().UpdateSsidChannel(this_->ssid_, ap_info.primary);
++        SsidManager::GetInstance().UpdateSsidChannel(ssid_, ap_info.primary);
+     }
+ 
+     // Reset scan interval to minimum for fast reconnect if disconnected later
+-    this_->scan_current_interval_microseconds_ = this_->scan_min_interval_microseconds_;
++    scan_current_interval_microseconds_ = scan_min_interval_microseconds_;
+ }
+diff --git a/include/dns_server.h b/include/dns_server.h
+index db65307..a98bbed 100644
+--- a/include/dns_server.h
++++ b/include/dns_server.h
+@@ -12,7 +12,7 @@ public:
+     DnsServer();
+     ~DnsServer();
+ 
+-    void Start(esp_ip4_addr_t gateway);
++    void Start(esp_ip4_addr_t gateway, const char* interface = nullptr);
+     void Stop();
+ 
+ private:
+diff --git a/include/wifi_configuration_ap.h b/include/wifi_configuration_ap.h
+index 7f71c80..628a492 100644
+--- a/include/wifi_configuration_ap.h
++++ b/include/wifi_configuration_ap.h
+@@ -1,6 +1,7 @@
+ #ifndef _WIFI_CONFIGURATION_AP_H_
+ #define _WIFI_CONFIGURATION_AP_H_
+ 
++#include <atomic>
+ #include <string>
+ #include <vector>
+ #include <mutex>
+@@ -22,6 +23,8 @@
+  * Creates a WiFi hotspot with a captive portal for configuring WiFi credentials.
+  * Note: WiFi driver must be initialized before using this class.
+  */
++class WifiStation;
++
+ class WifiConfigurationAp {
+ public:
+     WifiConfigurationAp();
+@@ -38,6 +41,8 @@ public:
+     void SetShowOtaConfig(bool show) { show_ota_config_ = show; }
+     void SetShowSleepConfig(bool show) { show_sleep_config_ = show; }
+     void Start();
++    bool StartSettingsHotspot(WifiStation& station);
++    void RefreshAccessPoints();
+     void Stop();
+ #if !CONFIG_IDF_TARGET_ESP32P4
+     void StartSmartConfig();
+@@ -64,7 +69,8 @@ private:
+     esp_event_handler_instance_t instance_any_id_;
+     esp_event_handler_instance_t instance_got_ip_;
+     esp_timer_handle_t scan_timer_ = nullptr;
+-    bool is_connecting_ = false;
++    std::atomic<bool> is_connecting_{false};
++    WifiStation* settings_station_ = nullptr;
+     esp_netif_t* ap_netif_ = nullptr;
+     std::vector<wifi_ap_record_t> ap_records_;
+     uint8_t last_connected_channel_ = 0;
+@@ -83,8 +89,8 @@ private:
+     // Callbacks
+     std::function<void()> on_exit_requested_;
+ 
+-    void StartAccessPoint();
+-    void StartWebServer();
++    esp_err_t StartAccessPoint();
++    esp_err_t StartWebServer();
+ 
+     // Event handlers
+     static void WifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+diff --git a/include/wifi_manager.h b/include/wifi_manager.h
+index e1d6bb2..5a23ba6 100644
+--- a/include/wifi_manager.h
++++ b/include/wifi_manager.h
+@@ -98,6 +98,11 @@ public:
+     std::string GetApSsid() const;
+     std::string GetApWebUrl() const;
+ 
++    bool StartSettingsHotspot();
++    void StopSettingsHotspot();
++    std::vector<wifi_ap_record_t> SettingsNetworks(bool refresh);
++    bool TrySettingsNetwork(const std::string& ssid, const std::string& password);
++
+     // ==================== Power ====================
+     
+     void SetPowerSaveLevel(WifiPowerSaveLevel level);
+@@ -125,6 +130,8 @@ private:
+     bool initialized_ = false;
+     bool station_active_ = false;
+     bool config_mode_active_ = false;
++    bool settings_hotspot_active_ = false;
++    std::mutex settings_hotspot_mutex_;
+ 
+     std::function<void(WifiEvent, const std::string&)> event_callback_;
+     mutable std::string mac_address_;
+diff --git a/include/wifi_station.h b/include/wifi_station.h
+index d620f3b..9f579d9 100644
+--- a/include/wifi_station.h
++++ b/include/wifi_station.h
+@@ -1,6 +1,8 @@
+ #ifndef _WIFI_STATION_H_
+ #define _WIFI_STATION_H_
+ 
++#include <atomic>
++#include <mutex>
+ #include <string>
+ #include <vector>
+ #include <functional>
+@@ -49,6 +51,8 @@ public:
+     std::string GetSsid() const { return ssid_; }
+     std::string GetIpAddress() const { return ip_address_; }
+     uint8_t GetChannel();
++    std::vector<wifi_ap_record_t> NearbyNetworks(bool refresh);
++    bool TryNetwork(const std::string& ssid, const std::string& password);
+     void SetPowerSaveLevel(WifiPowerSaveLevel level);
+ 
+     void OnConnect(std::function<void(const std::string& ssid)> on_connect);
+@@ -92,6 +96,13 @@ private:
+     bool use_saved_channels_scan_ = true;       // First scan uses saved channels when known
+     bool last_scan_used_saved_channels_ = false;
+ 
++    std::vector<wifi_ap_record_t> nearby_;
++    std::mutex scan_mutex_;
++    std::mutex trial_mutex_;
++    std::atomic<bool> trial_active_{false};
++    void TakeScanSnapshot();
++    void AcceptAddress(const esp_ip4_addr_t& ip);
++    bool DisconnectForTrial();
+     void StartScan();
+     void HandleScanResult();
+     void StartConnect();
