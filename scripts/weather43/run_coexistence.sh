@@ -50,7 +50,7 @@ weather() {
 # Source code was staged while the baseline was running; only this trial service restarts.
 cp scripts/weather43/cache_service.py evidence/source-versions/cache-service-v3-backlog.py
 docker compose --env-file private/acceptance.env -p xiaozhi-weather43-acceptance \
-  --project-directory "$root" -f deploy/weather43/compose.acceptance.yaml restart result-cache
+  --project-directory "$root" -f scripts/weather43/compose.acceptance.yaml restart result-cache
 sleep 10
 for devices in 350 1000; do
   for cities in 1 35 350; do

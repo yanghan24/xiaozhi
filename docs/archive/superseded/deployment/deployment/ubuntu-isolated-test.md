@@ -16,7 +16,7 @@
 
 已用 Git 比对确认 `6e354ed` 与 `afc9ca9` 的 `main/`、`scripts/`、`compose.yaml`、`compose.voice.yaml` 和 `deploy/voice/` 内容完全一致。因此本轮保留已校验的镜像和数据库，重新执行服务重启及协议验收；没有把旧镜像改标为新构建。结果与 #5 逐项对应关系见 [A 层验收](../../../completed/deployment/verification/issue-5-acceptance.md)。全新部署选择包含本任务文件的固定提交；下文固定 `6e354ed` 的流程用于复现现有历史部署，并需配套本任务的入口和离线覆盖文件。
 
-本次准备的新文件为 [Compose 入口](../../../../../compose.device-entry.yaml)、[Nginx 入口](../../../../../deploy/device-entry/nginx.conf) 和 [单设备记录模板](../../../../verification/device-integration-template.md)。它们不在 `6e354ed` 中；执行部署前需把审查后的两个入口文件复制到验证源码 clone 的同名路径，并记录文件 SHA-256。也可把模板保存在单独目录，显式传入 Compose 文件路径和 `DEVICE_ENTRY_NGINX_CONFIG` 的绝对路径。不要把服务器 `.env`、账号或运行目录从其他项目复制过来。
+本次准备的新文件为 `compose.device-entry.yaml`（历史路径）、`deploy/device-entry/nginx.conf`（历史路径） 和 [单设备记录模板](../../../../verification/device-integration-template.md)。它们不在 `6e354ed` 中；执行部署前需把审查后的两个入口文件复制到验证源码 clone 的同名路径，并记录文件 SHA-256。也可把模板保存在单独目录，显式传入 Compose 文件路径和 `DEVICE_ENTRY_NGINX_CONFIG` 的绝对路径。不要把服务器 `.env`、账号或运行目录从其他项目复制过来。
 
 入口模板的本机准备检查：
 

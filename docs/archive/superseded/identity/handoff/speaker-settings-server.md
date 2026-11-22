@@ -22,7 +22,7 @@
 
 1. 在独立 checkout 固定本次服务端提交，按[在线交付部署说明](../development/device-delivery-v1.md#ubuntu-配套部署)运行隔离的 Java 测试。确认 `CustomerVoicePermissionHttpTest` 中的跨账号重新绑定、同账号新归属、旧页面/退出重放围栏、并发账号读取、停播 ACK 及第二设备隔离用例实际通过。
 2. 用同一提交构建 API，按既有方式备份并保留现场私有配置。由集市管理员为现有 OIDC 客户端开通 `balance:read`，再为产品 API 设置 `CUSTOMER_OIDC_BALANCE_ENABLED=true`。未开通时可保持默认关闭，继续使用语音和本机退出。仅以前未授予积分查询的账号需要在设置中用「扫码授权」补一次授权。
-3. 在当前 TLS 入口合入 [Nginx 模板](../../../../../deploy/device-entry/nginx-tls.conf)的 `account`、旧 `sign-out` 及新 `unbind` 精确路径，指向新 API。核对 `nginx -t`，API 启动后重载。运行 `python3 scripts/check-public-device-preflight.py`：新解绑路径无凭据/未签发凭据均为 v1 401，GET 被入口拒绝，旧 OTA、语音及扫码路径正常。
+3. 在当前 TLS 入口合入 `deploy/device-entry/nginx-tls.conf`（历史路径）的 `account`、旧 `sign-out` 及新 `unbind` 精确路径，指向新 API。核对 `nginx -t`，API 启动后重载。运行 `python3 scripts/check-public-device-preflight.py`：新解绑路径无凭据/未签发凭据均为 v1 401，GET 被入口拒绝，旧 OTA、语音及扫码路径正常。
 4. 服务端回归及公网检查通过后安装新固件。用真实账号核对用户名和当前积分；在音箱上确认退出并解绑，确认后台归属清空、新许可版本及停播 ACK，再用另一账号扫码接手。第二台设备应仍能回答，原账号旧页面及旧退出请求不得影响新绑定。保持音箱通电，在设置断开再连接 Wi-Fi，确认无需重新绑定即可继续语音。
 
 回退时恢复原 API 和入口版本，保留已有数据及配置。已经完成的解绑不会随 Git/API 回退撤销，也不能恢复旧归属覆盖新账号；需保留当前业务数据。新固件在旧 API 不支持解绑时显示失败并保持本机停播，不能将旧 `sign-out` 作为降级替代。

@@ -4,7 +4,7 @@
 
 日期：2026-11-10，Asia/Shanghai。状态：**Ubuntu 真实自建取数、350/1,000 个热请求批次已测；冷启动与断源重启暴露限制，建议补齐持久结果缓存后继续验证，尚未通过完整上线验收。**
 
-本文件保留首轮方案及当时证据。后续独立出站、持久缓存、完整故障矩阵、新账号语音对照，以及用户最新确认的 **50 路**环境请求计划，以[续验收报告](../../../completed/weather/verification/2026-11-10-weather43-acceptance.md)和[隔离试验说明](../../../../../deploy/weather43/README.md)为准。
+本文件保留首轮方案及当时证据。后续独立出站、持久缓存、完整故障矩阵、新账号语音对照，以及用户最新确认的 **50 路**环境请求计划，以[续验收报告](../../../completed/weather/verification/2026-11-10-weather43-acceptance.md)和`deploy/weather43/README.md`（历史路径）为准。
 
 任务：[Issue #43](https://github.com/yanghan24/xiaozhi/issues/43)，父规格 [#40](https://github.com/yanghan24/xiaozhi/issues/40)。本地分支 `codex/43-self-hosted-weather-feasibility`，基于 `aa730ccea7403112f4d0ed35daed3fadb35fd776`。本轮仅在该分支新增文件，供方案评审。
 
@@ -104,7 +104,7 @@ Ubuntu 实际 image ID 为 `sha256:7b1114b8a78e27fabac5c08a322ceb8d540b0a3c75419
 
 ## 5. Ubuntu 隔离试验与资源门槛
 
-[Compose 模板](../../../../../deploy/weather43/compose.yaml)使用独立项目 `xiaozhi-weather43`、新数据目录、回环端口 18084、2 CPU/8GiB 内存上限、禁用额外 swap、有界日志、不自动重启。模型缓存配置为 8GB；缓存和进程内存是两类预算，不能相互替代。该配置是试验限制，不是已证明可服务 350 台的配置。
+`deploy/weather43/compose.yaml`（历史路径）使用独立项目 `xiaozhi-weather43`、新数据目录、回环端口 18084、2 CPU/8GiB 内存上限、禁用额外 swap、有界日志、不自动重启。模型缓存配置为 8GB；缓存和进程内存是两类预算，不能相互替代。该配置是试验限制，不是已证明可服务 350 台的配置。
 
 Open-Meteo 官方给出的资源基线是 8GB 最低内存、推荐 16GB，至少 100GB 存储，偏好高 IOPS SSD。现有 Ubuntu 20.04 记录不符合官方 APT 包仅支持 Ubuntu 22.04 的条件，因此选择容器候选，不改宿主机软件源。[官方说明](https://github.com/open-meteo/open-meteo/blob/c0d2f3eac3650203a1bf4dc515d903642852afb0/docs/getting-started.md)
 

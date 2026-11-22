@@ -12,7 +12,7 @@
 - 私有配置和认证材料保存在 `/home/timyai/dev/runtime/xiaozhi/`，不得提交。生产登录账号、连接命令、跳转链路和私有访问文件路径不写入任何仓库文档。
 - 114 为生产环境，独立于本地开发。开发不连接其数据库、不复制运行配置、不操作其服务；生产操作和真机验收另行明确授权。
 
-当前个人工作区使用固定分支：服务端 `dev/local-zhou`，兄弟固件工作目录 `xiaozhi-firmware/` 使用 `dev/firmware-local-zhou`，两者是同一 Git 仓库的不同 worktree。按功能或阶段提交，不为每个小步骤创建分支。2026-11-18 已重建本地提交历史，未推送；当前本地历史与远端旧历史没有共同祖先，后续远端交付须另行安排，不直接套用基于旧 `origin/main` 的合并或变基步骤。
+当前个人工作区使用固定分支：服务端 `dev/local-zhou`，兄弟固件工作目录 `xiaozhi-firmware/` 使用 `dev/firmware-local-zhou`，两者是同一 Git 仓库的不同 worktree。按功能或阶段提交，不为每个小步骤创建分支。
 
 ## 目录与隔离
 
@@ -39,13 +39,13 @@ supervisorctl -c /workspace/.devcontainer/supervisord.conf status
 
 工具检查用 `java -version`、`mvn -version`、`node --version`、`python --version` 和 `git --version`。首次使用 `sh .devcontainer/setup.sh` 安装锁文件前端依赖、轻量远程语音依赖并打包 Java；不安装 Torch 或本地 FunASR。pip 固定为 25.3，以避免基础镜像旧解析器的依赖解析失败。
 
-新开发库首次初始化：启动 API，等待公开配置接口就绪后，在容器执行 `python deploy/local-zhou/init-voice.py`，再启动 voice。该脚本只允许本项目 104 开发库、无用户的初始状态，已有语音配置时拒绝覆盖；不创建管理员或配置真实模型凭据。首次管理员通过开发页面正常注册，模型/集市凭据需独立配置，不借用 114 的配置。
+新开发库首次初始化：启动 API，等待公开配置接口就绪后，在容器执行 `python deploy/local-zhou/init-voice.py`，再启动 voice。该脚本只允许本项目 104 开发库、无用户的初始状态，已有语音配置时拒绝覆盖；不创建管理员或配置真实模型凭据。首次管理员通过开发页面正常注册，模型/集市凭据需独立配置。
 
 完成首次初始化后，runtime 卷的 `ready` 标记使容器启动时自动由 Supervisor 启动三个服务。Supervisor 从容器入口启动；不要在 docker exec 会话中再启动第二个 Supervisor。宿主机恢复命令为 `docker compose -f deploy/local-zhou/dev.compose.yaml up -d --no-build`；需要载入修改后的 dev.env 时，仅重建此开发容器，保留命名卷。
 
 本机端口：前端 18001、API 18002、语音 WebSocket 18000、辅助 HTTP 18003，分别映射容器 8001、8002、8000、8003。前端请求通过 `/xiaozhi` 代理到同容器 Java API；开发数据库凭据从 `dev.env` 注入，不进入前端。
 
-当前开发机页面 `http://172.16.111.196:18001/#/login`，本机也可用 `http://127.0.0.1:18001/#/login`。只有前端开发端口向局域网发布，API/语音映射绑定本机回环地址；本轮未配置真机或公网入口。前端首次编译需要等待，页面可用不代表模型问答已配置。
+当前开发机页面 `http://172.16.111.196:18001/#/login`，本机也可用 `http://127.0.0.1:18001/#/login`。只有前端开发端口向局域网发布，API/语音映射绑定本机回环地址。前端首次编译需要等待，页面可用不代表模型问答已配置。
 
 前端保留热更新；Java 修改后在容器打包，再重启 api；Python 修改后重启 voice：
 
@@ -57,11 +57,11 @@ supervisorctl -c .devcontainer/supervisord.conf restart voice
 
 Supervisor 日志位于 `/opt/xiaozhi-dev/logs/`，只读检查后再摘取脱敏错误。不要向报告复制原始日志或配置。停止服务用 supervisorctl stop；停止容器保留命名卷。不要删除数据库卷或重新生成已使用的密码。
 
-## 第一阶段音箱接入
+## 音箱开发与接口联调
 
-开发 API 可选加载 `/opt/xiaozhi-dev/speaker/speaker.properties`；默认缺失时不启用身份模式。当前独立开发环境已配置 `speaker.enabled=true`、开发专用 device Client ID 和独立加密文件，私有备份在宿主 runtime/xiaozhi/config/speaker。语音配置保存在原命名卷 data/.config.yaml；2026-11-17 恢复原版运行时后删除 product-voice 配置，身份接口通过原版 manager-api 的 server.secret 保护，不再使用独立语音服务 Key 或旧 v2 语音接口。管理员明确选择完整默认角色后才允许对话。不要复制 114 配置。
+在本机私有 speaker.properties 启用 `speaker.enabled=true` 后，使用开发专用设备授权客户端和独立加密配置。Python 语音服务的私有配置位于语音服务的数据卷。设备登记、扫码、绑定与语音许可流程见[项目 README](../../README.md#ai-集市接入)。
 
-新入口为 `/#/speaker-agents`、`/#/speaker-users`、`/#/speaker-devices`。仍使用原运营管理员登录；先新增角色并点击“设为默认”才能开始对话。系统不自动选用旧模板，也不开放客户自助注册。
+音箱管理入口为 `/#/speaker-agents`、`/#/speaker-users`、`/#/speaker-devices`。仍使用原运营管理员登录；先新增角色并点击“设为默认”才能开始对话。系统不自动选用旧模板，也不开放客户自助注册。
 
 `check-speaker.py` 调用 `check-agent-management.py`：仅限 104 小智开发库，创建临时管理员、模拟客户、角色、设备及停用的 MCP 服务，验证无客户资源 Key 的完整原版配置下发、默认选择及页面。结束清理夹具并恢复默认角色，不重启 API、不请求集市授权或真实模型。浏览器工具、缓存和字体只放 runtime 卷。原版运行时、身份轮次和本地 MCP 协议替身的定向测试见实施记录；它们不代表真机或真实服务验收。
 
@@ -72,7 +72,7 @@ python deploy/local-zhou/speaker-simulator.py \
   --identity-file /opt/xiaozhi-dev/speaker/development-device.json --begin --duration 600
 ```
 
-当前方案与检查见[原版恢复实施记录](../../docs/archive/completed/voice/upstream-restoration-progress.md)和[第一批交付](../../docs/archive/completed/voice/upstream-restoration-batch1-delivery.md)。原版调用链的本地协议联调为 `check-upstream-voice.py`：真实 API 配置、WebSocket/Opus 与原版提供者适配器连接本地 ASR/LLM/TTS 替身，临时数据用完清理，不调用集市模型。不同使用默认角色的数据库/浏览器联调顺序运行，避免同时更改同一开发默认项。回退须恢复配套服务端、固件与私有配置；保留新增表和加密文件，不能单独关闭身份模式代替回退。
+项目的历史恢复过程见[原版恢复实施记录](../../docs/archive/completed/voice/upstream-restoration-progress.md)和[第一批交付](../../docs/archive/completed/voice/upstream-restoration-batch1-delivery.md)。原版调用链的本地协议联调为 `check-upstream-voice.py`：真实 API 配置、WebSocket/Opus 与原版提供者适配器连接本地 ASR/LLM/TTS 替身，临时数据用完清理，不调用集市模型。不同使用默认角色的数据库/浏览器联调顺序运行，避免同时更改同一开发默认项。回退须恢复配套服务端、固件与私有配置；保留新增表和加密文件，不能单独关闭身份模式代替回退。
 
 固件从小智官方 `v2.6.0` 的 P4X 4.3 寸变体构建。ESP-IDF 6.1 commit `f0114250e205e33a945e2f3e7ec40085c5a029a2` 与工具链位于容器 runtime 卷的 `tools/idf-v6.1-f011425/`。在 `xiaozhi-dev` 运行 `bash deploy/local-zhou/build-speaker-firmware.sh`，使用 `/opt/xiaozhi-dev/run/p4x-260-rebuild/product` 的同步源码副本及其组件锁构建中文集市版，最多 4 个 Ninja 任务。完整镜像 ZIP 在该副本的 `releases/`，应用镜像在 `build/xiaozhi.bin`。编辑兄弟固件目录后先同步源码，再执行构建。构建与实机刷写分别执行。工具临时文件使用 `/opt/xiaozhi-dev/run/tmp`。
 
@@ -82,10 +82,9 @@ python deploy/local-zhou/speaker-simulator.py \
 
 ## 环境检查
 
-容器内执行 `python deploy/local-zhou/check-dev.py`，检查网页、API、前端代理、语音 HTTP、104 数据库连接与认证拒绝；不会调用 ASR、模型、MCP 或 TTS。实际初始化和重启验证结果见[本次交付记录](development-20261116.md)。
+容器内执行 `python deploy/local-zhou/check-dev.py`，检查网页、API、前端代理、语音 HTTP、104 数据库连接与认证拒绝；不会调用 ASR、模型、MCP 或 TTS。
 
-
-## AI 集市模型接入（第二阶段）
+## AI 集市模型配置
 
 模型配置保留“小智系统”，新增“AI 集市”分组。每种用途保存一个适配配置，远端模型由协议、能力及已验证输入方式筛选，不逐个导入成本地配置。管理员选择并启用后，在完整智能体设置中选用对应的 AI 集市配置；不自动改变默认智能体。
 
@@ -99,15 +98,15 @@ market.catalog.client-secret-file=/opt/xiaozhi-dev/speaker/market-catalog.secret
 Secret 文件为仅 dev 可读的 600 权限文件，宿主私有备份在 runtime/xiaozhi/config/speaker/；不在前端或 Git 配置 Secret。目录令牌仅用于 models:read。
 设备客户端请求 credentials:manage；用户扫码授权后，实际使用集市模型时自动领取并加密保存用户应用专用 Key。个人 Key 不写入模型配置。原版配置请求携带语音会话，按设备归属注入；Java 摘要和标题按原会话的归属账号解析。
 
-ASR 本期仅 spark_zh_iat_new / xfyun_asr_v2，使用已有 PCM/Opus 处理和原版提供者接口，单次不超过 60 秒。其他 ASR、向量/重排、复杂记忆不在本期；TTS、VAD、RAG 保留原配置。
+ASR、TTS 等提供者的现行适配范围见[项目 README](../../README.md#ai-集市接入)，实际候选以管理页面的协议与能力筛选结果为准。
 
 限定验收入口为 deploy/local-zhou/check-market-models.py 和 main/manager-web/scripts/check-market-ui.cjs。前者仅接受 runtime 下、已明确授权的临时模拟设备夹具，临时切换适配和角色后恢复，不能作为日常启动步骤；--live-voice 才会执行真实模型对话，产生用户集市用量。浏览器工具及字体缓存继续使用已有 runtime 卷。真实设备验收仍按 CONTRIBUTING 的独立 Ubuntu 环境规则执行。
 
-结果及提交见[模型接入交付](../../docs/archive/completed/models/ai-market-model-integration-delivery.md)。
+历史模型联调记录见[模型接入交付](../../docs/archive/completed/models/ai-market-model-integration-delivery.md)。
 
-## 语音服务地址与运维（2026-11-17）
+## 语音服务地址与运维
 
-设备连接地址统一由系统参数 `server.websocket` 管理，身份状态接口下发地址和短期票据；服务管理使用同一来源。不再使用私有 `speaker.voice-url` 属性。已有环境先将该旧属性的值迁移到参数并清理参数缓存，核对一致后移除旧属性；没有地址时应明确显示未配置，不能默认连接其他环境。开发模拟地址为 `ws://127.0.0.1:8000/xiaozhi/v1/`，真机需要设备可达的 WSS 地址；本改动不构成真机可达性验收。
+设备连接地址由系统参数 `server.websocket` 管理，身份状态接口下发地址和短期票据，服务管理使用同一来源。开发模拟使用其所在环境可达的 WebSocket 地址。真机联调使用设备可达的小智业务地址，按团队验证规则单独确认。
 
 后台运维使用独立 `/xiaozhi/management/` WebSocket 路径和既有 `server.secret` / Python `manager-api.secret` 服务间认证，不创建临时设备或音频会话。反向代理若只转发 `/xiaozhi/v1/`，需要在部署任务中另行配置运维路径；本次不修改任何部署环境。默认由设备地址的同源运维路径访问。确有内外网差异时，在私有 properties 设置显式映射，例如：
 
@@ -115,4 +114,4 @@ ASR 本期仅 spark_zh_iat_new / xfyun_asr_v2，使用已有 PCM/Opus 处理和�
 speaker.management-url-map={"wss://voice.example/xiaozhi/v1/":"ws://127.0.0.1:8000/xiaozhi/management/"}
 ```
 
-映射仅决定后台运维目标，不改变设备连接地址；页面同时显示两者，运行状态标为未检测。管理请求不自动重试；重启返回的是服务端已接受请求，不能等同于重启后健康检查成功。代码更新须配套加载 Java 与 Python 版本；日常角色/模型切换仍使用原有配置版本机制，不必逐次点击更新配置。
+映射只供后台运维连接使用。管理请求返回已接受后，按实测范围复查服务健康。日常角色和模型切换沿用现有运行配置版本机制。
