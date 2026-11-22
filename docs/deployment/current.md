@@ -1,6 +1,6 @@
 # 当前生产部署状态
 
-最近一次部署核验为 **2026-11-23 07:01（Asia/Shanghai）**。生产目录、构建、传包、备份、启停和 OTA 流程见[生产部署规范](../../deploy/production/README.md)。
+最近一次部署核验为 **2026-11-23 07:08（Asia/Shanghai）**。生产目录、构建、传包、备份、启停和 OTA 流程见[生产部署规范](../../deploy/production/README.md)。
 
 ## 业务入口
 
@@ -18,7 +18,7 @@
 | 组件 | 最近核验版本 | 核验结果 |
 | --- | --- | --- |
 | 管理 Web、Java API | `fea5cc273ca4cec57d404cbfb3e3d5c1f664a344` | 2026-11-23 00:22:08 按组件升级。本机及公网管理入口、设备接口鉴权和 WSS 检查通过。抽查 20 条近期会话，设备和集市账号 ID 均与会话历史归属一致。 |
-| Python 语音服务 | `132e1bacfc61a3efc4bd180b7d547f33038fa0b6` | 仍为 2026-11-21 发布的实例，WSS 握手与鉴权检查通过。 |
+| Python 语音服务 | `fea5cc273ca4cec57d404cbfb3e3d5c1f664a344` | 2026-11-23 07:08:44 单独升级，容器启动、Java 运行配置读取、本机就绪探针及公网 WSS 握手和无效设备鉴权检查通过。 |
 | MySQL、Redis、Nginx | 8.0.41、8.0.0、1.27.4 | 运行实例保持一致，MySQL、Redis 健康检查通过。 |
 | Waveshare ESP32-P4X 4.3 寸 OTA 下发 | 2.6.21，`5f1c564fa141c47a0e6ea3dd181b128aa59eb22e` | 2026-11-23 06:56:37 重新发布原包，本机和公网下载校验一致。测试音箱已升级并在 07:01:09 上报 2.6.21 心跳。 |
 
@@ -27,6 +27,10 @@
 API 和 Web 以 `132e1bacfc61a3efc4bd180b7d547f33038fa0b6` 的镜像层为基线。按部署规范提交 `7673b86` 生成应用层包，114 校验基线后直接由 Docker 导入，核对镜像 ID、镜像层及源码提交后只切换两个组件。本次没有数据库结构变更。开发环境通过设备换绑后历史会话归属的回归测试。
 
 应用层包 `services.tar` 为 137,472,000 字节，SHA-256 为 `fdea6b47fdee2d49557c0d7f63fad39eecf889cd0114b03bafee4c1e6c6d5e70`。包、清单和 `release.json` 位于 `/data/packages/xiaozhi/fea5cc273ca4/component-upgrade/`，原 Compose 和服务记录备份在 `/data/backup/xiaozhi/before-fea5cc273ca4/`。部署证据覆盖日常应用层升级，首次部署沿用规范的独立流程。
+
+07:08:44 使用相同部署规范验证 Python 语音服务单独升级。以 `132e1bacfc61a3efc4bd180b7d547f33038fa0b6` 的语音镜像层为基线，只导入 `fea5cc273ca4cec57d404cbfb3e3d5c1f664a344` 的语音应用层并切换 `voice`。API、Web、MySQL、Redis、Nginx 的容器实例均与切换前一致。验证覆盖服务启动、配置读取、就绪和 WSS 握手鉴权，语音对话保留为实机验收项。
+
+语音应用层包 `services.tar` 为 23,080,960 字节，SHA-256 为 `d5d6af521bd032b63f72e71430e9b99b63a7612ea2b7507266cb519843853306`。包、清单和 `release.json` 位于 `/data/packages/xiaozhi/fea5cc273ca4/voice-upgrade/`，切换前的 Compose 和容器记录备份在 `/data/backup/xiaozhi/voice-before-fea5cc273ca4/`。
 
 ### 固件 OTA 记录
 
