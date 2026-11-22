@@ -63,11 +63,19 @@ flowchart LR
 
 ## 首次初始化
 
-1. 将校验通过的应用、网关模板和运维脚本安装到各自部署目录。按现有的[配置模板](xiaozhi/speaker.properties.example)准备环境配置、TLS 和服务端凭据。
+1. 将校验通过的应用、网关模板和运维脚本安装到下表位置。按[配置模板](xiaozhi/speaker.properties.example)准备环境配置、TLS 和服务端凭据。
 2. 在空数据目录使用 [`init-config.sh`](bin/init-config.sh) 初始化小智自己的 MySQL、Redis、管理员及应用加密配置。将生产专用的设备授权客户端和模型目录客户端配置到 Java 私有配置。初始化完成后按现有流程移除管理员的临时引导文件。
 3. 在小智应用目录启动 MySQL、Redis、API 和 Web，先确认存储健康与 Java 初始化完成。使用 [`init-voice.sh`](bin/init-voice.sh) 生成内部语音配置，然后启动语音。
 4. 在后台设置默认智能体、模型和所需第三方服务。确认语音配置能够读取后，启动 Nginx 网关并检查管理 HTTPS、设备 API、OTA 和 WSS。
-5. 安装并启用 [`xiaozhi-production.service`](bin/xiaozhi-production.service)。[`services.sh`](bin/services.sh) 提供 `start`、`stop` 和 `status`，启动时先应用后网关，停止时先网关后应用。
+5. 将归档的 [`xiaozhi-production.service`](bin/xiaozhi-production.service) 安装到 `/etc/systemd/system/`。确认 `/data/bin/xiaozhi/services.sh` 可执行后，执行 `systemctl daemon-reload` 并启用该单元。[`services.sh`](bin/services.sh) 提供 `start`、`stop` 和 `status`，启动时先应用后网关，停止时先网关后应用。
+
+| 解包后的文件 | 安装位置与要求 |
+| --- | --- |
+| `xiaozhi/` 下的应用模板 | 放到 `/data/apps/xiaozhi/`，保持文件名。 |
+| `nginx/compose.yaml`、`nginx/.env.example` | 放到 `/data/apps/nginx/`，根据示例另行准备私有 `.env`。 |
+| `nginx/default.conf` | 放到 `/data/apps/nginx/conf.d/default.conf`，由网关挂载。TLS 文件分别放到 `/data/apps/nginx/tls/fullchain.pem` 和 `/data/apps/nginx/tls/privkey.pem`。 |
+| `bin/` 下的三个 `.sh` 脚本 | 使用 `install -m 0755` 安装到 `/data/bin/xiaozhi/`。 |
+| `bin/xiaozhi-production.service` | 使用 `0644` 权限归档到 `/data/bin/systemd/`，启用时从此处安装。 |
 
 ### 环境变量及配置示例
 
