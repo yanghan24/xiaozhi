@@ -1,27 +1,52 @@
-# 微雪 P4X 4.3 寸 AI 集市版
+# Waveshare P4X 4.3 寸集市版
 
-1. 固定官方 `v2.6.0`（`4de00aed740595a8713b01f8332b9b2cf30685bc`）和已完成同版本 OTA 对照的 ESP-IDF commit `f0114250e205e33a945e2f3e7ec40085c5a029a2`。
-2. 新增设备身份和扫码授权。管理 API 负责 AI 集市设备授权、用户绑定、令牌和模型调用凭据。联网后音箱通过独立设备凭据调用 `/xiaozhi/speaker/v1`，显示二维码与核对码并上报心跳。状态接口提供短期 WebSocket 票据。
-3. 保留官方音频、WebSocket 握手与音频帧处理。账号权限变化在主任务关闭会话。软件更新通过经设备认证的官方 OTA 检查入口，沿用原版分区写入、校验和重启。
-4. 核对现有后台登记的 4.3 寸产品板型与 P4X 构建变体。跨 SDK 应用升级须先实机核对 Bootloader、资源分区、已有身份和回退。生产发布前验证扫码、断线重连、语音、解绑、OTA 与重启。
+本文说明 P4X 产品的模块、边界和验证入口。系统分层与构建命令见[固件 README](../README.md)，界面与定稿见 [UI 规范](ui/README.md)。
 
-## 构建
+## 板型和产物
 
-在 ESP-IDF 6.1 工具链环境中构建。
+| 项目 | 当前实现 |
+| --- | --- |
+| 硬件 | Waveshare ESP32-P4X 4.3 寸，搭配 ESP32-C6 网络协处理器，800×480 横屏 |
+| 构建目录 | `waveshare/esp32-p4-wifi6-touch-lcd` |
+| 中文构建变体 | `esp32-p4x-wifi6-touch-lcd-4.3-market` |
+| 心跳与 OTA 上报板型 | `waveshare-esp32-p4-wifi6-touch-lcd-4.3` |
+| 分区表 | [16 MiB 分区表](../partitions/v2/16m.csv)，两个各 `0x3f0000` 的应用 OTA 槽和独立资源分区 |
+| 应用 OTA | `build/xiaozhi.bin`，沿用原版应用升级和启动流程 |
+| USB 整包 | 构建时加 `--zip`。整包烧录或擦除须单独确认设备数据保留要求 |
 
-```sh
-cp locks/esp32p4-v2.6.0.lock dependencies.lock
-python scripts/build.py waveshare/esp32-p4-wifi6-touch-lcd --name esp32-p4x-wifi6-touch-lcd-4.3-market --language zh-CN --zip
-```
+保持构建变体、硬件和后台 OTA 匹配。设备管理上报板型按现有协议保持稳定。调整芯片修订、分区、bootloader 或资源格式时，先单独核对 OTA 兼容性和恢复流程。
 
-构建变体为 `esp32-p4x-wifi6-touch-lcd-4.3-market`。设备心跳和 OTA 继续上报已登记的 `waveshare-esp32-p4-wifi6-touch-lcd-4.3`，语音连接保持后台提供的 WebSocket 协议版本。
+## 功能与源码入口
 
-## 身份交付
+以下 `speaker_*` 文件位于 [P4X 板型目录](../main/boards/waveshare/esp32-p4-wifi6-touch-lcd/)。
 
-登记设备后可在私有目录准备 NVS 镜像。输入 JSON 包含 `version`、`hardware_id`、`device_id`、`credential`、`control_origin` 和 `ota_url`。设备硬件标识使用 P4 eFuse MAC 的小写无冒号形式。HTTPS 管理 API 源及同源 OTA 地址从独立交付配置提供。凭据文件和生成产物都留在私有运行目录。
+| 功能 | 模块与边界 |
+| --- | --- |
+| 配网与 Wi-Fi | `speaker_wifi_view` 管理触屏界面，`speaker_wifi_setup` 后台任务调用 Wi-Fi 组件。[组件补丁](../cmake/p4x-touch-wifi.patch)支持运行中扫描、试连和热点。首次触屏与手机热点共用提交逻辑。浏览列表或打开热点时保留已连网络。确认后试连，成功取得 IP 后保存，失败时恢复原网络。 |
+| 账号、积分、解绑 | [`speaker_account`](../main/speaker_account/) 管理身份和认证连接，账号页显示扫码、绑定资料及积分。首次配网完成后自动登记。用户经手机完成 AI 集市授权，设备更新状态并取得语音票据。解绑按本台设备的既有流程确认。 |
+| 开机、首页、屏保与导航 | `speaker_home_display` 协调系统画面和应用优先级，`speaker_boot_view`、`speaker_launcher_view`、`speaker_screensaver_view`、`speaker_background` 管理各自的 UI 与资源。`speaker_navigation` 管理应用入口、返回和边缘手势。 |
+| 全屏对话 | `speaker_conversation_view` 显示语音状态与字幕，`speaker_wave` 控制波带绘制。收音和实际音频播放从现有应用和音频服务接收状态。 |
+| 设置 | `speaker_settings_view` 维持设置首页及声音和显示、屏保、关于设备页面。账号和 Wi-Fi 路由进入各自模块。滑块与语音控制复用音量、背光服务，按现有规则更新与保存。 |
+| 待机天气 | `speaker_standby_weather` 使用设备认证请求小智管理 API，在空闲阶段刷新。供应商和认证由后台配置。 |
+| 周日历、记事与提醒 | `speaker_calendar_view` 显示周视图和当日事项。`speaker_memos` 提供 `self.memo.create`、`self.memo.list`、`self.memo.cancel`，按设备当前绑定关系隔离本地记事，支持到期时提示和响铃。 |
+| 番茄钟 | `speaker_pomodoro_view` 管理计时、暂停、重置和提示，复用现有提示音。 |
+| SD 卡、本地音乐与录音 | `speaker_sd_storage` 管理挂载与文件，`speaker_music` 播放 MP3/WAV，`speaker_recorder` 保存 WAV。两种应用各有页面，复用同一音频服务。 |
+| 设备诊断 | [`speaker_account`](../main/speaker_account/) 下的语音耗时、播放和显示诊断沿用现有通用上报接口，后台按设备限时开启上传。 |
 
-```sh
-python scripts/prepare_speaker_identity.py DEVICE_IDENTITY_JSON FACTORY_NVS_BIN
-```
+## 系统设置和音频边界
 
-该工具生成新设备交付所需的 NVS 镜像。已有设备使用其现有的 `device_ctrl/identity_v1`，通过应用 OTA 保留分区。首次 USB 完整安装和恢复时先备份并确认原设备身份。
+- 保存的 Wi-Fi、设备身份、用户设备归属所需标识、屏保配置和记事沿用现有存储。应用 OTA 更新应用槽，现有 NVS 和 SD 数据按原流程保留。整包刷写或恢复需按目标场景单独处理。
+- 本地音乐在语音对话需要使用扬声器时让出。主动录音期间独占麦克风，暂停语音唤醒。录音停止后恢复现有唤醒流程，保存收尾由工作任务负责。
+- 功能模块通过现有线程调度、音频接口和页面注册接入。需要系统切换、长期阻塞或跨设备持久化的功能先明确负责模块和边界。
+- 新增外部业务通过小智管理 API 或现有服务端能力提供。设备向小智发送经认证的业务请求，供应商 Key 留在服务端。
+
+## 验证入口
+
+| 改动范围 | 开发检查和实机确认 |
+| --- | --- |
+| 界面与设置 | 800×480 横屏、触摸、返回手势、状态优先级和设置持久化。实机核对字形、闪屏、刷新与触摸。 |
+| Wi-Fi 和身份 | 开发检查首次触屏与手机配网、取消、失败恢复及授权状态。实机核对 DHCP、换网、扫码、解绑与重连。 |
+| 音频、本地应用、语音 | 开发检查应用状态、文件与队列交互。实机核对唤醒、收音、播报、打断、音乐让出、录音停止及提醒。 |
+| 固件升级 | 核对版本、板型、镜像校验、分区余量与发布范围。实机区分 OTA 下载、安装、重启和版本心跳。 |
+
+开发检查与生产发布及真机结果分别记录。具体发布步骤使用服务端工程的 `deploy/production/README.md`。

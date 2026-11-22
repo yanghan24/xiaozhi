@@ -24,6 +24,7 @@ Read the closest existing implementation before adding a new one. Prefer the nar
 
 ## Required Rules
 
+- For the P4X product, read the [development boundaries](README.md#开发边界), [module guide](docs/speaker-market.md), and [UI guide](docs/ui/README.md) before changing product features.
 - Preserve unrelated worktree changes and keep patches focused.
 - A build must export exactly one board factory through `DECLARE_BOARD(...)`.
 - Never alter an existing board's pins to support different hardware. Add a uniquely named board or release variant; board identity affects OTA compatibility.
