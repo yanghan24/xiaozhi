@@ -210,7 +210,7 @@ Docker CLI 内存会减去 inactive file cache，因此另采原始 cgroup。1,0
 
 ## 审阅、复核与回退
 
-最终证据已封存，包含逐请求原始 JSONL、运行源码／镜像／数据校验、失败原件、源更新快照、资源采样及校验清单。[原始归档](../../../../verification/evidence/2026-11-11-weather43-acceptance/raw-results.tar.gz)为 22,152,891 字节，394 份证据／工具加一份内置清单，SHA-256 `da4647480ff0034b4e78c2c79b8a3aed834951eeb803032f4faac6fa9fe34b1a`。实际测试工具对应提交 `5a7219c7536ec3fd0c05bfdea58fbbaf2c34a711`，各工具实际字节 SHA 另存归档。
+最终证据已封存，包含逐请求原始 JSONL、运行源码／镜像／数据校验、失败原件、源更新快照、资源采样及校验清单。历史原件为 22,152,891 字节，394 份证据／工具加一份内置清单，SHA-256 `da4647480ff0034b4e78c2c79b8a3aed834951eeb803032f4faac6fa9fe34b1a`。仓库保留[脱敏副本](../../../../verification/evidence/2026-11-11-weather43-acceptance/raw-results.tar.gz)，其校验值见[归档回执](../../../../verification/evidence/2026-11-11-weather43-acceptance/archive-receipt.json)。实际测试工具对应提交 `5a7219c7536ec3fd0c05bfdea58fbbaf2c34a711`，各工具实际字节 SHA 另存归档。
 
 [计数与资源重算](../../../../verification/evidence/2026-11-11-weather43-acceptance/metrics-final.json)覆盖 76 个完整档案，全部与原始计数和分位数一致；这表示记录一致，历史失败仍为失败。服务器按允许列表扫描两个测试身份、现有节点秘密和新模型 Key；本机再扫描 Git／SSH／代理／新模型秘密及解压后的每个归档成员。另独立核对 395 个成员的字节数与 SHA、无链接／越界路径，并重算连续网络各端点计数、p95 和连续失败数。清单、归档收据与许可边界见[证据说明](../../../../verification/evidence/2026-11-11-weather43-acceptance/README.md)。
 
