@@ -84,7 +84,7 @@ void SpeakerCalendarView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_set_style_radius(cell.selection, 15, LV_PART_MAIN);
         lv_obj_set_style_bg_color(cell.selection, lv_color_hex(kCyan), LV_PART_MAIN);
         cell.number = Label(cell.root, "");
-        lv_obj_align(cell.number, LV_ALIGN_TOP_MID, 0, 48);
+        lv_obj_align(cell.number, LV_ALIGN_TOP_MID, 0, 56);
         cell.memo_dot = Surface(cell.root, (kDayWidth - kDotSize) / 2,
                                 kStripHeight - kDotSize - kDotBottomGap, kDotSize, kDotSize);
         lv_obj_set_style_radius(cell.memo_dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
