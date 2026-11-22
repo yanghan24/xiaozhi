@@ -80,7 +80,6 @@
                 "CONFIG_XIAOZHI_SPEAKER_ACCOUNT=y",
                 "CONFIG_LV_FONT_MONTSERRAT_14=n",
                 "CONFIG_LV_FONT_DEFAULT_MONTSERRAT_20=y",
-                "CONFIG_LV_FONT_MONTSERRAT_48=y",
                 "CONFIG_LV_USE_FONT_COMPRESSED=y",
                 "CONFIG_LV_USE_CALENDAR=y",
                 "CONFIG_FATFS_LFN_HEAP=y",

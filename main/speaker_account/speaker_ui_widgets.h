@@ -6,6 +6,9 @@
 #include <cstring>
 
 LV_FONT_DECLARE(font_material_symbols_30_4);
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+LV_FONT_DECLARE(speaker_digits_font);
+#endif
 
 namespace SpeakerUi {
 
@@ -51,7 +54,9 @@ inline lv_obj_t* Icon(lv_obj_t* parent, const char* symbol, uint32_t color = kTe
 
 inline lv_obj_t* Digits(lv_obj_t* parent, const char* text, int width, int scale = 256) {
     auto* label = Label(parent, text);
-#if LV_FONT_MONTSERRAT_48
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+    lv_obj_set_style_text_font(label, &speaker_digits_font, LV_PART_MAIN);
+#elif LV_FONT_MONTSERRAT_48
     lv_obj_set_style_text_font(label, &lv_font_montserrat_48, LV_PART_MAIN);
 #endif
     lv_obj_set_width(label, width);
