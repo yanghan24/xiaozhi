@@ -3,8 +3,8 @@ services:
   voice:
     image: xiaozhi-voice:${VOICE_BUILD_TAG:-baseline-local}
     build:
-      context: .
-      dockerfile: deploy/voice/Dockerfile
+      context: ../..
+      dockerfile: deploy/development/voice/Dockerfile
       target: runtime
       args:
         SOURCE_REVISION: ${VOICE_SOURCE_REVISION:-working-tree}
@@ -14,8 +14,8 @@ services:
       - "127.0.0.1:${VOICE_WS_PORT:-18000}:8000"
       - "127.0.0.1:${VOICE_HTTP_PORT:-18003}:8003"
     volumes:
-      - ./.runtime/voice/data:/app/data
-      - ./.runtime/voice/logs:/app/tmp
+      - ../../.runtime/voice/data:/app/data
+      - ../../.runtime/voice/logs:/app/tmp
     healthcheck:
       test: ["CMD", "python", "/checks/check-voice.py", "--ws-url", "ws://127.0.0.1:8000/xiaozhi/v1/"]
       interval: 10s
@@ -29,8 +29,8 @@ services:
     image: xiaozhi-voice:${VOICE_BUILD_TAG:-baseline-local}
     command: ["python", "/checks/check-voice-startup.py"]
     volumes:
-      - ./.runtime/voice/data/.config.yaml:/baseline/.config.yaml:ro
-      - ./.runtime/voice/startup-check:/evidence
+      - ../../.runtime/voice/data/.config.yaml:/baseline/.config.yaml:ro
+      - ../../.runtime/voice/startup-check:/evidence
     tmpfs:
       - /app/data:mode=0700
       - /app/tmp:mode=0700
@@ -40,8 +40,8 @@ services:
     profiles: ["checks"]
     image: xiaozhi-voice-tests:${VOICE_BUILD_TAG:-baseline-local}
     build:
-      context: .
-      dockerfile: deploy/voice/Dockerfile
+      context: ../..
+      dockerfile: deploy/development/voice/Dockerfile
       target: tests
       args:
         SOURCE_REVISION: ${VOICE_SOURCE_REVISION:-working-tree}

@@ -14,7 +14,11 @@ mkdir -p "$out/source" "$out/logs" "$out/tmp" "$out/api" "$out/web" "$out/voice/
 export TMPDIR="$out/tmp"
 git archive "$revision" main/manager-api main/manager-web | tar -x -C "$out/source"
 git archive "$revision:main/xiaozhi-server" | tar -x -C "$out/voice/app"
-git show "$revision:deploy/voice/requirements.txt" > "$out/voice/requirements.txt"
+voice_requirements=main/xiaozhi-server/requirements-runtime.txt
+if ! git cat-file -e "$revision:$voice_requirements" 2>/dev/null; then
+  voice_requirements=deploy/voice/requirements.txt
+fi
+git show "$revision:$voice_requirements" > "$out/voice/requirements.txt"
 ln -s /workspace/main/manager-web/node_modules "$out/source/main/manager-web/node_modules"
 
 for program in ffmpeg ffprobe; do

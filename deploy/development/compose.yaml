@@ -34,8 +34,8 @@ services:
   api:
     image: xiaozhi-manager-api:${BUILD_TAG:-baseline-local}
     build:
-      context: .
-      dockerfile: deploy/manager/Dockerfile
+      context: ../..
+      dockerfile: deploy/development/manager/Dockerfile
       target: api
       args:
         SOURCE_REVISION: ${SOURCE_REVISION:-working-tree}
@@ -61,8 +61,8 @@ services:
   web:
     image: xiaozhi-manager-web:${BUILD_TAG:-baseline-local}
     build:
-      context: .
-      dockerfile: deploy/manager/Dockerfile
+      context: ../..
+      dockerfile: deploy/development/manager/Dockerfile
       target: web
       args:
         SOURCE_REVISION: ${SOURCE_REVISION:-working-tree}

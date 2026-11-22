@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 LANG=C.UTF-8
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libopus0 \
     && rm -rf /var/lib/apt/lists/*
-COPY deploy/voice/requirements.txt /tmp/requirements.txt
+COPY main/xiaozhi-server/requirements-runtime.txt /tmp/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     (pip install --timeout 120 --retries 3 --index-url https://mirrors.aliyun.com/pypi/simple/ -r /tmp/requirements.txt \
      || pip install --timeout 120 --retries 3 -r /tmp/requirements.txt) \
@@ -24,6 +24,6 @@ RUN pip install --no-cache-dir --timeout 120 --retries 3 \
         pytest==8.4.2 pytest-asyncio==0.26.0 freezegun==1.5.5 \
     && pip check \
     && pip freeze > /usr/local/share/xiaozhi-test-requirements.txt
-COPY deploy/voice/pytest-config.yaml /app/data/.config.yaml
+COPY deploy/development/voice/pytest-config.yaml /app/data/.config.yaml
 ENV RUN_LIVE_API_TESTS=0
 CMD ["python", "-m", "pytest", "tests/", "-q"]
