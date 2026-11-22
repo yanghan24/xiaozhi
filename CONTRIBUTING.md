@@ -42,7 +42,7 @@ git push -u origin HEAD
 
 ### 生产环境与实机验收
 
-生产环境独立于开发，不作为本地开发的依赖。本地开发不连接生产数据库、不复制生产运行配置、不修改生产服务。生产部署和操作须有明确授权，并先核对[当前部署入口](docs/deployment/current.md)及关联证据。生产账号、SSH 命令、跳转链路和私有访问文件路径不得写入仓库，包括个人环境目录。
+生产环境独立于开发，不作为本地开发的依赖。本地开发不连接生产数据库、不复制生产运行配置、不修改生产服务。生产部署和操作须有明确授权，并先核对[生产部署规范](deploy/production/README.md)、[当前部署状态](docs/deployment/current.md)和关联证据。生产登录账号、SSH 命令、跳转链路和私有访问文件路径不得写入仓库，包括个人环境目录。
 
 构建、自动化测试和协议模拟属于开发检查；实机验收以明确授权的 Ubuntu 生产环境与真实设备结果为依据。小智设备连接对应的管理后台和语音服务，验证激活、绑定、语音对话、播放、断线重连及 OTA 等实际行为。开发检查不能代替实机验收，历史记录保留其原有日期和验证范围。
 
@@ -77,10 +77,10 @@ git revert --no-edit COMMIT_SHA
 
 ## 查看旧版本与找回提交
 
-用独立 worktree 检查旧标签，保留当前工作区。将 `RELEASE_TAG` 换成需要检查的标签，例如 `checkpoint/requirements-2026-11-05`。
+用独立 worktree 检查旧版本，保留当前工作区。将 `RELEASE_REF` 换成当前仓库中可解析的版本标签或提交。
 
 ```bash
-git worktree add --detach .worktrees/inspect-checkpoint RELEASE_TAG
+git worktree add --detach .worktrees/inspect-release RELEASE_REF
 ```
 
 误操作后，可以从本地 reflog 找到旧提交，并先创建救援分支保存引用，再决定如何合回主线。
@@ -94,10 +94,6 @@ git branch rescue/recovered-work COMMIT_SHA
 未提交、未被 Git 跟踪的文件不受这些恢复方法保护。reflog 属于本地且有保留期限；重要工作应及时形成提交并推送到任务分支。
 
 ## 检查点与发布
-
-需求文档的初始检查点为 `checkpoint/requirements-2026-11-05`，指向 `792fb85`。这是文档恢复点，不是可部署的软件版本。
-
-该初始快照包含后续已纠正的设备管理职责描述；当前职责以 [ADR-0005](docs/adr/0005-backend-owns-device-management.md) 为准。恢复检查点用于查看历史，不能将其中的旧需求直接当作当前实现依据。
 
 发布前给通过验收的提交创建带注释的版本标签，例如 `v0.1.0`，再推送该标签。已经共享的发布标签保持指向原提交，修复版本使用新标签。每次发布记录源代码提交、上游基线、构建产物标识，以及数据库兼容条件；固件另外记录板型、版本和产物校验值。
 

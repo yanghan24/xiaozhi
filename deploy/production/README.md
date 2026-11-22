@@ -1,29 +1,78 @@
-# 小智生产部署
+# 小智生产部署规范
 
-发布时先在开发容器生成 Web、API 和语音的封装输入，再用本机 Docker 导出镜像包。发布包包含镜像归档、部署模板、源码版本和 SHA-256 清单。部署机使用预先导入的镜像。
+适用于服务端、网关和音箱固件的正式发布。发布输入在开发环境构建并校验，生产服务器负责接收、备份、导入镜像和运行服务。生产操作须取得明确授权。当前版本、公开业务入口和验收记录见[当前部署状态](../../docs/deployment/current.md)。
 
-```sh
-docker exec -u dev xiaozhi-dev bash /workspace/deploy/local-zhou/prepare-release.sh HEAD
-bash deploy/local-zhou/pack-release.sh HEAD
+## 部署架构
+
+```mermaid
+flowchart LR
+    Browser["管理浏览器与音箱 HTTPS"] --> Gateway["Nginx 网关"]
+    Speaker["音箱 WSS"] --> Gateway
+    Gateway -->|管理页及 HTTP| Web["管理 Web"]
+    Web -->|管理、设备、OTA 请求| API["Java 管理 API"]
+    Gateway -->|"/xiaozhi/v1/"| Voice["Python 语音服务"]
+    Voice -->|内部运行配置与身份| API
+    API --> MySQL["独立 MySQL"]
+    API --> Redis["独立 Redis"]
 ```
 
-## 服务器目录
-
-| 位置 | 内容 |
+| 组件 | 部署边界 |
 | --- | --- |
-| `/data/packages/xiaozhi/` | 上传包和校验清单 |
-| `/data/apps/xiaozhi/` | 当前 Compose、私有配置、MySQL、Redis、上传文件和日志 |
-| `/data/apps/nginx/` | 网关 Compose、路由和 TLS |
-| `/data/backup/xiaozhi/` | 可用于恢复的备份 |
-| `/data/bin/xiaozhi/`、`/data/bin/systemd/` | 启停脚本、初始化脚本和自启动单元 |
-| `/data/` | 部署视图、运维说明和更新日志 |
+| Nginx 网关 | 独立 Compose，由公网 HTTPS 入口接收请求。对 `/xiaozhi/v1/` 转发 WebSocket 到 `voice:8000`。其他 HTTP 路径转发给管理 Web。 |
+| 管理 Web | 管理页面与 HTTP 代理。Web 配置把 `/xiaozhi/` 转发到 `api:8002`。宿主机回环管理访问使用 `127.0.0.1:18052`，以 Compose 的 `WEB_PORT` 为准。 |
+| Java 管理 API | 使用内部数据库、缓存和私有配置。设备 HTTP 管理、授权、心跳、OTA 和诊断由 Java 处理。 |
+| Python 语音服务 | 安装独立镜像。通过容器服务名获取 Java 的运行配置和许可。 |
+| MySQL 与 Redis | 小智独立服务。使用内部网络和本项目持久目录。 |
+
+网关及 Web 的转发以 [Nginx 模板](nginx/default.conf)和 [Web 代理模板](xiaozhi/web.conf)为准。网络、运行 UID/GID 和数据卷以[应用模板](xiaozhi/compose.yaml)与[网关模板](nginx/compose.yaml)为准。部署视图可记载业务 IP、端口和运行用户。登录身份、登录命令、跳转链路、私有访问文件和认证材料由运维保管。
+
+## 目录与归档
+
+| 目录 | 用途 |
+| --- | --- |
+| `/data/apps/xiaozhi/` | 小智 Compose、运行配置、`mysql/data/`、`redis/data/`、上传文件和服务日志。 |
+| `/data/apps/nginx/` | 网关 Compose、站点路由和 TLS 材料。 |
+| `/data/packages/xiaozhi/<源码版本>/` | 传入的服务发布包、清单、校验值、固件应用包及其发布记录。 |
+| `/data/backup/xiaozhi/` | 按发布日期或版本保存的配置、数据备份、前一版 OTA 目录记录和恢复证据。 |
+| `/data/bin/xiaozhi/`、`/data/bin/systemd/` | 运行、初始化脚本和 systemd 单元的归档。 |
+| `/data/` | 部署视图、运维说明和更新日志。 |
+
+普通传包、目录与配置准备使用约定的部署用户。Docker 管理、安装 systemd 单元和其他系统操作使用已授权的权限。容器的 Java 与 Python 进程沿用 `RUN_UID` 和 `RUN_GID`。
+
+- **部署视图**记录服务、所属目录、网络、端口、镜像或固件版本、存储位置和启动方式。
+- **运维说明**记录启动、停止、状态检查、日志位置、备份和恢复方式。
+- **更新日志**记录时区和发布时间、源码提交、变更范围、产物校验、备份位置、验证结果和回退处理。只把实际完成的检查记为通过。
+
+## 服务端构建与传包
+
+1. 在对应开发环境从明确的源码提交构建 Web、API 和语音镜像，使用目标机兼容的平台。个人构建入口和环境配置在各自的开发部署目录。
+2. 生成 `images.tar`、`images.manifest`、`deployment.tar.gz` 和 `SHA256SUMS`。镜像清单记录源码提交、平台、镜像名称、ID 和层摘要。
+3. 上传到该版本的包目录。文件传输完成后执行 `sha256sum -c SHA256SUMS`，再核对空间、目标平台与发布清单。模板先解到暂存目录，按本次发布范围比较差异。
+4. 生产用已有 Docker 执行 `docker load -i images.tar`，导入后核对实际镜像。服务启用时使用 `--no-build --pull never`。
 
 ## 首次初始化
 
-1. 校验发布包后执行 `docker load`。对照镜像清单检查平台和文件系统层。配送模板解压到暂存目录，应用与网关分别安装到对应目录。
-2. 为首次启动运行 `init-config.sh <发布标签>`。脚本准备新的 MySQL、Redis、后台管理员和应用加密配置。把生产专用的扫码客户端和模型目录客户端填入 `config/api/speaker.properties`，将目录客户端 Secret 写入权限为 600 的 `config/api/market-catalog.secret`。
-3. 先启动 MySQL、Redis、API 和 Web。Java 会初始化数据库、生成服务密钥，再从私有启动文件创建首个管理员。管理员密码私下保存，初始化成功后移除启动文件。
-4. 运行 `init-voice.sh` 生成 Python 的私有配置，再启动语音。使用后台配置默认智能体和模型。配置文件中的 Java 和 Python 内部地址使用容器服务名。
-5. Nginx 的 `.env` 配置 `GATEWAY_BIND`，安装服务器证书链和私钥。从设备口验证 HTTPS、OTA 和 WSS，确认后台登录及公网对内部接口的隔离。使用相同域名、映射端口和 HTTPS 证书。
+1. 将校验通过的应用、网关模板和运维脚本安装到各自部署目录。按现有的[配置模板](xiaozhi/speaker.properties.example)准备环境配置、TLS 和服务端凭据。
+2. 在空数据目录使用 [`init-config.sh`](bin/init-config.sh) 初始化小智自己的 MySQL、Redis、管理员及应用加密配置。将生产专用的设备授权客户端和模型目录客户端配置到 Java 私有配置。初始化完成后按现有流程移除管理员的临时引导文件。
+3. 在小智应用目录启动 MySQL、Redis、API 和 Web，先确认存储健康与 Java 初始化完成。使用 [`init-voice.sh`](bin/init-voice.sh) 生成内部语音配置，然后启动语音。
+4. 在后台设置默认智能体、模型和所需第三方服务。确认语音配置能够读取后，启动 Nginx 网关并检查管理 HTTPS、设备 API、OTA 和 WSS。
+5. 安装并启用 [`xiaozhi-production.service`](bin/xiaozhi-production.service)。[`services.sh`](bin/services.sh) 提供 `start`、`stop` 和 `status`，启动时先应用后网关，停止时先网关后应用。
 
-旧环境的容器、持久卷和原有目录适用原来的回退入口。新环境使用独立的新数据目录。生产客户端凭据、管理员密码和私钥由运维人员私下保存。首次部署后在服务器记录真实的上线时间、版本、启动方式和验证范围。
+## 日常更新、验证与回退
+
+1. **发布前核对**。确认当前镜像、服务状态、目标提交、现网数据库迁移与空间。备份将要替换的 Compose、服务配置及对应版本记录。涉及数据或结构变更时，先按恢复要求备份相应数据，并记录适用的回退条件。
+2. **更新应用**。沿用当前部署目录和持久数据，按发布范围更新镜像标签和必要模板。使用现有 Compose 更新目标服务，核对数据库与缓存健康。日常发布使用已有配置和已初始化的存储。
+3. **检查发布**。核对运行镜像、服务状态和启动日志。检查管理入口、目标 API、内部配置获取和语音 WSS 鉴权。核对本次变更涉及的功能与对应依赖。实机结果单独记录设备型号、固件版本和检查项。
+4. **更新记录**。确认上线结果后填写部署视图和更新日志，记录版本、校验、备份路径、验证范围和时间。
+5. **回退**。按备份恢复受影响的配置与已验证的旧镜像。确认数据库结构和当前数据与回退版本兼容。需要恢复业务数据时，执行单独的数据恢复流程并复核结果。
+
+## 固件构建与 OTA 发布
+
+1. **确认目标和基线**。记录固件源码提交、版本号、官方基线、构建变体和设备实际上报的板型。P4X 中文集市版构建变体为 `esp32-p4x-wifi6-touch-lcd-4.3-market`，现行 OTA 识别板型为 `waveshare-esp32-p4-wifi6-touch-lcd-4.3`。两者各有用途。
+2. **构建与检查**。按固件 README 的锁定工具链和板型入口构建，核对芯片、芯片修订适用范围、应用版本、镜像校验、大小和最小应用分区余量。OTA 使用 `build/xiaozhi.bin` 应用镜像。USB 整包用于经授权的整机烧录和恢复，包含 bootloader、分区表、应用及资源等内容。
+3. **传包和备份**。将应用包及 SHA-256 放到该提交的包目录。发布前备份目标板型当前的 OTA 目录项、原固件及其校验对应关系，确认旧包在需要恢复时可用。
+4. **发布**。在小智管理后台「设备管理 → 固件管理」按精确板型发布更高版本。核对目录展示的版本、大小和板型，从生产本机和设备公网路径下载并比对 SHA-256。只发布应用包时沿用现有后台与服务。
+5. **确认实机**。设备联网启动后检查 OTA。后台放出新版本与设备已安装分别记录。以设备启动后上报的版本和心跳，以及本次要求的真机操作为验收依据。
+6. **暂停与恢复**。出现问题时先停止继续下发本版，并按备份恢复适用的目录记录。已升级设备使用经过验证的兼容修复固件或授权的恢复流程。记录受影响的板型与版本。
+
+发布包、备份和现场运维记录存放在约定的生产目录。模型、设备、集市和第三方凭据使用现有私有配置与运行时管理。
