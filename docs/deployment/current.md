@@ -1,6 +1,6 @@
 # 当前生产部署状态
 
-最近一次部署核验为 **2026-11-23 00:57（Asia/Shanghai）**。生产目录、构建、传包、备份、启停和 OTA 流程见[生产部署规范](../../deploy/production/README.md)。
+最近一次部署核验为 **2026-11-23 01:15（Asia/Shanghai）**。生产目录、构建、传包、备份、启停和 OTA 流程见[生产部署规范](../../deploy/production/README.md)。
 
 ## 业务入口
 
@@ -20,7 +20,7 @@
 | 管理 Web、Java API | `fea5cc273ca4cec57d404cbfb3e3d5c1f664a344` | 2026-11-23 00:22:08 按组件升级。本机及公网管理入口、设备接口鉴权和 WSS 检查通过。抽查 20 条近期会话，设备和集市账号 ID 均与会话历史归属一致。 |
 | Python 语音服务 | `132e1bacfc61a3efc4bd180b7d547f33038fa0b6` | 仍为 2026-11-21 发布的实例，WSS 握手与鉴权检查通过。 |
 | MySQL、Redis、Nginx | 8.0.41、8.0.0、1.27.4 | 运行实例保持一致，MySQL、Redis 健康检查通过。 |
-| Waveshare ESP32-P4X 4.3 寸 OTA 下发 | 2.6.19，`2f29df69b28a1d3a64bb461a03981af6357d16bd` | 2026-11-23 00:57:55 恢复该目录，本机和公网下载校验一致。复查时测试设备仍上报 2.6.20。 |
+| Waveshare ESP32-P4X 4.3 寸 OTA 下发 | 2.6.22，`31d3790c00f0399dfaeb6656ad6f04a3fe35853a` | 2026-11-23 01:15:52 发布，本机和公网下载校验一致。发布复查时尚未收到该版本设备心跳。 |
 
 ### 服务端升级记录
 
@@ -37,6 +37,8 @@ API 和 Web 以 `132e1bacfc61a3efc4bd180b7d547f33038fa0b6` 的镜像层为基线
 2.6.21 已停止下发，包、发布回执和恢复回执位于 `/data/packages/xiaozhi/5f1c564fa141/`，应用包 SHA-256 为 `19bbf78557793495a6ff4d2f81baba975d295d24253f6acbad45d0d10c849f6a`。00:53:52 先恢复到 2.6.20，该目录备份位于 `/data/backup/xiaozhi/ota-before-2.6.21/`。
 
 00:57:55 按确认恢复到 2.6.19，使用 `/data/backup/xiaozhi/ota-before-2.6.20/` 中的目录和应用包。2.6.19 应用包为 4,031,744 字节，SHA-256 为 `139133e1bfbf4550d32926d8d4181c352c7b85c66876c422f198a7c4c634ebc3`。恢复回执位于 `/data/packages/xiaozhi/abbeda268c40/ota-2.6.20-restored-to-2.6.19.json`。目录恢复后，设备仍按现有版本比较规则判断是否升级。
+
+01:15:52 发布对照版本 2.6.22。源码基线为 2.6.19 的 `2f29df69b28a1d3a64bb461a03981af6357d16bd`，差异仅为 `CMakeLists.txt` 中的内嵌版本号。构建配置、分区表和资源与 2.6.19 一致。应用包为 4,031,744 字节，最小应用分区余 97,024 字节。SHA-256 为 `a90be085ee8c5f31b1f18835df476c0b2137a533c40d4adbbb9b0fcf12685fda`。发布回执位于 `/data/packages/xiaozhi/31d3790c00f0/ota-2.6.22.json`，切换前的 2.6.19 目录和原包备份在 `/data/backup/xiaozhi/ota-before-2.6.22/`。发布前后的后台服务实例一致。
 
 ## 验证与运维资料
 
