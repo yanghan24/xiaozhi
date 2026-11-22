@@ -13,7 +13,7 @@
   "rounds": [
     {
       "round": "key",
-      "path": "/home/jt/issue14-model-20261113/legacy-regressions/key",
+      "path": "/redacted/historical-deployment/issue14-model-20261113/legacy-regressions/key",
       "exit_code": 0,
       "result": "PASS: model/ASR submit/ASR poll 401 revoke other connections; unsigned result 401 preserves grant",
       "artifact_sha256": {
@@ -23,7 +23,7 @@
     },
     {
       "round": "503",
-      "path": "/home/jt/issue14-model-20261113/legacy-regressions/503",
+      "path": "/redacted/historical-deployment/issue14-model-20261113/legacy-regressions/503",
       "exit_code": 0,
       "result": {
         "result": "pass",
@@ -48,7 +48,7 @@
     },
     {
       "round": "timeout",
-      "path": "/home/jt/issue14-model-20261113/legacy-regressions/timeout",
+      "path": "/redacted/historical-deployment/issue14-model-20261113/legacy-regressions/timeout",
       "exit_code": 0,
       "result": {
         "result": "pass",
@@ -73,7 +73,7 @@
     },
     {
       "round": "lost_ack",
-      "path": "/home/jt/issue14-model-20261113/legacy-regressions/lost_ack",
+      "path": "/redacted/historical-deployment/issue14-model-20261113/legacy-regressions/lost_ack",
       "exit_code": 0,
       "result": {
         "result": "pass",

@@ -3,7 +3,7 @@
   "evidence_kind": "manual transcript of observed terminal summaries and hashes; NOT original server result JSON",
   "original_server_reports_copied_to_local": false,
   "offline_runs": {
-    "server_root": "/home/jt/issue12-sdk-verified81-20261112",
+    "server_root": "/redacted/historical-deployment/issue12-sdk-verified81-20261112",
     "reports": ["results/installed01/result.json", "results/installed02/result.json"],
     "each_counts": {"run": 81, "pass": 81, "fail": 0, "error": 0, "skip": 0},
     "same_cases": true,
@@ -18,7 +18,7 @@
     "containers_running": false
   },
   "live_client_runs": {
-    "server_root": "/home/jt/issue12-sdk-final81-20261112",
+    "server_root": "/redacted/historical-deployment/issue12-sdk-final81-20261112",
     "scope": "real product ServerMCPClient and SDK transport/session; logger and unrelated config bootstrap replaced; no model or device chain",
     "client_sha256": "d3687e7c25de8600022c80b05bbe9c78df9f1c64d948491076a98c1f086f120d",
     "bridge_failed_connection_attempts": 3,

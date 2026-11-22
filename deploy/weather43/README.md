@@ -4,7 +4,7 @@
 
 当前业务部署及恢复边界先读 [current.md](../../docs/deployment/current.md)。不得启动旧身份／语音测试栈，不停止业务服务，JetLinks 保持停止。命令的工作目录必须是新建隔离试验根目录；Compose 模板通过 `--project-directory` 将相对挂载解析到该根目录。
 
-固定镜像与许可见[运行版本清单](../../docs/planning/issue-43-runtime-notices.md)。数据路线为 Ubuntu 自身 Mihomo → 匿名 S3；模型引擎通过专用桥接地址上的只读字节转发读取，结果缓存通过 HTTP 查询真实引擎。
+固定镜像与许可见[运行版本清单](../../docs/archive/superseded/weather/planning/issue-43-runtime-notices.md)。数据路线为 Ubuntu 自身 Mihomo → 匿名 S3；模型引擎通过专用桥接地址上的只读字节转发读取，结果缓存通过 HTTP 查询真实引擎。
 
 部署前需要宿主可用内存至少 10GiB、磁盘至少 100GiB、AVX2、Docker，以及已验证的官方镜像。`private/acceptance.env` 只写固定镜像 ID、独立 Docker bridge 的 gateway/subnet 与预热数量，不含节点密钥。私有 Mihomo 配置位于 `/home/jt/.config/xiaozhi-weather43/config.yaml`，权限 600，父目录 700；不从仓库下载通用免费代理，不开放 LAN 代理或控制器。安装 [systemd 单元](xiaozhi-weather43-egress.service)前核对用户名、路径、经官方校验的二进制和私有配置。只启用本次单元；配置内容及订阅留在秘密存储。
 

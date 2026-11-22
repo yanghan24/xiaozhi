@@ -1,6 +1,6 @@
 # Issue #12 离线证据归档（2026-11-12）
 
-验证说明：[阶段二修复与离线验证记录](../../../2026-11-12-mcp-offline-development.md)。
+验证说明：[阶段二修复与离线验证记录](../../../../archive/completed/deployment/verification/2026-11-12-mcp-offline-development.md)。
 
 本目录为合成测试报告的原字节副本，尚未提交。没有真实服务凭据、客户问题、录音或业务数据；修复前失败日志中的 secret/token 等均为脚本主动注入的合成标记，用于检验日志与公开错误是否泄露输入，不能理解为真实秘密。
 
@@ -14,7 +14,7 @@
 
 原字节可能使用Windows换行。复制后哈希可核对；Git后续检出时若换行自动转换，须区分存储/检出字节，不把转换后哈希套用为本次运行字节。源码包留在仓库外，未将二进制包纳入本目录。
 
-Ubuntu原始报告没有复制进此目录。服务器 `/home/jt/issue12-offline-stage2-20261112/results/final-installed15/` 与 `final-installed16/` 各保留 `result.json/tests.txt`。两轮JSON现场核对SHA-256相同：`9f3e319ededf20b169e1c3f5bbd4f23cb18bf46e0d521b4bb13652a8dd5c553a`；结果各75/75，0失败/错误/跳过。该值是观察记录，不是一份本地持有的服务器报告。
+Ubuntu原始报告没有复制进此目录。服务器 `/redacted/historical-deployment/issue12-offline-stage2-20261112/results/final-installed15/` 与 `final-installed16/` 各保留 `result.json/tests.txt`。两轮JSON现场核对SHA-256相同：`9f3e319ededf20b169e1c3f5bbd4f23cb18bf46e0d521b4bb13652a8dd5c553a`；结果各75/75，0失败/错误/跳过。该值是观察记录，不是一份本地持有的服务器报告。
 
 ## 固定版本复查
 

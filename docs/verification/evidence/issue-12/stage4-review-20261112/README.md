@@ -30,4 +30,4 @@ python -I -B <仓库父目录>/issue-12/reproduce-cleanup-review.py --sdk stub -
 
 该结果使D-05重新待修复、R-02不能完成；不覆盖阶段二历史75/75或真实协议记录。后续修复必须新增记录并补受影响Ubuntu回归，不能继续沿用旧源码hash声称已验证修复。
 
-完整结论见[阶段四审查](../../../2026-11-12-mcp-delivery-review.md)。
+完整结论见[阶段四审查](../../../../archive/completed/mcp/verification/2026-11-12-mcp-delivery-review.md)。

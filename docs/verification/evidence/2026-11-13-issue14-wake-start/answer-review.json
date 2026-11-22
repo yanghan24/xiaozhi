@@ -14,14 +14,14 @@
     "historical_actual_dialogues": [
       {
         "file": "knowledge1-dialogue-private.json",
-        "private_directory": "/home/jt/issue14-live-20261113/results/live-20261113T040205Z",
+        "private_directory": "/redacted/historical-deployment/issue14-live-20261113/results/live-20261113T040205Z",
         "sha256_verified": "7fb2280c4148fed616e4be62b7dc48f954ca067ad236c9f3a8c453f1191bc0a0",
         "inspected_message_index": 2,
         "inspected_message_role": "tool"
       },
       {
         "file": "knowledge2-dialogue-private.json",
-        "private_directory": "/home/jt/issue14-live-20261113/results/live-20261113T040205Z",
+        "private_directory": "/redacted/historical-deployment/issue14-live-20261113/results/live-20261113T040205Z",
         "sha256_verified": "f51f083724b336e23e36d31ac331d8d1c73fca0c4a8c507cb6f6a27b5c46fdba",
         "inspected_message_index": 2,
         "inspected_message_role": "tool"

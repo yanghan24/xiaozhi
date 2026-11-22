@@ -21,6 +21,6 @@ git apply --check /absolute/path/xiaozhi/integrations/firmware/42-device-identit
 git apply /absolute/path/xiaozhi/integrations/firmware/42-device-identity-recovery.patch
 ```
 
-应用后的操作说明位于固件 `docs/device-identity-recovery.md`，主项目对应入口为[身份恢复说明](../../docs/development/device-identity-recovery.md)。私有 sdkconfig、依赖缓存、Flash/NVS 备份、交付 journal、设备凭据和固件镜像均不包含在补丁中。两份受测构建的配置与现场基线逐项相同，产物标识及本机测试结果见[机器摘要](../../docs/verification/evidence/2026-11-11-device-identity-retention/build-and-tests.json)。
+应用后的操作说明位于固件 `docs/device-identity-recovery.md`，主项目对应入口为[身份恢复说明](../../docs/archive/superseded/identity/development/device-identity-recovery.md)。私有 sdkconfig、依赖缓存、Flash/NVS 备份、交付 journal、设备凭据和固件镜像均不包含在补丁中。两份受测构建的配置与现场基线逐项相同，产物标识及本机测试结果见[机器摘要](../../docs/verification/evidence/2026-11-11-device-identity-retention/build-and-tests.json)。
 
-本次 `git apply --check` 已在固定基点通过。构建需要 ESP-IDF v5.5.5 及原工程依赖；构建和主机测试命令见[验证记录](../../docs/verification/2026-11-11-device-identity-retention.md)。真实 B 只更新当前应用槽；不得使用全量 flash_args 覆盖 NVS、启动材料或资源区。
+本次 `git apply --check` 已在固定基点通过。构建需要 ESP-IDF v5.5.5 及原工程依赖；构建和主机测试命令见[验证记录](../../docs/archive/completed/identity/verification/2026-11-11-device-identity-retention.md)。真实 B 只更新当前应用槽；不得使用全量 flash_args 覆盖 NVS、启动材料或资源区。

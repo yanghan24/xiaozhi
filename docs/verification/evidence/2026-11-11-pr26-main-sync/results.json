@@ -2,7 +2,7 @@
   "source_commit": "d702543179ee26086773366e95c46b135b68e9f3",
   "merged_main": "2e5f1fbd8390dabd2d707f649dc111cbcf22aab9",
   "recorded_at_utc": "2026-11-11T04:37:53.030778+00:00",
-  "environment": "Ubuntu 192.168.168.114, isolated Compose xiaozhi-pr26-d702543",
+  "environment": "Ubuntu historical-host.invalid, isolated Compose xiaozhi-pr26-d702543",
   "java": {
     "tests": 321,
     "failures": 0,
@@ -139,8 +139,8 @@
     "1ms mismatch rejected: PASS"
   ],
   "firmware_input_hashes": [
-    "08fd576e4c1956b5fa5fe0292c13124980a401ec983c888e67696885f311c543  /home/jt/pr26-firmware-check/firmware-pr26.tar",
-    "8804ea7ffe89211749b09b8d326a7134ff51a0ca25e9e9207c7806231c290ff1  /home/jt/pr26-firmware-check/build/compatibility"
+    "08fd576e4c1956b5fa5fe0292c13124980a401ec983c888e67696885f311c543  /redacted/historical-deployment/pr26-firmware-check/firmware-pr26.tar",
+    "8804ea7ffe89211749b09b8d326a7134ff51a0ca25e9e9207c7806231c290ff1  /redacted/historical-deployment/pr26-firmware-check/build/compatibility"
   ],
   "api_jar_sha256": "30f7a9f1cce7af1504d96e6f3845d1706a00ff46b87d967ee0c3202cfe9d78d6",
   "test_images": {

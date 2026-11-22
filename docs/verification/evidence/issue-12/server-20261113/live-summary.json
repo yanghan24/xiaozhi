@@ -67,7 +67,7 @@
   "summary_is_original_report": false,
   "candidate_commit": "830b11a30550de9533065706c1c9d275484b4cbb",
   "original_report": {
-    "path": "/home/jt/issue12-minimal-verification-20261113T015751Z/live01/result.json",
+    "path": "/redacted/historical-deployment/issue12-minimal-verification-20261113T015751Z/live01/result.json",
     "bytes": 4741,
     "sha256": "e9965f481ab43c086a44f93077b479d72e9d4bd35a61ce90cbf926c2606b0205"
   },
@@ -104,7 +104,7 @@
   "scope": {
     "device_label": "P4-B",
     "account_label": "B-current-owner-20261113",
-    "private_mapping_path": "/home/jt/issue12-minimal-verification-20261113T015751Z/scope-private.json",
+    "private_mapping_path": "/redacted/historical-deployment/issue12-minimal-verification-20261113T015751Z/scope-private.json",
     "authorization_source": "Direct human reply in Codex chat 01a1d297-23e1-7bc0-ab82-2b6c4d172e2a on 2026-11-13"
   },
   "execution": {
@@ -115,12 +115,12 @@
     "container_user": "1000:1000"
   },
   "private_response": {
-    "path": "/home/jt/issue12-minimal-verification-20261113T015751Z/live01/tool-result-private.json",
+    "path": "/redacted/historical-deployment/issue12-minimal-verification-20261113T015751Z/live01/tool-result-private.json",
     "filename": "tool-result-private.json",
     "bytes": 31576,
     "sha256": "15fd63f9d4dd09aade0b7a57e36dd982990ce75e0b6ca73e6094560da81a6217",
     "kind": "Complete SDK result serialization, not a wire capture",
-    "derived_valid_json_path": "/home/jt/issue12-minimal-verification-20261113T015751Z/live01/tool-result-parsed-private.json",
+    "derived_valid_json_path": "/redacted/historical-deployment/issue12-minimal-verification-20261113T015751Z/live01/tool-result-parsed-private.json",
     "derived_valid_json_sha256": "15fd63f9d4dd09aade0b7a57e36dd982990ce75e0b6ca73e6094560da81a6217",
     "literal_newline_suffix_removed_in_derived_file": false
   },

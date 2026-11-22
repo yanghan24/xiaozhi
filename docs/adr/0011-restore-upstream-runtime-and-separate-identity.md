@@ -16,4 +16,4 @@ status: accepted
 
 设备档案和认证心跳独立于语音。第一批固件采用原版设备工具与 OTA 检查、下载、安装、重启流程，适配新身份。ADR-0009 的设备在线需求保持，旧待机维护协议实现不自动迁入。本轮不使用新增 ProductOtaCatalog/ProductOtaPush 链路。额外展示与本地功能等待第一批真机验收后另行实施。
 
-方案与证据见[实施方案](../development/upstream-restoration-phase1-plan-2026-11-17.md)及[实施记录](../development/upstream-restoration-progress.md)。
+方案与证据见[实施方案](../archive/completed/voice/upstream-restoration-phase1-plan-2026-11-17.md)及[实施记录](../archive/completed/voice/upstream-restoration-progress.md)。

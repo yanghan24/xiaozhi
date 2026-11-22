@@ -48,7 +48,7 @@
                  },
     "running_jar_sha256":  "24eedf38b764c60a94d90392651f76db502333faac5c51f91dc8040fb506b24a",
     "special_test":  {
-                         "report":  "/home/jt/issue13-acceptance-b448aa0/.runtime/pr52/surefire-reports/TEST-xiaozhi.modules.customer.CustomerSecretExposureHttpTest.xml",
+                         "report":  "/redacted/historical-deployment/issue13-acceptance-b448aa0/.runtime/pr52/surefire-reports/TEST-xiaozhi.modules.customer.CustomerSecretExposureHttpTest.xml",
                          "sha256":  "2c667632afed202c36f60a40b2c49f98b3fa1a1cc8147fc701d50ebbf955d3bc",
                          "tests":  1,
                          "failures":  0,

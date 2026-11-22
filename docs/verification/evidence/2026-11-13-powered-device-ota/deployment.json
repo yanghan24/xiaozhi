@@ -21,5 +21,5 @@
     "bridge_private": 404,
     "unsigned_artifact": 404
   },
-  "backup": "/home/jt/powered-device-ota-20261113/rollout/backup"
+  "backup": "/redacted/historical-deployment/powered-device-ota-20261113/rollout/backup"
 }

@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "execution_host": "192.168.168.114",
+  "execution_host": "historical-host.invalid",
   "java": {
     "tests": 206,
     "failures": 0,

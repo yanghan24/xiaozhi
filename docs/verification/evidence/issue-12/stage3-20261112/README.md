@@ -8,4 +8,4 @@
 - 不含凭据、原始知识正文、文档/切片标识、私有资源URI或动态会话端点。
 - 实际会话2、工具提交1、模型0、TTS0；客户端计数不是计费遥测。
 
-详情见[阶段三验证记录](../../../2026-11-12-mcp-stage3-protocol.md)及[阶段四审查](../../../2026-11-12-mcp-delivery-review.md)。不把人工索引当作真实模型工具链、账号权限或远端取消验收。
+详情见[阶段三验证记录](../../../../archive/completed/mcp/verification/2026-11-12-mcp-stage3-protocol.md)及[阶段四审查](../../../../archive/completed/mcp/verification/2026-11-12-mcp-delivery-review.md)。不把人工索引当作真实模型工具链、账号权限或远端取消验收。

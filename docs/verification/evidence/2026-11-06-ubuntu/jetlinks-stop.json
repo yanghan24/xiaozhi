@@ -1,6 +1,6 @@
 {
   "date": "2026-11-06T16:07:20.289387+08:00",
-  "host": "192.168.168.114",
+  "host": "historical-host.invalid",
   "action": "stop_jetlinks_project",
   "status": "PASS",
   "before": [
@@ -15,7 +15,7 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/jetlinks-restored/data/jetlinks",
+          "source": "/redacted/historical-deployment/jetlinks-restored/data/jetlinks",
           "destination": "/application/data"
         }
       ]
@@ -31,7 +31,7 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/jetlinks-restored/data/postgres",
+          "source": "/redacted/historical-deployment/jetlinks-restored/data/postgres",
           "destination": "/var/lib/postgresql/data"
         }
       ]
@@ -47,7 +47,7 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/jetlinks-restored/data/redis",
+          "source": "/redacted/historical-deployment/jetlinks-restored/data/redis",
           "destination": "/data"
         }
       ]
@@ -65,7 +65,7 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/jetlinks-restored/data/jetlinks",
+          "source": "/redacted/historical-deployment/jetlinks-restored/data/jetlinks",
           "destination": "/application/data"
         }
       ]
@@ -81,7 +81,7 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/jetlinks-restored/data/postgres",
+          "source": "/redacted/historical-deployment/jetlinks-restored/data/postgres",
           "destination": "/var/lib/postgresql/data"
         }
       ]
@@ -97,7 +97,7 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/jetlinks-restored/data/redis",
+          "source": "/redacted/historical-deployment/jetlinks-restored/data/redis",
           "destination": "/data"
         }
       ]

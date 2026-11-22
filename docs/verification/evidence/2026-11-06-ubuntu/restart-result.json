@@ -11,12 +11,12 @@
       "mounts": [
         {
           "type": "bind",
-          "source": "/home/jt/xiaozhi-ubuntu-test/.runtime/voice/data",
+          "source": "/redacted/historical-deployment/xiaozhi-ubuntu-test/.runtime/voice/data",
           "destination": "/app/data"
         },
         {
           "type": "bind",
-          "source": "/home/jt/xiaozhi-ubuntu-test/.runtime/voice/logs",
+          "source": "/redacted/historical-deployment/xiaozhi-ubuntu-test/.runtime/voice/logs",
           "destination": "/app/tmp"
         }
       ],

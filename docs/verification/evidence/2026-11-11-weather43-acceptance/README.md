@@ -1,6 +1,6 @@
 # #43 最终证据
 
-真实服务测试均运行于指定 Ubuntu。用户最后确认的环境请求并发为 50 路；350／1,000 台文件保留历史范围。研究结论与限制见[验收报告](../../2026-11-10-weather43-acceptance.md)。
+真实服务测试均运行于指定 Ubuntu。用户最后确认的环境请求并发为 50 路；350／1,000 台文件保留历史范围。研究结论与限制见[验收报告](../../../archive/completed/weather/verification/2026-11-10-weather43-acceptance.md)。
 
 - `stage50-summary.json`：50 路容量、冷填充、资源与版本一致性。
 - `voice-comparison.json`：40 个同账号串行真实问答、原始分位数重算及实际冷期重叠；`fixture-cleanup.json`：两个唯一测试设备清理。
@@ -15,4 +15,7 @@
 
 实际代码节点为 `5a7219c7536ec3fd0c05bfdea58fbbaf2c34a711`；源码运行时字节 SHA 另存，避免换行规范化造成混淆。服务器检查两个测试身份、现有代理节点及新模型 Key；Windows 检查 Git／SSH／代理／新模型秘密，并扫描解压后的归档成员。私有配置、Key、设备接入秘密、OAuth 入口、SQLite 数据库和录音均不在允许列表中。
 
-数据署名：Open-Meteo、NOAA/NCEP、Copernicus CAMS/ECMWF、GeoNames、DB-IP。模型数值为加工后的估计值，数据按 CC-BY-4.0 保留来源与修改说明；不提供监测站观测或中国 AQI。程序、Python 包及实际 notices 的分别要求见[运行版本与许可](../../../planning/issue-43-runtime-notices.md)。
+数据署名：Open-Meteo、NOAA/NCEP、Copernicus CAMS/ECMWF、GeoNames、DB-IP。模型数值为加工后的估计值，数据按 CC-BY-4.0 保留来源与修改说明；不提供监测站观测或中国 AQI。程序、Python 包及实际 notices 的分别要求见[运行版本与许可](../../../archive/superseded/weather/planning/issue-43-runtime-notices.md)。
+
+仓库中的原始结果包为生产访问资料脱敏副本。
+[归档回执](archive-receipt.json)分别记录脱敏包和历史原包的校验值。

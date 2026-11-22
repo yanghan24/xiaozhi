@@ -17,8 +17,8 @@
     "live_download_write_automatic_restart_trace_captured": false,
     "qr_and_full_voice_verified": false
   },
-  "server_snapshot_before": "/home/jt/issue42-p4-ota-20261112/20261112T031954Z",
-  "server_snapshot_after": "/home/jt/issue42-p4-ota-20261112/20261112T033309Z",
+  "server_snapshot_before": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T031954Z",
+  "server_snapshot_after": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T033309Z",
   "all_recorded_devices_owner_credential_permission_recoveries_and_hardware_mapping_unchanged": true,
   "retry_performed": false,
   "original_transport_record_preserved": true,

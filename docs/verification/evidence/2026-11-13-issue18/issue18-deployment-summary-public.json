@@ -5,5 +5,5 @@
   "only_voice_recreated": true,
   "device_business_state_unchanged": true,
   "upgrade_sent": false,
-  "rollback_reference": "/home/jt/issue18-p4-ota-20261113/deploy-20261113T024744Z/compose-before.json"
+  "rollback_reference": "/redacted/historical-deployment/issue18-p4-ota-20261113/deploy-20261113T024744Z/compose-before.json"
 }

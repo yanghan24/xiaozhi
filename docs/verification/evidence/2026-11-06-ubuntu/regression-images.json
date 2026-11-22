@@ -46,5 +46,5 @@
       "exported_config_id": "sha256:21464a54bb40cf94cf5c9bdac95891a623da6bc11efcf4c9300fbccd26c043e0"
     }
   ],
-  "execution_host": "192.168.168.114"
+  "execution_host": "historical-host.invalid"
 }

@@ -25,7 +25,7 @@
   "rounds": [
     {
       "round": "voice",
-      "path": "/home/jt/issue14-model-20261113/integration-regressions01/voice",
+      "path": "/redacted/historical-deployment/issue14-model-20261113/integration-regressions01/voice",
       "exit_code": 0,
       "results": [
         {
@@ -59,7 +59,7 @@
     },
     {
       "round": "asr",
-      "path": "/home/jt/issue14-model-20261113/integration-regressions01/asr",
+      "path": "/redacted/historical-deployment/issue14-model-20261113/integration-regressions01/asr",
       "exit_code": 0,
       "results": [
         {

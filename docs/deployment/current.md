@@ -27,8 +27,8 @@
 
 ## 验证与运维资料
 
-- [设备自动登记与首次扫码](../development/speaker-auto-enrollment-2026-11-20.md)
-- [音箱触屏配网开发验证](../development/speaker-touch-wifi.md)
-- [固件界面与诊断验证](../development/speaker-dark-ui-implementation.md)及[语音与显示诊断](../development/speaker-display-diagnostics.md)
+- [设备自动登记与首次扫码](../archive/completed/identity/speaker-auto-enrollment-2026-11-20.md)
+- [音箱触屏配网开发验证](../archive/completed/firmware/speaker-touch-wifi.md)
+- [固件界面与诊断验证](../archive/completed/ui/speaker-dark-ui-implementation.md)及[语音与显示诊断](../archive/completed/firmware/speaker-display-diagnostics.md)
 
 服务器的部署视图、运维说明和更新日志位于 `/data/`。开展生产操作前核对实际运行状态。较早验收按各自日期、版本和实测范围查阅。

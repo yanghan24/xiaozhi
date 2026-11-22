@@ -27,7 +27,7 @@
     "core/handle/textHandler/listenMessageHandler.py"
   ],
   "inherited_parent_manifest": {
-    "path": "/home/jt/issue14-device-observation-runs/20261113T040846.592186Z/source-manifest-private.json",
+    "path": "/redacted/historical-deployment/issue14-device-observation-runs/20261113T040846.592186Z/source-manifest-private.json",
     "sha256": "1d958761f23ae83a04cef919e38c4fe2821cbc97d85258271639f2a5aedc8183",
     "source_commit": "5f01f35fb156463cbedf7dd1737256419d69267d",
     "image_id": "sha256:9ff0a3a4dd5d74d15c7206f2064211d92137dbb5447a8716416fecf65f253c35",
