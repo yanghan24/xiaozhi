@@ -58,6 +58,12 @@ flowchart LR
 4. 在后台设置默认智能体、模型和所需第三方服务。确认语音配置能够读取后，启动 Nginx 网关并检查管理 HTTPS、设备 API、OTA 和 WSS。
 5. 安装并启用 [`xiaozhi-production.service`](bin/xiaozhi-production.service)。[`services.sh`](bin/services.sh) 提供 `start`、`stop` 和 `status`，启动时先应用后网关，停止时先网关后应用。
 
+### 环境变量及配置示例
+
+- 小智应用目录的 `.env` 由 [`init-config.sh`](bin/init-config.sh) 在首次初始化生成。包含 `RELEASE_TAG`、`RUN_UID`、`RUN_GID` 以及独立 MySQL 和 Redis 密码。初次执行前保留空数据目录，由脚本创建 `.env`。后续升级按发布范围更新版本。
+- 网关目录的 `.env` 参照 [Nginx 示例](nginx/.env.example)填写。使用部署主机的业务绑定地址 `GATEWAY_BIND`，按实际需求配置端口 `GATEWAY_PORT`。网关与应用使用同一个 `EDGE_NETWORK`。
+- [应用参数模板](xiaozhi/speaker.properties.example)分别说明设备接入、集市设备授权、目录客户端和业务地址。Secret 与应用加密密钥使用容器内的私有文件路径，由运维保管真实值。Python 语音的私有配置由初始化脚本生成，智能体、模型和第三方服务由管理后台配置。
+
 ## 日常更新、验证与回退
 
 1. **发布前核对**。确认当前镜像、服务状态、目标提交、现网数据库迁移与空间。备份将要替换的 Compose、服务配置及对应版本记录。涉及数据或结构变更时，按恢复要求备份必要业务数据并记录回退条件。现行首版备份排除对话正文，也不得通过整库、卷或日志快照间接保留正文。备份和恢复验收须核对排除结果。详见[备份数据边界](../../docs/adr/0006-exclude-conversation-content-from-backups.md)。
