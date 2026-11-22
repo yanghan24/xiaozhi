@@ -1,0 +1,2 @@
+# Patch context retains the whitespace of the locked upstream sources.
+cmake/p4x-touch-wifi.patch whitespace=-blank-at-eol,-blank-at-eof

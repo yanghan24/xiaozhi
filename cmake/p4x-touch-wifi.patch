@@ -1,0 +1,349 @@
+diff --git a/wifi_configuration_ap.cc b/wifi_configuration_ap.cc
+index 62f435c..628ff82 100644
+--- a/wifi_configuration_ap.cc
++++ b/wifi_configuration_ap.cc
+@@ -29,6 +29,63 @@
+ extern const char index_html_start[] asm("_binary_wifi_configuration_html_start");
+ extern const char done_html_start[] asm("_binary_wifi_configuration_done_html_start");
+ 
++namespace {
++esp_netif_t* trial_netif = nullptr;
++bool portal_closing = false;  // Accessed by the single HTTP task, reset before it starts.
++std::mutex preference_mutex;
++std::string preferred_station;
++
++void PreferStation(const std::string& ssid) {
++    std::lock_guard<std::mutex> lock(preference_mutex);
++    preferred_station = ssid;
++}
++
++using Form = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
++
++Form ReadForm(httpd_req_t* request) {
++    if (!request->content_len || request->content_len > 1024) {
++        return {nullptr, cJSON_Delete};
++    }
++    std::string body(request->content_len, '\0');
++    size_t offset = 0;
++    while (offset < body.size()) {
++        const int count = httpd_req_recv(request, body.data() + offset, body.size() - offset);
++        if (count <= 0) {
++            return {nullptr, cJSON_Delete};
++        }
++        offset += count;
++    }
++    return {cJSON_ParseWithLength(body.c_str(), body.size() + 1), cJSON_Delete};
++}
++
++bool SchedulePortalExit(std::function<void()>* on_exit) {
++    if (portal_closing) {
++        return true;
++    }
++    portal_closing = true;
++    if (xTaskCreate([](void* context) {
++            // Let the current HTTP response reach the caller before stopping the portal.
++            vTaskDelay(pdMS_TO_TICKS(200));
++            auto& callback = *static_cast<std::function<void()>*>(context);
++            if (callback) {
++                callback();
++            }
++            vTaskDelete(nullptr);
++        }, "exit_config_task", 4096, on_exit, 5, nullptr) != pdPASS) {
++        portal_closing = false;
++        return false;
++    }
++    return true;
++}
++}  // namespace
++
++std::string TakePreferredProvisioningNetwork() {
++    std::lock_guard<std::mutex> lock(preference_mutex);
++    std::string ssid;
++    ssid.swap(preferred_station);
++    return ssid;
++}
++
+ WifiConfigurationAp::WifiConfigurationAp()
+ {
+     event_group_ = xEventGroupCreate();
+@@ -89,11 +146,13 @@ void WifiConfigurationAp::Start()
+                                                         this,
+                                                         &instance_got_ip_));
+ 
++    trial_netif = esp_netif_create_default_wifi_sta();
++    ESP_ERROR_CHECK(trial_netif ? ESP_OK : ESP_ERR_NO_MEM);
++    ap_records_.clear();
++    portal_closing = false;
++    PreferStation("");
+     StartAccessPoint();
+     StartWebServer();
+-    
+-    // Start scan immediately
+-    esp_wifi_scan_start(nullptr, false);
+     // Setup periodic WiFi scan timer.
+     // skip_unhandled_events = false so the timer can wake the CPU from light
+     // sleep on its own; otherwise the AP-mode scan list would stop refreshing
+@@ -112,6 +171,7 @@ void WifiConfigurationAp::Start()
+         .skip_unhandled_events = false
+     };
+     ESP_ERROR_CHECK(esp_timer_create(&timer_args, &scan_timer_));
++    esp_wifi_scan_start(nullptr, false);
+ }
+ 
+ std::string WifiConfigurationAp::GetSsid()
+@@ -338,34 +398,42 @@ void WifiConfigurationAp::StartWebServer()
+         .method = HTTP_GET,
+         .handler = [](httpd_req_t *req) -> esp_err_t {
+             auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
+-            std::lock_guard<std::mutex> lock(this_->mutex_);
+-
+-            // Check if 5G is supported
+-            bool support_5g = false;
++            if (httpd_req_get_url_query_len(req) != 0 && !portal_closing) {
++                char query[24];
++                char refresh[4];
++                if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK &&
++                    httpd_query_key_value(query, "refresh", refresh, sizeof(refresh)) == ESP_OK &&
++                    strcmp(refresh, "1") == 0) {
++                    esp_wifi_scan_start(nullptr, false);
++                }
++            }
++            Form document(cJSON_CreateObject(), cJSON_Delete);
+ #ifdef CONFIG_SOC_WIFI_SUPPORT_5G
+-            support_5g = true;
++            cJSON_AddBoolToObject(document.get(), "support_5g", true);
++#else
++            cJSON_AddBoolToObject(document.get(), "support_5g", false);
+ #endif
+-
+-            // Send the scan results as JSON
+-            httpd_resp_set_type(req, "application/json");
+-            httpd_resp_set_hdr(req, "Connection", "close");
+-            httpd_resp_sendstr_chunk(req, "{\"support_5g\":");
+-            httpd_resp_sendstr_chunk(req, support_5g ? "true" : "false");
+-            httpd_resp_sendstr_chunk(req, ",\"aps\":[");
+-            for (int i = 0; i < this_->ap_records_.size(); i++) {
+-                ESP_LOGI(TAG, "SSID: %s, RSSI: %d, Authmode: %d",
+-                    (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
+-                char buf[128];
+-                snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"rssi\":%d,\"authmode\":%d}",
+-                    (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
+-                httpd_resp_sendstr_chunk(req, buf);
+-                if (i < this_->ap_records_.size() - 1) {
+-                    httpd_resp_sendstr_chunk(req, ",");
++            auto* aps = cJSON_AddArrayToObject(document.get(), "aps");
++            const auto records = this_->GetAccessPoints();
++            for (const auto& record : records) {
++                auto* ap = cJSON_CreateObject();
++                if (!cJSON_AddItemToArray(aps, ap)) {
++                    cJSON_Delete(ap);
++                    return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
+                 }
++                cJSON_AddStringToObject(ap, "ssid", reinterpret_cast<const char*>(record.ssid));
++                cJSON_AddNumberToObject(ap, "rssi", record.rssi);
++                cJSON_AddNumberToObject(ap, "authmode", record.authmode);
+             }
+-            httpd_resp_sendstr_chunk(req, "]}");
+-            httpd_resp_sendstr_chunk(req, NULL);
+-            return ESP_OK;
++            auto* json = cJSON_PrintUnformatted(document.get());
++            if (!json) {
++                return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
++            }
++            httpd_resp_set_type(req, "application/json");
++            httpd_resp_set_hdr(req, "Connection", "close");
++            const auto ret = httpd_resp_sendstr(req, json);
++            cJSON_free(json);
++            return ret;
+         },
+         .user_ctx = this
+     };
+@@ -376,69 +444,31 @@ void WifiConfigurationAp::StartWebServer()
+         .uri = "/submit",
+         .method = HTTP_POST,
+         .handler = [](httpd_req_t *req) -> esp_err_t {
+-            char *buf;
+-            size_t buf_len = req->content_len;
+-            if (buf_len > 1024) { // 限制最大请求体大小
+-                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Payload too large");
+-                return ESP_FAIL;
+-            }
+-
+-            buf = (char *)malloc(buf_len + 1);
+-            if (!buf) {
+-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to allocate memory");
+-                return ESP_FAIL;
+-            }
+-
+-            int ret = httpd_req_recv(req, buf, buf_len);
+-            if (ret <= 0) {
+-                free(buf);
+-                if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+-                    httpd_resp_send_408(req);
+-                } else {
+-                    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Failed to receive request");
+-                }
+-                return ESP_FAIL;
+-            }
+-            buf[ret] = '\0';
+-
+-            // 解析 JSON 数据
+-            cJSON *json = cJSON_Parse(buf);
+-            free(buf);
+-            if (!json) {
+-                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+-                return ESP_FAIL;
++            httpd_resp_set_type(req, "application/json");
++            httpd_resp_set_hdr(req, "Connection", "close");
++            if (portal_closing) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Already leaving setup\"}");
+             }
+-
+-            cJSON *ssid_item = cJSON_GetObjectItemCaseSensitive(json, "ssid");
+-            cJSON *password_item = cJSON_GetObjectItemCaseSensitive(json, "password");
+-
+-            if (!cJSON_IsString(ssid_item) || (ssid_item->valuestring == NULL) || (strlen(ssid_item->valuestring) >= 33)) {
+-                cJSON_Delete(json);
+-                httpd_resp_send(req, "{\"success\":false,\"error\":\"Invalid SSID\"}", HTTPD_RESP_USE_STRLEN);
+-                return ESP_OK;
++            const auto form = ReadForm(req);
++            const auto* ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "ssid"));
++            const auto* password = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "password"));
++            if (!ssid || !*ssid || strlen(ssid) > 32 || (password && strlen(password) > 64)) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Invalid SSID or password\"}");
+             }
+ 
+-            std::string ssid_str = ssid_item->valuestring;
+-            std::string password_str = "";
+-            if (cJSON_IsString(password_item) && (password_item->valuestring != NULL) && (strlen(password_item->valuestring) < 65)) {
+-                password_str = password_item->valuestring;
++            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
++            const std::string secret = password ? password : "";
++            if (!portal->ConnectToWifi(ssid, secret)) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}");
+             }
+ 
+-            // 获取当前对象
+-            auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
+-            if (!this_->ConnectToWifi(ssid_str, password_str)) {
+-                cJSON_Delete(json);
+-                httpd_resp_send(req, "{\"success\":false,\"error\":\"Failed to connect to the Access Point\"}", HTTPD_RESP_USE_STRLEN);
+-                return ESP_OK;
++            portal->Save(ssid, secret);
++            PreferStation(ssid);
++            const bool exit_now = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(form.get(), "exit"));
++            if (exit_now && !SchedulePortalExit(&portal->on_exit_requested_)) {
++                return httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Unable to leave setup\"}");
+             }
+-
+-            this_->Save(ssid_str, password_str);
+-            cJSON_Delete(json);
+-            // 设置成功响应
+-            httpd_resp_set_type(req, "application/json");
+-            httpd_resp_set_hdr(req, "Connection", "close");
+-            httpd_resp_send(req, "{\"success\":true}", HTTPD_RESP_USE_STRLEN);
+-            return ESP_OK;
++            return httpd_resp_sendstr(req, "{\"success\":true}");
+         },
+         .user_ctx = this
+     };
+@@ -462,30 +492,21 @@ void WifiConfigurationAp::StartWebServer()
+         .uri = "/exit",
+         .method = HTTP_POST,
+         .handler = [](httpd_req_t *req) -> esp_err_t {
+-            auto* this_ = static_cast<WifiConfigurationAp*>(req->user_ctx);
+-            
+-            // 设置响应头，防止浏览器缓存
++            if (!portal_closing) {
++                const auto form = ReadForm(req);
++                const auto* resume = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(form.get(), "resume"));
++                if (resume && *resume && strlen(resume) <= 32) {
++                    PreferStation(resume);
++                }
++            }
++            auto* portal = static_cast<WifiConfigurationAp*>(req->user_ctx);
++            if (!SchedulePortalExit(&portal->on_exit_requested_)) {
++                return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
++            }
+             httpd_resp_set_type(req, "application/json");
+             httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+             httpd_resp_set_hdr(req, "Connection", "close");
+-            // 发送响应
+-            httpd_resp_send(req, "{\"success\":true}", HTTPD_RESP_USE_STRLEN);
+-            
+-            // 延迟调用回调，确保HTTP响应完全发送
+-            ESP_LOGI(TAG, "Exiting config mode...");
+-            xTaskCreate([](void *ctx) {
+-                // 等待200ms确保HTTP响应完全发送
+-                vTaskDelay(pdMS_TO_TICKS(200));
+-                
+-                auto* self = static_cast<WifiConfigurationAp*>(ctx);
+-                // 通知回调退出配网模式
+-                if (self->on_exit_requested_) {
+-                    self->on_exit_requested_();
+-                }
+-                vTaskDelete(NULL);
+-            }, "exit_config_task", 4096, this_, 5, NULL);
+-            
+-            return ESP_OK;
++            return httpd_resp_sendstr(req, "{\"success\":true}");
+         },
+         .user_ctx = this
+     };
+@@ -958,8 +979,6 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
+     } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
+         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
+         ESP_LOGI(TAG, "Station " MACSTR " left, AID=%d", MAC2STR(event->mac), event->aid);
+-    } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
+-        xEventGroupSetBits(self->event_group_, WIFI_CONNECTED_BIT);
+     } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
+         xEventGroupSetBits(self->event_group_, WIFI_FAIL_BIT);
+     } else if (event_id == WIFI_EVENT_SCAN_DONE) {
+@@ -980,6 +999,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
+     WifiConfigurationAp* self = static_cast<WifiConfigurationAp*>(arg);
+     if (event_id == IP_EVENT_STA_GOT_IP) {
+         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
++        if (event->esp_netif != trial_netif || !event->ip_info.ip.addr) {
++            return;
++        }
+         ESP_LOGI(TAG, "Got IP:" IPSTR, IP2STR(&event->ip_info.ip));
+         xEventGroupSetBits(self->event_group_, WIFI_CONNECTED_BIT);
+     }
+@@ -1089,6 +1111,11 @@ void WifiConfigurationAp::Stop() {
+     // 停止WiFi（但不 deinit，WiFi 驱动由 WifiManager 管理）
+     esp_wifi_stop();
+     
++    if (trial_netif) {
++        esp_netif_destroy_default_wifi(trial_netif);
++        trial_netif = nullptr;
++    }
++
+     // 销毁网络接口
+     if (ap_netif_) {
+         esp_netif_destroy_default_wifi(ap_netif_);
+diff --git a/wifi_station.cc b/wifi_station.cc
+index 9dfe5b0..319b985 100644
+--- a/wifi_station.cc
++++ b/wifi_station.cc
+@@ -224,6 +224,8 @@ void WifiStation::StartScan() {
+     }
+ }
+ 
++std::string TakePreferredProvisioningNetwork();
++
+ void WifiStation::HandleScanResult() {
+     uint16_t ap_num = 0;
+     esp_wifi_scan_get_ap_num(&ap_num);
+@@ -274,6 +276,12 @@ void WifiStation::HandleScanResult() {
+         return;
+     }
+ 
++    const auto preferred = TakePreferredProvisioningNetwork();
++    if (!preferred.empty()) {
++        std::stable_partition(connect_queue_.begin(), connect_queue_.end(), [&preferred](const auto& ap) {
++            return ap.ssid == preferred;
++        });
++    }
+     StartConnect();
+ }
+ 

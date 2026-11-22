@@ -21,6 +21,12 @@ config XIAOZHI_SPEAKER_ENROLLMENT_ORIGIN
     help
         Management API origin used after Wi-Fi connects on an unprovisioned speaker.
 
+config XIAOZHI_SPEAKER_TOUCH_WIFI
+    bool
+    default y
+    depends on XIAOZHI_SPEAKER_ACCOUNT && USE_HOTSPOT_WIFI_PROVISIONING
+    select LV_USE_KEYBOARD
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE

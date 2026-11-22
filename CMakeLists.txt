@@ -15,3 +15,7 @@ project(xiaozhi)
 if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT AND CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)
     include(cmake/p4x-display-diagnostics.cmake)
 endif()
+
+if(CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI)
+    include(cmake/p4x-touch-wifi.cmake)
+endif()
