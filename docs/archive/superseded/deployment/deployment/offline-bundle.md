@@ -63,7 +63,7 @@ print('Updated non-secret settings; generated database passwords preserved.')
 PY
 ```
 
-原 Compose 的 MySQL/Redis/Nginx 使用 registry digest；`docker load` 不一定保留 RepoDigests。随包 [compose.offline.yaml](../../../../../compose.offline.yaml) 使用经清单校验的专用离线标签。先验证镜像，再使用覆盖配置；不要用未经核对的同名镜像。
+原 Compose 的 MySQL/Redis/Nginx 使用 registry digest；`docker load` 不一定保留 RepoDigests。随包 `compose.offline.yaml`（历史路径） 使用经清单校验的专用离线标签。先验证镜像，再使用覆盖配置；不要用未经核对的同名镜像。
 
 ```bash
 dco() {

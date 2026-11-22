@@ -35,7 +35,7 @@ class Experiment:
         self.fault_path = self.root / "private/fault.json"
         self.compose = ["docker", "compose", "--env-file", "private/acceptance.env", "-p",
                         "xiaozhi-weather43-acceptance", "--project-directory", str(self.root),
-                        "-f", "deploy/weather43/compose.acceptance.yaml"]
+                        "-f", "scripts/weather43/compose.acceptance.yaml"]
         self.fixture = "weather43-recovery-fixture"
         self.cold_engine = "weather43-cold-engine"
         self.notes = []
