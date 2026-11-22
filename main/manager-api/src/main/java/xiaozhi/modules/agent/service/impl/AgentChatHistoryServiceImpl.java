@@ -3,6 +3,7 @@ package xiaozhi.modules.agent.service.impl;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import cn.hutool.core.collection.CollUtil;
@@ -29,6 +30,8 @@ import xiaozhi.modules.agent.entity.AgentChatHistoryEntity;
 import xiaozhi.modules.agent.service.AgentChatHistoryService;
 import xiaozhi.modules.agent.service.AgentChatTitleService;
 import xiaozhi.modules.agent.vo.AgentChatHistoryUserVO;
+import xiaozhi.modules.speaker.SpeakerConversations;
+import xiaozhi.modules.speaker.SpeakerSettings;
 
 /**
  * 智能体聊天记录表处理service {@link AgentChatHistoryService} impl
@@ -43,6 +46,8 @@ public class AgentChatHistoryServiceImpl extends CrudRepository<AiAgentChatHisto
         implements AgentChatHistoryService {
 
     private final AgentChatTitleService agentChatTitleService;
+    private final SpeakerConversations speakerConversations;
+    private final SpeakerSettings speakerSettings;
 
     @Override
     public PageData<AgentChatSessionDTO> getSessionListByAgentId(Map<String, Object> params) {
@@ -69,6 +74,14 @@ public class AgentChatHistoryServiceImpl extends CrudRepository<AiAgentChatHisto
             dto.setTitle(agentChatTitleService.getTitleBySessionId(dto.getSessionId()));
             return dto;
         }).collect(Collectors.toList());
+
+        if (speakerSettings.enabled()) {
+            var sessionIds = records.stream().map(AgentChatSessionDTO::getSessionId).filter(Objects::nonNull).toList();
+            var owners = speakerConversations.findOwners(agentId, sessionIds);
+            if (!owners.isEmpty()) {
+                records.forEach(session -> session.setSpeakerOwner(owners.get(session.getSessionId())));
+            }
+        }
 
         return new PageData<>(records, result.getTotal());
     }

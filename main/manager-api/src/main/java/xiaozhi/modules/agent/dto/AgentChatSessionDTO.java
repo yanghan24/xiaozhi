@@ -2,6 +2,7 @@ package xiaozhi.modules.agent.dto;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 /**
@@ -28,4 +29,10 @@ public class AgentChatSessionDTO {
      * 会话标题
      */
     private String title;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private SpeakerOwner speakerOwner;
+
+    public record SpeakerOwner(String customerName, String marketAccountId, String deviceName, String deviceId) {
+    }
 }
