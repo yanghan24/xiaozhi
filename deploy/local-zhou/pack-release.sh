@@ -18,12 +18,15 @@ mkdir -m 700 "$release"
 
 for part in api web voice; do
   docker cp "$container:$prepared/$part" "$contexts/$part"
+  docker exec -u dev -w /workspace "$container" git show \
+    "$revision:deploy/local-zhou/release-images/$part.Dockerfile" > "$contexts/$part.Dockerfile"
 done
-cp deploy/production/xiaozhi/web.conf "$contexts/web/web.conf"
+docker exec -u dev -w /workspace "$container" git show \
+  "$revision:deploy/production/xiaozhi/web.conf" > "$contexts/web/web.conf"
 for part in api web voice; do
   docker build --platform linux/amd64 --provenance=false \
     --build-arg "SOURCE_REVISION=$revision" \
-    --file "deploy/local-zhou/release-images/$part.Dockerfile" \
+    --file "$contexts/$part.Dockerfile" \
     --tag "xiaozhi-release-$part:$tag" "$contexts/$part"
 done
 
@@ -49,7 +52,8 @@ done
   done
 } > "$release/images.manifest"
 docker image save --platform linux/amd64 "${images[@]}" -o "$release/images.tar"
-tar -C deploy/production -czf "$release/deployment.tar.gz" .
+docker exec -u dev -w /workspace "$container" git archive --format=tar.gz \
+  "$revision:deploy/production" > "$release/deployment.tar.gz"
 (
   cd "$release"
   sha256sum images.tar images.manifest deployment.tar.gz > SHA256SUMS
