@@ -12,7 +12,7 @@
 
 ### 领域文档
 
-项目采用单一领域上下文，词汇表位于根目录 `GLOSSARY.md`，架构决策位于 `docs/adr/`。探索代码前，先阅读 [领域文档约定](docs/agents/domain.md)、词汇表及相关架构决策。
+项目采用单一领域上下文，架构、术语和模块扩展边界位于根目录 [README.md](README.md)，架构决策位于 `docs/adr/`。探索代码前，先阅读 [领域文档约定](docs/agents/domain.md)、README 和相关架构决策。
 
 ## 协作
 

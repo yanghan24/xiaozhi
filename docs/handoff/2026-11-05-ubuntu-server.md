@@ -28,7 +28,7 @@ git status --short --branch
 
 | 内容 | 当前事实和阅读入口 |
 | --- | --- |
-| 仓库规则与领域职责 | [AGENTS.md](../../AGENTS.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md)、[GLOSSARY.md](../../GLOSSARY.md)、[ADR-0005](../adr/0005-backend-owns-device-management.md) |
+| 仓库规则与领域职责 | [AGENTS.md](../../AGENTS.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md)、[术语](../../README.md#术语)、[ADR-0005](../adr/0005-backend-owns-device-management.md) |
 | 管理端基线 | #3 / PR #9 已合并；[运行说明](../development/manager-baseline.md)、[实际验证记录](../verification/issue-3-manager-baseline.md) |
 | 语音与设备协议基线 | #4 / PR #20 已合并，#5 / PR #22 的 Ubuntu 重启持久化复验已通过；[运行说明](../development/voice-baseline.md)、[验证报告](../verification/issue-4-voice-protocol.md)、[复审记录](../verification/issue-4-review.md) |
 | 硬件接入资料 | 硬件负责人提供的核查稿（历史原文已移除）；用户的后续确认见下一节 |
