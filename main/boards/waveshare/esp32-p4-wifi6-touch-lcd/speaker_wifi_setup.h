@@ -12,7 +12,7 @@
 
 class SpeakerWifiSetup {
 public:
-    enum class Action { Inspect, Enter, Scan, Refresh, Connect, Leave };
+    enum class Action { Inspect, OpenHotspot, CloseHotspot, Scan, Refresh, Connect };
     enum class Submission { Accepted, Busy, Unavailable };
 
     struct Request {

@@ -72,7 +72,7 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     auto* networks = CreatePage(Page::Networks, "附近网络");
     auto* refresh = Button(networks, "刷新", [](lv_event_t* event) {
         auto& view = *static_cast<SpeakerWifiView*>(lv_event_get_user_data(event));
-        if (!view.connecting_ && !view.exiting_) {
+        if (!view.Busy()) {
             view.refresh_ = true;
             view.message_ = "";
             view.UpdateLabels();
@@ -88,7 +88,7 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(list_, 9, LV_PART_MAIN);
 
-    auto* password_page = CreatePage(Page::Password, "输入密码");
+    auto* password_page = CreatePage(Page::Password, "连接网络");
     target_name_ = TextLine(password_page, "", 46, 78, 706, kMuted);
     password_ = lv_textarea_create(password_page);
     lv_obj_set_pos(password_, 45, 112);
@@ -119,6 +119,11 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     lv_obj_add_event_cb(keyboard_, [](lv_event_t* event) {
         static_cast<SpeakerWifiView*>(lv_event_get_user_data(event))->Back();
     }, LV_EVENT_CANCEL, this);
+    connect_button_ = Button(password_page, "连接", [](lv_event_t* event) {
+        static_cast<SpeakerWifiView*>(lv_event_get_user_data(event))->Connect("");
+    }, this);
+    lv_obj_set_pos(connect_button_, 45, 230);
+    lv_obj_set_size(connect_button_, 710, 76);
 
     auto* phone_page = CreatePage(Page::Phone, "用手机配网");
     TextLine(phone_page, "手机连接热点", 46, 94, 706, kMuted);
@@ -129,7 +134,7 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
 
     gestures_.Create(root_, [](void* context) { static_cast<SpeakerWifiView*>(context)->Back(true); }, this);
     navigation.Register(SpeakerNavigation::Page::Wifi, [this] { Show(Page::Summary); }, [] {},
-                        [this] { return !entering_ && !configuring_ && !connecting_ && !exiting_; });
+                        [this] { return !configuring_ && !Busy(); });
     Show(Page::Summary);
 }
 
@@ -145,22 +150,24 @@ void SpeakerWifiView::Show(Page page) {
 }
 
 void SpeakerWifiView::Begin(Page page) {
-    if (entering_ || connecting_ || exiting_) {
+    if (Busy()) {
         return;
     }
     message_ = "";
-    if (!configuring_) {
-        previous_network_ = connected_;
-        entering_ = true;
-        entered_at_ = lv_tick_get();
-        operation_ = SpeakerWifiSetup::Request{Action::Enter, {}, {}};
-    }
     refresh_ = page == Page::Networks;
+    if (page == Page::Phone && !configuring_) {
+        operation_ = SpeakerWifiSetup::Request{Action::OpenHotspot, {}, {}};
+    }
+    last_poll_ = lv_tick_get() - 800;
     Show(page);
 }
 
+bool SpeakerWifiView::Busy() const {
+    return operation_ || pending_action_ || starting_network_;
+}
+
 void SpeakerWifiView::Back(bool to_launcher) {
-    if (entering_ || connecting_ || exiting_) {
+    if (Busy()) {
         return;
     }
     if (page_ == Page::Password && !to_launcher) {
@@ -168,54 +175,45 @@ void SpeakerWifiView::Back(bool to_launcher) {
         Show(Page::Networks);
         return;
     }
-    if (configuring_ && !previous_network_.empty()) {
-        operation_ = SpeakerWifiSetup::Request{Action::Leave, previous_network_, {}};
-        exiting_ = true;
-        exit_started_at_ = lv_tick_get();
-        portal_closed_ = false;
+    if (page_ == Page::Phone && !configuring_) {
+        operation_ = SpeakerWifiSetup::Request{Action::CloseHotspot, {}, {}};
         return_home_ = to_launcher;
-        message_ = "正在恢复原网络…";
+        message_ = "正在关闭配网热点…";
         UpdateLabels();
         return;
     }
-    if (page_ != Page::Summary) {
+    if (to_launcher && !configuring_) {
+        navigation_->Home();
+    } else if (page_ != Page::Summary) {
         message_ = "";
         Show(Page::Summary);
     } else if (!configuring_) {
-        if (to_launcher) {
-            navigation_->Home();
-        } else {
-            navigation_->Back();
-        }
+        navigation_->Back();
     }
 }
 
 void SpeakerWifiView::SelectNetwork(size_t index) {
-    if (index >= networks_.size() || entering_ || connecting_ || exiting_ || !configuring_) {
+    if (index >= networks_.size() || Busy()) {
         return;
     }
     const auto& selected = networks_[index];
     target_ = selected.ssid;
-    if (selected.secured) {
-        lv_textarea_set_text(password_, "");
-        lv_keyboard_set_mode(keyboard_, LV_KEYBOARD_MODE_TEXT_LOWER);
-        message_ = "";
-        Show(Page::Password);
-    } else {
-        Connect("");
-    }
+    secured_ = selected.secured;
+    lv_textarea_set_text(password_, "");
+    lv_keyboard_set_mode(keyboard_, LV_KEYBOARD_MODE_TEXT_LOWER);
+    message_ = "";
+    Show(Page::Password);
 }
 
 void SpeakerWifiView::Connect(const char* password) {
-    if (connecting_ || exiting_ || !configuring_) {
+    if (Busy()) {
         return;
     }
     std::string secret = password;
-    if (page_ == Page::Password && (secret.empty() || secret.size() > 64)) {
+    if (secured_ && (secret.empty() || secret.size() > 64)) {
         message_ = "请输入 Wi-Fi 密码，最多 64 字节";
     } else {
         operation_ = SpeakerWifiSetup::Request{Action::Connect, target_, std::move(secret)};
-        connecting_ = true;
         message_ = "正在连接…";
         lv_textarea_set_text(password_, "");
     }
@@ -223,24 +221,31 @@ void SpeakerWifiView::Connect(const char* password) {
 }
 
 void SpeakerWifiView::ReadResult(SpeakerWifiSetup::Result result) {
+    const bool hotspot_closed = !hotspot_.empty() && result.hotspot.empty();
     connected_ = std::move(result.connected);
     hotspot_ = std::move(result.hotspot);
     portal_url_ = std::move(result.portal_url);
     switch (result.action) {
         case Action::Inspect:
-            break;
-        case Action::Enter:
-            if (!connected_.empty()) {
-                previous_network_ = connected_;
+            if (hotspot_closed && page_ == Page::Phone && !configuring_ && !Busy()) {
+                Show(Page::Summary);
             }
+            break;
+        case Action::OpenHotspot:
             if (!result.ok) {
-                entering_ = false;
-                message_ = "暂未进入配网，请返回重试";
+                message_ = "暂未开启热点，请返回重试";
+            }
+            break;
+        case Action::CloseHotspot:
+            message_ = "";
+            Show(Page::Summary);
+            if (std::exchange(return_home_, false)) {
+                navigation_->Home();
             }
             break;
         case Action::Scan:
         case Action::Refresh:
-            if (result.ok && configuring_) {
+            if (result.ok && page_ == Page::Networks) {
                 scan_seen_ = true;
                 if (networks_ != result.networks) {
                     networks_ = std::move(result.networks);
@@ -249,19 +254,15 @@ void SpeakerWifiView::ReadResult(SpeakerWifiSetup::Result result) {
             }
             break;
         case Action::Connect:
-            connecting_ = false;
-            if (configuring_) {
-                exiting_ = result.ok;
-                exit_started_at_ = lv_tick_get();
-                portal_closed_ = false;
-                message_ = result.ok ? "网络已验证，正在连接…" : "连接失败，请检查密码或信号后重试";
-            }
-            break;
-        case Action::Leave:
-            if (configuring_ && !result.ok) {
-                exiting_ = false;
-                return_home_ = false;
-                message_ = "暂未恢复网络，请重试";
+            if (!result.ok) {
+                message_ = "连接失败，请检查密码或信号后重试";
+            } else if (configuring_) {
+                starting_network_ = true;
+                startup_connect_at_ = lv_tick_get();
+                message_ = "网络已验证，正在连接…";
+            } else {
+                message_ = "";
+                Show(Page::Summary);
             }
             break;
     }
@@ -269,28 +270,19 @@ void SpeakerWifiView::ReadResult(SpeakerWifiSetup::Result result) {
 
 void SpeakerWifiView::Update(bool visible, bool configuring) {
     auto& setup = SpeakerWifiSetup::Get();
-    if (configuring_ && !configuring) {
-        const bool home = std::exchange(return_home_, false);
-        entering_ = connecting_ = exiting_ = refresh_ = false;
-        scan_seen_ = portal_closed_ = false;
+    const bool startup_finished = configuring_ && !configuring;
+    configuring_ = configuring;
+    if (startup_finished) {
+        starting_network_ = refresh_ = scan_seen_ = false;
         operation_.reset();
-        previous_network_.clear();
         networks_.clear();
         RebuildNetworks();
         message_ = "";
-        configuring_ = false;
         Show(Page::Summary);
-        if (home) {
-            navigation_->Home();
-            visible = false;
-        }
     }
-    configuring_ = configuring;
     if (auto result = setup.TakeResult()) {
+        pending_action_.reset();
         ReadResult(std::move(*result));
-        if (exiting_) {
-            portal_closed_ |= hotspot_.empty();
-        }
     }
     if (visible != shown_) {
         shown_ = visible;
@@ -305,6 +297,7 @@ void SpeakerWifiView::Update(bool visible, bool configuring) {
         const auto action = operation_->action;
         switch (setup.Submit(std::move(*operation_))) {
             case Submission::Accepted:
+                pending_action_ = action;
                 operation_.reset();
                 break;
             case Submission::Unavailable:
@@ -316,20 +309,12 @@ void SpeakerWifiView::Update(bool visible, bool configuring) {
         }
     }
 
-    if (entering_ && (configuring_ || lv_tick_elaps(entered_at_) >= 6000)) {
-        entering_ = false;
-        if (!configuring_) {
-            message_ = "暂未进入配网，请返回重试";
-        }
-    }
-    if (exiting_ && ((portal_closed_ && !hotspot_.empty()) || lv_tick_elaps(exit_started_at_) >= 65000)) {
-        exiting_ = false;
-        return_home_ = false;
+    if (starting_network_ && lv_tick_elaps(startup_connect_at_) >= 65000) {
+        starting_network_ = false;
         message_ = "未能联网，请重试或用手机配网";
     }
-    if (!operation_ && !connecting_ && (page_ != Page::Password || exiting_) &&
-        (lv_tick_elaps(last_poll_) >= 800 || (refresh_ && configuring_))) {
-        const bool scan = !exiting_ && page_ == Page::Networks && configuring_ && !hotspot_.empty();
+    if (!Busy() && page_ != Page::Password && (lv_tick_elaps(last_poll_) >= 800 || refresh_)) {
+        const bool scan = page_ == Page::Networks;
         const auto action = scan ? (refresh_ ? Action::Refresh : Action::Scan) : Action::Inspect;
         if (setup.Submit({action, {}, {}}) == Submission::Accepted) {
             last_poll_ = lv_tick_get();
@@ -352,14 +337,22 @@ void SpeakerWifiView::UpdateLabels() {
     UpdateLabel(list_status_, *message_ ? message_ : scan_status);
     UpdateLabel(target_name_, target_.c_str());
     UpdateLabel(password_status_, message_);
-    lv_obj_set_state(keyboard_, LV_STATE_DISABLED, connecting_ || exiting_);
-    lv_obj_set_state(password_, LV_STATE_DISABLED, connecting_ || exiting_);
+    lv_obj_set_flag(keyboard_, LV_OBJ_FLAG_HIDDEN, !secured_);
+    lv_obj_set_flag(password_, LV_OBJ_FLAG_HIDDEN, !secured_);
+    lv_obj_set_flag(connect_button_, LV_OBJ_FLAG_HIDDEN, secured_);
+    for (auto* control : {keyboard_, password_, connect_button_}) {
+        lv_obj_set_state(control, LV_STATE_DISABLED, Busy());
+    }
     UpdateLabel(hotspot_name_, hotspot_.empty() ? "正在启动热点…" : hotspot_.c_str());
     UpdateLabel(hotspot_url_, portal_url_.c_str());
     UpdateLabel(phone_status_, *message_ ? message_ : "在手机网页上选网络并输入密码");
 }
 
 void SpeakerWifiView::RebuildNetworks() {
+    constexpr int kRightInset = 22;
+    constexpr int kLockWidth = 30;
+    constexpr int kStatusGap = 16;
+    constexpr int kSignalWidth = 112;
     const auto scroll = lv_obj_get_scroll_y(list_);
     lv_obj_clean(list_);
     for (size_t i = 0; i < networks_.size(); ++i) {
@@ -374,10 +367,13 @@ void SpeakerWifiView::RebuildNetworks() {
         auto* name = TextLine(row, network.ssid.c_str(), 21, 0, 447);
         lv_obj_align(name, LV_ALIGN_LEFT_MID, 21, 0);
         if (network.secured) {
-            lv_obj_align(Icon(row, MATERIAL_SYMBOLS_LOCK, kMuted), LV_ALIGN_RIGHT_MID, -104, 0);
+            lv_obj_align(Icon(row, MATERIAL_SYMBOLS_LOCK, kMuted), LV_ALIGN_RIGHT_MID, -kRightInset, 0);
         }
         const char* signal = network.rssi >= -60 ? "信号强" : network.rssi >= -75 ? "信号中" : "信号弱";
-        lv_obj_align(Label(row, signal, kMuted), LV_ALIGN_RIGHT_MID, -22, 0);
+        auto* strength = Label(row, signal, kMuted);
+        lv_obj_set_width(strength, kSignalWidth);
+        lv_obj_set_style_text_align(strength, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+        lv_obj_align(strength, LV_ALIGN_RIGHT_MID, -(kRightInset + kLockWidth + kStatusGap), 0);
     }
     lv_obj_scroll_to_y(list_, scroll, LV_ANIM_OFF);
 }

@@ -2,9 +2,6 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
 
-#include "application.h"
-#include "wifi_board.h"
-
 #include <algorithm>
 #include <cJSON.h>
 #include <esp_network.h>
@@ -16,58 +13,55 @@
 namespace {
 using Json = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
 
-// The same HTTP task handles local touch requests and the phone portal. It owns
-// the scan cache and serializes validation, connection, saving and exit.
-Json PortalRequest(const char* path, const cJSON* payload = nullptr) {
+// First-boot touch setup shares the existing submission handler with the phone.
+bool SubmitToStartupPortal(const SpeakerWifiSetup::Request& request) {
+    Json payload(cJSON_CreateObject(), cJSON_Delete);
+    if (!cJSON_AddStringToObject(payload.get(), "ssid", request.ssid.c_str()) ||
+        !cJSON_AddStringToObject(payload.get(), "password", request.password.c_str()) ||
+        !cJSON_AddBoolToObject(payload.get(), "exit", true)) {
+        return false;
+    }
+    std::unique_ptr<char, decltype(&cJSON_free)> body(cJSON_PrintUnformatted(payload.get()), cJSON_free);
+    if (!body) {
+        return false;
+    }
     EspNetwork network;
     auto http = network.CreateHttp(0);
     if (!http) {
-        return {nullptr, cJSON_Delete};
+        return false;
     }
-    http->SetTimeout(payload ? 60000 : 5000);
-    if (payload) {
-        std::unique_ptr<char, decltype(&cJSON_free)> body(cJSON_PrintUnformatted(payload), cJSON_free);
-        if (!body) {
-            return {nullptr, cJSON_Delete};
-        }
-        http->SetHeader("Content-Type", "application/json");
-        http->SetContent(std::string(body.get()));
+    http->SetTimeout(60000);
+    http->SetHeader("Content-Type", "application/json");
+    http->SetContent(std::string(body.get()));
+    if (!http->Open("POST", "http://127.0.0.1/submit") || http->GetStatusCode().value_or(0) != 200) {
+        return false;
     }
-    const auto url = std::string("http://127.0.0.1") + path;
-    if (!http->Open(payload ? "POST" : "GET", url) || http->GetStatusCode().value_or(0) != 200) {
-        return {nullptr, cJSON_Delete};
-    }
-    const auto body = http->ReadAll();
+    const auto response = http->ReadAll();
     http->Close();
-    return {cJSON_ParseWithLength(body.c_str(), body.size() + 1), cJSON_Delete};
+    Json result(cJSON_ParseWithLength(response.c_str(), response.size() + 1), cJSON_Delete);
+    return cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(result.get(), "success"));
 }
 
-std::vector<SpeakerWifiSetup::Network> ReadNetworks(const cJSON* items) {
+std::vector<SpeakerWifiSetup::Network> ReadNetworks(const std::vector<wifi_ap_record_t>& records) {
     std::vector<SpeakerWifiSetup::Network> networks;
-    const cJSON* entry = nullptr;
-    cJSON_ArrayForEach(entry, items) {
-        const char* ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "ssid"));
-        const auto* signal = cJSON_GetObjectItemCaseSensitive(entry, "rssi");
-        const auto* auth = cJSON_GetObjectItemCaseSensitive(entry, "authmode");
-        if (ssid && *ssid && std::char_traits<char>::length(ssid) <= 32 && cJSON_IsNumber(signal) &&
-            cJSON_IsNumber(auth)) {
-            networks.push_back({ssid, signal->valueint, auth->valueint != WIFI_AUTH_OPEN});
+    for (const auto& record : records) {
+        const auto* ssid = reinterpret_cast<const char*>(record.ssid);
+        const bool secured = record.authmode != WIFI_AUTH_OPEN;
+        if (!*ssid) {
+            continue;
+        }
+        const auto entry = std::ranges::find_if(networks, [ssid, secured](const auto& network) {
+            return network.ssid == ssid && network.secured == secured;
+        });
+        if (entry == networks.end()) {
+            networks.push_back({ssid, record.rssi, secured});
+        } else {
+            entry->rssi = std::max(entry->rssi, static_cast<int>(record.rssi));
         }
     }
     std::ranges::sort(networks, [](const auto& a, const auto& b) {
-        if (a.ssid != b.ssid) {
-            return a.ssid < b.ssid;
-        }
-        if (a.secured != b.secured) {
-            return a.secured < b.secured;
-        }
-        return a.rssi > b.rssi;
+        return a.rssi != b.rssi ? a.rssi > b.rssi : a.ssid < b.ssid;
     });
-    const auto duplicates = std::ranges::unique(networks, [](const auto& a, const auto& b) {
-        return a.ssid == b.ssid && a.secured == b.secured;
-    });
-    networks.erase(duplicates.begin(), duplicates.end());
-    std::ranges::stable_sort(networks, std::greater{}, &SpeakerWifiSetup::Network::rssi);
     return networks;
 }
 }  // namespace
@@ -120,53 +114,31 @@ void SpeakerWifiSetup::Run() {
 SpeakerWifiSetup::Result SpeakerWifiSetup::Perform(const Request& request) {
     Result result{request.action};
     auto& manager = WifiManager::GetInstance();
+    result.ok = true;
+    switch (request.action) {
+        case Action::Inspect:
+            break;
+        case Action::OpenHotspot:
+            result.ok = manager.StartSettingsHotspot();
+            break;
+        case Action::CloseHotspot:
+            manager.StopSettingsHotspot();
+            break;
+        case Action::Scan:
+        case Action::Refresh:
+            result.networks = ReadNetworks(manager.SettingsNetworks(request.action == Action::Refresh));
+            break;
+        case Action::Connect:
+            result.ok = !request.ssid.empty() && request.ssid.size() <= 32 && request.password.size() <= 64 &&
+                (manager.IsConfigMode() ? SubmitToStartupPortal(request) :
+                                           manager.TrySettingsNetwork(request.ssid, request.password));
+            break;
+    }
     if (manager.IsConnected()) {
         result.connected = manager.GetSsid();
     }
     result.hotspot = manager.GetApSsid();
     result.portal_url = manager.GetApWebUrl();
-    if (request.action == Action::Inspect) {
-        result.ok = true;
-        return result;
-    }
-    if (request.action == Action::Enter) {
-        auto& app = Application::GetInstance();
-        result.ok = !result.hotspot.empty() || app.GetDeviceState() == kDeviceStateIdle;
-        if (result.ok && result.hotspot.empty()) {
-            app.Schedule([] {
-                if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle) {
-                    static_cast<WifiBoard&>(Board::GetInstance()).EnterWifiConfigMode();
-                }
-            });
-        }
-        return result;
-    }
-    if (result.hotspot.empty()) {
-        return result;
-    }
-    if (request.action == Action::Scan || request.action == Action::Refresh) {
-        const auto response = PortalRequest(request.action == Action::Refresh ? "/scan?refresh=1" : "/scan");
-        const auto* items = cJSON_GetObjectItemCaseSensitive(response.get(), "aps");
-        result.ok = cJSON_IsArray(items);
-        if (result.ok) {
-            result.networks = ReadNetworks(items);
-        }
-        return result;
-    }
-
-    Json form(cJSON_CreateObject(), cJSON_Delete);
-    if (request.action == Action::Connect) {
-        if (request.ssid.empty() || request.ssid.size() > 32 || request.password.size() > 64 ||
-            !cJSON_AddStringToObject(form.get(), "ssid", request.ssid.c_str()) ||
-            !cJSON_AddStringToObject(form.get(), "password", request.password.c_str()) ||
-            !cJSON_AddBoolToObject(form.get(), "exit", true)) {
-            return result;
-        }
-    } else if (!cJSON_AddStringToObject(form.get(), "resume", request.ssid.c_str())) {
-        return result;
-    }
-    const auto response = PortalRequest(request.action == Action::Connect ? "/submit" : "/exit", form.get());
-    result.ok = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(response.get(), "success"));
     return result;
 }
 
