@@ -296,17 +296,12 @@
                         </div>
                       </el-form-item>
                       <el-form-item v-if="model.type === 'Intent' && showFunctionPlugins" key="function-plugins"
-                        label="编辑功能插件" label-width="96px" class="function-plugin-field">
-                        <el-checkbox-group v-if="functionOptions.length" v-model="currentFunctions"
-                          :disabled="agentReloading || !agentFunctionsLoaded" class="function-plugin-options">
-                          <el-checkbox v-for="plugin in functionOptions" :key="plugin.id" :label="plugin.id"
-                            :disabled="!plugin.ready">
-                            {{ plugin.name }}<span v-if="!plugin.ready" class="function-plugin-status">（暂不可用）</span>
-                          </el-checkbox>
-                        </el-checkbox-group>
-                        <span v-else class="function-plugin-status">
-                          {{ pluginMetadataLoading ? '正在加载' : pluginMetadataReady ? '暂无已配置的功能插件' : '插件配置加载失败' }}
-                        </span>
+                        label="功能插件">
+                        <el-select v-model="selectedFunctionPlugins" multiple filterable style="width: 100%"
+                          placeholder="选择已启用的功能插件" no-data-text="暂无已启用的功能插件"
+                          :loading="!!pluginMetadataLoading" :disabled="agentReloading || !agentFunctionsLoaded || !pluginMetadataReady">
+                          <el-option v-for="plugin in functionOptions" :key="plugin.id" :value="plugin.id" :label="plugin.name" />
+                        </el-select>
                       </el-form-item>
                     </template>
                     <div class="model-row">
@@ -537,9 +532,18 @@ export default {
       return !!this.form.model.intentModelId && this.form.model.intentModelId !== "Intent_nointent";
     },
     functionOptions() {
-      const options = this.allFunctions.filter(plugin => plugin.ready || this.currentFunctions.includes(plugin.id));
-      const known = new Set(options.map(plugin => plugin.id));
-      return options.concat(this.currentFunctions.filter(id => !known.has(id)).map(id => ({ id, name: id, ready: false })));
+      return this.allFunctions.filter(plugin => plugin.ready);
+    },
+    selectedFunctionPlugins: {
+      get() {
+        const enabled = new Set(this.functionOptions.map(plugin => plugin.id));
+        return this.currentFunctions.filter(id => enabled.has(id));
+      },
+      set(selection) {
+        const enabled = new Set(this.functionOptions.map(plugin => plugin.id));
+        const saved = this.currentFunctions.filter(id => !enabled.has(id));
+        this.currentFunctions = [...saved, ...selection];
+      },
     },
     configInteractionBlocked() {
       return this.agentReloading
@@ -2102,26 +2106,6 @@ export default {
   }
 }
 
-.function-plugin-options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-
-  ::v-deep .el-checkbox {
-    display: flex;
-    align-items: baseline;
-    margin: 0;
-    min-width: 0;
-  }
-
-  ::v-deep .el-checkbox__label {
-    min-width: 0;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 20px;
-  }
-}
-.function-plugin-status { color: #909399; }
 </style>
 
 <style>

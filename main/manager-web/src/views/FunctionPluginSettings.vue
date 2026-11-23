@@ -4,7 +4,11 @@
     <el-button v-if="error" type="text" @click="load">重试</el-button>
     <CustomTable :data="entries" :columns="columns" :loading="loading" :show-pagination="false" :show-operations="true">
       <template slot="status" slot-scope="{ row }">
-        <el-tag :type="row.ready ? 'success' : 'info'">{{ status(row) }}</el-tag>
+        <el-tag :type="row.configured ? 'success' : 'info'">{{ status(row) }}</el-tag>
+      </template>
+      <template slot="enabled" slot-scope="{ row }">
+        <el-switch :value="row.enabled" :disabled="!row.configured || loading || updating"
+          :aria-label="'启用' + row.name" @change="changeEnabled(row, $event)" />
       </template>
       <template slot="details" slot-scope="{ row }">{{ details(row) }}</template>
       <template slot="operations" slot-scope="{ row }">
@@ -18,7 +22,6 @@
       <el-form v-if="entry" label-width="128px" class="management-form" @submit.native.prevent="save">
         <section class="dialog-section">
           <h3 class="section-heading">{{ entry.name }}</h3>
-          <el-form-item label="启用插件"><el-switch v-model="enabled" /></el-form-item>
           <el-alert v-if="entry.legacyConflict" title="现有智能体的参数有差异。保存后，使用该插件的智能体将统一使用这里的配置。"
             type="warning" :closable="false" />
           <el-form-item v-if="entry.provider === 'get_weather'" label="服务配置">
@@ -53,11 +56,12 @@ export default {
   components: { CustomDialog, CustomTable },
   data() {
     return {
-      entries: [], loading: false, saving: false, visible: false, error: '',
-      entry: null, enabled: false, params: {}, credential: '', clearCredential: false,
+      entries: [], loading: false, saving: false, updating: false, visible: false, error: '',
+      entry: null, params: {}, credential: '', clearCredential: false,
       columns: [
         { prop: 'name', label: '功能插件', minWidth: 165 },
         { prop: 'status', label: '配置状态', minWidth: 110 },
+        { prop: 'enabled', label: '启用', width: 85 },
         { prop: 'details', label: '配置说明', minWidth: 230, align: 'left' },
       ],
     };
@@ -67,14 +71,12 @@ export default {
   methods: {
     request(suffix, body) { return speakerRequest(adminToken(this.$store), 'function-plugins' + suffix, body); },
     status(entry) {
-      if (!entry.enabled) return '已停用';
       if (entry.legacyConflict) return '待统一配置';
-      return entry.ready ? '可用' : '待配置';
+      return entry.configured ? '已配置' : '待配置';
     },
     details(entry) {
-      if (!entry.enabled) return '在编辑中启用此插件';
       if (entry.legacyConflict) return '现有智能体参数不同，请保存一套统一配置';
-      if (entry.ready) return '—';
+      if (entry.configured) return '—';
       const requirements = {
         get_weather: '在第三方服务中配置并启用和风天气 JWT',
         hass_state: '需要 HomeAssistant 地址、访问令牌和设备清单',
@@ -96,7 +98,6 @@ export default {
     },
     edit(entry) {
       this.entry = entry;
-      this.enabled = entry.enabled;
       this.credential = '';
       this.clearCredential = false;
       this.params = Object.fromEntries(entry.fields.filter(field => field.key !== 'api_key').map(field => {
@@ -104,6 +105,19 @@ export default {
         return [field.key, Array.isArray(value) ? value.join('\n') : value];
       }));
       this.visible = true;
+    },
+    async changeEnabled(entry, enabled) {
+      if (!entry.configured || this.updating || enabled === entry.enabled) return;
+      this.updating = true;
+      try {
+        await this.request('/' + encodeURIComponent(entry.id) + '/enabled', { enabled, version: entry.version });
+        await this.load();
+      } catch (failure) {
+        this.$message.error(failure.message);
+        await this.load();
+      } finally {
+        this.updating = false;
+      }
     },
     async save() {
       if (!this.entry || this.saving) return;
@@ -114,7 +128,7 @@ export default {
       }
       try {
         await this.request('/' + encodeURIComponent(this.entry.id), {
-          enabled: this.enabled, version: this.entry.version, params,
+          version: this.entry.version, params,
           credential: this.credential || null, clearCredential: this.clearCredential,
         });
         this.visible = false;

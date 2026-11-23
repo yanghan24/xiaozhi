@@ -105,6 +105,11 @@ class SpeakerThirdPartyServicesTest {
                      {"key":"max_results","type":"string","label":"返回数量","default":"5"},
                      {"key":"api_key","type":"string","label":"凭据","default":"mk-XXXX","selected":false}]
                     """);
+            var unavailable = assertThrows(SpeakerFailure.class,
+                    () -> plugins.setEnabled("search", new SpeakerFunctionPlugins.Activation(true, 0)));
+            assertEquals("PLUGIN_CONFIGURATION_REQUIRED", unavailable.getMessage());
+            assertFalse(plugins.list().getFirst().configured());
+            assertTrue(plugins.choices().isEmpty());
             String legacyKey = "legacy-fixture-key";
             String legacyConfig = "{\"api_key\":\"" + legacyKey + "\"}";
             db.update("INSERT INTO ai_agent_plugin_mapping VALUES ('agent1', 'search', ?)", legacyConfig);
@@ -112,25 +117,53 @@ class SpeakerThirdPartyServicesTest {
             existing.setPluginId("search");
             existing.setProviderCode("web_search");
             existing.setParamInfo(legacyConfig);
-            assertTrue(plugins.choices().getFirst().ready());
+            assertTrue(plugins.list().getFirst().configured());
+            assertFalse(plugins.list().getFirst().enabled());
+            assertTrue(plugins.choices().isEmpty());
             assertFalse(json.writeValueAsString(plugins.list()).contains(legacyKey));
             db.update("INSERT INTO ai_agent_plugin_mapping VALUES ('agent2', 'search', '{\"api_key\":\"other-fixture-key\"}')");
             assertTrue(plugins.list().getFirst().legacyConflict());
-            assertFalse(plugins.choices().getFirst().ready());
-            assertTrue(plugins.runtime(List.of(existing)).get("web_search").toString().contains(legacyKey));
+            assertTrue(plugins.choices().isEmpty());
+            assertTrue(plugins.runtime(List.of(existing)).isEmpty());
 
             var pluginParams = java.util.Map.<String, Object>of("provider", "metaso", "max_results", "5");
-            plugins.save("search", new SpeakerFunctionPlugins.Input(true, 0, pluginParams, "global-fixture-key", false));
+            plugins.save("search", new SpeakerFunctionPlugins.Input(null, 0, pluginParams, "global-fixture-key", false));
+            assertTrue(plugins.list().getFirst().configured());
+            assertTrue(plugins.choices().isEmpty());
+            plugins.setEnabled("search", new SpeakerFunctionPlugins.Activation(true, 1));
             assertTrue(plugins.choices().getFirst().ready());
             assertFalse(json.writeValueAsString(plugins.list()).contains("global-fixture-key"));
             assertTrue(plugins.runtime(List.of(existing)).get("web_search").toString().contains("global-fixture-key"));
-            assertThrows(SpeakerFailure.class, () -> plugins.save("search", new SpeakerFunctionPlugins.Input(true, 1,
+            assertThrows(SpeakerFailure.class, () -> plugins.save("search", new SpeakerFunctionPlugins.Input(true, 2,
                     java.util.Map.of("provider", "tavily", "max_results", "5"), null, false)));
-            plugins.save("search", new SpeakerFunctionPlugins.Input(false, 1, pluginParams, null, false));
-            assertFalse(plugins.choices().getFirst().ready());
+            plugins.setEnabled("search", new SpeakerFunctionPlugins.Activation(false, 2));
+            assertTrue(plugins.list().getFirst().configured());
+            assertTrue(plugins.choices().isEmpty());
             assertTrue(plugins.runtime(List.of(existing)).isEmpty());
             assertThrows(SpeakerFailure.class, () -> plugins.validateSelections(List.of("search"), java.util.Set.of()));
             plugins.validateSelections(List.of("search"), java.util.Set.of("search"));
+            plugins.setEnabled("search", new SpeakerFunctionPlugins.Activation(true, 3));
+            plugins.save("search", new SpeakerFunctionPlugins.Input(null, 4, pluginParams, null, true));
+            assertFalse(plugins.list().getFirst().configured());
+            assertFalse(plugins.list().getFirst().enabled());
+            assertTrue(plugins.choices().isEmpty());
+
+            db.update("INSERT INTO ai_model_provider VALUES ('SYSTEM_PLUGIN_WEATHER', '天气查询', 'get_weather', 'Plugin', 2, '[]')");
+            db.update("INSERT INTO ai_agent_plugin_mapping VALUES ('agent1', 'SYSTEM_PLUGIN_WEATHER', '{}')");
+            assertFalse(plugins.weatherSelected("agent1"));
+            plugins.setEnabled("SYSTEM_PLUGIN_WEATHER", new SpeakerFunctionPlugins.Activation(true, 0));
+            assertTrue(plugins.weatherSelected("agent1"));
+            services.save("qweather", new SpeakerThirdPartyServices.Configuration(qweather.name(),
+                    "https://fixture.qweatherapi.com", qweather.endpoints(), "qweather_jwt", "", null, false, false,
+                    qweather.version() + 1, "developer", "project", "credential", "长沙"));
+            assertFalse(plugins.weatherSelected("agent1"));
+            assertTrue(plugins.choices().isEmpty());
+            services.save("qweather", new SpeakerThirdPartyServices.Configuration(qweather.name(),
+                    "https://fixture.qweatherapi.com", qweather.endpoints(), "qweather_jwt", "", null, false, true,
+                    qweather.version() + 2, "developer", "project", "credential", "长沙"));
+            assertTrue(services.qweatherReady());
+            assertFalse(plugins.weatherSelected("agent1"));
+            assertTrue(plugins.choices().isEmpty());
         }
     }
 }

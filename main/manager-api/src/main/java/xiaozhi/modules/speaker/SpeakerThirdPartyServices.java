@@ -136,6 +136,7 @@ public class SpeakerThirdPartyServices {
                 || !(jwt ? QWeatherJwt.validPrivateKey(secret) : validText(secret, 4096)))) {
             throw invalid();
         }
+        if ("qweather".equals(id)) SpeakerFunctionPlugins.lockActivationChanges(db);
         var existing = db.query("""
                 SELECT auth_mode, auth_name, credential_cipher IS NOT NULL AS has_credential
                 FROM speaker_third_party_service WHERE id=? AND version=?
@@ -166,7 +167,15 @@ public class SpeakerThirdPartyServices {
                 configuration.enabled(), id, configuration.version()) != 1) {
             throw new SpeakerFailure(409, "THIRD_PARTY_SERVICE_CHANGED");
         }
-        if ("qweather".equals(id)) db.update("UPDATE speaker_runtime SET revision=revision+1 WHERE id=1");
+        if ("qweather".equals(id)) {
+            if (!configuration.enabled()) {
+                db.update("""
+                        UPDATE speaker_function_plugin SET enabled=FALSE, version=version+1
+                        WHERE plugin_id='SYSTEM_PLUGIN_WEATHER' AND enabled=TRUE
+                        """);
+            }
+            db.update("UPDATE speaker_runtime SET revision=revision+1 WHERE id=1");
+        }
     }
 
     private static boolean validQWeatherUrl(String value) {

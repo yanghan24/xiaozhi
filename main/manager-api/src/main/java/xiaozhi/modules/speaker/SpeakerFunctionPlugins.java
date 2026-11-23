@@ -36,12 +36,13 @@ public class SpeakerFunctionPlugins {
         }
     }
 
-    public record Input(boolean enabled, long version, Map<String, Object> params, String credential, boolean clearCredential) {
+    public record Input(Boolean enabled, long version, Map<String, Object> params, String credential, boolean clearCredential) {
         @Override public String toString() { return "PluginInput[redacted]"; }
     }
+    public record Activation(Boolean enabled, long version) {}
 
     public record Entry(String id, String name, String provider, List<Field> fields, Map<String, Object> params,
-                        boolean enabled, boolean ready, boolean hasCredential, boolean legacyConflict, long version) {}
+                        boolean configured, boolean enabled, boolean hasCredential, boolean legacyConflict, long version) {}
     public record Choice(String id, String name, boolean ready) {}
     private record Definition(String id, String name, String provider, List<Field> fields) {}
     private record Global(boolean enabled, long version, Map<String, Object> params, boolean conflict, boolean persisted) {}
@@ -65,6 +66,7 @@ public class SpeakerFunctionPlugins {
         List<Entry> result = new ArrayList<>();
         for (Definition definition : definitions.values()) {
             Global global = globals.get(definition.provider());
+            boolean configured = !global.conflict() && configured(definition.provider(), global.params(), globals, weatherReady);
             var fields = visibleFields(definition);
             var params = new LinkedHashMap<String, Object>();
             for (Field field : fields) {
@@ -72,23 +74,22 @@ public class SpeakerFunctionPlugins {
                     params.put(field.key(), global.params().get(field.key()));
             }
             result.add(new Entry(definition.id(), definition.name(), definition.provider(), fields, params,
-                    global.enabled(), ready(definition.provider(), globals, weatherReady),
+                    configured, configured && global.enabled(),
                     keyPresent(global.params().get("api_key")), global.conflict(), global.version()));
         }
         return result;
     }
 
     public List<Choice> choices() {
-        return list().stream().map(entry -> new Choice(entry.id(), entry.name(), entry.ready())).toList();
+        return list().stream().filter(Entry::enabled).map(entry -> new Choice(entry.id(), entry.name(), true)).toList();
     }
 
     @Transactional
     public void save(String id, Input input) {
+        if (input == null || input.params() == null || input.version() < 0) throw invalid();
+        lockActivationChanges(db);
         var definitions = definitions();
-        var definition = definitions.values().stream().filter(row -> row.id().equals(id)).findFirst()
-                .orElseThrow(() -> new SpeakerFailure(404, "PLUGIN_NOT_FOUND"));
-        if (input == null || input.params() == null || input.version() < 0)
-            throw invalid();
+        var definition = definition(id, definitions);
         var globals = globals(definitions);
         Global previous = globals.get(definition.provider());
         if (previous.version() != input.version()) throw changed();
@@ -112,8 +113,47 @@ public class SpeakerFunctionPlugins {
             Object credential = replacing ? input.credential().strip() : sameService ? previous.params().get("api_key") : null;
             if (keyPresent(credential)) params.put("api_key", credential);
         }
-        if (input.enabled() && !validConfiguration(definition.provider(), params)) throw invalid();
+        String provider = definition.provider();
+        boolean configured = configured(provider, params, globals, WEATHER.equals(provider) && thirdParty.qweatherReady());
+        if (Boolean.TRUE.equals(input.enabled()) && !configured) throw notConfigured();
+        boolean enabled = configured && (input.enabled() == null ? previous.enabled() : input.enabled());
+        store(id, previous, params, enabled);
+        if (HOME_ASSISTANT.equals(provider) && !configured && definitions.containsKey(HOME_MUSIC)) {
+            db.update("""
+                    UPDATE speaker_function_plugin SET enabled=FALSE, version=version+1
+                    WHERE plugin_id=? AND enabled=TRUE
+                    """, definitions.get(HOME_MUSIC).id());
+        }
+    }
 
+    @Transactional
+    public void setEnabled(String id, Activation activation) {
+        if (activation == null || activation.enabled() == null || activation.version() < 0) throw invalid();
+        lockActivationChanges(db);
+        var definitions = definitions();
+        var definition = definition(id, definitions);
+        var globals = globals(definitions);
+        String provider = definition.provider();
+        Global previous = globals.get(provider);
+        if (previous.version() != activation.version()) throw changed();
+        if (activation.enabled() && (previous.conflict() ||
+                !configured(provider, previous.params(), globals, WEATHER.equals(provider) && thirdParty.qweatherReady()))) {
+            throw notConfigured();
+        }
+        if (previous.enabled() == activation.enabled()) return;
+        store(id, previous, previous.params(), activation.enabled());
+    }
+
+    static void lockActivationChanges(JdbcTemplate db) {
+        db.queryForObject("SELECT id FROM speaker_runtime WHERE id=1 FOR UPDATE", Integer.class);
+    }
+
+    private static Definition definition(String id, Map<String, Definition> definitions) {
+        return definitions.values().stream().filter(row -> row.id().equals(id)).findFirst()
+                .orElseThrow(() -> new SpeakerFailure(404, "PLUGIN_NOT_FOUND"));
+    }
+
+    private void store(String id, Global previous, Map<String, Object> params, boolean enabled) {
         String encoded = write(params);
         if (encoded.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 24000) throw invalid();
         String cipher = crypto.encryptThirdPartyCredential("plugin:" + id, encoded);
@@ -121,11 +161,11 @@ public class SpeakerFunctionPlugins {
             if (db.update("""
                     UPDATE speaker_function_plugin SET config_cipher=?, enabled=?, version=version+1
                     WHERE plugin_id=? AND version=?
-                    """, cipher, input.enabled(), id, input.version()) != 1) throw changed();
+                    """, cipher, enabled, id, previous.version()) != 1) throw changed();
         } else {
             try {
                 db.update("INSERT INTO speaker_function_plugin(plugin_id,config_cipher,enabled,version) VALUES (?,?,?,1)",
-                        id, cipher, input.enabled());
+                        id, cipher, enabled);
             } catch (DuplicateKeyException race) {
                 throw changed();
             }
@@ -135,7 +175,7 @@ public class SpeakerFunctionPlugins {
 
     public void validateSelections(List<String> selected, Set<String> existing) {
         Set<String> ready = new java.util.HashSet<>();
-        choices().stream().filter(Choice::ready).forEach(choice -> ready.add(choice.id()));
+        choices().forEach(choice -> ready.add(choice.id()));
         if (selected.size() > 64 || selected.stream().anyMatch(id -> id == null || (!existing.contains(id) && !ready.contains(id))))
             throw new SpeakerFailure(409, "PLUGIN_NOT_READY");
     }
@@ -149,23 +189,12 @@ public class SpeakerFunctionPlugins {
         Map<String, Object> result = new LinkedHashMap<>();
         for (AgentPluginMapping mapping : selection) {
             String provider = mapping.getProviderCode();
-            Definition definition = definitions.get(provider);
-            if (definition == null) continue;
             Global config = globals.get(provider);
-            if (ready(provider, globals, weatherReady)) {
+            if (config != null && config.enabled() && !config.conflict()
+                    && configured(provider, config.params(), globals, weatherReady)) {
                 Map<String, Object> params = HOME_MUSIC.equals(provider) ? globals.get(HOME_ASSISTANT).params() : config.params();
                 result.put(provider, write(params));
-            } else if (!WEATHER.equals(provider) && !config.persisted() && config.conflict()) {
-                var legacy = new LinkedHashMap<>(defaults(definition));
-                legacy.putAll(read(mapping.getParamInfo()));
-                if (validConfiguration(provider, legacy)) result.put(provider, write(legacy));
             }
-        }
-        var assistant = globals.get(HOME_ASSISTANT);
-        if (assistant != null && assistant.conflict() && globals.containsKey(HOME_MUSIC)
-                && globals.get(HOME_MUSIC).enabled() && result.containsKey(HOME_ASSISTANT)
-                && selection.stream().anyMatch(mapping -> HOME_MUSIC.equals(mapping.getProviderCode()))) {
-            result.putIfAbsent(HOME_MUSIC, "{}");
         }
         Object homeConfig = result.getOrDefault(HOME_ASSISTANT, result.get(HOME_MUSIC));
         if (homeConfig != null) result.put("home_assistant", homeConfig);
@@ -177,7 +206,7 @@ public class SpeakerFunctionPlugins {
         return Boolean.TRUE.equals(db.queryForObject("""
                 SELECT EXISTS(SELECT 1 FROM ai_agent_plugin_mapping m
                     WHERE m.plugin_id='SYSTEM_PLUGIN_WEATHER' AND m.agent_id=?)
-                AND COALESCE((SELECT enabled FROM speaker_function_plugin WHERE plugin_id='SYSTEM_PLUGIN_WEATHER'), TRUE)
+                AND COALESCE((SELECT enabled FROM speaker_function_plugin WHERE plugin_id='SYSTEM_PLUGIN_WEATHER'), FALSE)
                 """, Boolean.class, agentId));
     }
 
@@ -226,20 +255,18 @@ public class SpeakerFunctionPlugins {
                 var candidates = legacy.getOrDefault(provider, List.of());
                 boolean conflict = candidates.size() > 1;
                 var defaults = candidates.size() == 1 ? candidates.getFirst() : defaults(definition);
-                return new Global(!"call_device".equals(provider), 0, defaults, conflict, false);
+                return new Global(false, 0, defaults, conflict, false);
             });
         }
         return groups;
     }
 
-    private static boolean ready(String provider, Map<String, Global> all, boolean weatherReady) {
-        Global global = all.get(provider);
-        if (!global.enabled() || global.conflict()) return false;
+    private static boolean configured(String provider, Map<String, Object> params, Map<String, Global> all, boolean weatherReady) {
         return switch (provider) {
             case WEATHER -> weatherReady;
             case HOME_MUSIC -> all.containsKey(HOME_ASSISTANT) && !all.get(HOME_ASSISTANT).conflict()
                     && validConfiguration(HOME_ASSISTANT, all.get(HOME_ASSISTANT).params());
-            default -> validConfiguration(provider, global.params());
+            default -> validConfiguration(provider, params);
         };
     }
 
@@ -319,5 +346,6 @@ public class SpeakerFunctionPlugins {
     }
 
     private static SpeakerFailure invalid() { return new SpeakerFailure(400, "INVALID_PLUGIN_CONFIGURATION"); }
+    private static SpeakerFailure notConfigured() { return new SpeakerFailure(409, "PLUGIN_CONFIGURATION_REQUIRED"); }
     private static SpeakerFailure changed() { return new SpeakerFailure(409, "PLUGIN_CONFIGURATION_CHANGED"); }
 }

@@ -34,7 +34,7 @@ flowchart LR
 | 设备固件和 OTA | Java [`modules/device/`](main/manager-api/src/main/java/xiaozhi/modules/device/) 的 `OTAController`、`OTAMagController` 与 `OtaServiceImpl` 使用原版固件目录，按上报板型和版本提供更新。设备固件负责检查、下载、校验、写入和重启。 |
 | 设备诊断 | Java [`SpeakerDiagnostics`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerDiagnostics.java) 提供管理员按设备限时开启与查询的入口。固件通过通用诊断接口上报分段语音耗时、TTS 收发与播放、屏幕欠载等指标。新增同类指标沿用通用结构。 |
 | MCP | Java [`SpeakerMcp`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerMcp.java) 管理服务地址、认证和智能体关联。Python [`server_mcp/`](main/xiaozhi-server/core/providers/tools/server_mcp/) 发现、注册并调用工具，模型根据工具描述和参数选择调用。音箱提供的设备 MCP 工具经现有语音连接公布，由固件执行音量、亮度、记事等本机动作。 |
-| 系统设置与第三方服务 | Java [`modules/sys/`](main/manager-api/src/main/java/xiaozhi/modules/sys/) 负责系统参数、字典和服务配置。功能插件管理统一配置 Python 内置工具，智能体编辑页选择已配置的插件。和风天气在第三方服务中配置 JWT，由 [`SpeakerWeather`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerWeather.java) 为待机和语音天气提供数据，高德提供设备 IP 定位。 |
+| 系统设置与第三方服务 | Java [`modules/sys/`](main/manager-api/src/main/java/xiaozhi/modules/sys/) 负责系统参数、字典和服务配置。功能插件管理统一配置 Python 内置工具，配置完整后可启用，智能体编辑页只列出已启用的插件。和风天气在第三方服务中配置 JWT，由 [`SpeakerWeather`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerWeather.java) 为待机和语音天气提供数据，高德提供设备 IP 定位。 |
 
 ## 语音与智能体运行链路
 

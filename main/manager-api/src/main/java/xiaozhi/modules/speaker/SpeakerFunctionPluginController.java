@@ -37,4 +37,10 @@ public class SpeakerFunctionPluginController {
         plugins.save(id, input);
         return Map.of("saved", true);
     }
+
+    @PostMapping("/{id}/enabled")
+    public Map<String, Boolean> setEnabled(@PathVariable String id, @RequestBody SpeakerFunctionPlugins.Activation change) {
+        plugins.setEnabled(id, change);
+        return Map.of("saved", true);
+    }
 }
