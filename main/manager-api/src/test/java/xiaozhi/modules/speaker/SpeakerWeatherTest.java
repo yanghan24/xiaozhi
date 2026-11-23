@@ -8,6 +8,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPairGenerator;
+import java.security.Signature;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -106,6 +110,63 @@ class SpeakerWeatherTest {
         assertFalse(report.toString().contains("fake-key"));
         assertEquals(report, weather.current("1.2.3.4"));
         verify(http, times(2)).send(any(HttpRequest.class), ArgumentMatchers.<HttpResponse.BodyHandler<byte[]>>any());
+    }
+
+    @Test
+    void standbyAndVoiceShareCurrentWeatherAndSignRequestsWithJwt() throws Exception {
+        var json = new ObjectMapper();
+        var services = mock(SpeakerThirdPartyServices.class);
+        var key = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        var configuration = new SpeakerThirdPartyServices.QWeatherConfiguration(2, "https://fixture.qweatherapi.com",
+                "developer", "project", "credential", "长沙", Base64.getEncoder().encodeToString(key.getPrivate().getEncoded()));
+        when(services.qweatherConfiguration()).thenReturn(Optional.of(configuration));
+        var http = mock(HttpClient.class);
+        when(http.send(any(HttpRequest.class), ArgumentMatchers.<HttpResponse.BodyHandler<byte[]>>any()))
+                .thenAnswer(invocation -> {
+                    HttpRequest request = invocation.getArgument(0);
+                    assertEquals("fixture.qweatherapi.com", request.uri().getHost());
+                    assertFalse(request.uri().toString().contains("key="));
+                    String authorization = request.headers().firstValue("Authorization").orElseThrow();
+                    assertTrue(authorization.startsWith("Bearer "));
+                    String[] jwt = authorization.substring(7).split("\\.");
+                    var decoder = Base64.getUrlDecoder();
+                    var header = json.readTree(decoder.decode(jwt[0]));
+                    var claims = json.readTree(decoder.decode(jwt[1]));
+                    assertEquals("EdDSA", header.path("alg").asText());
+                    assertEquals("credential", header.path("kid").asText());
+                    assertEquals("developer", claims.path("iss").asText());
+                    assertEquals("project", claims.path("sub").asText());
+                    assertEquals(900, claims.path("exp").asLong() - claims.path("iat").asLong());
+                    var verify = Signature.getInstance("Ed25519");
+                    verify.initVerify(key.getPublic());
+                    verify.update((jwt[0] + "." + jwt[1]).getBytes(StandardCharsets.US_ASCII));
+                    assertTrue(verify.verify(decoder.decode(jwt[2])));
+                    var response = switch (request.uri().getPath()) {
+                        case "/geo/v2/city/lookup" -> response("""
+                                {"code":"200","location":[{"name":"长沙","lat":"28.213","lon":"112.941"}]}
+                                """);
+                        case "/weather/v1/current/28.21/112.94" -> response("""
+                                {"validTime":"2026-11-26T12:00:00+08:00",
+                                 "condition":{"text":"阴"},"temperature":{"value":13.4},"humidity":0.69}
+                                """);
+                        case "/weather/v1/daily/28.21/112.94" -> response("""
+                                {"days":[{"daytime":{"forecastStartTime":"2026-11-26T07:00:00+08:00","condition":{"text":"阴"}},
+                                  "temperatureMin":{"value":12},"temperatureMax":{"value":16}}]}
+                                """);
+                        default -> throw new AssertionError("Unknown request path");
+                    };
+                    when(response.headers()).thenReturn(java.net.http.HttpHeaders.of(Map.of(), (name, value) -> true));
+                    return response;
+                });
+        var weather = new SpeakerWeather(services, json, http);
+        var report = weather.current("10.0.0.1");
+        assertEquals("长沙", report.city());
+        assertEquals("13", report.temperature());
+        assertEquals("69", report.humidity());
+        var voice = weather.query("10.0.0.1", null);
+        assertEquals(report, voice.get("current"));
+        assertEquals(List.of(new QWeatherClient.Day("2026-11-26", "阴", "12", "16")), voice.get("forecast"));
+        verify(http, times(4)).send(any(HttpRequest.class), ArgumentMatchers.<HttpResponse.BodyHandler<byte[]>>any());
     }
 
     @SuppressWarnings("unchecked")

@@ -35,15 +35,25 @@
           <h3 class="section-heading">认证配置</h3>
           <el-form-item label="认证方式">
             <el-select v-model="form.authMode">
-              <el-option v-for="(label, mode) in authModes" :key="mode" :value="mode" :label="label" />
+              <el-option v-for="(label, mode) in form.id === 'qweather' ? { qweather_jwt: 'JWT（Ed25519）' } : basicAuthModes"
+                :key="mode" :value="mode" :label="label" />
             </el-select>
           </el-form-item>
           <template v-if="form.authMode !== 'none'">
-            <el-form-item v-if="form.authMode !== 'bearer'" :label="form.authMode === 'query' ? '参数名' : '请求头名称'" required>
+            <template v-if="form.authMode === 'qweather_jwt'">
+              <el-form-item label="开发者 ID" required><el-input v-model.trim="form.jwtIssuer" maxlength="128" /></el-form-item>
+              <el-form-item label="项目 ID" required><el-input v-model.trim="form.jwtProject" maxlength="128" /></el-form-item>
+              <el-form-item label="凭据 ID" required><el-input v-model.trim="form.jwtKeyId" maxlength="128" /></el-form-item>
+              <el-form-item label="默认城市"><el-input v-model.trim="form.defaultCity" maxlength="64" placeholder="IP 无法定位时使用" /></el-form-item>
+            </template>
+            <el-form-item v-else-if="form.authMode !== 'bearer'" :label="form.authMode === 'query' ? '参数名' : '请求头名称'" required>
               <el-input v-model.trim="form.authName" maxlength="64" />
             </el-form-item>
-            <el-form-item label="凭据" class="last-form-item">
-              <el-input v-model="credential" type="password" autocomplete="new-password" maxlength="4096"
+            <el-form-item :label="form.authMode === 'qweather_jwt' ? 'Ed25519 私钥' : '凭据'" class="last-form-item">
+              <el-input v-if="form.authMode === 'qweather_jwt'" v-model="credential" type="textarea" :rows="4"
+                autocomplete="off" maxlength="4096" :disabled="form.clearCredential"
+                :placeholder="form.hasCredential ? '已配置，留空保留' : '粘贴 PKCS#8 PEM 私钥'" />
+              <el-input v-else v-model="credential" type="password" autocomplete="new-password" maxlength="4096"
                 :disabled="form.clearCredential" :placeholder="form.hasCredential ? '已配置' : '输入供应商凭据'" />
               <p class="field-hint">认证方式和名称相同时，留空保留原凭据。</p>
               <el-checkbox v-if="form.hasCredential" v-model="form.clearCredential" @change="credential = ''">清除已保存的凭据</el-checkbox>
@@ -65,7 +75,7 @@ export default {
   data() {
     return {
       entries: [], error: '', loading: false, saving: false, visible: false, form: null, credential: '',
-      authModes: { none: '无需认证', query: '查询参数', header: '请求头', bearer: 'Bearer Token' },
+      basicAuthModes: { none: '无需认证', query: '查询参数', header: '请求头', bearer: 'Bearer Token' },
       columns: [
         { prop: 'name', label: '服务名称' }, { prop: 'endpoints', label: '用途', minWidth: 190 },
         { prop: 'url', label: '服务地址', minWidth: 190 }, { prop: 'authMode', label: '认证配置', minWidth: 120 },
@@ -73,28 +83,51 @@ export default {
       ],
     };
   },
+  computed: {
+    authModes() { return { ...this.basicAuthModes, qweather_jwt: 'JWT（Ed25519）' }; },
+  },
+  watch: {
+    '$route.query.service'() { this.openRequestedService(); },
+  },
   mounted() { this.load(); },
   methods: {
     request(path, body) { return speakerRequest(adminToken(this.$store), 'third-party-services' + path, body); },
     async load() {
       this.loading = true;
       this.error = '';
-      try { this.entries = await this.request(''); }
+      try {
+        this.entries = await this.request('');
+        this.openRequestedService();
+      }
       catch (failure) { this.error = failure.message; }
       finally { this.loading = false; }
     },
     edit(entry) {
       this.form = { ...entry, endpoints: entry.endpoints.map(endpoint => ({ ...endpoint })), clearCredential: false };
+      if (entry.id === 'qweather' && entry.authMode !== 'qweather_jwt') {
+        Object.assign(this.form, { authMode: 'qweather_jwt', authName: 'Authorization', hasCredential: false });
+      }
       this.credential = '';
       this.visible = true;
     },
+    openRequestedService() {
+      if (!this.$route.query.service || this.$route.query.tab !== 'third-party-services') return;
+      const entry = this.entries.find(item => item.id === this.$route.query.service);
+      if (entry) {
+        const query = { ...this.$route.query };
+        delete query.service;
+        this.$router.replace({ query });
+        this.edit(entry);
+      }
+    },
     async save() {
       if (this.saving || !this.form) return;
-      const { id, name, url, endpoints, authMode, authName, clearCredential, enabled, version } = this.form;
+      const { id, name, url, endpoints, authMode, authName, clearCredential, enabled, version,
+        jwtIssuer, jwtProject, jwtKeyId, defaultCity } = this.form;
       this.saving = true;
       try {
         await this.request('/' + encodeURIComponent(id), {
-          name, url, endpoints, authMode, authName, enabled, version,
+          name, url, endpoints, authMode, authName, enabled, version, jwtIssuer, jwtProject, jwtKeyId, defaultCity,
           credential: authMode !== 'none' && !clearCredential ? this.credential : null,
           clearCredential,
         });

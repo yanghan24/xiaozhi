@@ -34,13 +34,21 @@ class SpeakerThirdPartyServicesTest {
             }
             ScriptUtils.executeSqlScript(connection, new ByteArrayResource(
                     sql.replace("CREATE TABLE", "CREATE TEMPORARY TABLE").getBytes(StandardCharsets.UTF_8)));
+            try (var input = new ClassPathResource("db/changelog/202611261500.sql").getInputStream()) {
+                sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            ScriptUtils.executeSqlScript(connection, new ByteArrayResource(
+                    sql.replace("CREATE TABLE", "CREATE TEMPORARY TABLE").getBytes(StandardCharsets.UTF_8)));
             Path key = directory.resolve("key");
             Files.writeString(key, Base64.getEncoder().encodeToString(new byte[32]));
             Files.setPosixFilePermissions(key, PosixFilePermissions.fromString("rw-------"));
             var db = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
+            db.execute("CREATE TEMPORARY TABLE speaker_runtime(id INT PRIMARY KEY, revision BIGINT)");
+            db.update("INSERT INTO speaker_runtime VALUES (1,0)");
             var settings = new SpeakerSettings(true, "https://fixture.example/oidc", "fixture", key.toString(), "");
             var json = new ObjectMapper();
-            var services = new SpeakerThirdPartyServices(db, json, new SpeakerCrypto(settings));
+            var crypto = new SpeakerCrypto(settings);
+            var services = new SpeakerThirdPartyServices(db, json, crypto);
 
             assertEquals(5, services.list().size());
             assertTrue(services.list().stream().noneMatch(SpeakerThirdPartyServices.Entry::enabled));
@@ -74,6 +82,55 @@ class SpeakerThirdPartyServicesTest {
             assertEquals(4, configuration.version());
             assertEquals("fixture-amap", configuration.credential());
             assertFalse(configuration.toString().contains(configuration.credential()));
+
+            var qweather = services.list().stream().filter(row -> row.id().equals("qweather")).findFirst().orElseThrow();
+            var keyPair = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+            var pem = Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded());
+            var jwt = new SpeakerThirdPartyServices.Configuration(qweather.name(), "https://fixture.qweatherapi.com",
+                    qweather.endpoints(), "qweather_jwt", "", pem, false, true, qweather.version(),
+                    "developer", "project", "credential", "长沙");
+            services.save("qweather", jwt);
+            assertTrue(services.qweatherReady());
+            assertEquals(pem, services.qweatherConfiguration().orElseThrow().privateKey());
+            assertFalse(json.writeValueAsString(services.list()).contains(pem));
+            assertEquals(1L, db.queryForObject("SELECT revision FROM speaker_runtime WHERE id=1", Long.class));
+
+            var plugins = new SpeakerFunctionPlugins(db, json, crypto, services);
+            db.execute("CREATE TEMPORARY TABLE ai_model_provider(id VARCHAR(32), name VARCHAR(64), provider_code VARCHAR(64), "
+                    + "model_type VARCHAR(16), sort INT, fields JSON)");
+            db.execute("CREATE TEMPORARY TABLE ai_agent_plugin_mapping(agent_id VARCHAR(32), plugin_id VARCHAR(32), param_info JSON)");
+            db.update("INSERT INTO ai_model_provider VALUES ('search', '联网搜索', 'web_search', 'Plugin', 1, ?)",
+                    """
+                    [{"key":"provider","type":"string","label":"搜索源","default":"metaso"},
+                     {"key":"max_results","type":"string","label":"返回数量","default":"5"},
+                     {"key":"api_key","type":"string","label":"凭据","default":"mk-XXXX","selected":false}]
+                    """);
+            String legacyKey = "legacy-fixture-key";
+            String legacyConfig = "{\"api_key\":\"" + legacyKey + "\"}";
+            db.update("INSERT INTO ai_agent_plugin_mapping VALUES ('agent1', 'search', ?)", legacyConfig);
+            var existing = new xiaozhi.modules.agent.entity.AgentPluginMapping();
+            existing.setPluginId("search");
+            existing.setProviderCode("web_search");
+            existing.setParamInfo(legacyConfig);
+            assertTrue(plugins.choices().getFirst().ready());
+            assertFalse(json.writeValueAsString(plugins.list()).contains(legacyKey));
+            db.update("INSERT INTO ai_agent_plugin_mapping VALUES ('agent2', 'search', '{\"api_key\":\"other-fixture-key\"}')");
+            assertTrue(plugins.list().getFirst().legacyConflict());
+            assertFalse(plugins.choices().getFirst().ready());
+            assertTrue(plugins.runtime(List.of(existing)).get("web_search").toString().contains(legacyKey));
+
+            var pluginParams = java.util.Map.<String, Object>of("provider", "metaso", "max_results", "5");
+            plugins.save("search", new SpeakerFunctionPlugins.Input(true, 0, pluginParams, "global-fixture-key", false));
+            assertTrue(plugins.choices().getFirst().ready());
+            assertFalse(json.writeValueAsString(plugins.list()).contains("global-fixture-key"));
+            assertTrue(plugins.runtime(List.of(existing)).get("web_search").toString().contains("global-fixture-key"));
+            assertThrows(SpeakerFailure.class, () -> plugins.save("search", new SpeakerFunctionPlugins.Input(true, 1,
+                    java.util.Map.of("provider", "tavily", "max_results", "5"), null, false)));
+            plugins.save("search", new SpeakerFunctionPlugins.Input(false, 1, pluginParams, null, false));
+            assertFalse(plugins.choices().getFirst().ready());
+            assertTrue(plugins.runtime(List.of(existing)).isEmpty());
+            assertThrows(SpeakerFailure.class, () -> plugins.validateSelections(List.of("search"), java.util.Set.of()));
+            plugins.validateSelections(List.of("search"), java.util.Set.of("search"));
         }
     }
 }

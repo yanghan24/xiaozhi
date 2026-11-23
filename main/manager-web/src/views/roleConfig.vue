@@ -274,28 +274,6 @@
                         >
                           <GroupedModelOptions :options="modelOptions[model.type]" :selected="form.model[model.key]" />
                         </el-select>
-                        <div v-if="showFunctionIcons(model.type)" class="function-icons">
-                          <el-tooltip
-                            v-for="func in currentFunctions"
-                            :key="func.name"
-                            effect="light"
-                            placement="top"
-                          >
-                            <div slot="content">
-                              <div><strong>{{ $t("roleConfig.functionName") }}:</strong> {{ func.name }}</div>
-                            </div>
-                            <div class="icon-dot">
-                              {{ getFunctionDisplayChar(func.name) }}
-                            </div>
-                          </el-tooltip>
-                          <el-button
-                            class="edit-function-btn"
-                            @click="openFunctionDialog"
-                            :class="{ 'active-btn': showFunctionDialog }"
-                          >
-                            {{ $t("roleConfig.editFunctions") }}
-                          </el-button>
-                        </div>
                         <div
                           v-if="
                             model.type === 'Memory' &&
@@ -316,6 +294,16 @@
                           </el-radio-group>
                         </div>
                       </div>
+                    </el-form-item>
+                    <el-form-item v-if="showFunctionPlugins" label="编辑功能插件" class="function-plugin-field">
+                      <el-checkbox-group v-if="functionOptions.length" v-model="currentFunctions"
+                        :disabled="agentReloading || !agentFunctionsLoaded" class="function-plugin-options">
+                        <el-checkbox v-for="plugin in functionOptions" :key="plugin.id" :label="plugin.id"
+                          :disabled="!plugin.ready">
+                          {{ plugin.name }}<span v-if="!plugin.ready" class="function-plugin-status">（暂不可用）</span>
+                        </el-checkbox>
+                      </el-checkbox-group>
+                      <span v-else class="function-plugin-status">{{ pluginMetadataLoading ? '正在加载' : '暂无已配置的功能插件' }}</span>
                     </el-form-item>
                     <div class="model-row">
                       <!-- 语言筛选器 -->
@@ -410,14 +398,6 @@
         </div>
       </div>
     </div>
-    <function-dialog
-      v-model="showFunctionDialog"
-      :functions="currentFunctions"
-      :all-functions="allFunctions"
-      :agent-id="$route.query.agentId"
-      @update-functions="handleUpdateFunctions"
-      @dialog-closed="handleDialogClosed"
-    />
     <context-provider-dialog
       :visible.sync="showContextProviderDialog"
       :providers="currentContextProviders"
@@ -448,7 +428,7 @@ import AgentMcpSettings from "@/components/AgentMcpSettings.vue";
 import GroupedModelOptions from "@/components/GroupedModelOptions";
 import { getServiceUrl } from "@/apis/api";
 import RequestService from "@/apis/httpRequest";
-import FunctionDialog from "@/components/FunctionDialog.vue";
+import { adminToken, speakerRequest } from "@/apis/speaker";
 import ContextProviderDialog from "@/components/ContextProviderDialog.vue";
 import TtsAdvancedSettings from "@/components/TtsAdvancedSettings.vue";
 import AgentSnapshotDialog from "@/components/AgentSnapshotDialog.vue";
@@ -459,7 +439,7 @@ import VersionFooter from "@/components/VersionFooter.vue";
 
 export default {
   name: "RoleConfigPage",
-  components: { GroupedModelOptions, AgentMcpSettings, HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
+  components: { GroupedModelOptions, AgentMcpSettings, HeaderBar, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
   data() {
     return {
       showContextProviderDialog: false,
@@ -509,12 +489,10 @@ export default {
       modelOptions: {},
       voiceOptions: [],
       voiceDetails: {}, // 保存完整的音色信息
-      showFunctionDialog: false,
       currentVersionNo: null,
       currentFunctions: [],
       currentContextProviders: [],
       allFunctions: [],
-      originalFunctions: [],
       playingVoice: false,
       isPaused: false,
       currentAudio: null,
@@ -551,6 +529,14 @@ export default {
     };
   },
   computed: {
+    showFunctionPlugins() {
+      return !!this.form.model.intentModelId && this.form.model.intentModelId !== "Intent_nointent";
+    },
+    functionOptions() {
+      const options = this.allFunctions.filter(plugin => plugin.ready || this.currentFunctions.includes(plugin.id));
+      const known = new Set(options.map(plugin => plugin.id));
+      return options.concat(this.currentFunctions.filter(id => !known.has(id)).map(id => ({ id, name: id, ready: false })));
+    },
     configInteractionBlocked() {
       return this.agentReloading
         || this.voiceOptionsLoading
@@ -562,25 +548,6 @@ export default {
   methods: {
     goToHome() {
       this.$router.push("/home");
-    },
-    normalizeFunctionParams(params, fallback = {}) {
-      if (params === null || params === undefined || params === '') {
-        return { ...fallback };
-      }
-      if (typeof params === 'string') {
-        try {
-          const parsed = JSON.parse(params);
-          return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? parsed
-            : { ...fallback };
-        } catch (error) {
-          return { ...fallback };
-        }
-      }
-      if (typeof params === 'object' && !Array.isArray(params)) {
-        return { ...params };
-      }
-      return { ...fallback };
     },
     async saveConfig() {
       if (this.configInteractionBlocked) {
@@ -603,12 +570,7 @@ export default {
         langCode: this.form.langCode,
         language: this.form.language,
         sort: this.form.sort,
-        functions: this.currentFunctions.map((item) => {
-          return {
-            pluginId: item.id,
-            paramInfo: this.normalizeFunctionParams(item.params),
-          };
-        }),
+        pluginIds: this.currentFunctions,
         contextProviders: this.currentContextProviders,
         correctWordFileIds: this.checkedReplacementWordIds,
       };
@@ -684,7 +646,6 @@ export default {
       this.agentReloading = true;
       if (options.closeEditors) {
         this.showSnapshotDialog = false;
-        this.showFunctionDialog = false;
         this.showContextProviderDialog = false;
         this.showTtsAdvancedDialog = false;
         this.inputVisible = false;
@@ -791,45 +752,6 @@ export default {
         })
         .catch(() => {});
     },
-    buildCurrentFunctions(savedMappings) {
-      if (!Array.isArray(savedMappings)) {
-        throw new TypeError("Invalid agent function mappings");
-      }
-      return savedMappings.map((mapping) => {
-        const pluginId = mapping.pluginId || mapping.id;
-        const meta = this.pluginMetadataReady
-          ? this.allFunctions.find((item) => item.id === pluginId)
-          : null;
-        return {
-          id: pluginId,
-          name: meta?.name || mapping.name || pluginId,
-          params: this.normalizeFunctionParams(mapping.paramInfo ?? mapping.params, meta?.params || {}),
-          fieldsMeta: meta?.fieldsMeta || []
-        };
-      }).filter((item) => item.id);
-    },
-    enrichCurrentFunctionsWithMetadata() {
-      if (!this.agentFunctionsLoaded || !this.pluginMetadataReady) {
-        return;
-      }
-      this.currentFunctions = this.currentFunctions.map((item) => {
-        const meta = this.allFunctions.find((candidate) => candidate.id === item.id);
-        if (!meta) {
-          return {
-            ...item,
-            params: this.normalizeFunctionParams(item.params),
-            fieldsMeta: item.fieldsMeta || []
-          };
-        }
-        return {
-          ...item,
-          name: meta.name || item.name || item.id,
-          params: this.normalizeFunctionParams(item.params, meta.params),
-          fieldsMeta: meta.fieldsMeta || []
-        };
-      });
-      this.originalFunctions = JSON.parse(JSON.stringify(this.currentFunctions));
-    },
     fetchAgentConfig(agentId, options = {}) {
       const requestSeq = ++this.agentConfigFetchSeq;
       this.agentConfigLoaded = false;
@@ -906,8 +828,7 @@ export default {
             };
             this.checkedReplacementWordIds = agentData.correctWordFileIds || [];
             this.currentContextProviders = agentData.contextProviders || [];
-            this.currentFunctions = this.buildCurrentFunctions(agentData.functions || []);
-            this.originalFunctions = JSON.parse(JSON.stringify(this.currentFunctions));
+            this.currentFunctions = (agentData.functions || []).map(item => item.pluginId || item.id).filter(Boolean);
             this.agentFunctionsLoaded = true;
             this.agentConfigLoaded = true;
 
@@ -916,7 +837,6 @@ export default {
               : this.fetchAllFunctions({ showError: options.showError });
             metadataPromise.then((metadataReady) => {
               if (requestSeq === this.agentConfigFetchSeq && metadataReady) {
-                this.enrichCurrentFunctionsWithMetadata();
                 this.updateIntentOptionsVisibility();
               }
               resolve(true);
@@ -1222,30 +1142,7 @@ export default {
       return this.ttsLanguageTouched;
     },
 
-    getFunctionDisplayChar(name) {
-      if (!name || name.length === 0) return "";
-
-      for (let i = 0; i < name.length; i++) {
-        const char = name[i];
-        if (/[\u4e00-\u9fa5a-zA-Z0-9]/.test(char)) {
-          return char;
-        }
-      }
-
-      // 如果没有找到有效字符，返回第一个字符
-      return name.charAt(0);
-    },
-    showFunctionIcons(type) {
-      return type === "Intent" && !!this.form.model.intentModelId && this.form.model.intentModelId !== "Intent_nointent";
-    },
     handleModelChange(type, value) {
-      if (type === "Intent" && value !== "Intent_nointent") {
-        this.fetchAllFunctions().then((metadataReady) => {
-          if (metadataReady) {
-            this.enrichCurrentFunctionsWithMetadata();
-          }
-        });
-      }
       if (type === "Memory") {
         if (value === "Memory_nomem") {
           // 无记忆功能的模型，默认不记录聊天记录
@@ -1276,84 +1173,21 @@ export default {
         });
       }
     },
-    parsePluginFields(fields) {
-      if (Array.isArray(fields)) {
-        return fields;
-      }
-      if (typeof fields !== "string" || !fields.trim()) {
-        return [];
-      }
-      try {
-        const parsed = JSON.parse(fields);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (error) {
-        return [];
-      }
-    },
     fetchAllFunctions(options = {}) {
-      if (this.pluginMetadataReady) {
-        return Promise.resolve(true);
-      }
-      if (this.pluginMetadataLoading) {
-        return this.pluginMetadataLoading;
-      }
-
-      this.pluginMetadataLoading = new Promise((resolve) => {
-        let settled = false;
-        const finish = (ready, error) => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          this.pluginMetadataReady = ready;
-          if (!ready && options.showError !== false) {
-            this.$message.error(error?.data?.msg || error?.msg || i18n.t("roleConfig.fetchPluginsFailed"));
-          }
-          resolve(ready);
-        };
-
-        Api.model.getPluginFunctionList(null, ({ data }) => {
-          if (data?.code !== 0) {
-            finish(false, data);
-            return;
-          }
-          try {
-            this.allFunctions = (data.data || []).map((item) => {
-              const fieldsMeta = this.parsePluginFields(item.fields);
-              const params = fieldsMeta.reduce((result, field) => {
-                if (field?.key) {
-                  result[field.key] = field.default;
-                }
-                return result;
-              }, {});
-              return { ...item, fieldsMeta, params };
-            });
-            finish(true);
-          } catch (error) {
-            finish(false, error);
-          }
-        }, (error) => finish(false, error));
-      }).finally(() => {
-        this.pluginMetadataLoading = null;
-      });
-
+      if (this.pluginMetadataReady) return Promise.resolve(true);
+      if (this.pluginMetadataLoading) return this.pluginMetadataLoading;
+      this.pluginMetadataLoading = speakerRequest(adminToken(this.$store), 'function-plugins/choices')
+        .then((choices) => {
+          this.allFunctions = choices;
+          this.pluginMetadataReady = true;
+          return true;
+        })
+        .catch((failure) => {
+          if (options.showError !== false) this.$message.error(failure.message);
+          return false;
+        })
+        .finally(() => { this.pluginMetadataLoading = null; });
       return this.pluginMetadataLoading;
-    },
-    openFunctionDialog() {
-      if (this.agentReloading || !this.agentFunctionsLoaded) {
-        return;
-      }
-      if (this.pluginMetadataReady) {
-        this.enrichCurrentFunctionsWithMetadata();
-        this.showFunctionDialog = true;
-        return;
-      }
-      this.fetchAllFunctions().then((metadataReady) => {
-        if (metadataReady) {
-          this.enrichCurrentFunctionsWithMetadata();
-          this.showFunctionDialog = true;
-        }
-      });
     },
     openContextProviderDialog() {
       this.showContextProviderDialog = true;
@@ -1379,17 +1213,6 @@ export default {
     },
     handleUpdateContext(providers) {
       this.currentContextProviders = providers;
-    },
-    handleUpdateFunctions(selected) {
-      this.currentFunctions = selected;
-    },
-    handleDialogClosed(saved) {
-      if (!saved) {
-        this.currentFunctions = JSON.parse(JSON.stringify(this.originalFunctions));
-      } else {
-        this.originalFunctions = JSON.parse(JSON.stringify(this.currentFunctions));
-      }
-      this.showFunctionDialog = false;
     },
     updateIntentOptionsVisibility() {
       // 根据当前选择的LLM类型更新意图识别选项的可见性
@@ -2074,28 +1897,6 @@ export default {
   padding-bottom: 2px;
 }
 
-.function-icons {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  padding-left: 10px;
-}
-
-.icon-dot {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #5778ff;
-  font-weight: bold;
-  font-size: 12px;
-  margin-right: 8px;
-  position: relative;
-  background-color: #e6ebff;
-}
-
 ::v-deep .el-form-item__label {
   font-size: 12px !important;
   color: #3d4566 !important;
@@ -2146,11 +1947,6 @@ export default {
   border-radius: 18px;
   padding: 10px 20px;
   transition: all 0.3s;
-}
-
-.edit-function-btn.active-btn {
-  background: #5778ff;
-  color: white;
 }
 
 .chat-history-options {
@@ -2309,4 +2105,12 @@ export default {
   max-width: 400px !important;
   word-break: break-word;
 }
+.function-plugin-options {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
+  ::v-deep .el-checkbox { margin-right: 0; }
+  ::v-deep .el-checkbox__label { white-space: normal; }
+}
+.function-plugin-status { color: #909399; }
 </style>

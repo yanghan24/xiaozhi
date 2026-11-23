@@ -34,6 +34,8 @@ public class ConfigController {
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerAgents speakerAgents;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerMcp speakerMcp;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerConversations speakerConversations;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerWeather speakerWeather;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerFunctionPlugins functionPlugins;
 
     @PostMapping("server-base")
     @Operation(summary = "服务端获取配置接口")
@@ -86,6 +88,18 @@ public class ConfigController {
         if(body.size()>2 || body.values().stream().anyMatch(v->v==null || v.length()>2048))
             throw new xiaozhi.modules.speaker.SpeakerFailure(400,"INVALID_REQUEST");
         return new Result<Object>().ok(speakerVoice.action(action,body));
+    }
+
+    public record WeatherQuery(String session, String address, String location) {}
+
+    @PostMapping("weather")
+    public Result<Object> weather(@RequestBody WeatherQuery query) {
+        speakerSettings.requireEnabled();
+        speakerVoice.requireSession(query.session());
+        Object result = functionPlugins.weatherSelected(speakerAgents.configurationId())
+                ? speakerWeather.query(query.address(), query.location())
+                : java.util.Map.of("status", "unavailable");
+        return new Result<>().ok(result);
     }
 
     @org.springframework.web.bind.annotation.ExceptionHandler(xiaozhi.modules.speaker.SpeakerFailure.class)

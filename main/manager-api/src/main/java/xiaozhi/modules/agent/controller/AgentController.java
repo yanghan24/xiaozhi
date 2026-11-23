@@ -122,6 +122,7 @@ public class AgentController {
     @RequiresPermissions("sys:role:normal")
     public Result<AgentInfoVO> getAgentById(@PathVariable("id") String id) {
         AgentInfoVO agent = agentService.getAgentById(id, SecurityUser.getUserId());
+        if (agent.getFunctions() != null) agent.getFunctions().forEach(function -> function.setParamInfo(null));
         return ResultUtils.success(agent);
     }
 

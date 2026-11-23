@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ public class SpeakerWeather {
     private final SpeakerThirdPartyServices services;
     private final ObjectMapper json;
     private final HttpClient http;
+    private final QWeatherClient qweather;
     private final Cache<Lookup, Location> locations = CacheBuilder.newBuilder()
             .maximumSize(4096).expireAfterWrite(Duration.ofHours(6)).build();
     private final Cache<Lookup, Report> weather = CacheBuilder.newBuilder()
@@ -50,9 +52,21 @@ public class SpeakerWeather {
         this.services = services;
         this.json = json;
         this.http = http;
+        this.qweather = new QWeatherClient(json, http);
     }
 
     public Report current(String address) {
+        var configured = services.qweatherConfiguration();
+        if (configured.isPresent()) {
+            var config = configured.get();
+            String city = deviceCity(address, config.defaultCity());
+            if (city.isEmpty()) return Report.unavailable();
+            try {
+                return qweather.current(config, city);
+            } catch (ExecutionException failure) {
+                return Report.unavailable();
+            }
+        }
         if (!publicIpv4(address)) {
             return Report.unavailable();
         }
@@ -69,6 +83,45 @@ public class SpeakerWeather {
         } catch (ExecutionException unavailable) {
             return Report.unavailable();
         }
+    }
+
+    public Map<String, Object> query(String address, String requestedCity) {
+        var configured = services.qweatherConfiguration();
+        if (configured.isEmpty()) return Map.of("status", "unavailable");
+        var config = configured.get();
+        String city = requestedCity != null && !requestedCity.isBlank() ? requestedCity.strip()
+                : deviceCity(address, config.defaultCity());
+        if (city.isEmpty()) return Map.of("status", "city_required");
+        if (city.length() > 64 || city.chars().anyMatch(Character::isISOControl)) return Map.of("status", "unavailable");
+        try {
+            var current = qweather.current(config, city);
+            List<QWeatherClient.Day> forecast;
+            try {
+                forecast = qweather.forecast(config, city);
+            } catch (ExecutionException failure) {
+                forecast = List.of();
+            }
+            return Map.of("status", "ready", "current", current, "forecast", forecast);
+        } catch (ExecutionException failure) {
+            return Map.of("status", "unavailable");
+        }
+    }
+
+    private String deviceCity(String address, String defaultCity) {
+        if (publicIpv4(address)) {
+            var locator = services.amapConfiguration();
+            if (locator.isPresent()) {
+                var config = locator.get();
+                try {
+                    var location = locations.get(new Lookup(config.version(), address),
+                            () -> locate(config.credential(), address));
+                    if (!location.city().isEmpty()) return location.city();
+                } catch (ExecutionException ignored) {
+                    // Continue with the configured city when IP lookup is unavailable.
+                }
+            }
+        }
+        return defaultCity == null ? "" : defaultCity;
     }
 
     static boolean publicIpv4(String value) {
@@ -125,7 +178,7 @@ public class SpeakerWeather {
         return body;
     }
 
-    private static String text(JsonNode node, String name) {
+    static String text(JsonNode node, String name) {
         JsonNode value = node.path(name);
         if (!value.isTextual()) return "";
         String text = value.textValue().strip();
