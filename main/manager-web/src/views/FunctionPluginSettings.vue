@@ -29,7 +29,8 @@
           <el-form-item v-if="entry.provider === 'hass_play_music'" label="服务配置">
             与 HomeAssistant设备控制共用地址、令牌和设备清单。
           </el-form-item>
-          <el-form-item v-for="field in entry.fields" :key="field.key" :label="field.label">
+          <el-form-item v-for="field in entry.fields" :key="field.key"
+            :label="isSearchSource(field) ? '搜索源' : field.label">
             <template v-if="field.key === 'api_key'">
               <el-input v-model="credential" type="password" autocomplete="new-password"
                 :disabled="clearCredential" :placeholder="entry.hasCredential ? '已配置' : '请输入凭据'" />
@@ -39,6 +40,7 @@
               placeholder="每行一个设备" />
             <el-input v-else v-model.trim="params[field.key]"
               :placeholder="field.key === 'news_sources' ? '用英文分号 ; 分隔，第一项为默认来源' : ''" />
+            <p v-if="isSearchSource(field)" class="field-hint">可选值为 metaso / tavily / serply / outcrawl</p>
           </el-form-item>
         </section>
       </el-form>
@@ -85,6 +87,7 @@ export default {
       return entry.configured ? '已配置' : '待配置';
     },
     description(provider) { return descriptions[provider] || '—'; },
+    isSearchSource(field) { return this.entry.provider === 'web_search' && field.key === 'provider'; },
     openWeather() {
       this.visible = false;
       this.$router.push({ query: { ...this.$route.query, tab: 'third-party-services', service: 'qweather' } });
