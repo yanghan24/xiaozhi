@@ -10,7 +10,7 @@
         <el-switch :value="row.enabled" :disabled="!row.configured || loading || updating"
           :aria-label="'启用' + row.name" @change="changeEnabled(row, $event)" />
       </template>
-      <template slot="details" slot-scope="{ row }">{{ details(row) }}</template>
+      <template slot="description" slot-scope="{ row }">{{ description(row.provider) }}</template>
       <template slot="operations" slot-scope="{ row }">
         <el-button type="text" @click="edit(row)">编辑</el-button>
         <el-button v-if="row.provider === 'get_weather'" type="text" @click="openWeather">和风天气配置</el-button>
@@ -52,6 +52,17 @@ import CustomDialog from '@/components/CustomDialog.vue';
 import CustomTable from '@/components/CustomTable.vue';
 import { adminToken, speakerRequest } from '@/apis/speaker';
 
+const descriptions = {
+  get_weather: '通过语音查询实时天气和七天预报',
+  play_music: '点播语音服务器曲库中的音乐',
+  get_news_from_chinanews: '收听中新网的社会、国际和财经新闻',
+  get_news_from_newsnow: '收听多个新闻和热搜平台的热点',
+  hass_state: '查询或控制 HomeAssistant 中的智能设备',
+  hass_play_music: '在 HomeAssistant 指定的播放器上播放音乐',
+  web_search: '按关键词搜索网页并整理结果',
+  call_device: '拨打或接听音箱之间的语音通话',
+};
+
 export default {
   components: { CustomDialog, CustomTable },
   data() {
@@ -62,7 +73,7 @@ export default {
         { prop: 'name', label: '功能插件', minWidth: 165 },
         { prop: 'status', label: '配置状态', minWidth: 110 },
         { prop: 'enabled', label: '启用', width: 85 },
-        { prop: 'details', label: '配置说明', minWidth: 230, align: 'left' },
+        { prop: 'description', label: '功能说明', minWidth: 230, align: 'left' },
       ],
     };
   },
@@ -74,17 +85,7 @@ export default {
       if (entry.legacyConflict) return '待统一配置';
       return entry.configured ? '已配置' : '待配置';
     },
-    details(entry) {
-      if (entry.legacyConflict) return '现有智能体参数不同，请保存一套统一配置';
-      if (entry.configured) return '—';
-      const requirements = {
-        get_weather: '在第三方服务中配置并启用和风天气 JWT',
-        hass_state: '需要 HomeAssistant 地址、访问令牌和设备清单',
-        hass_play_music: '需配置 HomeAssistant 连接和播放器',
-        web_search: '需要搜索服务商、有效 Key 和返回数量',
-      };
-      return requirements[entry.provider] || '请补全插件配置';
-    },
+    description(provider) { return descriptions[provider] || '—'; },
     openWeather() {
       this.visible = false;
       this.$router.push({ query: { ...this.$route.query, tab: 'third-party-services', service: 'qweather' } });
