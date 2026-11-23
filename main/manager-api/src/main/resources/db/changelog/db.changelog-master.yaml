@@ -956,3 +956,80 @@ databaseChangeLog:
         - sqlFile:
             encoding: utf8
             path: classpath:db/changelog/202611131810.sql
+  - changeSet:
+      id: 202611170900
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611170900.sql
+  - changeSet:
+      id: 202611171000
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171000.sql
+  - changeSet:
+      id: 202611171100
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171100.sql
+  - changeSet:
+      id: 202611171200
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171200.sql
+  - changeSet:
+      id: 202611171300
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171300.sql
+  - changeSet:
+      id: 202611171400
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171400.sql
+  - changeSet:
+      id: 202611171500
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611171500.sql
+  - changeSet:
+      id: 202611192010
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611192010.sql
+  - changeSet:
+      id: 202611201300
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611201300.sql
+  - changeSet:
+      id: 202611201600
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611201600.sql
+  - changeSet:
+      id: 202611211400
+      author: local-zhou
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/202611211400.sql

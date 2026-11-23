@@ -56,7 +56,7 @@ public class ModelConfigServiceImpl extends BaseServiceImpl<ModelConfigDao, Mode
     public List<ModelBasicInfoDTO> getModelCodeList(String modelType, String modelName) {
         List<ModelConfigEntity> entities = modelConfigDao.selectList(
                 new QueryWrapper<ModelConfigEntity>()
-                        .eq("model_type", modelType)
+                        .in("model_type", "SLM".equalsIgnoreCase(modelType) ? List.of("SLM", "LLM") : List.of(modelType))
                         .eq("is_enabled", 1)
                         .like(StringUtils.isNotBlank(modelName), "model_name", modelName)
                         .select("id", "model_name")
@@ -100,6 +100,7 @@ public class ModelConfigServiceImpl extends BaseServiceImpl<ModelConfigDao, Mode
                 pageInfo,
                 new QueryWrapper<ModelConfigEntity>()
                         .eq("model_type", modelType)
+                        .notLikeRight("id", "MARKET_")
                         .like(StringUtils.isNotBlank(modelName), "model_name", modelName));
 
         return getPageData(modelConfigEntityIPage, ModelConfigDTO.class);
@@ -109,6 +110,7 @@ public class ModelConfigServiceImpl extends BaseServiceImpl<ModelConfigDao, Mode
     public ModelConfigDTO edit(String modelType, String provideCode, String id, ModelConfigBodyDTO modelConfigBodyDTO) {
         // 1. 参数验证
         validateEditParameters(modelType, provideCode, id, modelConfigBodyDTO);
+        rejectMarketEdit(id, modelConfigBodyDTO);
 
         // 2. 验证模型提供者，使用注册类型的大小写
         String registeredModelType = resolveModelType(modelType, provideCode);
@@ -135,6 +137,7 @@ public class ModelConfigServiceImpl extends BaseServiceImpl<ModelConfigDao, Mode
     @Override
     public ModelConfigDTO add(String modelType, String provideCode, ModelConfigBodyDTO modelConfigBodyDTO) {
         validateAddParameters(modelType, provideCode, modelConfigBodyDTO);
+        rejectMarketEdit(modelConfigBodyDTO.getId(), modelConfigBodyDTO);
 
         String registeredModelType = resolveModelType(modelType, provideCode);
 
@@ -145,8 +148,15 @@ public class ModelConfigServiceImpl extends BaseServiceImpl<ModelConfigDao, Mode
         return buildResponseDTO(modelConfigEntity);
     }
 
+    private void rejectMarketEdit(String id, ModelConfigBodyDTO body) {
+        if ((id != null && id.startsWith("MARKET_")) || body.getConfigJson() != null
+                && "aimarket".equals(body.getConfigJson().getStr("source")))
+            throw new RenException("请通过 AI 集市分组配置模型");
+    }
+
     @Override
     public void delete(String id) {
+        if(id!=null && id.startsWith("MARKET_")) throw new RenException("请通过 AI 集市分组停用适配配置");
         if (StringUtils.isBlank(id)) {
             throw new RenException(ErrorCode.IDENTIFIER_NOT_NULL);
         }

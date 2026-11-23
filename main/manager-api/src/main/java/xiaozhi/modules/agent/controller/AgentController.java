@@ -133,6 +133,13 @@ public class AgentController {
         return new Result<String>().ok(agentId);
     }
 
+    @PostMapping("/{id}/copy")
+    @Operation(summary = "复制智能体配置")
+    @RequiresPermissions("sys:role:normal")
+    public Result<String> copy(@PathVariable String id) {
+        return new Result<String>().ok(agentService.copyAgent(id));
+    }
+
     @PutMapping("/saveMemory/{macAddress}")
     @Operation(summary = "根据设备id更新智能体")
     @RequiresPermissions("sys:role:normal")

@@ -19,6 +19,8 @@ public class AgentModelsDTO {
     @Schema(description = "客户端ID")
     private String clientId;
 
+    private String voiceSession;
+
     @NotNull(message = "客户端已实例化的模型不能为空")
     @Schema(description = "客户端已实例化的模型")
     private Map<String, String> selectedModule;

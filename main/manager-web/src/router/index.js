@@ -1,9 +1,16 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
+import { speakerRedirect } from '../utils/speakerNavigation'
 
 Vue.use(VueRouter)
 
 const routes = [
+  { path: '/system-settings', name: 'SystemSettings', component: () => import('../views/SystemSettings.vue') },
+  { path: '/mcp-management', name: 'McpManagement', component: () => import('../views/McpManagement.vue') },
+  { path: '/speaker-users', name: 'SpeakerCustomers', component: () => import('../views/SpeakerCustomers.vue') },
+  { path: '/speaker-devices', name: 'SpeakerDevices', component: () => import('../views/SpeakerDevices.vue') },
+  { path: '/speaker-agents', name: 'SpeakerAgents', component: () => import('../views/home.vue') },
+  { path: '/admin-accounts', name: 'AdminAccounts', component: () => import('../views/UserManagement.vue') },
   {
     path: '/',
     name: 'welcome',
@@ -203,6 +210,10 @@ const anonRouteNames = new Set(['login', 'Register', 'RetrievePassword', 'welcom
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token');
+  let productMode = false;
+  try { productMode = JSON.parse(localStorage.getItem('pubConfig') || '{}').speakerMode === true; } catch (_) { /* Public configuration will be refreshed by login. */ }
+  const redirect = speakerRedirect(to.path, productMode);
+  if (redirect) { next({ ...redirect, query: { ...to.query, ...redirect.query } }); return; }
   const isAnonRoute = anonRouteNames.has(to.name);
 
   if (isAnonRoute && token) {

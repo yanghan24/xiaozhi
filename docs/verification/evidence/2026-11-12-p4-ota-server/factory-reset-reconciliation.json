@@ -17,8 +17,8 @@
     "complete_voice_response_normal": true,
     "raw_hardware_logs_independently_reviewed_by_server_agent": false
   },
-  "server_snapshot_before": "/home/jt/issue42-p4-ota-20261112/20261112T033820Z",
-  "server_snapshot_after": "/home/jt/issue42-p4-ota-20261112/20261112T042120Z",
+  "server_snapshot_before": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T033820Z",
+  "server_snapshot_after": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T042120Z",
   "server_snapshot_after_observed_at": "2026-11-12T04:21:20Z",
   "b_fields_unchanged": {
     "credential_hash": true,

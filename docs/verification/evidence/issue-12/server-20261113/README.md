@@ -1,6 +1,6 @@
 # Ubuntu 服务器回执
 
-见[验收说明](../../../2026-11-13-mcp-server-acceptance.md)。本目录只含可共享证据；真实账号／设备对应、MCP 凭据和完整工具正文保存在 Ubuntu。
+见[验收说明](../../../../archive/completed/mcp/verification/2026-11-13-mcp-server-acceptance.md)。本目录只含可共享证据；真实账号／设备对应、MCP 凭据和完整工具正文保存在 Ubuntu。
 
 | 文件 | 来源与边界 |
 | --- | --- |
@@ -11,4 +11,4 @@
 | `live-once.snapshot.py` | 实际执行一次的探针快照；真实客户端／SDK，日志屏蔽，正文只存后端 |
 | `archive-sha256.json` | 本目录证据文件的原字节 SHA-256 |
 
-服务器目录 `/home/jt/issue12-minimal-verification-20261113T015751Z`。历史 A2 哈希与实读值的差异保留于 audit.json。`scope-private.json` 保存本次用户确认和真实 B 归属的对应，未取回或提交。
+服务器目录 `/redacted/historical-deployment/issue12-minimal-verification-20261113T015751Z`。历史 A2 哈希与实读值的差异保留于 audit.json。`scope-private.json` 保存本次用户确认和真实 B 归属的对应，未取回或提交。

@@ -1,6 +1,6 @@
 {
   "image_id": "sha256:22c9e780db3fe00d2f7d78982b6d84cfc6f32d7f7679744f0f6d6ac193a47585",
-  "run": "/home/jt/issue14-wake-repro-20261113/candidate/run-20261113T042709Z",
+  "run": "/redacted/historical-deployment/issue14-wake-repro-20261113/candidate/run-20261113T042709Z",
   "unit_tests": {
     "tests": 66,
     "failures": 0,

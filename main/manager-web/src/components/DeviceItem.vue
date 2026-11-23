@@ -1,12 +1,18 @@
 <template>
   <div class="device-item">
-    <div style="display: flex;justify-content: space-between;">
+    <div class="device-item-heading">
     <el-tooltip :content="device.agentName" placement="top" effect="light">
       <div class="device-item-title">
         {{ device.agentName }}
+        <el-tag v-if="administratorMode && isDefault" size="mini" type="success">当前默认</el-tag>
       </div>
     </el-tooltip>
-      <div>
+      <div class="device-item-actions">
+        <el-tooltip content="复制智能体" placement="top" effect="light">
+          <el-button class="copy-agent-btn" type="text" icon="el-icon-document-copy"
+            aria-label="复制智能体" :loading="copyLoading" :disabled="copyDisabled"
+            @click.stop="$emit('copy', device)" />
+        </el-tooltip>
         <img src="@/assets/home/delete.png" alt="" style="width: 18px;height: 18px;margin-right: 10px;"
           @click.stop="handleDelete" />
         <el-tooltip class="item" effect="light" :content="device.systemPrompt" placement="top"
@@ -16,12 +22,13 @@
       </div>
     </div>
     <div class="device-name">
-      {{ $t('home.languageModel') }}：{{ device.llmModelName }}
+      {{ $t('home.languageModel') }}：{{ device.llmModelName || '未配置' }}
     </div>
     <div class="device-name">
-      {{ $t('home.voiceModel') }}：{{ device.ttsModelName }} ({{ device.ttsVoiceName }})
+      {{ $t('home.voiceModel') }}：{{ device.ttsModelName || '未配置' }}<span v-if="device.ttsVoiceName"> ({{ device.ttsVoiceName }})</span>
     </div>
-    <div style="display: flex;gap: 10px;align-items: center;">
+    <div style="display: flex;gap: 10px;align-items: center;flex-wrap: wrap;">
+      <el-button v-if="administratorMode" class="settings-btn" :class="{'disabled-btn':isDefault}" type="text" size="small" :disabled="isDefault || defaultLoading" @click="$emit('select-default', device)">{{ isDefault ? '当前默认' : '设为默认' }}</el-button>
       <div class="settings-btn" @click="handleConfigure">
         {{ $t('home.configureRole') }}
       </div>
@@ -56,6 +63,11 @@ import i18n from '@/i18n';
 export default {
   name: 'DeviceItem',
   props: {
+    administratorMode: { type: Boolean, default: false },
+    isDefault: { type: Boolean, default: false },
+    defaultLoading: { type: Boolean, default: false },
+    copyLoading: { type: Boolean, default: false },
+    copyDisabled: { type: Boolean, default: false },
     device: { type: Object, required: true },
     featureStatus: { 
       type: Object, 
@@ -105,6 +117,7 @@ export default {
       this.$router.push({ path: '/voice-print', query: { agentId: this.device.agentId } });
     },
     handleDeviceManage() {
+      if (this.administratorMode) { this.$router.push('/speaker-devices'); return; }
       this.$router.push({ path: '/device-management', query: { agentId: this.device.agentId } });
     },
     handleChatHistory() {
@@ -135,6 +148,23 @@ export default {
   }
 }
 
+.device-item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.device-item-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.copy-agent-btn {
+  padding: 3px 8px;
+  font-size: 18px;
+  color: #979db1;
+  &:hover, &:focus { color: #5778ff; }
+}
 .device-name {
   margin: 7px 0 10px;
   font-weight: 400;

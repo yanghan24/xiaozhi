@@ -6,7 +6,7 @@ import pathlib
 import stat
 import subprocess
 
-HOME_DIR = pathlib.Path('/home/jt')
+HOME_DIR = pathlib.Path('/redacted/historical-deployment')
 OUT = HOME_DIR / ('issue12-minimal-verification-' + datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ'))
 OUT.mkdir(mode=0o700, exist_ok=False)
 os.chown(OUT, 1000, 1000)

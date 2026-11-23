@@ -11,7 +11,7 @@
 | Ubuntu Python3.10.22，安装MCP2.3.0 | `issue12-sdk-verified81-01`，`results/installed01` | 81/81，退出0 |
 | 同上重复轮 | `issue12-sdk-verified81-02`，`results/installed02` | 81/81，case/source相同，退出0 |
 
-Ubuntu根目录`/home/jt/issue12-sdk-verified81-20261112/`，源码`src/`。固定已有镜像`sha256:a0ce61af271cd24539236f0e069c062902bd153fb0d78cd237b28348a31e92c5`；network none、根文件系统只读、cap-drop ALL、no-new-privileges、user1000:1000，仅挂合成源码与独立结果，无真实凭据/业务数据库。两个容器均已退出，最后核对14文件0不一致。sudo缓存已清除。
+Ubuntu根目录`/redacted/historical-deployment/issue12-sdk-verified81-20261112/`，源码`src/`。固定已有镜像`sha256:a0ce61af271cd24539236f0e069c062902bd153fb0d78cd237b28348a31e92c5`；network none、根文件系统只读、cap-drop ALL、no-new-privileges、user1000:1000，仅挂合成源码与独立结果，无真实凭据/业务数据库。两个容器均已退出，最后核对14文件0不一致。sudo缓存已清除。
 
 安装模式新增一条实际SDK＋anyio内存流测试，证明数值秒数能得到明确SDK超时，不能写成所有会话均为替身；其余网络传输/大部分会话仍合成，该测试不连接外部。
 
@@ -33,5 +33,5 @@ SDK超时断言核对嵌套或顶层`code=-32001`以及准确初始化超时消�
 
 - 77条75通过/2失败是修复前实际红灯，保留不覆盖。
 - 中间79条本机/Ubuntu各两轮通过；增加SDK测试后第一次Ubuntu81条有1个断言失败：SDK用MCPError(-32001)包装超时，而非内建TimeoutError。依据无凭据内存流观察修正严格断言后复验。
-- 本轮真实SDK客户端的bridge连接3次超时，host网络下发现成功、另一次直接工具成功。它们不是本目录81条禁网测试的一部分，见[本轮缺口修复记录](../../../2026-11-12-mcp-gap-fixes.md)。
+- 本轮真实SDK客户端的bridge连接3次超时，host网络下发现成功、另一次直接工具成功。它们不是本目录81条禁网测试的一部分，见[本轮缺口修复记录](../../../../archive/completed/mcp/verification/2026-11-12-mcp-gap-fixes.md)。
 - 清理/超时类型已修复不等于模型完整链、账号矩阵、计费/限流/远端取消验收完成；没有部署或发布。

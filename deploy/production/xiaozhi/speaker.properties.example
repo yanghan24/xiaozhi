@@ -1,0 +1,26 @@
+# 生产 API 与首次管理员初始化
+xiaozhi.production.enabled=true
+xiaozhi.production.bootstrap-password-file=/run/xiaozhi/bootstrap-admin.password
+# 设备可达的公开业务地址
+xiaozhi.production.websocket=wss://bridge.hncig.cn:18443/xiaozhi/v1/
+xiaozhi.production.ota=https://bridge.hncig.cn:18443/xiaozhi/ota/
+
+# 生产接口文档与监控开关
+knife4j.enable=false
+springdoc.api-docs.enabled=false
+springdoc.swagger-ui.enabled=false
+spring.datasource.druid.stat-view-servlet.enabled=false
+
+# 设备自动登记与 AI 集市设备授权。填入生产 device 客户端的 Client ID。
+speaker.enabled=true
+speaker.enrollment-enabled=true
+speaker.issuer=https://aimarket.hncig.cn/oidc
+speaker.client-id=
+# 加密密钥由初始化脚本生成。填写容器内受保护的文件路径。
+speaker.encryption-key-file=/run/xiaozhi/identity.key
+# Java 访问语音管理路径的内部映射
+speaker.management-url-map={"wss://bridge.hncig.cn:18443/xiaozhi/v1/":"ws://voice:8000/xiaozhi/management/"}
+
+# 模型目录单独使用网站后端客户端。填写 Client ID 与容器内 Secret 文件路径。
+market.catalog.client-id=
+market.catalog.client-secret-file=/run/xiaozhi/market-catalog.secret

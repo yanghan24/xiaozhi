@@ -13,7 +13,7 @@
   "original_operation_unchanged": true,
   "ota_sent": false,
   "physical_voice_acceptance_performed": false,
-  "private_deployment_directory": "/home/jt/issue42-pr79-deploy-f830a8c/deployment-20261112T045829Z",
+  "private_deployment_directory": "/redacted/historical-deployment/issue42-pr79-deploy-f830a8c/deployment-20261112T045829Z",
   "rollback_image": "xiaozhi-product-voice:p4-maintenance-20261112",
   "rollback_image_id": "sha256:3e347b8397c4bf8a19d62cd29fb169a0dd4eeb6afdb9395a15c66833cdc974b9"
 }

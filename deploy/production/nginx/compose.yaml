@@ -1,0 +1,15 @@
+name: xiaozhi-production-gateway
+services:
+  gateway:
+    image: xiaozhi-release-nginx:1.27.4
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_BIND:?}:${GATEWAY_PORT:-443}:443"
+    volumes:
+      - ./conf.d:/etc/nginx/conf.d:ro
+      - ./tls:/etc/nginx/tls:ro
+    networks: [edge]
+networks:
+  edge:
+    name: ${EDGE_NETWORK:-xiaozhi-production-edge}
+    external: true

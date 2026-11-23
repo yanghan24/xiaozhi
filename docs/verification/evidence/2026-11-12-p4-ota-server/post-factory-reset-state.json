@@ -1,6 +1,6 @@
 {
   "observed_at": "20261112T042120Z",
-  "private_snapshot": "/home/jt/issue42-p4-ota-20261112/20261112T042120Z",
+  "private_snapshot": "/redacted/historical-deployment/issue42-p4-ota-20261112/20261112T042120Z",
   "read_only": true,
   "b_located_by_unique_delivered_recovery_and_hardware_mapping": true,
   "b_state": {
@@ -20,15 +20,15 @@
       "started": "2026-11-12T03:13:39.656388819Z",
       "mounts": [
         {
-          "source": "/home/jt/pr26-deployment-885918d/private/oidc-client.json",
+          "source": "/redacted/historical-deployment/pr26-deployment-885918d/private/oidc-client.json",
           "target": "/private/oidc-client.json"
         },
         {
-          "source": "/home/jt/pr26-deployment-885918d/private/identity.key",
+          "source": "/redacted/historical-deployment/pr26-deployment-885918d/private/identity.key",
           "target": "/private/identity.key"
         },
         {
-          "source": "/home/jt/pr26-deployment-885918d/private/device-delivery/encryption-key",
+          "source": "/redacted/historical-deployment/pr26-deployment-885918d/private/device-delivery/encryption-key",
           "target": "/run/secrets/device-delivery-key"
         }
       ]
@@ -39,11 +39,11 @@
       "started": "2026-11-12T03:14:09.377698598Z",
       "mounts": [
         {
-          "source": "/home/jt/pr26-deployment-885918d/private/voice-logs",
+          "source": "/redacted/historical-deployment/pr26-deployment-885918d/private/voice-logs",
           "target": "/app/tmp"
         },
         {
-          "source": "/home/jt/pr26-deployment-885918d/private/voice-data",
+          "source": "/redacted/historical-deployment/pr26-deployment-885918d/private/voice-data",
           "target": "/app/data"
         }
       ]
@@ -76,11 +76,11 @@
       "started": "2026-11-12T02:51:28.817270192Z",
       "mounts": [
         {
-          "source": "/home/jt/xiaozhi-ubuntu-test/.runtime/public-entry/nginx-tls.conf",
+          "source": "/redacted/historical-deployment/xiaozhi-ubuntu-test/.runtime/public-entry/nginx-tls.conf",
           "target": "/etc/nginx/conf.d/default.conf"
         },
         {
-          "source": "/home/jt/.local/share/xiaozhi-public-entry/tls",
+          "source": "/redacted/historical-deployment/.local/share/xiaozhi-public-entry/tls",
           "target": "/etc/nginx/tls"
         }
       ]

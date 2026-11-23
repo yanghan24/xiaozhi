@@ -9,7 +9,7 @@
 
 原结果留在服务器，未下载到本机：
 
-- `/home/jt/issue12-a2-20261112/run01/result.json`，SHA-256 `a8be4d736a5a3711859ed07216cd91217deda9a07993578f6488ec160c057d31`
-- `/home/jt/issue12-a2-20261112/errors01/result.json`，SHA-256 `b5262ba7dc487997f561f6ee6a3e339816a5f0febcfb84113977fef9407aac43`
+- `/redacted/historical-deployment/issue12-a2-20261112/run01/result.json`，SHA-256 `a8be4d736a5a3711859ed07216cd91217deda9a07993578f6488ec160c057d31`
+- `/redacted/historical-deployment/issue12-a2-20261112/errors01/result.json`，SHA-256 `b5262ba7dc487997f561f6ee6a3e339816a5f0febcfb84113977fef9407aac43`
 
-本目录不含原 JSON，也不含知识原文、资源标识或凭据。结论见[探测记录](../../../2026-11-12-mcp-a2-a6-probe.md)。
+本目录不含原 JSON，也不含知识原文、资源标识或凭据。结论见[探测记录](../../../../archive/completed/mcp/verification/2026-11-12-mcp-a2-a6-probe.md)。

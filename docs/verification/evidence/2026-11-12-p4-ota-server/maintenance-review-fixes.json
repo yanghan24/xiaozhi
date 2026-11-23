@@ -1,7 +1,7 @@
 {
   "reviewed_head_before_fix": "677d69f735349a7ab73b5340cd043040b7edf811",
   "main_baseline": "b448aa080ba057f8e48383adf6501daa4df32011",
-  "environment": "Ubuntu jt@192.168.168.114, isolated root Python container, --network none, read-only source mount",
+  "environment": "production",
   "runtime_base_image": "xiaozhi-product-voice:prompt-7f10cbd",
   "command": "python -m unittest discover -s tests -p test_product_maintenance.py -v",
   "regressions": [

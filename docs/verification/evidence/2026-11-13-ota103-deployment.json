@@ -1,7 +1,7 @@
 {
   "deployed_at": "2026-11-13T08:34:42Z",
-  "server": "jt@192.168.168.114",
-  "deployment_root": "/home/jt/pr26-deployment-885918d",
+  "server": "production",
+  "deployment_root": "/redacted/historical-deployment/pr26-deployment-885918d",
   "merged_fix": {
     "pr": 106,
     "commit": "1fedfd0144adb3a0abae3f074911db1f9666115d"
@@ -12,8 +12,8 @@
     "voice": "sha256:f931a8ea6c7442019a0ef64254adb377cf855678974db7f9ff3899d5928599f2"
   },
   "backups": [
-    "/home/jt/pr26-deployment-885918d/private/backups/20261113T080439Z",
-    "/home/jt/pr26-deployment-885918d/private/backups/20261113T083401Z"
+    "/redacted/historical-deployment/pr26-deployment-885918d/private/backups/20261113T080439Z",
+    "/redacted/historical-deployment/pr26-deployment-885918d/private/backups/20261113T083401Z"
   ],
   "firmware_upload": {
     "firmware_id": "447d6bea932a4803866ac18e78701ba4",

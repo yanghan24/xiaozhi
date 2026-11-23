@@ -2,6 +2,7 @@
 .runtime/
 .env
 !main/manager-web/.env
+/deploy/local-zhou/dev.env
 **/node_modules/
 **/target/
 **/dist/

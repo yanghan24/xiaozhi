@@ -8,6 +8,7 @@
     @close="handleClose"
     :confirmText="$t('addAgentDialog.confirm')"
     :cancelText="$t('addAgentDialog.cancel')"
+    :confirm-loading="creating"
     @open="handleOpen"
   >
     <div class="add-agent-body">
@@ -39,7 +40,8 @@ export default {
   },
   data() {
     return {
-      wisdomBodyName: ""
+      wisdomBodyName: "",
+      creating: false
     }
   },
   methods: {
@@ -51,11 +53,15 @@ export default {
       });
     },
     confirm() {
+      if (this.creating) return;
       if (!this.wisdomBodyName.trim()) {
         this.$message.error(this.$t('addAgentDialog.nameRequired'));
         return;
       }
+      this.creating = true;
       Api.agent.addAgent(this.wisdomBodyName, (res) => {
+        this.creating = false;
+        if (res?.data?.code !== 0) { this.$message.error(res?.data?.msg || '新增智能体失败'); return; }
         this.$message.success({
           message: this.$t('addAgentDialog.addSuccess'),
           showClose: true

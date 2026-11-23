@@ -14,7 +14,7 @@ export default {
   'header.voiceResourceManagement': 'Voice Resource',
   'header.userManagement': 'Users',
   'header.otaManagement': 'OTA Management',
-  'header.paramDictionary': 'More',
+  'header.paramDictionary': 'System settings',
   'header.paramManagement': 'Params Management',
   'header.dictManagement': 'Dict Management',
   'header.agentTemplate': 'Default Role Templates', // 添加这一行
@@ -1098,6 +1098,7 @@ export default {
   'modelConfig.disableSuccess': 'Disable successful',
   'modelConfig.operationFailed': 'Operation failed',
   'modelConfig.setDefaultSuccess': 'Set default model successful, please restart the xiaozhi-server module manually in time',
+  'modelConfig.setSystemDefaultSuccess': 'System default model saved. Check the current default agent for the speaker’s model settings.',
   'modelConfig.itemsPerPage': '{items} items/page',
   'modelConfig.firstPage': 'First Page',
   'modelConfig.prevPage': 'Previous Page',

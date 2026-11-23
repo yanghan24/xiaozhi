@@ -1,0 +1,50 @@
+const fs=require('fs');
+const {chromium}=require('/opt/xiaozhi-dev/browser-tools/node_modules/playwright');
+(async()=>{
+ const fixture=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+ const browser=await chromium.launch({headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1000},locale:'zh-CN'});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(data=>{
+ localStorage.setItem('token',JSON.stringify({token:data.token,expire:7200,_localStoredAt:Date.now()}));
+ localStorage.setItem('userInfo',JSON.stringify(data.user));localStorage.setItem('pubConfig',JSON.stringify(data.public));localStorage.setItem('userLanguage','zh_CN');
+ },fixture);
+ await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
+ const visible=selector=>page.locator(selector).waitFor({state:'hidden'});
+ try{
+  await page.goto('http://127.0.0.1:8001/#/model-config');
+  await page.locator('.source-switch .el-radio-button.is-active').filter({hasText:'AI 集市'}).waitFor();
+  await page.locator('.market-panel').waitFor();
+  await page.locator('.source-switch .el-radio-button').filter({hasText:'小智系统'}).click();
+  await page.locator('.model-card tbody tr').first().waitFor();
+  await visible('.model-card .el-loading-mask');
+  if(await page.locator('.model-card tbody tr').count()===0)throw Error('Original system model rows missing');
+  await page.screenshot({path:'/opt/xiaozhi-dev/run/market-system-layout.png',fullPage:true,animations:'disabled'});
+  await page.locator('.source-switch .el-radio-button').filter({hasText:'AI 集市'}).click();
+  await visible('.market-panel .el-loading-mask');
+  if(await page.locator('.market-panel input[type=password]').count())throw Error('Resource credentials must not be edited in the browser');
+  await page.getByRole('button',{name:'保存配置',exact:true}).click();
+  await page.getByText('集市模型配置已保存',{exact:true}).waitFor();
+  await page.screenshot({path:'/opt/xiaozhi-dev/run/market-model-layout.png',fullPage:true,animations:'disabled'});
+  await page.locator('.nav-panel .el-menu-item').filter({hasText:/^语音识别$/}).click();
+  await visible('.market-panel .el-loading-mask');
+  const choices=await page.locator('.market-panel .el-select').evaluate(el=>el.__vue__?.$parent?.options?.length ?? null);
+  await page.locator('.market-select .el-input').click();
+  await page.locator('.el-select-dropdown:visible .el-select-dropdown__item').getByText('spark_zh_iat_new',{exact:true}).waitFor();
+  if(await page.locator('.el-select-dropdown:visible .el-select-dropdown__item').count()!==1)throw Error('ASR list exceeds scope');
+  await page.locator('.market-panel-header h3').click();
+  await page.screenshot({path:'/opt/xiaozhi-dev/run/market-asr-layout.png',fullPage:true,animations:'disabled'});
+  await page.setViewportSize({width:1024,height:900});
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Model layout overflows standard desktop width');
+  await page.screenshot({path:'/opt/xiaozhi-dev/run/market-model-1024.png',fullPage:true,animations:'disabled'});
+  await page.locator('.nav-panel .el-menu-item').filter({hasText:/^语音合成$/}).click();
+  await page.getByText('当前类型使用小智系统配置',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'查看小智系统配置',exact:true}).click();
+  await page.locator('.model-card').waitFor();
+  await page.goto('http://127.0.0.1:8001/#/role-config?agentId='+fixture.agent);
+  await page.locator('.config-header').getByText(fixture.name,{exact:true}).waitFor();
+  if(await page.locator('.el-select').count()<8)throw Error('Original complete role selectors missing');
+  if(errors.length)throw Error('Browser runtime error: '+errors.join(';'));
+  console.log('Model source groups, real catalogue, save, ASR scope, empty state, 1024 layout and complete role editor passed');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e.message);process.exitCode=1;});

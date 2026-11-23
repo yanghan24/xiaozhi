@@ -12,6 +12,8 @@ class VLLMProvider(VLLMProviderBase):
     def __init__(self, config):
         self.model_name = config.get("model_name")
         self.api_key = config.get("api_key")
+        is_market = config.get("source") == "aimarket"
+        self.reasoning_effort = config.get("reasoning_effort") if is_market else None
         if "base_url" in config:
             self.base_url = config.get("base_url")
         else:
@@ -37,7 +39,8 @@ class VLLMProvider(VLLMProviderBase):
         model_key_msg = check_model_key("VLLM", self.api_key)
         if model_key_msg:
             logger.bind(tag=TAG).error(model_key_msg)
-        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url,
+                                    **({"max_retries": 0, "timeout": 60} if is_market else {}))
 
     def response(self, question, base64_image):
         question = question + "(请使用中文回复)"
@@ -57,9 +60,10 @@ class VLLMProvider(VLLMProviderBase):
                 }
             ]
 
-            response = self.client.chat.completions.create(
-                model=self.model_name, messages=messages, stream=False
-            )
+            request_params = {"model": self.model_name, "messages": messages, "stream": False}
+            if self.reasoning_effort:
+                request_params["extra_body"] = {"reasoning_effort": self.reasoning_effort}
+            response = self.client.chat.completions.create(**request_params)
 
             return response.choices[0].message.content
 

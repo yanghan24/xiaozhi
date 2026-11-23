@@ -9,6 +9,6 @@
   "device_identity_ownership_permission_unchanged": true,
   "private_configuration_unchanged": true,
   "local_tls_ota_http": 200,
-  "backup_directory": "/home/jt/rtasr-llm-work/deployment-20261113T022452Z",
+  "backup_directory": "/redacted/historical-deployment/rtasr-llm-work/deployment-20261113T022452Z",
   "physical_voice_test": false
 }

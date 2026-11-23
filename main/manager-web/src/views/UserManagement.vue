@@ -1,12 +1,12 @@
 <template>
-  <div class="welcome">
-    <HeaderBar />
+  <div class="welcome" :class="{ 'management-embedded': embedded }">
+    <HeaderBar v-if="!embedded" />
     <div class="main-wrapper">
       <div class="content-panel">
         <div class="content-area">
           <el-card class="user-card" shadow="never">
             <div class="operation-header">
-              <h2 class="page-title">{{ $t('header.userManagement') }}</h2>
+              <h2 v-if="!embedded" class="page-title">{{ $route.path === '/admin-accounts' ? '管理员账号' : $t('header.userManagement') }}</h2>
               <div class="right-operations">
                 <el-input :placeholder="$t('user.searchPhone')" v-model="searchPhone" class="search-input" clearable
                   @keyup.enter.native="handleSearch" />
@@ -69,7 +69,7 @@
     </div>
 
     <view-password-dialog :visible.sync="showViewPassword" :password="currentPassword" />
-    <el-footer>
+    <el-footer v-if="!embedded">
       <version-footer />
     </el-footer>
   </div>
@@ -83,6 +83,7 @@ import ViewPasswordDialog from "@/components/ViewPasswordDialog.vue";
 import CustomButton from "@/components/CustomButton.vue";
 import CustomTable from "@/components/CustomTable.vue";
 export default {
+  props: { embedded: { type: Boolean, default: false } },
   components: { HeaderBar, ViewPasswordDialog, VersionFooter, CustomButton, CustomTable },
   data() {
     return {
@@ -458,4 +459,5 @@ export default {
 :deep(.el-table .el-button--text:hover) {
   color: #5a64b5 !important;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

@@ -1,7 +1,7 @@
 {
   "status": "passed",
   "at": "2026-11-06T17:19:50.882096+08:00",
-  "host": "192.168.168.114",
+  "host": "historical-host.invalid",
   "source_revision": "6e354edf292c3df14fd783c5dc7314a4402e3b74",
   "project": "xiaozhi-ubuntu-test",
   "containers": [

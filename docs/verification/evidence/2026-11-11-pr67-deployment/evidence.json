@@ -5,8 +5,8 @@
   "image": "xiaozhi-product-api:1b50709",
   "image_id": "sha256:429f8577b4559b27e7dacb558db0e4f53321faed2e2eb4f70798bef1f47ecb63",
   "tested_and_deployed_jar_sha256": "24eedf38b764c60a94d90392651f76db502333faac5c51f91dc8040fb506b24a",
-  "backup_before": "/home/jt/pr26-deployment-885918d/private/backups/20261111T083432Z",
-  "backup_after": "/home/jt/pr26-deployment-885918d/private/backups/20261111T083455Z",
+  "backup_before": "/redacted/historical-deployment/pr26-deployment-885918d/private/backups/20261111T083432Z",
+  "backup_after": "/redacted/historical-deployment/pr26-deployment-885918d/private/backups/20261111T083455Z",
   "regression": {
     "revision": "1b50709fd1cadfad966b12d4afedf78b1f279aa6",
     "totals": {

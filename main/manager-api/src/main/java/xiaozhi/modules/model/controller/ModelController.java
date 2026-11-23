@@ -43,6 +43,7 @@ public class ModelController {
     private final ModelConfigService modelConfigService;
     private final ConfigService configService;
     private final AgentTemplateService agentTemplateService;
+    private final xiaozhi.modules.model.market.MarketModelBindings marketBindings;
 
     @GetMapping("/names")
     @Operation(summary = "获取所有模型名称")
@@ -50,7 +51,7 @@ public class ModelController {
     public Result<List<ModelBasicInfoDTO>> getModelNames(@RequestParam String modelType,
             @RequestParam(required = false) String modelName) {
         List<ModelBasicInfoDTO> modelList = modelConfigService.getModelCodeList(modelType, modelName);
-        return new Result<List<ModelBasicInfoDTO>>().ok(modelList);
+        return new Result<List<ModelBasicInfoDTO>>().ok(marketBindings.compatibleChoices(modelList));
     }
 
     @GetMapping("/llm/names")
@@ -58,7 +59,7 @@ public class ModelController {
     @RequiresPermissions("sys:role:normal")
     public Result<List<LlmModelBasicInfoDTO>> getLlmModelCodeList(@RequestParam(required = false) String modelName) {
         List<LlmModelBasicInfoDTO> llmModelCodeList = modelConfigService.getLlmModelCodeList(modelName);
-        return new Result<List<LlmModelBasicInfoDTO>>().ok(llmModelCodeList);
+        return new Result<List<LlmModelBasicInfoDTO>>().ok(marketBindings.compatibleChoices(llmModelCodeList));
     }
 
     @GetMapping("/{modelType}/provideTypes")
@@ -125,6 +126,7 @@ public class ModelController {
     @Operation(summary = "启用/关闭模型配置")
     @RequiresPermissions("sys:role:superAdmin")
     public Result<Void> enableModelConfig(@PathVariable String id, @PathVariable Integer status) {
+        if(id.startsWith("MARKET_")) return new Result<Void>().error("请通过 AI 集市分组管理适配配置");
         ModelConfigEntity entity = modelConfigService.selectById(id);
         if (entity == null) {
             return new Result<Void>().error("模型配置不存在");
@@ -144,6 +146,7 @@ public class ModelController {
     @Operation(summary = "设置默认模型")
     @RequiresPermissions("sys:role:superAdmin")
     public Result<Void> setDefaultModel(@PathVariable String id) {
+        if(id.startsWith("MARKET_")) return new Result<Void>().error("请在智能体中选择 AI 集市配置");
         ModelConfigEntity entity = modelConfigService.selectById(id);
         if (entity == null) {
             return new Result<Void>().error("模型配置不存在");

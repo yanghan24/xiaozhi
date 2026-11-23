@@ -1098,6 +1098,7 @@ export default {
   'modelConfig.disableSuccess': 'Tắt thành công',
   'modelConfig.operationFailed': 'Thao tác thất bại',
   'modelConfig.setDefaultSuccess': 'Đặt mô hình mặc định thành công, vui lòng khởi động lại module xiaozhi-server thủ công kịp thời',
+  'modelConfig.setSystemDefaultSuccess': 'Đã lưu mô hình mặc định của hệ thống. Xem cấu hình mô hình của loa trong trợ lý mặc định hiện tại.',
   'modelConfig.itemsPerPage': '{items} mục/trang',
   'modelConfig.firstPage': 'Trang đầu',
   'modelConfig.prevPage': 'Trang trước',

@@ -29,7 +29,7 @@
   "public_admin_and_internal_routes": 404,
   "temporary_credentials_removed": true,
   "backup_includes_asr_settings": true,
-  "backup_directory": "/home/jt/asr-provider-switch-20261113/deployment-20261113T030226Z",
+  "backup_directory": "/redacted/historical-deployment/asr-provider-switch-20261113/deployment-20261113T030226Z",
   "physical_device_test": false,
   "started_utc": {
     "product-api": "2026-11-13T03:02:36.595245484Z",

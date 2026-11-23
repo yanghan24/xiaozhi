@@ -1,23 +1,35 @@
-## Agent skills
+# 仓库代理协作规则
 
-### Issue tracker
+## 技能与文档
 
-Issues and specs live in GitHub Issues for `yanghan24/xiaozhi`. Before creating, reading, or updating tickets or specs, read `docs/agents/issue-tracker.md`.
+### 任务与规格
 
-### Triage labels
+项目任务和规格维护在 `yanghan24/xiaozhi` 的 GitHub Issues。创建、读取或更新任务和规格前，先阅读 [任务管理说明](docs/agents/issue-tracker.md)。
 
-Use the five default triage roles. Before triaging an issue or changing its triage status, read `docs/agents/triage-labels.md`.
+### 分流标签
 
-### Domain docs
+采用五种默认分流角色。进行任务分流或修改分流状态前，先阅读 [分流标签说明](docs/agents/triage-labels.md)。
 
-Single-context layout: root `GLOSSARY.md` and `docs/adr/`. Before exploring the codebase, read `docs/agents/domain.md`.
+### 领域文档
 
-## Collaboration
+项目采用单一领域上下文，架构、术语和模块扩展边界位于根目录 [README.md](README.md)，架构决策位于 `docs/adr/`。探索代码前，先阅读 [领域文档约定](docs/agents/domain.md)、README 和相关架构决策。
 
-Before editing project files, creating branches or worktrees, committing, pushing, opening PRs, or undoing changes, read `CONTRIBUTING.md` for this repository's collaboration and recovery workflow.
+## 协作
 
-Before planning or running physical-device tests, read the testing environment policy in `CONTRIBUTING.md`.
+编辑项目文件、创建分支或 worktree、提交、推送、创建 PR 或撤销改动前，先阅读 [团队协作与安全回退](CONTRIBUTING.md)。执行时遵守用户针对当前任务明确约定的分支和操作范围。
 
-## Backend validation
+规划或执行真机测试前，先阅读 `CONTRIBUTING.md` 的测试环境政策。开发检查与真机验收分别记录，不扩大验证范围。
 
-Run backend services, regression tests, and device protocol checks on Ubuntu `192.168.168.114` using SSH user `jt`. The local computer may provide editing, SSH, and browser access. Before looking up public endpoints or deployment versions, or provisioning, testing, or restarting backend services, read [the current deployment entry](docs/deployment/current.md) and its linked evidence. If local deployment documentation is missing or stale, check that entry on GitHub's latest `main` before concluding the information is unavailable.
+## 开发环境
+
+开发前确认并阅读当前工作区适用的环境说明。各协作者可以使用不同的开发环境；个人容器、数据库地址、目录及操作步骤放在 `deploy/` 下对应的环境目录，不作为团队统一要求。
+
+遵守当前环境已约定的工具、依赖、缓存和生成文件存放位置，不擅自安装宿主机工具或改变其他项目环境。临时文件、日志和运行数据放在该环境约定的位置，避免污染源码目录。
+
+开发数据库和缓存须与生产及其他项目隔离。AI 集市仅作为只读参考，不修改其源码、数据库、Redis、文件、容器或配置。真实凭据和私有配置保存在仓库之外，不得提交。
+
+## 生产环境
+
+生产环境独立于开发，不作为本地开发的依赖。本地开发不得连接生产数据库、复制生产运行配置或修改生产服务。生产账号、SSH 命令、跳转链路和私有访问文件路径不得记录在任何仓库文件中，包括个人环境目录。
+
+仅在明确开展生产环境任务时，先阅读 [生产部署规范](deploy/production/README.md)、[当前部署状态](docs/deployment/current.md) 及其关联证据，再查询端点或版本、配置资源、测试或重启服务。若本地部署文档缺失或过期，先核对 GitHub 最新 `main` 中的部署入口。生产操作须有明确授权，真机验收与开发检查保持分离。

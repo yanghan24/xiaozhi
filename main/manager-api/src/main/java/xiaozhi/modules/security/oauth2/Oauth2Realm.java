@@ -36,6 +36,8 @@ import xiaozhi.modules.sys.enums.SuperAdminEnum;
  */
 @Component
 public class Oauth2Realm extends AuthorizingRealm {
+    @org.springframework.beans.factory.annotation.Value("${speaker.enabled:false}")
+    private boolean speakerAdminOnly;
     @Lazy
     @Resource
     private ShiroService shiroService;
@@ -85,6 +87,9 @@ public class Oauth2Realm extends AuthorizingRealm {
 
         // 查询用户信息
         SysUserEntity userEntity = shiroService.getUser(tokenEntity.getUserId());
+        if (speakerAdminOnly && (userEntity == null || !Integer.valueOf(1).equals(userEntity.getSuperAdmin()))) {
+            throw new DisabledAccountException("ADMIN_CONSOLE_ONLY");
+        }
 
         // 转换成UserDetail对象
         UserDetail userDetail = ConvertUtils.sourceToTarget(userEntity, UserDetail.class);

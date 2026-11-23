@@ -19,7 +19,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.repository.IRepository;
 
 import cn.hutool.core.collection.CollUtil;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import xiaozhi.common.constant.Constant;
 import xiaozhi.common.exception.ErrorCode;
 import xiaozhi.common.exception.RenException;
@@ -63,8 +63,11 @@ import xiaozhi.modules.sys.enums.SuperAdminEnum;
 import xiaozhi.modules.timbre.service.TimbreService;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> implements AgentService {
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerMcp speakerMcp;
+    @org.springframework.beans.factory.annotation.Value("${speaker.enabled:false}")
+    private boolean speakerMode;
     private final AgentDao agentDao;
     private final AgentTagDao agentTagDao;
     private final TimbreService timbreModelService;
@@ -79,6 +82,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     private final AgentTagService agentTagService;
     private final CorrectWordFileService correctWordFileService;
     private final AgentSnapshotService agentSnapshotService;
+    @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketModelBindings marketBindings;
 
     @Override
     public PageData<AgentEntity> adminAgentList(Map<String, Object> params) {
@@ -215,10 +219,14 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         if (agentDao.selectByIdForUpdate(agentId) == null) {
             return;
         }
+        if (speakerMode && agentDao.isSpeakerDefault(agentId)) {
+            throw new RenException("当前默认智能体不能删除，请先切换默认智能体");
+        }
         deviceService.deleteByAgentId(agentId);
         agentChatHistoryService.deleteByAgentId(agentId, true, true);
         agentPluginMappingService.deleteByAgentId(agentId);
         agentContextProviderService.deleteByAgentId(agentId);
+        if (speakerMode) speakerMcp.removeAgent(agentId);
         correctWordFileService.deleteMappingsByAgentId(agentId);
         agentTagService.deleteAgentTags(agentId);
         agentSnapshotService.deleteByAgentId(agentId);
@@ -228,7 +236,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     @Override
     public List<AgentDTO> getUserAgents(Long userId, String keyword, String searchType) {
         QueryWrapper<AgentEntity> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_id", userId).orderByDesc("created_at");
+        queryWrapper.eq(!(speakerMode && isCurrentUserSuperAdmin()), "user_id", userId).orderByDesc("created_at");
 
         if (StringUtils.isNotBlank(keyword)) {
             queryWrapper.and(w -> {
@@ -287,7 +295,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         dto.setLastConnectedAt(deviceService.getLatestLastConnectionTime(agent.getId()));
 
         // 获取设备数量
-        dto.setDeviceCount(getDeviceCountByAgentId(agent.getId()));
+        dto.setDeviceCount(speakerMode ? agentDao.getSpeakerDeviceCount(agent.getId()) : getDeviceCountByAgentId(agent.getId()));
 
         // 获取标签列表
         List<AgentTagEntity> tags = agentTagDao.selectByAgentId(agent.getId());
@@ -537,6 +545,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         if (!b) {
             throw new RenException(ErrorCode.LLM_INTENT_PARAMS_MISMATCH);
         }
+        marketSelections(existingEntity);
         this.updateById(existingEntity);
         if (createSnapshot) {
             agentSnapshotService.createSnapshot(agentId, "config");
@@ -573,6 +582,26 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
      * @param intentModelId 意图识别id
      * @return T 匹配 : F 不匹配
      */
+    private void marketSelections(AgentEntity agent) {
+        var selected=new java.util.LinkedHashMap<String,String>();
+        selected.put("LLM",agent.getLlmModelId());selected.put("ASR",agent.getAsrModelId());
+        selected.put("VAD",agent.getVadModelId());selected.put("TTS",agent.getTtsModelId());
+        selected.put("VLLM",agent.getVllmModelId());selected.put("SLM",agent.getSlmModelId());
+        selected.put("Intent",agent.getIntentModelId());selected.put("Memory",agent.getMemModelId());
+        if ("MARKET_TTS".equals(agent.getTtsModelId())) {
+            var voice = timbreModelService.get(agent.getTtsVoiceId());
+            if (voice == null || !agent.getTtsModelId().equals(voice.getTtsModelId())) {
+                throw new RenException("请选择 AI 集市语音合成的音色");
+            }
+        }
+        if(selected.values().stream().filter(java.util.Objects::nonNull).anyMatch(id->id.startsWith("MARKET_"))) {
+            try { marketBindings.validateSelections(selected); }
+            catch(xiaozhi.modules.speaker.SpeakerFailure unavailable) {
+                throw new RenException("所选 AI 集市模型尚未启用、已不可用或不符合用途，请检查模型配置及集市目录");
+            }
+        }
+    }
+
     private boolean validateLLMIntentParams(String llmModelId, String intentModelId) {
         if (StringUtils.isBlank(llmModelId)) {
             return true;
@@ -590,107 +619,67 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createAgent(AgentCreateDTO dto) {
-        // 转换为实体
-        AgentEntity entity = ConvertUtils.sourceToTarget(dto, AgentEntity.class);
+        AgentEntity entity = new AgentEntity();
+        entity.setAgentName(dto.getAgentName().strip());
+        entity.setSystemPrompt("");
+        entity.setSummaryMemory("");
+        entity.setChatHistoryConf(0);
+        initializeOwner(entity);
+        insert(entity);
+        agentSnapshotService.createSnapshot(entity.getId(), "initial");
+        return entity.getId();
+    }
 
-        // 获取默认模板
-        AgentTemplateEntity template = agentTemplateService.getDefaultTemplate();
-        if (template != null) {
-            // 设置模板中的默认值
-            entity.setAsrModelId(template.getAsrModelId());
-            entity.setVadModelId(template.getVadModelId());
-            entity.setLlmModelId(template.getLlmModelId());
-            entity.setVllmModelId(template.getVllmModelId());
-            entity.setTtsModelId(template.getTtsModelId());
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String copyAgent(String agentId) {
+        AgentEntity source = agentDao.selectByIdForUpdate(agentId);
+        if (source == null) throw new RenException(ErrorCode.AGENT_NOT_FOUND);
+        requireAgentPermission(source, SecurityUser.getUserId());
+        AgentEntity copy = new AgentEntity();
+        org.springframework.beans.BeanUtils.copyProperties(source, copy,
+                "id", "userId", "creator", "createdAt", "updater", "updatedAt",
+                "agentCode", "sort", "summaryMemory");
+        String name = StringUtils.defaultIfBlank(source.getAgentName(), "智能体");
+        copy.setAgentName(name.substring(0, name.offsetByCodePoints(0,
+                Math.min(60, name.codePointCount(0, name.length())))) + "（副本）");
+        copy.setSummaryMemory("");
+        initializeOwner(copy);
+        insert(copy);
 
-            if (template.getTtsVoiceId() == null && template.getTtsModelId() != null) {
-                ModelConfigEntity ttsModel = modelConfigService.selectById(template.getTtsModelId());
-                if (ttsModel != null && ttsModel.getConfigJson() != null) {
-                    Map<String, Object> config = ttsModel.getConfigJson();
-                    String voice = (String) config.get("voice");
-                    if (StringUtils.isBlank(voice)) {
-                        voice = (String) config.get("speaker");
-                    }
-                    VoiceDTO timbre = timbreModelService.getByVoiceCode(template.getTtsModelId(), voice);
-                    if (timbre != null) {
-                        template.setTtsVoiceId(timbre.getId());
-                    }
-                }
-            }
-
-            entity.setTtsVoiceId(template.getTtsVoiceId());
-            entity.setTtsLanguage(defaultIfBlank(template.getTtsLanguage(),
-                    timbreModelService.getDefaultLanguageById(entity.getTtsVoiceId())));
-            entity.setMemModelId(template.getMemModelId());
-            entity.setIntentModelId(template.getIntentModelId());
-            entity.setSystemPrompt(template.getSystemPrompt());
-            entity.setSummaryMemory(template.getSummaryMemory());
-            if (Constant.MEMORY_NO_MEM.equals(entity.getMemModelId())
-                    || Constant.MEMORY_MEM_REPORT_ONLY.equals(entity.getMemModelId())) {
-                entity.setSummaryMemory("");
-            }
-
-            // 根据记忆模型类型设置默认的chatHistoryConf值
-            if (template.getMemModelId() != null) {
-                if (template.getMemModelId().equals("Memory_nomem")) {
-                    // 无记忆功能的模型，默认不记录聊天记录
-                    entity.setChatHistoryConf(0);
-                } else {
-                    // 有记忆功能的模型，默认记录文本和语音
-                    entity.setChatHistoryConf(2);
-                }
-            } else {
-                entity.setChatHistoryConf(template.getChatHistoryConf());
-            }
-
-            entity.setLangCode(template.getLangCode());
-            entity.setLanguage(template.getLanguage());
+        List<AgentPluginMapping> plugins = agentPluginMappingService.list(
+                new QueryWrapper<AgentPluginMapping>().eq("agent_id", agentId));
+        if (!plugins.isEmpty()) {
+            List<AgentPluginMapping> copiedPlugins = plugins.stream().map(original -> {
+                AgentPluginMapping mapping = new AgentPluginMapping();
+                mapping.setAgentId(copy.getId());
+                mapping.setPluginId(original.getPluginId());
+                mapping.setParamInfo(original.getParamInfo());
+                return mapping;
+            }).toList();
+            agentPluginMappingService.saveBatch(copiedPlugins, IRepository.DEFAULT_BATCH_SIZE);
         }
-
-        if (entity.getSlmModelId() == null) {
-            String defaultSlmModelId = getDefaultLLMModelId();
-            if (defaultSlmModelId != null) {
-                entity.setSlmModelId(defaultSlmModelId);
-            }
+        AgentContextProviderEntity context = agentContextProviderService.getByAgentId(agentId);
+        if (context != null) {
+            AgentContextProviderEntity copiedContext = new AgentContextProviderEntity();
+            copiedContext.setAgentId(copy.getId());
+            copiedContext.setContextProviders(context.getContextProviders());
+            agentContextProviderService.saveOrUpdateByAgentId(copiedContext);
         }
+        correctWordFileService.saveAgentCorrectWords(copy.getId(),
+                correctWordFileService.getAgentCorrectWordFileIds(agentId));
+        agentTagService.saveAgentTags(copy.getId(), agentTagDao.selectByAgentId(agentId).stream()
+                .map(AgentTagEntity::getId).toList(), null);
+        speakerMcp.copyAssociations(agentId, copy.getId());
+        agentSnapshotService.createSnapshot(copy.getId(), "initial");
+        return copy.getId();
+    }
 
-        // 设置用户ID和创建者信息
+    private void initializeOwner(AgentEntity entity) {
         UserDetail user = SecurityUser.getUser();
         entity.setUserId(user.getId());
         entity.setCreator(user.getId());
         entity.setCreatedAt(new Date());
-
-        // 保存智能体
-        insert(entity);
-
-        // 设置默认插件
-        List<AgentPluginMapping> toInsert = new ArrayList<>();
-        // 播放音乐、查天气、查新闻
-        String[] pluginIds = new String[] { "SYSTEM_PLUGIN_MUSIC", "SYSTEM_PLUGIN_WEATHER",
-                "SYSTEM_PLUGIN_NEWS_NEWSNOW" };
-        for (String pluginId : pluginIds) {
-            ModelProviderDTO provider = modelProviderService.getById(pluginId);
-            if (provider == null) {
-                continue;
-            }
-            AgentPluginMapping mapping = new AgentPluginMapping();
-            mapping.setPluginId(pluginId);
-
-            Map<String, Object> paramInfo = new HashMap<>();
-            List<Map<String, Object>> fields = JsonUtils.parseMapList(provider.getFields());
-            if (fields != null) {
-                for (Map<String, Object> field : fields) {
-                    paramInfo.put((String) field.get("key"), field.get("default"));
-                }
-            }
-            mapping.setParamInfo(JsonUtils.toJsonString(paramInfo));
-            mapping.setAgentId(entity.getId());
-            toInsert.add(mapping);
-        }
-        // 保存默认插件
-        agentPluginMappingService.saveBatch(toInsert, IRepository.DEFAULT_BATCH_SIZE);
-        agentSnapshotService.createSnapshot(entity.getId(), "initial");
-        return entity.getId();
     }
 
     private String defaultIfBlank(String value, String defaultValue) {

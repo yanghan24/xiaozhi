@@ -148,4 +148,6 @@ public interface DeviceService extends BaseService<DeviceEntity> {
      */
     Object callDeviceTool(String deviceId, String toolName, Map<String, Object> arguments);
 
+    xiaozhi.modules.device.dto.DeviceReportRespDTO.Firmware buildFirmwareInfo(String type, String currentVersion);
+
     }

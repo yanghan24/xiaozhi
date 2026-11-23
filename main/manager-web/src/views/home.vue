@@ -55,6 +55,7 @@
           </div>
         </div>
         <div class="device-list-container">
+          <el-alert v-if="speakerMode && !defaultAgentId" title="请新增或配置智能体，并明确设为默认，音箱才能开始对话。" type="warning" :closable="false" show-icon />
           <template v-if="isLoading">
             <div v-for="i in skeletonCount" :key="'skeleton-' + i" class="skeleton-item">
               <div class="skeleton-image"></div>
@@ -66,7 +67,9 @@
           </template>
 
           <template v-else>
-            <DeviceItem v-for="(item, index) in devices" :key="index" :device="item" :feature-status="featureStatus" 
+            <DeviceItem v-for="(item, index) in orderedDevices" :key="item.agentId" :device="item" :feature-status="featureStatus"
+              :administrator-mode="speakerMode" :is-default="item.agentId === defaultAgentId" :default-loading="defaultLoading" :copy-loading="copyingAgentId === item.agentId" :copy-disabled="!!copyingAgentId"
+              @select-default="selectDefault" @copy="copyAgent"
               @configure="goToRoleConfig" @deviceManage="handleDeviceManage" @delete="handleDeleteAgent" 
               @chat-history="handleShowChatHistory" />
           </template>
@@ -145,6 +148,7 @@ import DeviceItem from '@/components/DeviceItem.vue';
 import HeaderBar from '@/components/HeaderBar.vue';
 import VersionFooter from '@/components/VersionFooter.vue';
 import featureManager from '@/utils/featureManager';
+import { adminToken, speakerRequest } from '@/apis/speaker';
 
 export default {
   name: 'HomePage',
@@ -153,6 +157,9 @@ export default {
     return {
       addDeviceDialogVisible: false,
       devices: [],
+      defaultAgentId: null,
+      defaultRevision: 0,
+      defaultLoading: false,
       originalDevices: [],
       isSearching: false,
       searchRegex: null,
@@ -175,10 +182,18 @@ export default {
       deleteTargetAgentName: '',
       deleteAgentConfirmText: '',
       isDeletingAgent: false,
+      copyingAgentId: null,
     }
   },
 
   computed: {
+    orderedDevices() {
+      if (!this.speakerMode || !this.defaultAgentId) return this.devices;
+      const index = this.devices.findIndex(item => item.agentId === this.defaultAgentId);
+      if (index <= 0) return this.devices;
+      return [this.devices[index], ...this.devices.slice(0, index), ...this.devices.slice(index + 1)];
+    },
+    speakerMode() { return this.$store.state.pubConfig.speakerMode === true; },
     ...mapState({
       userInfo: (state) => state.userInfo,
     }),
@@ -216,6 +231,7 @@ export default {
     handleWisdomBodyAdded(res) {
       this.fetchAgentList();
       this.addDeviceDialogVisible = false;
+      if (this.speakerMode && res?.data?.data) this.$router.push({ path: '/role-config', query: { agentId: res.data.data } });
     },
     handleDeviceManage() {
       this.$router.push('/device-management');
@@ -232,6 +248,7 @@ export default {
     },
     // 获取智能体列表
     fetchAgentList() {
+      if (this.speakerMode) this.fetchDefault();
       this.isLoading = true;
       Api.agent.getAgentList(({ data }) => {
         if (data?.data) {
@@ -253,6 +270,34 @@ export default {
         console.error('Failed to fetch agent list:', error);
         this.isLoading = false;
       });
+    },
+    copyAgent(agent) {
+      if (this.copyingAgentId) return;
+      this.copyingAgentId = agent.agentId;
+      Api.agent.copyAgent(agent.agentId, ({ data }) => {
+        this.copyingAgentId = null;
+        if (data?.code !== 0 || !data.data) {
+          this.$message.error(data?.msg || '复制智能体失败');
+          return;
+        }
+        this.$message.success('智能体已复制，请在副本中编辑配置。');
+        this.$router.push({ path: '/role-config', query: { agentId: data.data } });
+      }, () => {
+        this.copyingAgentId = null;
+        this.$message.error('复制结果未确认，请刷新列表查看后再操作。');
+      });
+    },
+    async fetchDefault() {
+      try { const result = await speakerRequest(adminToken(this.$store), 'agent-default'); this.defaultAgentId = result.agent_id; this.defaultRevision = result.revision; }
+      catch (error) { this.$message.error(error.message); }
+    },
+    async selectDefault(agent) {
+      if (this.defaultLoading || agent.agentId === this.defaultAgentId) return;
+      try { await this.$confirm(`将「${agent.agentName}」设为所有音箱的默认智能体？当前回答先完成，下一轮使用新角色并清空旧上下文。`, '设置默认智能体', { type: 'warning' }); } catch (_) { return; }
+      this.defaultLoading = true;
+      try { await speakerRequest(adminToken(this.$store), `agent-default/${encodeURIComponent(agent.agentId)}`, { expected_revision: this.defaultRevision }); await this.fetchDefault(); this.fetchAgentList(); }
+      catch (error) { this.$message.error(error.message); await this.fetchDefault(); }
+      finally { this.defaultLoading = false; }
     },
     // 删除智能体
     handleDeleteAgent(device) {

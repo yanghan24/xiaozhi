@@ -14,7 +14,7 @@ export default {
   'header.knowledgeBase': '知识库',
   'header.userManagement': '用户管理',
   'header.otaManagement': 'OTA管理',
-  'header.paramDictionary': '参数字典',
+  'header.paramDictionary': '系统设置',
   'header.paramManagement': '参数管理',
   'header.dictManagement': '字典管理',
   'header.agentTemplate': '默认角色模板',
@@ -1098,6 +1098,7 @@ export default {
   'modelConfig.disableSuccess': '禁用成功',
   'modelConfig.operationFailed': '操作失败',
   'modelConfig.setDefaultSuccess': '设置默认模型成功，请及时手动重启xiaozhi-server模块',
+  'modelConfig.setSystemDefaultSuccess': '已保存系统默认模型。音箱的模型配置请在当前默认智能体中查看。',
   'modelConfig.itemsPerPage': '{items}条/页',
   'modelConfig.firstPage': '首页',
   'modelConfig.prevPage': '上一页',
@@ -1261,7 +1262,7 @@ export default {
   'providerDialog.batchDeleteFieldsSuccess': '成功删除{count}个字段',
 
   // 默认角色模版页面文本
-  'agentTemplateManagement.title': '默认角色管理',
+  'agentTemplateManagement.title': '预置角色模板',
   'agentTemplateManagement.templateName': '模板名称',
   'agentTemplateManagement.action': '操作',
   'agentTemplateManagement.createTemplate': '创建模板',

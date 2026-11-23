@@ -1,19 +1,11 @@
-# Domain Docs
+# 领域文档
 
-## Layout
+## 文档位置
 
-This repository uses a single context: `GLOSSARY.md` at the repository root and architecture decision records in `docs/adr/`.
+项目采用单一领域上下文。[根目录 README](../../README.md) 维护当前架构、模块职责、开发边界和术语，[架构决策索引](../adr/README.md)标明有效范围与后继决策。[文档索引](../README.md)提供现行开发、部署、验证与归档入口。
 
-Create these files lazily when a domain term or architectural decision is resolved, using the `domain-modeling` skill.
+探索代码前，先阅读 README 相关模块及架构决策。任务说明、方案、测试和接口命名使用已有术语。确认新增领域概念时补充对应模块的说明，确认新的架构决定时记录 ADR。
 
-## Before exploring the codebase
+## 架构决策
 
-Read `GLOSSARY.md` and any ADRs in `docs/adr/` relevant to the area you are exploring. If they do not exist, proceed silently.
-
-## Use the glossary's vocabulary
-
-Use the terms defined in `GLOSSARY.md` when naming domain concepts in issue titles, proposals, hypotheses, and tests. If a needed concept is missing, check whether the project already uses another term; record a real gap for `domain-modeling`.
-
-## Flag ADR conflicts
-
-If a proposal contradicts an existing ADR, explicitly identify the ADR and explain why the decision should be revisited.
+方案与现有 ADR 有冲突时，指出对应决策和需要重新评审的原因。核对已有 ADR 是否被后续决策细化或替代。

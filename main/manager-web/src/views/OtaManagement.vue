@@ -1,12 +1,12 @@
 <template>
-    <div class="welcome">
-        <HeaderBar />
+    <div class="welcome" :class="{ 'ota-embedded': embedded, 'management-embedded': embedded }">
+        <HeaderBar v-if="!embedded" />
         <div class="main-wrapper">
             <div class="content-panel">
                 <div class="content-area">
                     <el-card class="params-card" shadow="never">
                         <div class="operation-header">
-                            <h2 class="page-title">{{ $t('otaManagement.firmwareManagement') }}</h2>
+                            <h2 v-if="!embedded" class="page-title">{{ $t('otaManagement.firmwareManagement') }}</h2>
                             <div class="right-operations">
                                 <el-input :placeholder="$t('otaManagement.searchPlaceholder')" v-model="searchName"
                                     class="search-input" @keyup.enter.native="handleSearch" clearable />
@@ -70,7 +70,7 @@
         <!-- 新增/编辑固件对话框 -->
         <firmware-dialog ref="firmwareDialog" :title="dialogTitle" :visible.sync="dialogVisible" :form="firmwareForm"
             :firmware-types="firmwareTypes" @submit="handleSubmit" @cancel="dialogVisible = false" />
-        <el-footer>
+        <el-footer v-if="!embedded">
             <version-footer />
         </el-footer>
     </div>
@@ -87,6 +87,7 @@ import { formatDate, formatFileSize } from "@/utils/format";
 
 export default {
     components: { HeaderBar, FirmwareDialog, VersionFooter, CustomButton, CustomTable },
+    props: { embedded: { type: Boolean, default: false } },
     data() {
         return {
             searchName: "",
@@ -365,6 +366,21 @@ export default {
     box-sizing: border-box;
 }
 
+.ota-embedded {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: transparent;
+
+    .main-wrapper {
+        flex: 1;
+        min-height: 0;
+        height: auto;
+        padding: 0;
+    }
+}
+
 .operation-header {
     display: flex;
     align-items: center;
@@ -436,4 +452,5 @@ export default {
 :deep(.el-table .el-button--text:hover) {
     color: #5a64b5;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

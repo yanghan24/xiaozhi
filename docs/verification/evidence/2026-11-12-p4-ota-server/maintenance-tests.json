@@ -1,5 +1,5 @@
 {
-  "environment": "Ubuntu jt@192.168.168.114, isolated root Python process in existing voice image, --network none",
+  "environment": "production",
   "command": "python -m unittest discover -s tests -p test_product_maintenance.py -v",
   "runtime_base_image": "xiaozhi-product-voice:prompt-7f10cbd",
   "tests": 13,

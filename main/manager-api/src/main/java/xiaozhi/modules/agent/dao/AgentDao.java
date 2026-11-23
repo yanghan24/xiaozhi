@@ -10,6 +10,10 @@ import xiaozhi.modules.agent.vo.AgentInfoVO;
 
 @Mapper
 public interface AgentDao extends BaseDao<AgentEntity> {
+    @Select("SELECT COUNT(*)>0 FROM speaker_runtime WHERE id=1 AND configured_agent_id=#{id}")
+    boolean isSpeakerDefault(@Param("id") String id);
+    @Select("SELECT COUNT(*) FROM speaker_device_state s JOIN speaker_runtime r ON r.id=1 WHERE r.configured_agent_id=#{id} AND s.customer_id IS NOT NULL")
+    Integer getSpeakerDeviceCount(@Param("id") String id);
     /**
      * 获取智能体的设备数量
      * 

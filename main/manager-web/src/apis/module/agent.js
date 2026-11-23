@@ -69,6 +69,18 @@ export default {
                 });
             }).send();
     },
+    // Non-idempotent: report an unknown result instead of replaying a copy request.
+    copyAgent(agentId, callback, onFailure) {
+        const request = RequestService.sendRequest()
+            .url(`${getServiceUrl()}/agent/${encodeURIComponent(agentId)}/copy`)
+            .method('POST')
+            .success((res) => {
+                RequestService.clearRequestTime();
+                callback(res);
+            })
+            .networkFail((error) => terminateCallbackRequest(onFailure, error));
+        attachTerminalFailure(request, onFailure).send();
+    },
     // 删除智能体
     deleteAgent(agentId, callback) {
         RequestService.sendRequest()

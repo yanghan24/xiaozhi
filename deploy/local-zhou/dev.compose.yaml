@@ -1,0 +1,43 @@
+name: xiaozhi-development
+services:
+  dev:
+    image: xiaozhi-dev:local
+    build:
+      context: ../..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: xiaozhi-dev
+    restart: unless-stopped
+    command: ["sh", "/workspace/.devcontainer/launch.sh"]
+    env_file:
+      - ${XIAOZHI_RUNTIME_DIR:-/home/timyai/dev/runtime/xiaozhi}/config/dev.env
+    ports:
+      - "18001:8001"
+      - "127.0.0.1:18002:8002"
+      - "127.0.0.1:18000:8000"
+      - "127.0.0.1:18003:8003"
+    volumes:
+      - ../..:/workspace
+      - ${XIAOZHI_RUNTIME_DIR:-/home/timyai/dev/runtime/xiaozhi}/access:/run/xiaozhi-access:ro
+      - xiaozhi-dev-maven:/home/dev/.m2
+      - xiaozhi-dev-npm:/home/dev/.npm
+      - xiaozhi-dev-cache:/home/dev/.cache
+      - xiaozhi-dev-python:/home/dev/.venv
+      - xiaozhi-dev-runtime:/opt/xiaozhi-dev
+      - xiaozhi-dev-node-modules:/workspace/main/manager-web/node_modules
+      - xiaozhi-dev-web-dist:/workspace/main/manager-web/dist
+      - xiaozhi-dev-api-target:/workspace/main/manager-api/target
+      - xiaozhi-dev-voice-data:/workspace/main/xiaozhi-server/data
+      - xiaozhi-dev-voice-tmp:/workspace/main/xiaozhi-server/tmp
+      - xiaozhi-dev-uploads:/workspace/main/manager-api/uploadfile
+volumes:
+  xiaozhi-dev-maven: { name: xiaozhi-dev-maven }
+  xiaozhi-dev-npm: { name: xiaozhi-dev-npm }
+  xiaozhi-dev-cache: { name: xiaozhi-dev-cache }
+  xiaozhi-dev-python: { name: xiaozhi-dev-python }
+  xiaozhi-dev-runtime: { name: xiaozhi-dev-runtime }
+  xiaozhi-dev-node-modules: { name: xiaozhi-dev-node-modules }
+  xiaozhi-dev-web-dist: { name: xiaozhi-dev-web-dist }
+  xiaozhi-dev-api-target: { name: xiaozhi-dev-api-target }
+  xiaozhi-dev-voice-data: { name: xiaozhi-dev-voice-data }
+  xiaozhi-dev-voice-tmp: { name: xiaozhi-dev-voice-tmp }
+  xiaozhi-dev-uploads: { name: xiaozhi-dev-uploads }

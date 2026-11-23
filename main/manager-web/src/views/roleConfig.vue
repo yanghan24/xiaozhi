@@ -46,7 +46,7 @@
               <div class="header-actions">
                 <div class="hint-text">
                   <img loading="lazy" src="@/assets/home/info.png" alt="" />
-                  <span>{{ $t("roleConfig.restartNotice") }}</span>
+                  <span>{{ $store.state.pubConfig.speakerMode ? '默认角色配置于下一轮生效' : $t("roleConfig.restartNotice") }}</span>
                 </div>
                 <el-button class="history-btn" @click="showSnapshotDialog = true">
                   {{ $t("roleConfig.snapshotHistory") }}
@@ -83,24 +83,7 @@
                         maxlength="64"
                       />
                     </el-form-item>
-                    <el-form-item>
-                      <template #label>
-                        <el-tooltip :content="$t('roleConfig.tooltip.roleTemplate')" placement="top" effect="light" popper-class="custom-tooltip">
-                          <span>{{ $t('roleConfig.roleTemplate') }}：</span>
-                        </el-tooltip>
-                      </template>
-                      <div class="template-container">
-                        <div
-                          v-for="(template, index) in templates"
-                          :key="`template-${index}`"
-                          class="template-item"
-                          :class="{ 'template-loading': loadingTemplate }"
-                          @click="selectTemplate(template)"
-                        >
-                          {{ template.agentName }}
-                        </div>
-                      </div>
-                    </el-form-item>
+                    <AgentMcpSettings v-if="$store.state.pubConfig.speakerMode && $route.query.agentId" :agent-id="$route.query.agentId" />
                     <el-form-item class="context-provider-item">
                       <template #label>
                         <el-tooltip :content="$t('roleConfig.tooltip.contextProvider')" placement="top" effect="light" popper-class="custom-tooltip">
@@ -132,7 +115,7 @@
                         resize="none"
                         :placeholder="$t('roleConfig.pleaseEnterContent')"
                         v-model="form.systemPrompt"
-                        maxlength="2000"
+                        maxlength="5000"
                         show-word-limit
                         class="form-textarea"
                       />
@@ -207,12 +190,7 @@
                             class="form-select"
                             @change="handleModelChange('VAD', $event)"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['VAD']"
-                              :key="`option-vad-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['VAD']" :selected="form.model.vadModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -233,12 +211,7 @@
                             class="form-select"
                             @change="handleModelChange('ASR', $event)"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['ASR']"
-                              :key="`option-asr-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['ASR']" :selected="form.model.asrModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -258,12 +231,7 @@
                             class="form-select"
                             @change="handleModelChange('LLM', $event)"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['LLM']"
-                              :key="`option-asr-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['LLM']" :selected="form.model.llmModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -280,12 +248,7 @@
                             :placeholder="$t('roleConfig.pleaseSelect')"
                             class="form-select"
                           >
-                            <el-option
-                              v-for="(item, optionIndex) in modelOptions['LLM']"
-                              :key="`option-asr-${optionIndex}`"
-                              :label="item.label"
-                              :value="item.value"
-                            />
+                            <GroupedModelOptions :options="modelOptions['LLM']" :selected="form.model.slmModelId" />
                           </el-select>
                         </div>
                       </el-form-item>
@@ -309,13 +272,7 @@
                           class="form-select"
                           @change="handleModelChange(model.type, $event)"
                         >
-                          <el-option
-                            v-for="(item, optionIndex) in modelOptions[model.type]"
-                            v-if="!item.isHidden"
-                            :key="`option-${index}-${optionIndex}`"
-                            :label="item.label"
-                            :value="item.value"
-                          />
+                          <GroupedModelOptions :options="modelOptions[model.type]" :selected="form.model[model.key]" />
                         </el-select>
                         <div v-if="showFunctionIcons(model.type)" class="function-icons">
                           <el-tooltip
@@ -487,6 +444,8 @@
 
 <script>
 import Api from "@/apis/api";
+import AgentMcpSettings from "@/components/AgentMcpSettings.vue";
+import GroupedModelOptions from "@/components/GroupedModelOptions";
 import { getServiceUrl } from "@/apis/api";
 import RequestService from "@/apis/httpRequest";
 import FunctionDialog from "@/components/FunctionDialog.vue";
@@ -500,7 +459,7 @@ import VersionFooter from "@/components/VersionFooter.vue";
 
 export default {
   name: "RoleConfigPage",
-  components: { HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
+  components: { GroupedModelOptions, AgentMcpSettings, HeaderBar, FunctionDialog, ContextProviderDialog, TtsAdvancedSettings, AgentSnapshotDialog, VersionFooter },
   data() {
     return {
       showContextProviderDialog: false,
@@ -548,8 +507,6 @@ export default {
       ],
       llmModeTypeMap: new Map(),
       modelOptions: {},
-      templates: [],
-      loadingTemplate: false,
       voiceOptions: [],
       voiceDetails: {}, // 保存完整的音色信息
       showFunctionDialog: false,
@@ -833,69 +790,6 @@ export default {
           });
         })
         .catch(() => {});
-    },
-    fetchTemplates() {
-      Api.agent.getAgentTemplate(({ data }) => {
-        if (data.code === 0) {
-          this.templates = data.data;
-        } else {
-          this.$message.error(data.msg || i18n.t("roleConfig.fetchTemplatesFailed"));
-        }
-      });
-    },
-    selectTemplate(template) {
-      if (this.loadingTemplate) return;
-      this.loadingTemplate = true;
-      try {
-        this.applyTemplateData(template);
-        this.$message.success({
-          message: `${template.agentName}${i18n.t("roleConfig.templateApplied")}`,
-          showClose: true,
-        });
-      } catch (error) {
-        this.$message.error({
-          message: i18n.t("roleConfig.applyTemplateFailed"),
-          showClose: true,
-        });
-        console.error("应用模板失败:", error);
-      } finally {
-        this.loadingTemplate = false;
-      }
-    },
-    applyTemplateData(templateData) {
-      const rollbackState = this.cloneTtsDraft(this.lastValidTtsDraft) || this.captureTtsDraft();
-      const currentLanguage = this.selectedLanguage;
-      this.form = {
-        ...this.form,
-        agentName: templateData.agentName || this.form.agentName,
-        ttsVoiceId: templateData.ttsVoiceId || this.form.ttsVoiceId,
-        chatHistoryConf: templateData.chatHistoryConf || this.form.chatHistoryConf,
-        systemPrompt: templateData.systemPrompt || this.form.systemPrompt,
-        summaryMemory: templateData.summaryMemory || this.form.summaryMemory,
-        langCode: templateData.langCode || this.form.langCode,
-        model: {
-          ttsModelId: templateData.ttsModelId || this.form.model.ttsModelId,
-          vadModelId: templateData.vadModelId || this.form.model.vadModelId,
-          asrModelId: templateData.asrModelId || this.form.model.asrModelId,
-          llmModelId: templateData.llmModelId || this.form.model.llmModelId,
-          slmModelId: templateData.llmModelId || this.form.model.slmModelId,
-          vllmModelId: templateData.vllmModelId || this.form.model.vllmModelId,
-          memModelId: templateData.memModelId || this.form.model.memModelId,
-          intentModelId: templateData.intentModelId || this.form.model.intentModelId,
-        },
-      };
-      if (templateData.ttsLanguage) {
-        this.selectedLanguage = templateData.ttsLanguage;
-      }
-      if (templateData.ttsModelId || templateData.ttsVoiceId || templateData.ttsLanguage) {
-        this.fetchVoiceOptions(this.form.model.ttsModelId, {
-          autoSelectVoice: true,
-          preferredLanguage: templateData.ttsLanguage || (templateData.ttsVoiceId ? "" : currentLanguage),
-          preferredVoiceId: templateData.ttsVoiceId || "",
-          rollbackState,
-          markTouched: true
-        });
-      }
     },
     buildCurrentFunctions(savedMappings) {
       if (!Array.isArray(savedMappings)) {
@@ -1342,7 +1236,7 @@ export default {
       return name.charAt(0);
     },
     showFunctionIcons(type) {
-      return type === "Intent" && this.form.model.intentModelId !== "Intent_nointent";
+      return type === "Intent" && !!this.form.model.intentModelId && this.form.model.intentModelId !== "Intent_nointent";
     },
     handleModelChange(type, value) {
       if (type === "Intent" && value !== "Intent_nointent") {
@@ -1905,7 +1799,6 @@ export default {
       this.reloadAgentPage(agentId);
     }
     this.fetchModelOptions();
-    this.fetchTemplates();
     // 加载功能状态，确保featureManager已初始化
     await this.loadFeatureStatus();
   },

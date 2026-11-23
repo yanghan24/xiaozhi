@@ -8,7 +8,15 @@
       </div>
 
       <!-- 中间导航菜单 -->
-      <div class="header-center">
+      <div v-if="speakerMode" class="header-center">
+        <div class="equipment-management" :class="{ 'active-tab': ['/speaker-agents', '/role-config', '/agent-template-management', '/voice-print'].includes($route.path) }" @click="$router.push('/speaker-agents')"><img alt="" src="@/assets/header/robot.png" /><span class="nav-text">智能体管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/speaker-users' }" @click="$router.push('/speaker-users')"><img alt="" src="@/assets/header/user_management.png" /><span class="nav-text">用户管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': ['/speaker-devices', '/ota-management'].includes($route.path) }" @click="$router.push('/speaker-devices')"><img alt="" src="@/assets/header/robot.png" /><span class="nav-text">设备管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/model-config' }" @click="handleRouter('modelConfig')"><img alt="" src="@/assets/header/model_config.png" /><span class="nav-text">模型配置</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/mcp-management' }" @click="$router.push('/mcp-management')"><img alt="" src="@/assets/header/knowledge_base.png" /><span class="nav-text">MCP 管理</span></div>
+        <div class="equipment-management" :class="{ 'active-tab': $route.path === '/system-settings' }" @click="$router.push('/system-settings')"><img alt="" src="@/assets/header/param_management.png" /><span class="nav-text">系统设置</span></div>
+      </div>
+      <div v-else class="header-center">
         <div class="equipment-management" :class="{
           'active-tab':
             $route.path === '/home' ||
@@ -227,6 +235,7 @@ export default {
     };
   },
   computed: {
+    speakerMode() { return this.$store.state.pubConfig.speakerMode === true; },
     ...mapState({
       featureStatus: (state) => ({
         voiceClone: state.pubConfig.systemWebMenu?.features?.voiceClone?.enabled, // 音色克隆功能状态

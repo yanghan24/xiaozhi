@@ -1,12 +1,12 @@
 <template>
-  <div class="welcome">
-    <HeaderBar />
+  <div class="welcome" :class="{ 'management-embedded': embedded }">
+    <HeaderBar v-if="!embedded" />
     <div class="main-wrapper">
       <div class="content-panel">
         <div class="content-area">
           <el-card class="provider-card" shadow="never">
             <div class="operation-header">
-              <h2 class="page-title">{{ $t('header.providerManagement') }}</h2>
+              <h2 v-if="!embedded" class="page-title">{{ $t('header.providerManagement') }}</h2>
               <div class="right-operations">
                 <el-input :placeholder="$t('providerManagement.searchPlaceholder')" v-model="searchName" class="search-input"
                   @keyup.enter.native="handleSearch" clearable />
@@ -85,7 +85,7 @@
     <provider-dialog :title="dialogTitle" :visible.sync="dialogVisible" :form="providerForm" :model-types="modelTypes"
       @submit="handleSubmit" @cancel="dialogVisible = false" />
 
-    <el-footer>
+    <el-footer v-if="!embedded">
       <version-footer />
     </el-footer>
   </div>
@@ -100,6 +100,7 @@ import CustomButton from "@/components/CustomButton.vue";
 import CustomTable from "@/components/CustomTable.vue";
 
 export default {
+  props: { embedded: { type: Boolean, default: false } },
   components: { HeaderBar, ProviderDialog, VersionFooter, CustomButton, CustomTable },
   data() {
     return {
@@ -506,4 +507,5 @@ export default {
 :deep(.el-table .el-button--text:hover) {
   color: #5a64b5;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

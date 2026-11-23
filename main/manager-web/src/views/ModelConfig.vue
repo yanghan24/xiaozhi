@@ -5,7 +5,7 @@
     <div class="operation-bar">
       <h2 class="page-title">{{ $t("modelConfig." + activeTab) }}</h2>
       <div class="action-group">
-        <div class="search-group">
+        <div v-if="modelSource === 'system'" class="search-group">
           <el-input
             :placeholder="$t('modelConfig.searchPlaceholder')"
             v-model="search"
@@ -59,8 +59,12 @@
 
         <!-- 右侧内容 -->
         <div class="content-area" :class="{ 'asr-content': activeTab === 'asr' }">
-          <ProductAsrSettings v-if="activeTab === 'asr'" />
-          <el-card class="model-card" shadow="never">
+          <el-radio-group v-model="modelSource" class="source-switch" aria-label="模型来源">
+            <el-radio-button label="aimarket"><i class="el-icon-connection" /> AI 集市</el-radio-button>
+            <el-radio-button label="system"><i class="el-icon-monitor" /> 小智系统</el-radio-button>
+          </el-radio-group>
+          <MarketModelSettings v-if="modelSource === 'aimarket'" :model-type="activeTab" @use-system="modelSource = 'system'" />
+          <el-card v-else class="model-card" shadow="never">
             <el-table
               ref="modelTable"
               style="width: 100%"
@@ -245,7 +249,7 @@
 
 <script>
 import Api from "@/apis/api";
-import ProductAsrSettings from "@/components/ProductAsrSettings.vue";
+import MarketModelSettings from "@/components/MarketModelSettings.vue";
 import AddModelDialog from "@/components/AddModelDialog.vue";
 import HeaderBar from "@/components/HeaderBar.vue";
 import ModelEditDialog from "@/components/ModelEditDialog.vue";
@@ -254,11 +258,12 @@ import CustomPagination from "@/components/CustomPagination.vue";
 import CustomButton from "@/components/CustomButton.vue";
 import VersionFooter from "@/components/VersionFooter.vue";
 export default {
-  components: { ProductAsrSettings, HeaderBar, ModelEditDialog, TtsModel, AddModelDialog, VersionFooter, CustomPagination, CustomButton },
+  components: { MarketModelSettings, HeaderBar, ModelEditDialog, TtsModel, AddModelDialog, VersionFooter, CustomPagination, CustomButton },
   data() {
     return {
       addDialogVisible: false,
       activeTab: "llm",
+      modelSource: "aimarket",
       search: "",
       editDialogVisible: false,
       editModelData: {},
@@ -276,8 +281,10 @@ export default {
     };
   },
 
-  created() {
-    this.loadData();
+  watch: {
+    modelSource(source) {
+      if (source === "system") this.loadData();
+    },
   },
 
   mounted() {
@@ -343,7 +350,7 @@ export default {
       this.activeTab = index;
       this.currentPage = 1; // 重置到第一页
       this.pageSize = 10; // 可选：重置每页条数
-      this.loadData();
+      if (this.modelSource === "system") this.loadData();
     },
     handleSearch() {
       this.currentPage = 1;
@@ -552,7 +559,10 @@ export default {
     handleDefaultChange(model) {
       Api.model.setDefaultModel(model.id, ({ data }) => {
         if (data.code === 0) {
-          this.$message.success(this.$t("modelConfig.setDefaultSuccess"));
+          const messageKey = this.$store.state.pubConfig.speakerMode
+            ? "modelConfig.setSystemDefaultSuccess"
+            : "modelConfig.setDefaultSuccess";
+          this.$message.success(this.$t(messageKey));
           this.loadData();
         }
       });
@@ -562,6 +572,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.source-switch { align-self: flex-start; flex-shrink: 0; margin: 0 0 26px; padding: 4px; background: #f1f4fb; border-radius: 10px; line-height: normal; }
+.source-switch ::v-deep .el-radio-button__inner { border: 0; border-radius: 7px; box-shadow: none; background: transparent; color: #8993aa; padding: 10px 18px; font-size: 13px; }
+.source-switch ::v-deep .el-radio-button__orig-radio:checked + .el-radio-button__inner { background: #fff; color: #677bdf; box-shadow: 0 2px 7px rgba(85, 107, 174, .1); }
+.source-switch i { margin-right: 4px; }
 .el-switch {
   height: 23px;
 }

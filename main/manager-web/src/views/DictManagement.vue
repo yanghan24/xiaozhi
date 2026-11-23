@@ -1,10 +1,10 @@
 <template>
-  <div class="welcome">
-    <HeaderBar />
+  <div class="welcome" :class="{ 'management-embedded': embedded }">
+    <HeaderBar v-if="!embedded" />
     <div class="main-wrapper">
       <el-card class="main-card" shadow="never">
         <div class="operation-header">
-          <h2 class="page-title">{{ $t('dictManagement.pageTitle') }}</h2>
+          <h2 v-if="!embedded" class="page-title">{{ $t('dictManagement.pageTitle') }}</h2>
           <div class="right-operations">
             <el-input :placeholder="$t('dictManagement.searchPlaceholder')" v-model="search" class="search-input"
               @keyup.enter.native="handleSearch" clearable />
@@ -86,7 +86,7 @@
     <!-- 使用字典数据编辑弹框组件 -->
     <DictDataDialog :visible.sync="dictDataDialogVisible" :title="dictDataDialogTitle" :dictData="dictDataForm"
       :dictTypeId="selectedDictType?.id" @save="saveDictData" />
-    <el-footer style="flex-shrink:unset;">
+    <el-footer v-if="!embedded" style="flex-shrink:unset;">
       <version-footer />
     </el-footer>
   </div>
@@ -101,6 +101,7 @@ import VersionFooter from '@/components/VersionFooter.vue'
 import CustomButton from '@/components/CustomButton.vue'
 import CustomTable from '@/components/CustomTable.vue'
 export default {
+  props: { embedded: { type: Boolean, default: false } },
   name: 'DictManagement',
   components: {
     HeaderBar,
@@ -577,4 +578,5 @@ export default {
   background-color: #5f70f3 !important;
   border-color: #5f70f3 !important;
 }
+@import "@/styles/embeddedManagement.scss";
 </style>

@@ -40,6 +40,8 @@ public class AgentChatHistoryBizServiceImpl implements AgentChatHistoryBizServic
     private final AgentChatSummaryService agentChatSummaryService;
     private final RedisUtils redisUtils;
     private final DeviceService deviceService;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerSettings speakerSettings;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerConversations speakerConversations;
 
     /**
      * 处理聊天记录上报，包括文件上传和相关信息记录
@@ -57,7 +59,12 @@ public class AgentChatHistoryBizServiceImpl implements AgentChatHistoryBizServic
         log.info("小智设备聊天上报请求: macAddress={}, type={} reportTime={}", macAddress, chatType, reportTimeMillis);
 
         // 根据设备MAC地址查询对应的默认智能体，判断是否需要上报
-        AgentEntity agentEntity = agentService.getDefaultAgentByMacAddress(macAddress);
+        AgentEntity agentEntity;
+        if(speakerSettings!=null && speakerSettings.enabled()) {
+            var conversation=speakerConversations.find(report.getSessionId());
+            if(conversation==null || !macAddress.equals(conversation.get("device_id"))) return Boolean.FALSE;
+            agentEntity=agentService.selectById(conversation.get("agent_id").toString());
+        } else agentEntity = agentService.getDefaultAgentByMacAddress(macAddress);
         if (agentEntity == null) {
             return Boolean.FALSE;
         }

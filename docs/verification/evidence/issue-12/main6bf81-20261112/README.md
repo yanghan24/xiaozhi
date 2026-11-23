@@ -35,10 +35,10 @@ Ubuntu 容器 `issue12-main6bf-01/02`：固定已有镜像 `sha256:a0ce61af271cd
 | 本机两轮 `result.json`（相同） | `dc402dfa51d72f30f7f9ded45a59d57e81694a7858d508362e3c73cff897097d` |
 | 附件核对 | 见 `archive-sha256.json` |
 
-Ubuntu 原 JSON 留服务器 `/home/jt/issue12-main6bf-20261112/results/installed01|02`，两轮哈希现场读取相同；本机未持有该值副本，故不抄录。结果内 `source_sha256` 与 `source-manifest.json` 逐文件一致，14 文件 0 不一致。
+Ubuntu 原 JSON 留服务器 `/redacted/historical-deployment/issue12-main6bf-20261112/results/installed01|02`，两轮哈希现场读取相同；本机未持有该值副本，故不抄录。结果内 `source_sha256` 与 `source-manifest.json` 逐文件一致，14 文件 0 不一致。
 
 本地报告可能因检出的换行符与服务器记录不同而字节不同；核对时使用 CRLF→LF 归一化后的哈希，不把换行差异当内容差异。
 
 ## 边界
 
-除新增的实际 SDK 内存流超时用例外，传输/会话仍为合成，不构成真实 SSE 集成验收。真实客户端在 host 网络下的一次初始化/发现与一次工具调用成功记录保留在[缺口修复实测](../../../2026-11-12-mcp-gap-fixes.md)。模型选工具续答、A/B 授权、计费、限流与远端取消仍未验证。
+除新增的实际 SDK 内存流超时用例外，传输/会话仍为合成，不构成真实 SSE 集成验收。真实客户端在 host 网络下的一次初始化/发现与一次工具调用成功记录保留在[缺口修复实测](../../../../archive/completed/mcp/verification/2026-11-12-mcp-gap-fixes.md)。模型选工具续答、A/B 授权、计费、限流与远端取消仍未验证。

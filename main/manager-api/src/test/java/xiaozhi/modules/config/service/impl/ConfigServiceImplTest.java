@@ -34,6 +34,25 @@ import xiaozhi.modules.voiceclone.service.VoiceCloneService;
 class ConfigServiceImplTest {
 
     @Test
+    void repeatedRoleReadsDoNotMutateCachedVoiceOrFunctionConfiguration() {
+        var service=newService(mock(SysParamsService.class),mock(RedisUtils.class));
+        var agents=mock(AgentService.class);var models=mock(ModelConfigService.class);
+        ReflectionTestUtils.setField(service,"agentService",agents);ReflectionTestUtils.setField(service,"modelConfigService",models);
+        var role=new xiaozhi.modules.agent.vo.AgentInfoVO();role.setId("fixture");role.setAgentName("原版角色");role.setSystemPrompt("你是{{assistant_name}}");
+        role.setTtsModelId("voice-model");role.setIntentModelId("intent-model");role.setTtsRate(10);
+        when(agents.getAgentById("fixture")).thenReturn(role);
+        var voice=new xiaozhi.modules.model.entity.ModelConfigEntity();voice.setId("voice-model");voice.setConfigJson(new cn.hutool.json.JSONObject(Map.of("type","edge","voice","original")));
+        var intent=new xiaozhi.modules.model.entity.ModelConfigEntity();intent.setId("intent-model");intent.setConfigJson(new cn.hutool.json.JSONObject(Map.of("type","function_call","functions","get_weather;get_time")));
+        when(models.getModelByIdFromCache("voice-model")).thenReturn(voice);when(models.getModelByIdFromCache("intent-model")).thenReturn(intent);
+        var first=service.getAgentConfiguration("fixture",Map.of());
+        role.setTtsRate(20);var second=service.getAgentConfiguration("fixture",Map.of());
+        assertEquals(10,((Map<?,?>)((Map<?,?>)first.get("TTS")).get("voice-model")).get("ttsRate"));
+        assertEquals(20,((Map<?,?>)((Map<?,?>)second.get("TTS")).get("voice-model")).get("ttsRate"));
+        assertEquals(null,voice.getConfigJson().get("ttsRate"));
+        assertEquals("get_weather;get_time",intent.getConfigJson().get("functions"));
+    }
+
+    @Test
     void cachedServerConfigIsCheckedAsAStringKeyedMapWithoutChangingNestedValues() {
         RedisUtils redisUtils = mock(RedisUtils.class);
         Map<String, Object> nested = new HashMap<>();

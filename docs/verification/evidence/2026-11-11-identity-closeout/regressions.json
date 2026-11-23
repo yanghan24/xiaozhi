@@ -1,6 +1,6 @@
 {
   "source": "existing Ubuntu surefire XML; not rerun",
-  "source_directory": "/home/jt/profile-fix-regression-1468eeb/.runtime/pr52/surefire-reports",
+  "source_directory": "/redacted/historical-deployment/profile-fix-regression-1468eeb/.runtime/pr52/surefire-reports",
   "totals": {
     "tests": 349,
     "failures": 0,
