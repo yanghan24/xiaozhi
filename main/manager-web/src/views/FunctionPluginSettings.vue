@@ -6,6 +6,7 @@
       <template slot="status" slot-scope="{ row }">
         <el-tag :type="row.ready ? 'success' : 'info'">{{ status(row) }}</el-tag>
       </template>
+      <template slot="details" slot-scope="{ row }">{{ details(row) }}</template>
       <template slot="operations" slot-scope="{ row }">
         <el-button type="text" @click="edit(row)">编辑</el-button>
         <el-button v-if="row.provider === 'get_weather'" type="text" @click="openWeather">和风天气配置</el-button>
@@ -54,7 +55,11 @@ export default {
     return {
       entries: [], loading: false, saving: false, visible: false, error: '',
       entry: null, enabled: false, params: {}, credential: '', clearCredential: false,
-      columns: [{ prop: 'name', label: '功能插件' }, { prop: 'status', label: '配置状态', minWidth: 140 }],
+      columns: [
+        { prop: 'name', label: '功能插件', minWidth: 165 },
+        { prop: 'status', label: '配置状态', minWidth: 110 },
+        { prop: 'details', label: '配置说明', minWidth: 230, align: 'left' },
+      ],
     };
   },
   mounted() { this.load(); },
@@ -65,6 +70,18 @@ export default {
       if (!entry.enabled) return '已停用';
       if (entry.legacyConflict) return '待统一配置';
       return entry.ready ? '可用' : '待配置';
+    },
+    details(entry) {
+      if (!entry.enabled) return '在编辑中启用此插件';
+      if (entry.legacyConflict) return '现有智能体参数不同，请保存一套统一配置';
+      if (entry.ready) return '—';
+      const requirements = {
+        get_weather: '在第三方服务中配置并启用和风天气 JWT',
+        hass_state: '需要 HomeAssistant 地址、访问令牌和设备清单',
+        hass_play_music: '需配置 HomeAssistant 连接和播放器',
+        web_search: '需要搜索服务商、有效 Key 和返回数量',
+      };
+      return requirements[entry.provider] || '请补全插件配置';
     },
     openWeather() {
       this.visible = false;
@@ -116,5 +133,11 @@ export default {
 
 <style lang="scss" scoped>
 @import "@/styles/managementDialog.scss";
-.plugin-settings { min-width: 0; }
+.plugin-settings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
 </style>

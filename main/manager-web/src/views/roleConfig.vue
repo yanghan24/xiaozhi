@@ -253,58 +253,62 @@
                         </div>
                       </el-form-item>
                     </div>
-                    <el-form-item
-                      v-for="(model, index) in models.slice(4)"
-                      :key="`model-${index}`"
-                      class="model-item"
-                    >
-                      <template #label>
-                        <el-tooltip :content="$t('roleConfig.tooltip.' + model.type.toLowerCase())" placement="top" effect="light" popper-class="custom-tooltip">
-                          <span>{{ $t('roleConfig.' + model.type.toLowerCase()) }}</span>
-                        </el-tooltip>
-                      </template>
-                      <div class="model-select-wrapper">
-                        <el-select
-                          v-model="form.model[model.key]"
-                          filterable
-                          :disabled="model.type === 'TTS' && voiceOptionsLoading"
-                          :placeholder="$t('roleConfig.pleaseSelect')"
-                          class="form-select"
-                          @change="handleModelChange(model.type, $event)"
-                        >
-                          <GroupedModelOptions :options="modelOptions[model.type]" :selected="form.model[model.key]" />
-                        </el-select>
-                        <div
-                          v-if="
-                            model.type === 'Memory' &&
-                            form.model.memModelId !== 'Memory_nomem'
-                          "
-                          class="chat-history-options"
-                        >
-                          <el-radio-group
-                            v-model="form.chatHistoryConf"
-                            @change="updateChatHistoryConf"
+                    <template v-for="model in models.slice(4)">
+                      <el-form-item
+                        :key="model.key"
+                        class="model-item"
+                      >
+                        <template #label>
+                          <el-tooltip :content="$t('roleConfig.tooltip.' + model.type.toLowerCase())" placement="top" effect="light" popper-class="custom-tooltip">
+                            <span>{{ $t('roleConfig.' + model.type.toLowerCase()) }}</span>
+                          </el-tooltip>
+                        </template>
+                        <div class="model-select-wrapper">
+                          <el-select
+                            v-model="form.model[model.key]"
+                            filterable
+                            :disabled="model.type === 'TTS' && voiceOptionsLoading"
+                            :placeholder="$t('roleConfig.pleaseSelect')"
+                            class="form-select"
+                            @change="handleModelChange(model.type, $event)"
                           >
-                            <el-radio-button :label="1">{{
-                              $t("roleConfig.reportText")
-                            }}</el-radio-button>
-                            <el-radio-button :label="2">{{
-                              $t("roleConfig.reportTextVoice")
-                            }}</el-radio-button>
-                          </el-radio-group>
+                            <GroupedModelOptions :options="modelOptions[model.type]" :selected="form.model[model.key]" />
+                          </el-select>
+                          <div
+                            v-if="
+                              model.type === 'Memory' &&
+                              form.model.memModelId !== 'Memory_nomem'
+                            "
+                            class="chat-history-options"
+                          >
+                            <el-radio-group
+                              v-model="form.chatHistoryConf"
+                              @change="updateChatHistoryConf"
+                            >
+                              <el-radio-button :label="1">{{
+                                $t("roleConfig.reportText")
+                              }}</el-radio-button>
+                              <el-radio-button :label="2">{{
+                                $t("roleConfig.reportTextVoice")
+                              }}</el-radio-button>
+                            </el-radio-group>
+                          </div>
                         </div>
-                      </div>
-                    </el-form-item>
-                    <el-form-item v-if="showFunctionPlugins" label="编辑功能插件" class="function-plugin-field">
-                      <el-checkbox-group v-if="functionOptions.length" v-model="currentFunctions"
-                        :disabled="agentReloading || !agentFunctionsLoaded" class="function-plugin-options">
-                        <el-checkbox v-for="plugin in functionOptions" :key="plugin.id" :label="plugin.id"
-                          :disabled="!plugin.ready">
-                          {{ plugin.name }}<span v-if="!plugin.ready" class="function-plugin-status">（暂不可用）</span>
-                        </el-checkbox>
-                      </el-checkbox-group>
-                      <span v-else class="function-plugin-status">{{ pluginMetadataLoading ? '正在加载' : '暂无已配置的功能插件' }}</span>
-                    </el-form-item>
+                      </el-form-item>
+                      <el-form-item v-if="model.type === 'Intent' && showFunctionPlugins" key="function-plugins"
+                        label="编辑功能插件" label-width="96px" class="function-plugin-field">
+                        <el-checkbox-group v-if="functionOptions.length" v-model="currentFunctions"
+                          :disabled="agentReloading || !agentFunctionsLoaded" class="function-plugin-options">
+                          <el-checkbox v-for="plugin in functionOptions" :key="plugin.id" :label="plugin.id"
+                            :disabled="!plugin.ready">
+                            {{ plugin.name }}<span v-if="!plugin.ready" class="function-plugin-status">（暂不可用）</span>
+                          </el-checkbox>
+                        </el-checkbox-group>
+                        <span v-else class="function-plugin-status">
+                          {{ pluginMetadataLoading ? '正在加载' : pluginMetadataReady ? '暂无已配置的功能插件' : '插件配置加载失败' }}
+                        </span>
+                      </el-form-item>
+                    </template>
                     <div class="model-row">
                       <!-- 语言筛选器 -->
                       <el-form-item class="model-item language-select-item">
@@ -2098,6 +2102,26 @@ export default {
   }
 }
 
+.function-plugin-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+
+  ::v-deep .el-checkbox {
+    display: flex;
+    align-items: baseline;
+    margin: 0;
+    min-width: 0;
+  }
+
+  ::v-deep .el-checkbox__label {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 20px;
+  }
+}
+.function-plugin-status { color: #909399; }
 </style>
 
 <style>
@@ -2105,12 +2129,4 @@ export default {
   max-width: 400px !important;
   word-break: break-word;
 }
-.function-plugin-options {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 16px;
-  ::v-deep .el-checkbox { margin-right: 0; }
-  ::v-deep .el-checkbox__label { white-space: normal; }
-}
-.function-plugin-status { color: #909399; }
 </style>
