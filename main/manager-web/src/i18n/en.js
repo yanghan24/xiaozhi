@@ -969,7 +969,7 @@ export default {
   'agentSnapshot.chatHistoryConf.none': 'Do not record chat history',
   'agentSnapshot.chatHistoryConf.text': 'Report text',
   'agentSnapshot.chatHistoryConf.textVoice': 'Report text and voice',
-  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'Weather',
+  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'QWeather',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_MUSIC': 'Server music player',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_CHINANEWS': 'China News',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_NEWSNOW': 'NewsNow aggregation',

@@ -13,7 +13,6 @@
       <template slot="description" slot-scope="{ row }">{{ description(row.provider) }}</template>
       <template slot="operations" slot-scope="{ row }">
         <el-button type="text" @click="edit(row)">编辑</el-button>
-        <el-button v-if="row.provider === 'get_weather'" type="text" @click="openWeather">和风天气配置</el-button>
       </template>
     </CustomTable>
 
@@ -50,7 +49,7 @@
 <script>
 import CustomDialog from '@/components/CustomDialog.vue';
 import CustomTable from '@/components/CustomTable.vue';
-import { adminToken, speakerRequest } from '@/apis/speaker';
+import { adminToken, functionPluginName, speakerRequest } from '@/apis/speaker';
 
 const descriptions = {
   get_weather: '通过语音查询实时天气和七天预报',
@@ -93,7 +92,11 @@ export default {
     async load() {
       this.loading = true;
       this.error = '';
-      try { this.entries = await this.request(''); }
+      try {
+        this.entries = (await this.request('')).map(entry => ({
+          ...entry, name: functionPluginName(entry.id, entry.name, key => this.$t(key)),
+        }));
+      }
       catch (failure) { this.error = failure.message; }
       finally { this.loading = false; }
     },

@@ -427,7 +427,7 @@ import AgentMcpSettings from "@/components/AgentMcpSettings.vue";
 import GroupedModelOptions from "@/components/GroupedModelOptions";
 import { getServiceUrl } from "@/apis/api";
 import RequestService from "@/apis/httpRequest";
-import { adminToken, speakerRequest } from "@/apis/speaker";
+import { adminToken, functionPluginName, speakerRequest } from "@/apis/speaker";
 import ContextProviderDialog from "@/components/ContextProviderDialog.vue";
 import TtsAdvancedSettings from "@/components/TtsAdvancedSettings.vue";
 import AgentSnapshotDialog from "@/components/AgentSnapshotDialog.vue";
@@ -1186,7 +1186,9 @@ export default {
       if (this.pluginMetadataLoading) return this.pluginMetadataLoading;
       this.pluginMetadataLoading = speakerRequest(adminToken(this.$store), 'function-plugins/choices')
         .then((choices) => {
-          this.allFunctions = choices;
+          this.allFunctions = choices.map(plugin => ({
+            ...plugin, name: functionPluginName(plugin.id, plugin.name, key => this.$t(key)),
+          }));
           this.pluginMetadataReady = true;
           return true;
         })

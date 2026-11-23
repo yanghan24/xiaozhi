@@ -29,6 +29,9 @@ const errors = {
 export function adminToken(store) {
   try { return JSON.parse(store.getters.getToken || '{}').token || ''; } catch (_) { return ''; }
 }
+export function functionPluginName(id, name, translate) {
+  return id === 'SYSTEM_PLUGIN_WEATHER' ? translate('agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER') : name;
+}
 export async function speakerRequest(token, path, body, signal) {
   const response = await fetch(`${getServiceUrl()}/admin/speaker/${path}`, {
     method: body === undefined ? 'GET' : 'POST', cache: 'no-store', credentials: 'omit', signal,
