@@ -12,7 +12,7 @@
 - 私有配置和认证材料保存在 `/home/timyai/dev/runtime/xiaozhi/`，不得提交。生产登录账号、连接命令、跳转链路和私有访问文件路径不写入任何仓库文档。
 - 114 为生产环境，独立于本地开发。开发不连接其数据库、不复制运行配置、不操作其服务；生产操作和真机验收另行明确授权。
 
-当前个人工作区使用固定分支：服务端 `dev/local-zhou`，兄弟固件工作目录 `xiaozhi-firmware/` 使用 `dev/firmware-local-zhou`，两者是同一 Git 仓库的不同 worktree。按功能或阶段提交，不为每个小步骤创建分支。
+当前个人工作区使用固定分支：服务端 `dev/xiaozhi-local-zhou`，兄弟固件工作目录 `xiaozhi-firmware/` 使用 `dev/firmware-local-zhou`，两者是同一 Git 仓库的不同 worktree。按功能或阶段提交，不为每个小步骤创建分支。
 
 ## 目录与隔离
 
