@@ -3,6 +3,7 @@
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && LV_USE_CALENDAR
 
 #include "speaker_account/speaker_account.h"
+#include "speaker_account/speaker_clock.h"
 #include "speaker_account/speaker_ui_widgets.h"
 #include "speaker_memos.h"
 
@@ -30,9 +31,9 @@ constexpr uint32_t kCoastTimeoutMs = 100;
 constexpr const char* kWeekdays[] = {"一", "二", "三", "四", "五", "六", "日"};
 
 std::optional<sys_days> LocalDate() {
-    const auto now = std::time(nullptr);
+    const auto now = SpeakerClock::Now();
     std::tm local{};
-    if (now < 1704067200 || !localtime_r(&now, &local)) {
+    if (!now || !localtime_r(&now, &local)) {
         return std::nullopt;
     }
     return sys_days(year{local.tm_year + 1900} / month{static_cast<unsigned>(local.tm_mon + 1)} /

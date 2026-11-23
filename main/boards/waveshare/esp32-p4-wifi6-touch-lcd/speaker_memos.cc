@@ -8,6 +8,7 @@
 #include "display.h"
 #include "mcp_server.h"
 #include "speaker_account/speaker_account.h"
+#include "speaker_account/speaker_clock.h"
 
 #include <nvs.h>
 
@@ -109,7 +110,7 @@ void SpeakerMemos::InitializeTools() {
             }
             const size_t page = properties["page"].value<int>();
             const size_t next = page * kPageSize;
-            const auto now = std::time(nullptr);
+            const auto now = SpeakerClock::Now();
             CJsonUniquePtr result(cJSON_CreateObject());
             if (!result) {
                 return std::unexpected("无法读取本机记事");
@@ -191,8 +192,8 @@ std::string SpeakerMemos::Create(int64_t binding, const std::string& content, st
         content.find_first_not_of(' ') == std::string::npos) {
         return "未保存，请提供简短的记事内容";
     }
-    const auto now = std::time(nullptr);
-    if (now < kEarliestClock) {
+    const auto now = SpeakerClock::Now();
+    if (!now) {
         return "未保存，音箱时间尚未同步";
     }
     if (when.empty()) {
@@ -282,7 +283,7 @@ uint32_t SpeakerMemos::Revision() const {
 }
 
 const SpeakerMemos::Entry* SpeakerMemos::FindDue(int64_t binding, std::time_t now) const {
-    if (!ready_ || binding <= 0 || binding != data_.binding || now < kEarliestClock) {
+    if (!ready_ || binding <= 0 || binding != data_.binding || !now) {
         return nullptr;
     }
     const Entry* earliest = nullptr;
@@ -304,7 +305,10 @@ void SpeakerMemos::Tick() {
         return;
     }
     const auto binding = Binding();
-    const auto now = std::time(nullptr);
+    const auto now = SpeakerClock::Now();
+    if (binding <= 0 || !now) {
+        return;
+    }
     {
         std::lock_guard lock(mutex_);
         if (reminder_pending_ || checked_second_ == now) {
@@ -329,7 +333,7 @@ void SpeakerMemos::Remind() {
     {
         std::lock_guard lock(mutex_);
         reminder_pending_ = false;
-        const auto* entry = idle ? FindDue(binding, std::time(nullptr)) : nullptr;
+        const auto* entry = idle ? FindDue(binding, SpeakerClock::Now()) : nullptr;
         if (!entry) {
             return;
         }

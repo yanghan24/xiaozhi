@@ -1,4 +1,5 @@
 #include "speaker_account.h"
+#include "speaker_clock.h"
 #include "voice_timing.h"
 
 #include "application.h"
@@ -689,6 +690,10 @@ void SpeakerAccount::Run() {
             const auto heartbeat = Request("POST", "/heartbeat", std::move(report));
             if (heartbeat.status == 200) {
                 const auto document = Parse(heartbeat.body);
+                if (Text(document.get(), "device_id", 128) == identity_.id) {
+                    SpeakerClock::Synchronize(cJSON_GetObjectItemCaseSensitive(document.get(), "server_time_ms"),
+                                              cJSON_GetObjectItemCaseSensitive(document.get(), "timezone_offset"));
+                }
                 auto& timing = SpeakerVoiceTiming::Get();
                 timing.SetLease(Number(document.get(), "server_time_ms"),
                                 Number(document.get(), "diagnostics_until_ms"));
