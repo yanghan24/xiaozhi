@@ -70,9 +70,10 @@ public class OTAController {
                     throw new xiaozhi.modules.speaker.SpeakerFailure(400,"INVALID_DEVICE_REPORT");
                 var result=new DeviceReportRespDTO();
                 result.setFirmware(deviceService.buildFirmwareInfo(board,version));
-                var time=new DeviceReportRespDTO.ServerTime();time.setTimestamp(System.currentTimeMillis());
+                long timestamp = System.currentTimeMillis();
+                var time=new DeviceReportRespDTO.ServerTime();time.setTimestamp(timestamp);
                 time.setTimeZone(productTimeZone.getId());
-                time.setTimezone_offset(productTimeZone.getRules().getOffset(Instant.now()).getTotalSeconds()/60);
+                time.setTimezone_offset(productTimeZone.getRules().getOffset(Instant.ofEpochMilli(timestamp)).getTotalSeconds()/60);
                 result.setServer_time(time);
                 speakerDevices.heartbeat(identity,board,version);
                 return createResponse(result);

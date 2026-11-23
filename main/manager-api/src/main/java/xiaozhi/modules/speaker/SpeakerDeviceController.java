@@ -3,16 +3,22 @@ package xiaozhi.modules.speaker;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/speaker/v1")
 @ConditionalOnProperty(name="speaker.enabled", havingValue="true")
 public class SpeakerDeviceController {
+    @Value("${device-control.time-zone:Asia/Shanghai}")
+    private ZoneId productTimeZone;
     private final SpeakerDevices devices;
     private final SpeakerLogins logins;
     private final SpeakerOperations operations;
@@ -27,8 +33,11 @@ public class SpeakerDeviceController {
     @PostMapping("/heartbeat")
     public Map<String,Object> heartbeat(@RequestHeader(name="Authorization",required=false) String auth,
             @RequestHeader(name="Device-Id",required=false) String id, @Valid @RequestBody Heartbeat body) {
-        return devices.heartbeat(devices.authenticate(auth,id), body.board_type(), body.firmware_version(),
-                body.diagnostics_supported());
+        var result = new LinkedHashMap<>(devices.heartbeat(devices.authenticate(auth,id), body.board_type(),
+                body.firmware_version(), body.diagnostics_supported()));
+        var instant = Instant.ofEpochMilli((Long) result.get("server_time_ms"));
+        result.put("timezone_offset", productTimeZone.getRules().getOffset(instant).getTotalSeconds() / 60);
+        return result;
     }
     @PostMapping("/login")
     public Object login(@RequestHeader(name="Authorization",required=false) String auth,
