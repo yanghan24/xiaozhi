@@ -1,6 +1,6 @@
 # ESP32-P4 集市语音实机联调
 
-2026-11-10，Asia/Hong_Kong。Ubuntu `jt@192.168.168.114`，既有工程 `/home/jt/xiaozhi-ubuntu-test`。本轮按用户确认沿用此前有积分的集市测试账号，未启用公网管理后台。
+2026-11-10，Asia/Hong_Kong。Ubuntu 生产环境，既有工程 `/home/jt/xiaozhi-ubuntu-test`。本轮按用户确认沿用此前有积分的集市测试账号，未启用公网管理后台。
 
 ## 设备与配置
 

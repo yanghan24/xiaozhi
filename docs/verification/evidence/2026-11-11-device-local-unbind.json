@@ -54,7 +54,7 @@
   "ubuntu_final_candidate_regression": {
     "status": "blocked",
     "source": "6b2e7445932de7ee84bf89b6af3cf0a0d9f35e52",
-    "ssh_target": "jt@192.168.168.114",
+    "ssh_target": "production",
     "ssh_exit_code": 255,
     "reason": "SSH connection to port 22 timed out",
     "server_commands_executed": false

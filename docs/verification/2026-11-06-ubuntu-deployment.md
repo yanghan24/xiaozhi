@@ -6,7 +6,7 @@
 
 ## 部署结果
 
-服务器为 `jt@192.168.168.114:22`，Ubuntu 20.04.3、Docker 26.1.3、发行版提供的 Compose 2.27.1。工作目录 `/home/jt/xiaozhi-ubuntu-test`，项目名 `xiaozhi-ubuntu-test`。新建该项目专属 MySQL、Redis、上传数据卷及私有 `.env`，初始化密码仅生成一次。最终保留 mysql、redis、api、web、voice 五个容器运行，详见 [最终状态](evidence/2026-11-06-ubuntu/final-summary.json)。
+服务器为 `生产环境:22`，Ubuntu 20.04.3、Docker 26.1.3、发行版提供的 Compose 2.27.1。工作目录 `/home/jt/xiaozhi-ubuntu-test`，项目名 `xiaozhi-ubuntu-test`。新建该项目专属 MySQL、Redis、上传数据卷及私有 `.env`，初始化密码仅生成一次。最终保留 mysql、redis、api、web、voice 五个容器运行，详见 [最终状态](evidence/2026-11-06-ubuntu/final-summary.json)。
 
 服务源码固定为 `6e354edf292c3df14fd783c5dc7314a4402e3b74`。部署开始时重新取得的 `origin/main` 仍为 `46e7f33c9d0d94603c2a58c8e4dc197c1d9e0464`，尚不包含语音基线；本轮使用已验证资料分支产物进行独立测试。没有合并 main 或发布正式版本。
 
@@ -59,7 +59,7 @@ SSH 批处理改为 `bash -c` 执行脚本文本，使 Docker exec 不会从共�
 管理端通过 SSH 隧道访问：
 
 ```bash
-ssh -N -L 127.0.0.1:28002:127.0.0.1:18002 jt@192.168.168.114
+生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
 ```
 
 隧道运行时打开 `http://127.0.0.1:28002`。服务器专属管理员凭据保存在 `/home/jt/xiaozhi-ubuntu-test/.runtime/manager-check/credentials.json`；本机浏览器客户端副本在 `D:\AI\xiaozhi\.runtime\ubuntu-client\.runtime\manager-check\credentials.json`。复用这套账号和服务器 `.env`，后续操作见 [Ubuntu runbook](../deployment/ubuntu-isolated-test.md)。

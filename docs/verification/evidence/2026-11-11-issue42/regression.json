@@ -3,7 +3,7 @@
   "timezone": "Asia/Hong_Kong",
   "source_commit": "d10157d",
   "base_commit": "cdd24a5595d7c04ded3ce8b8547a27b59b846cce",
-  "host": "jt@192.168.168.114",
+  "host": "production",
   "isolated_project": "xiaozhi-issue42",
   "totals": {
     "tests": 357,

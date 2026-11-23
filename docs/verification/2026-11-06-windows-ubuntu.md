@@ -54,7 +54,7 @@ WSL 执行 `python3 scripts/init-voice.py --configure` 通过，保留原管理�
 
 ## Ubuntu 与设备入口
 
-已通过既有认证只读登录 `jt@192.168.168.114:22`，本机直连成功。Ubuntu 20.04.3、x86_64、8 vCPU、16010 MiB 内存（检查时可用 13252 MiB）、449 GiB 可用磁盘，Docker 26.1.3、Compose 2.27.1。`jt` 不在 docker 组，Docker 检查通过 sudo 完成。JetLinks 有 3 个运行容器和 3 个停止容器，本轮未修改服务器容器、卷、业务配置或防火墙。
+已通过既有认证只读登录 `生产环境:22`，本机直连成功。Ubuntu 20.04.3、x86_64、8 vCPU、16010 MiB 内存（检查时可用 13252 MiB）、449 GiB 可用磁盘，Docker 26.1.3、Compose 2.27.1。`jt` 不在 docker 组，Docker 检查通过 sudo 完成。JetLinks 有 3 个运行容器和 3 个停止容器，本轮未修改服务器容器、卷、业务配置或防火墙。
 
 小智语音后台未部署，未发现匹配的私有配置；旧 JetLinks 中名称含“小智”的设备记录不作为本项目实例。候选独立项目为 `xiaozhi-ubuntu-test`，候选设备入口 `192.168.168.114:18080`；执行前重新核对端口。
 

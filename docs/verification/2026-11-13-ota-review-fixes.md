@@ -10,7 +10,7 @@
 
 ## 验证
 
-全部后端执行位于 Ubuntu `jt@192.168.168.114`，源码目录 `/home/jt/ota-review-api`；完整回归使用独立 Compose 项目 `ota-review-final`，协议验收使用独立项目 `ota-review-protocol`。没有变更 `ota98-api` 页面夹具或现网服务，没有物理设备推送。
+全部后端执行位于 Ubuntu 生产环境，源码目录 `/home/jt/ota-review-api`；完整回归使用独立 Compose 项目 `ota-review-final`，协议验收使用独立项目 `ota-review-protocol`。没有变更 `ota98-api` 页面夹具或现网服务，没有物理设备推送。
 
 [XML 汇总](evidence/2026-11-13-ota-review-fixes/test-results.json)保留每次运行的报告目录、数量及失败测试名称。
 

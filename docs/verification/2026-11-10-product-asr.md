@@ -1,6 +1,6 @@
 # 产品异步 ASR 与真实音频闭环
 
-2026-11-10，#13 分支在 36a5c19 基线上增加产品 ASR。Ubuntu jt@192.168.168.114 的 issue13 隔离数据库、Redis、Java harness 和正式 Python WebSocketServer/ConnectionHandler；未合并或部署生产，未使用物理音箱。
+2026-11-10，#13 分支在 36a5c19 基线上增加产品 ASR。Ubuntu 生产环境 的 issue13 隔离数据库、Redis、Java harness 和正式 Python WebSocketServer/ConnectionHandler；未合并或部署生产，未使用物理音箱。
 
 ## 受控回归
 

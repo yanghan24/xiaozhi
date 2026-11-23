@@ -16,7 +16,7 @@
 
 ## 验证
 
-Ubuntu `jt@192.168.168.114` 上，以现网 `xiaozhi-product-voice:pr79-f830a8c` 为基础，只在隔离测试容器覆盖 ASR 模块。测试入口：
+Ubuntu 生产环境 上，以现网 `xiaozhi-product-voice:pr79-f830a8c` 为基础，只在隔离测试容器覆盖 ASR 模块。测试入口：
 
 - `scripts/test_product_rtasr.py`：真实本机 HTTP／WebSocket 边界，原生消息、完整结果、取消、超时、权限失效、401、非鉴权错误、无效音频。
 - `scripts/check-product-asr.py`：真实 Java 权威服务、正式设备 WebSocket／ConnectionHandler、Opus 解码与 ASR → 模型 → TTS；替代集市及 Edge 传输。

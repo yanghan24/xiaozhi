@@ -1,6 +1,6 @@
 # OTA 精确板型识别修复
 
-2026-11-13，Ubuntu `jt@192.168.168.114`。实现提交 `4602a66e02a3d87ce18c85d920ddba9ea5401181`；[PR #109](https://github.com/yanghan24/xiaozhi/pull/109) 已审核并 squash 合并为 `7a1a097e8a23e63776fc155a6d1929bb134d1f97`，受测提交与合并提交的 `main/manager-api` 内容一致。
+2026-11-13，Ubuntu 生产环境。实现提交 `4602a66e02a3d87ce18c85d920ddba9ea5401181`；[PR #109](https://github.com/yanghan24/xiaozhi/pull/109) 已审核并 squash 合并为 `7a1a097e8a23e63776fc155a6d1929bb134d1f97`，受测提交与合并提交的 `main/manager-api` 内容一致。
 
 ## 问题与修复
 

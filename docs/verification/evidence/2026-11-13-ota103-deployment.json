@@ -1,6 +1,6 @@
 {
   "deployed_at": "2026-11-13T08:34:42Z",
-  "server": "jt@192.168.168.114",
+  "server": "production",
   "deployment_root": "/home/jt/pr26-deployment-885918d",
   "merged_fix": {
     "pr": 106,

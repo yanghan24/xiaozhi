@@ -6,7 +6,7 @@
 
 ## Ubuntu 验证
 
-执行主机 `jt@192.168.168.114`，源码和私有运行日志位于 `/home/jt/issue42-recovery-cdd24a5`。测试 Compose project 为 `xiaozhi-issue42`，独立 MySQL/Redis 和新生成测试配置，使用已有离线 Maven 依赖。没有在现场身份库执行回归或修改真实设备。
+执行主机 生产环境，源码和私有运行日志位于 `/home/jt/issue42-recovery-cdd24a5`。测试 Compose project 为 `xiaozhi-issue42`，独立 MySQL/Redis 和新生成测试配置，使用已有离线 Maven 依赖。没有在现场身份库执行回归或修改真实设备。
 
 | 项目 | 结果 |
 | --- | --- |

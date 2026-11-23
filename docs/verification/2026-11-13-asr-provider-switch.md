@@ -1,6 +1,6 @@
 # AI 集市与讯飞直连切换验证
 
-2026-11-13 11:03（Asia/Hong_Kong），在 Ubuntu `jt@192.168.168.114` 完成后台切换能力部署。实现提交 `7a935aba50c0e177e79badcb17a45e6a7ae43308`；任务分支 `codex/asr-provider-switch`，未合并 main。操作方式见[使用说明](../development/asr-provider-switch.md)。
+2026-11-13 11:03（Asia/Hong_Kong），在 Ubuntu 生产环境 完成后台切换能力部署。实现提交 `7a935aba50c0e177e79badcb17a45e6a7ae43308`；任务分支 `codex/asr-provider-switch`，未合并 main。操作方式见[使用说明](../development/asr-provider-switch.md)。
 
 ## 结果
 

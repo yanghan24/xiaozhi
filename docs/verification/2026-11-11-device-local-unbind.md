@@ -42,7 +42,7 @@
 
 主线整合后对 `a1577d7...aa75382` 净差异分别完成 Standards 与 Spec 只读复核，均为 0 项可执行发现，包含配套固件协议及失败重试检查。后续仅更新本报告与机器摘要，不变更运行代码。代码复核不能替代 Ubuntu 执行验证。
 
-本次执行 `ssh -o BatchMode=yes -o ConnectTimeout=8 jt@192.168.168.114 'id -un'`，退出 255，结果为 `Connection timed out`。尚未连接服务器，未执行最终候选的 Ubuntu 回归、部署或公网新路由检查。整合前的 350 项结果及 main 既有报告均不能作为此候选的已执行验证。
+生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
 
 用户已安排由服务器端继续 Ubuntu 回归与部署。后续在 Ubuntu 隔离 checkout 固定上述候选，使用专用 MySQL/Redis 执行 `mvn -o -B -ntp test -DskipTests=false` 与 `bash scripts/check-integration-tests.sh`；按[服务器交接](../handoff/speaker-settings-server.md)补齐部署和公网检查，保留现网数据与私有配置。
 

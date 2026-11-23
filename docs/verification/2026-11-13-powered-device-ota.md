@@ -1,6 +1,6 @@
 # 开机联网在线与待机 OTA
 
-2026-11-13 19:12（Asia/Hong_Kong），Ubuntu `jt@192.168.168.114` 已部署 [PR #114](https://github.com/yanghan24/xiaozhi/pull/114)，合并提交 `a285acc3cd904aa567b01814b39b5da4f888dde8`。设备在线来自近期认证管理联系，语音连接单独显示；配套固件通过管理通道在空闲时领取 OTA。旧固件已能通过原状态轮询提供在线证据，首次安装配套固件仍需既有语音 OTA。
+2026-11-13 19:12（Asia/Hong_Kong），Ubuntu 生产环境 已部署 [PR #114](https://github.com/yanghan24/xiaozhi/pull/114)，合并提交 `a285acc3cd904aa567b01814b39b5da4f888dde8`。设备在线来自近期认证管理联系，语音连接单独显示；配套固件通过管理通道在空闲时领取 OTA。旧固件已能通过原状态轮询提供在线证据，首次安装配套固件仍需既有语音 OTA。
 
 ## 代码与验证
 

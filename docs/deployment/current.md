@@ -48,7 +48,7 @@
 
 | 项目 | 最近确认值 |
 | --- | --- |
-| Ubuntu / SSH | `jt@192.168.168.114` |
+| Ubuntu / SSH | 生产环境 |
 | API 源码 | `a285acc3cd904aa567b01814b39b5da4f888dde8`（PR #114）；受测后端 `2d522fe` 的 API 内容与合并结果一致 |
 | 部署目录 | `/home/jt/pr26-deployment-885918d` |
 | Compose 文件 | 部署目录内 `private/compose.json` |
@@ -57,7 +57,7 @@
 | 公网入口 | 既有 TLS Nginx，公网 18443 映射到 Ubuntu 443 |
 | 管理页面 | `xiaozhi-pr26-web`，镜像 `sha256:f801eab396d85cc78b5dc0e442aaaeaf19816e1c145e133215d3e0d2f53d9db2`；Ubuntu `127.0.0.1:18052`，经 SSH 隧道访问 |
 
-外网烧录工作站继续使用已签发的长期烧录凭据；本次验证其有效状态及已撤销凭据的拒绝状态均保留。它不能登录管理页面。管理页面可用 `ssh -N -L 127.0.0.1:28052:127.0.0.1:18052 jt@192.168.168.114` 后访问 `http://127.0.0.1:28052/#/login`。
+生产访问方式不在仓库文档中记录；此处仅保留历史操作结果。
 
 用户确认现有集市客户端已勾选 `balance:read` 后，已设置并保留 `CUSTOMER_OIDC_BALANCE_ENABLED=true`；不是通过开关证明客户端开通。历史账号可能需要扫码补授权，真实账号实时积分尚未验收。账号接口使用设备接入凭据，查询本台当前归属账号；旧 `sign-out` 保留归属和集市授权，仅停用本台许可。新 `unbind` 在本机明确确认后释放本台归属，停用并递增许可及归属代际；其他账号可扫描新二维码接手。配套组合固件 `860e045` 已安装到 B，用户确认立即停播、换账号绑定及两台均可回答；Ubuntu 17:17 只读回查确认停播 ACK 为 revision 18 / permission_version 13 / audio_stopped=true，随后当前状态为 ready / version 14 / ownership_version 3。详见[固件与现场验收记录](https://github.com/yanghan24/xiaozhi/blob/cd5dff6b49151a49eab461b9a5ffd013401c703b/docs/verification/2026-11-11-device-local-unbind-firmware.md)及[本轮只读结果](../verification/evidence/2026-11-11-pr67-deployment/b-stop-ack.json)。新路由与长期凭据管理路由为精确放行，普通管理登录、配置与内部 API 仍不公开。
 

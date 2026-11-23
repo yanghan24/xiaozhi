@@ -40,7 +40,7 @@ HTTP 覆盖服务器全部目标跨分页、预览排除原因、预览后新登
 
 ## 可追溯产物与交接
 
-所有后端/协议执行均位于 Ubuntu `jt@192.168.168.114` 的独立项目 `ota98-api`，没有修改 `ota97-api` 或现网服务。
+所有后端/协议执行均位于 Ubuntu 生产环境 的独立项目 `ota98-api`，没有修改 `ota97-api` 或现网服务。
 
 - 完整 Java XML：`/home/jt/ota98-api/.runtime/reports-1794546960`。
 - 最终综合协议 XML：`/home/jt/ota98-api/.runtime/protocol-reports-1794546601`。

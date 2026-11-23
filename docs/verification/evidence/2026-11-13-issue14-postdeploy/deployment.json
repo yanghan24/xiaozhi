@@ -1,6 +1,6 @@
 {
   "captured_at_utc": "2026-11-13T06:43:17Z",
-  "host": "jt@192.168.168.114",
+  "host": "production",
   "deployment_root": "/home/jt/pr26-deployment-885918d",
   "compose_file": "/home/jt/pr26-deployment-885918d/private/compose.json",
   "services": {

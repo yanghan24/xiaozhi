@@ -40,7 +40,7 @@ python3 scripts/customer-identity/revocation_probe.py observe --state /private/r
 
 ## Ubuntu 可控验证
 
-2026-11-11，在 `jt@192.168.168.114` 的 `/home/jt/issue11-revocation-probe-20261111` 执行：
+2026-11-11，在 生产环境 的 `/home/jt/issue11-revocation-probe-20261111` 执行：
 
 ```bash
 python3 -m unittest discover -s tests -p test_revocation_probe.py -v

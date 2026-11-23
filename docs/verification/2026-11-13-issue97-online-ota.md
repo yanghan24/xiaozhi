@@ -19,7 +19,7 @@ Java HTTP 覆盖管理员与非管理员权限、严格字段/重复 JSON/超限
 
 ## 可追溯证据
 
-全部后端与设备协议测试在 Ubuntu `jt@192.168.168.114` 执行，没有在开发电脑运行后端服务。隔离项目 `ota97-api` 使用独立数据库、Redis 和无主机端口的模拟语音桥；Python 独立回归位于 `/home/jt/ota97-voice`。
+全部后端与设备协议测试在 Ubuntu 生产环境 执行，没有在开发电脑运行后端服务。隔离项目 `ota97-api` 使用独立数据库、Redis 和无主机端口的模拟语音桥；Python 独立回归位于 `/home/jt/ota97-voice`。
 
 - 最终 Java XML：`/home/jt/ota97-api/.runtime/final-reports-1794544826`。
 - 最终综合协议 XML：`/home/jt/ota97-api/.runtime/protocol-final-reports`。

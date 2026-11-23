@@ -1,6 +1,6 @@
 # PR #26 Ubuntu 服务端部署记录
 
-日期：2026-11-10（Asia/Hong_Kong）。服务器：jt@192.168.168.114。
+日期：2026-11-10（Asia/Hong_Kong）。服务器：生产环境。
 
 已部署 PR #26 固定提交 `885918d24d69f0b2ed87114f1937292727111d4e`，未合并 PR。Java 与 Python 从该提交源码构建，复用已安装的基础镜像和依赖。部署目录：`/home/jt/pr26-deployment-885918d`，Compose：该目录下的 `private/compose.json`。
 
