@@ -24,7 +24,7 @@
 | --- | --- |
 | 配网与 Wi-Fi | `speaker_wifi_view` 管理触屏界面，`speaker_wifi_setup` 后台任务调用 Wi-Fi 组件。[组件补丁](../cmake/p4x-touch-wifi.patch)支持运行中扫描、试连和热点。首次触屏与手机热点共用提交逻辑。浏览列表或打开热点时保留已连网络。确认后试连，成功取得 IP 后保存，失败时恢复原网络。 |
 | 账号、积分、解绑 | [`speaker_account`](../main/speaker_account/) 管理身份和认证连接，账号页显示扫码、绑定资料及积分。首次配网完成后自动登记。用户经手机完成 AI 集市授权，设备更新状态并取得语音票据。解绑按本台设备的既有流程确认。 |
-| 积分充值 | `speaker_recharge` 根据后台开关在账号页提供入口。原账号补充一次充值授权后，使用微信扫描充值二维码并在集市页面付款。音箱在充值页面核对结果，确认到账后刷新账号积分。 |
+| 积分充值 | `speaker_recharge` 根据后台开关在账号页提供入口。启用充值后，扫码登录可同时取得充值权限。已有授权缺少此权限时，用原账号补充一次授权。使用微信扫描充值二维码，在集市页面付款。音箱核对到账结果并刷新积分。 |
 | 开机、首页、屏保与导航 | `speaker_home_display` 协调系统画面和应用优先级，`speaker_boot_view`、`speaker_launcher_view`、`speaker_screensaver_view`、`speaker_background` 管理各自的 UI 与资源。`speaker_navigation` 管理应用入口、返回和边缘手势。 |
 | 全屏对话 | `speaker_conversation_view` 显示语音状态与字幕，`speaker_wave` 控制波带绘制。收音和实际音频播放从现有应用和音频服务接收状态。 |
 | 设置 | `speaker_settings_view` 维持设置首页及声音和显示、屏保、关于设备页面。账号和 Wi-Fi 路由进入各自模块。滑块与语音控制复用音量、背光服务，按现有规则更新与保存。 |
