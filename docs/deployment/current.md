@@ -1,6 +1,6 @@
 # 当前生产部署状态
 
-最近一次部署核验为 **2026-11-24 08:59（Asia/Shanghai）**。生产目录、构建、传包、备份、启停和 OTA 流程见[生产部署规范](../../deploy/production/README.md)。
+最近一次部署核验为 **2026-11-24 13:14（Asia/Shanghai）**。生产目录、构建、传包、备份、启停和 OTA 流程见[生产部署规范](../../deploy/production/README.md)。
 
 ## 业务入口
 
@@ -17,12 +17,17 @@
 
 | 组件 | 最近核验版本 | 核验结果 |
 | --- | --- | --- |
-| 管理 Web、Java API | `127fd603872cc8750dbd33956e84f4b4f46aa22d` | 2026-11-24 08:59:56 完成应用层升级。令牌续期迁移、重新授权界面产物及管理员权限检查通过。 |
+| Java API | `d3c17d3ecdae321ace062be354335db08d0dede3` | 2026-11-24 13:13:49 完成应用层升级。充值开关、数据库迁移和设备接口鉴权通过核验。 |
+| 管理 Web | `127fd603872cc8750dbd33956e84f4b4f46aa22d` | 2026-11-24 08:59:56 完成应用层升级，13:14 核对运行实例一致。 |
 | Python 语音服务 | `e339ce93c5c492459270f9658d5e12659ceffc27` | 2026-11-23 23:33:22 完成应用层升级。11-24 核对运行实例一致，Java 运行配置读取和公网 WSS 鉴权检查通过。 |
 | MySQL、Redis、Nginx | 8.0.41、8.0.0、1.27.4 | 运行实例保持一致，MySQL、Redis 健康检查通过。 |
-| Waveshare ESP32-P4X 4.3 寸 OTA 下发 | 2.6.23，`e6a7de9a9cf396341f8d003494437c62b3df05d0` | 2026-11-23 23:34:09 发布，本机和公网下载校验一致。测试音箱 23:42 起上报 2.6.23。11-24 核对 OTA 目录沿用该版。 |
+| Waveshare ESP32-P4X 4.3 寸 OTA 下发 | 2.6.24，`3bebadf7e6d298b5cefbce8f0b2213545c85b576` | 2026-11-24 13:13:56 发布，本机和公网下载校验一致。13:14 核验时已有 1 台音箱上报该版心跳。 |
 
 ### 服务端升级记录
+
+2026-11-24 13:13:49，以 `127fd603872cc8750dbd33956e84f4b4f46aa22d` 为基线，仅升级 Java API 至 `d3c17d3ecdae321ace062be354335db08d0dede3`。启用 `speaker.recharge-enabled`。新发起的扫码登录同时申请充值权限，已有授权缺少权限时可用原账号补充。迁移 `202611261700` 新增授权范围及补授权事务标记字段。37 项定向开发测试通过。生产检查覆盖三条充值接口的设备鉴权和禁止缓存、管理入口、Python 语音配置读取与公网 WSS 鉴权。管理 Web、Python 语音、MySQL、Redis 和 Nginx 的运行实例一致。真实集市扫码授权及微信付款为实机验收项。
+
+应用层包 `services.tar` 为 79,677,440 字节，SHA-256 为 `b122f75ae1c269dfbd5256a8f1e04ec7f4130515e44eefda5f59b7c9cdc2f749`。包、清单和发布回执位于 `/data/packages/xiaozhi/d3c17d3ecdae/component-upgrade/`。首次切换因验收脚本按单条匹配重复的 `Cache-Control: no-store` 响应头，触发 API 与配置回退。核实响应头后修正验收脚本并重新切换。两次切换前的 Compose、应用参数及受影响的授权数据和表结构分别备份在 `/data/backup/xiaozhi/before-d3c17d3ecdae/` 和 `/data/backup/xiaozhi/before-d3c17d3ecdae-retry/`。
 
 2026-11-24 08:59:56，以 `e339ce93c5c492459270f9658d5e12659ceffc27` 为基线，将 Java API 和管理 Web 更新到 `127fd603872cc8750dbd33956e84f4b4f46aa22d`。迁移 `202611261600` 增加令牌重试及指定音箱重新授权所需字段。管理入口、重新授权前端资源、管理员用户详情、重新授权接口的未登录访问拦截、语音服务读取配置及公网 WSS 鉴权均通过。Python 语音、MySQL、Redis 和 Nginx 容器实例及 2.6.23 OTA 目录保持一致。原账号扫码后恢复实时积分由用户实机核验。
 
@@ -43,6 +48,8 @@
 语音应用层包 `services.tar` 为 23,080,960 字节，SHA-256 为 `d5d6af521bd032b63f72e71430e9b99b63a7612ea2b7507266cb519843853306`。包、清单和 `release.json` 位于 `/data/packages/xiaozhi/fea5cc273ca4/voice-upgrade/`，切换前的 Compose 和容器记录备份在 `/data/backup/xiaozhi/voice-before-fea5cc273ca4/`。
 
 ### 固件 OTA 记录
+
+2026-11-24 13:13:56，从 2.6.23（`e6a7de9a9cf396341f8d003494437c62b3df05d0`）更新至 2.6.24（`3bebadf7e6d298b5cefbce8f0b2213545c85b576`）。账号页新增积分充值，显示付款二维码并在集市确认到账后刷新积分。P4X 集市版应用镜像为 4,050,112 字节，最小应用分区余 78,656 字节，SHA-256 为 `ebb9bdaf223914950cc4eefa6962232199305edbc1c611bcd64d177f0bbaa4ba`。生产本机和公网下载校验通过。产物和回执位于 `/data/packages/xiaozhi/3bebadf7e6d2/`，前一版目录及应用包备份位于 `/data/backup/xiaozhi/ota-before-2.6.24/`。
 
 2026-11-23 23:34:09，发布 2.6.23（`e6a7de9a9cf396341f8d003494437c62b3df05d0`）。固件用 OTA 响应和设备鉴权心跳恢复时间，校时后再执行本地提醒。日历调整日期数字和提醒圆点的位置。
 
