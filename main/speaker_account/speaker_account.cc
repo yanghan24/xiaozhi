@@ -550,17 +550,27 @@ SpeakerAccount::LoginResult SpeakerAccount::PollLogin(const Identity& identity, 
     const auto status = Text(result.get(), "status", 32);
     if (status == "completed") {
         login_id.clear();
+        Publish({Page::Connecting, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
         return LoginResult::Completed;
+    }
+    const bool waiting_for_consent = status == "pending" || status == "polling";
+    const auto expires_at = Number(result.get(), "expires_at_ms");
+    const auto server_time = Number(result.get(), "server_time_ms");
+    const bool expired = waiting_for_consent && server_time > 0 && expires_at > 0 && expires_at <= server_time;
+    if (expired || status == "expired" || status == "denied" || status == "cancelled" || status == "failed") {
+        login_id.clear();
+        retry_login = true;
+        Publish({Page::Retry, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
+        return LoginResult::InProgress;
     }
     auto qr_url = Text(result.get(), "verification_uri");
     auto code = Text(result.get(), "user_code", 32);
-    if (!login_id.empty() && SecureUrl(qr_url, "https://") && Token(code, 1, 32, "- ")) {
+    if (waiting_for_consent && !login_id.empty() && server_time > 0 && expires_at > server_time &&
+        SecureUrl(qr_url, "https://") && Token(code, 1, 32, "- ")) {
         Publish({Page::Scan, std::move(qr_url), std::move(code), customer, bound},
                 {}, 0, permission, true, epoch);
     } else {
-        retry_login = status == "expired" || status == "denied" || status == "cancelled" || status == "failed";
-        Publish({retry_login ? Page::Retry : Page::Connecting, {}, {}, customer, bound},
-                {}, 0, permission, true, epoch);
+        Publish({Page::Connecting, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
     }
     return LoginResult::InProgress;
 }
