@@ -1,4 +1,5 @@
 #include "speaker_account_page.h"
+#include "speaker_recharge.h"
 #include "speaker_ui_widgets.h"
 
 #include "application.h"
@@ -82,6 +83,7 @@ void SpeakerAccountPage::Create(lv_obj_t* apps, lv_obj_t* system, lv_event_cb_t 
 
 void SpeakerAccountPage::Destroy() {
     account_page = nullptr;
+    SpeakerRecharge::Get().Close();
     if (root_) {
         lv_obj_delete(root_);
         root_ = nullptr;
@@ -102,6 +104,7 @@ void SpeakerAccountPage::Show() {
 
 void SpeakerAccountPage::Hide() {
     requested_ = false;
+    SpeakerRecharge::Get().Close();
     confirm_unbind_ = false;
     Render();
 }
@@ -115,6 +118,9 @@ void SpeakerAccountPage::SetPromptsAllowed(bool allowed) {
 
 void SpeakerAccountPage::Apply(const SpeakerAccount::View& view) {
     if (view_ != view) {
+        if (!view.recharge_available || view.balance_permission != view_.balance_permission) {
+            SpeakerRecharge::Get().Close();
+        }
         const bool reset_confirmation = view_.page != view.page || view_.customer != view.customer ||
                                         !view.can_unbind || view.unbind_pending;
         if (reset_confirmation) {
@@ -127,6 +133,12 @@ void SpeakerAccountPage::Apply(const SpeakerAccount::View& view) {
         } else {
             view_ = view;
         }
+        Render();
+    }
+}
+
+void SpeakerAccountPage::RefreshRecharge() {
+    if (requested_ && !PromptVisible() && SpeakerRecharge::Get().GetView().page != SpeakerRecharge::Page::Inactive) {
         Render();
     }
 }
@@ -149,8 +161,40 @@ void SpeakerAccountPage::Render() {
     }
     lv_obj_set_flag(root_, LV_OBJ_FLAG_CLICKABLE, prompt);
     lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, !prompt && !requested_);
-    if (prompt || requested_) {
+    if (!prompt && requested_ && SpeakerRecharge::Get().GetView().page != SpeakerRecharge::Page::Inactive) {
+        RenderRecharge();
+    } else if (prompt || requested_) {
         RenderContent(prompt);
+    }
+}
+
+void SpeakerAccountPage::RenderRecharge() {
+    using RechargePage = SpeakerRecharge::Page;
+    const auto view = SpeakerRecharge::Get().GetView();
+    Header(root_, view.page == RechargePage::Consent ? "充值授权" : "积分充值", OnRechargeBack, this);
+    auto* status = Label(root_, view.message.c_str(), kCyan);
+    lv_obj_set_style_text_align(status, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    if (!view.url.empty() && RenderQr(root_, view.url, qr_buffer_)) {
+        lv_obj_set_width(status, 350);
+        lv_obj_align(status, LV_ALIGN_CENTER, 170, -36);
+        const auto* hint = view.page == RechargePage::Consent ? view.code.c_str() : "在集市页面选择金额并付款";
+        auto* detail = Label(root_, hint, kMuted);
+        lv_obj_align(detail, LV_ALIGN_CENTER, 170, 35);
+        return;
+    }
+    if (!view.url.empty()) {
+        UpdateLabel(status, "二维码生成失败，请重新获取");
+    }
+    lv_obj_set_width(status, 640);
+    lv_obj_align(status, LV_ALIGN_CENTER, 0, -22);
+    if (view.page == RechargePage::Failed || view.page == RechargePage::Waiting || !view.url.empty()) {
+        auto* retry = Button(root_, "重新获取", OnRecharge, this, kCyan, kDeep);
+        lv_obj_set_size(retry, 212, 64);
+        lv_obj_align(retry, LV_ALIGN_CENTER, 0, 78);
+    } else if (view.page == RechargePage::Paid) {
+        auto* done = Button(root_, "返回账号", OnRechargeBack, this, kCyan, kDeep);
+        lv_obj_set_size(done, 212, 64);
+        lv_obj_align(done, LV_ALIGN_CENTER, 0, 78);
     }
 }
 
@@ -225,8 +269,29 @@ void SpeakerAccountPage::RenderContent(bool prompt) {
         auto* button = Button(root_, confirm_unbind_ ? "确认解绑" : "解除绑定", OnUnbind, this);
         Outline(button);
         lv_obj_set_size(button, 278, 70);
-        lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -63);
+        lv_obj_align(button, LV_ALIGN_BOTTOM_MID, view_.recharge_available ? 150 : 0, -63);
     }
+    if (view_.recharge_available) {
+        auto* button = Button(root_, "充值", OnRecharge, this, kCyan, kDeep);
+        lv_obj_set_size(button, 250, 70);
+        lv_obj_align(button, LV_ALIGN_BOTTOM_MID, -150, -63);
+    }
+}
+
+void SpeakerAccountPage::OnRecharge(lv_event_t* event) {
+    auto* page = static_cast<SpeakerAccountPage*>(lv_event_get_user_data(event));
+    page->confirm_unbind_ = false;
+    SpeakerRecharge::Get().Open();
+    page->Render();
+}
+
+void SpeakerAccountPage::OnRechargeBack(lv_event_t* event) {
+    auto* page = static_cast<SpeakerAccountPage*>(lv_event_get_user_data(event));
+    auto& recharge = SpeakerRecharge::Get();
+    const bool paid = recharge.GetView().page == SpeakerRecharge::Page::Paid;
+    recharge.Close();
+    if (paid) SpeakerAccount::Get().RefreshBalance();
+    page->Render();
 }
 
 void SpeakerAccountPage::OnUnbind(lv_event_t* event) {
@@ -249,4 +314,11 @@ void RenderSpeakerAccount(const SpeakerAccount::View& view) {
     if (lock && account_page) {
         account_page->Apply(view);
     }
+}
+
+void RenderSpeakerRecharge() {
+    auto* display = Board::GetInstance().GetDisplay();
+    if (!display->IsSetupUICalled() || !display->SupportsGuiOperations()) return;
+    DisplayLockGuard lock(display);
+    if (lock && account_page) account_page->RefreshRecharge();
 }

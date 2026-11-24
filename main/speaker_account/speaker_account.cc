@@ -754,6 +754,8 @@ void SpeakerAccount::Run() {
                 cJSON_GetObjectItemCaseSensitive(document.get(), "standby_weather_allowed"));
         const int64_t balance_permission = bound && cJSON_IsTrue(
                 cJSON_GetObjectItemCaseSensitive(document.get(), "account_balance_allowed")) ? permission_version : 0;
+        const bool recharge_available = balance_permission > 0 && cJSON_IsTrue(
+            cJSON_GetObjectItemCaseSensitive(document.get(), "recharge_available"));
         if (status == "ready") {
             const auto* info = cJSON_GetObjectItemCaseSensitive(document.get(), "voice");
             VoiceAccess access{Text(info, "url"), Text(info, "token"), 1};
@@ -764,11 +766,15 @@ void SpeakerAccount::Run() {
                 Number(info, "protocol_version") == 1 &&
                 Number(info, "permission_version") == permission_version &&
                 SecureUrl(access.url, "wss://") && Token(access.token, 43, 128, "_-")) {
-                Publish({Page::Ready, {}, {}, customer, true, false, weather_allowed, balance_permission}, std::move(access),
+                View view{Page::Ready, {}, {}, customer, true, false, weather_allowed, balance_permission};
+                view.recharge_available = recharge_available;
+                Publish(std::move(view), std::move(access),
                         Now() + std::min({lease, expiry - server_time, kMaxLease}),
                         permission_version, true, epoch, Number(document.get(), "binding_version"));
             } else {
-                Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission},
+                View view{Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission};
+                view.recharge_available = recharge_available;
+                Publish(std::move(view),
                         {}, 0, permission_version, true, epoch);
             }
             login_id.clear();
@@ -776,7 +782,9 @@ void SpeakerAccount::Run() {
             continue;
         }
         if (status != "unbound" && status != "signed_out" && status != "authorization_required") {
-            Publish({Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission}, {}, 0,
+            View view{Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission};
+            view.recharge_available = recharge_available;
+            Publish(std::move(view), {}, 0,
                     permission_version, true, epoch);
             login_id.clear();
             continue;

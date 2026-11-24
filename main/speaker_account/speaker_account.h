@@ -46,6 +46,7 @@ public:
         int64_t balance_permission = 0;
         bool balance_loading = false;
         std::string balance;
+        bool recharge_available = false;
 
         bool operator==(const View&) const = default;
     };
@@ -70,6 +71,7 @@ public:
 
 private:
     friend class SpeakerStandbyWeather;
+    friend class SpeakerRecharge;
     struct Response {
         int status = 0;
         std::string body;
