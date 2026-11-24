@@ -6,9 +6,14 @@ import java.math.BigDecimal;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -142,6 +147,7 @@ class SpeakerLoginDatabaseTest {
     }
     @Test void refreshFailureDoesNotRevokeKeyOrDisableDevice() {
         authorize();when(market.credential(any())).thenReturn(new SpeakerMarket.Credential("key-fixture","https://fixture.example",null));advance();
+        db.update("UPDATE speaker_grant SET access_expires_at_ms=0 WHERE client_id=?",settings.clientId());
         var row=db.queryForMap("SELECT * FROM speaker_grant WHERE client_id=?",settings.clientId());
         row.put("subject",tokens.subject());
         when(market.refresh(anyString(),anyString())).thenThrow(new SpeakerFailure(503,"MARKET_UNAVAILABLE"));
@@ -149,6 +155,116 @@ class SpeakerLoginDatabaseTest {
         var saved=db.queryForMap("SELECT * FROM speaker_grant WHERE client_id=?",settings.clientId());
         assertEquals("uncertain",saved.get("token_status"));assertTrue(SpeakerGrants.usable(saved,System.currentTimeMillis()));
         assertEquals(true,db.queryForMap("SELECT use_enabled FROM speaker_device_state WHERE device_id=?",device).get("use_enabled"));
+        grants.refreshDue();
+        verify(market,times(1)).refresh(anyString(),anyString());
+    }
+
+    @Test void scheduledRetryRetainsTheTokenAndRecoversBalanceFromAnotherInstance() {
+        bind();
+        String customer=customerId();
+        db.update("UPDATE speaker_grant SET access_expires_at_ms=0 WHERE customer_id=?",customer);
+        var before=grants.grant(customer);
+        var next=replacementTokens();
+        when(market.refresh(tokens.refresh(),tokens.subject()))
+                .thenThrow(new SpeakerMarket.RefreshRetry("MARKET_REFRESH_NOT_SENT",0)).thenReturn(next);
+        grants.refreshDue();
+        var scheduled=grants.grant(customer);
+        assertEquals("active",scheduled.get("token_status"));
+        assertEquals(before.get("refresh_cipher"),scheduled.get("refresh_cipher"));
+        assertEquals(2_000,SpeakerSupport.number(scheduled,"token_retry_at_ms")-SpeakerSupport.number(scheduled,"token_updated_at_ms"));
+        var other=grantsUsing(db);
+        other.refreshDue();
+        verify(market,times(1)).refresh(anyString(),anyString());
+        db.update("UPDATE speaker_grant SET token_retry_at_ms=0 WHERE customer_id=?",customer);
+        other.refreshDue();
+        var saved=grants.grant(customer);
+        assertEquals(SpeakerSupport.number(before,"token_version")+1,SpeakerSupport.number(saved,"token_version"));
+        assertEquals(next.refresh(),grants.currentTokens(customer).refresh());
+        // The scope is not persisted; only the issued access token matters for the query.
+        when(market.balance(argThat(value -> value!=null && next.access().equals(value.access())))).thenReturn(new BigDecimal("42.5"));
+        assertEquals("42.5",other.deviceBalance(customer));
+    }
+
+    @Test void rotationHasOneInFlightRequestAcrossInstances() throws Exception {
+        bind();
+        String customer=customerId();
+        db.update("UPDATE speaker_grant SET access_expires_at_ms=0 WHERE customer_id=?",customer);
+        var called=new CountDownLatch(1);
+        var release=new CountDownLatch(1);
+        when(market.refresh(anyString(),anyString())).thenAnswer(call -> {
+            called.countDown();
+            if (!release.await(10,TimeUnit.SECONDS)) throw new IllegalStateException("Fixture did not release refresh");
+            return replacementTokens();
+        });
+        try (var executor=Executors.newSingleThreadExecutor()) {
+            var first=executor.submit(grants::refreshDue);
+            try {
+                assertTrue(called.await(10,TimeUnit.SECONDS));
+                grantsUsing(db).refreshDue();
+                verify(market,times(1)).refresh(anyString(),anyString());
+            } finally {
+                release.countDown();
+            }
+            first.get(10,TimeUnit.SECONDS);
+        }
+        assertEquals("active",grants.grant(customer).get("token_status"));
+    }
+
+    @Test void databaseFailureRetriesSavingTheSameResponse() {
+        bind();
+        String customer=customerId();
+        db.update("UPDATE speaker_grant SET access_expires_at_ms=0 WHERE customer_id=?",customer);
+        var failOnce=new AtomicBoolean(true);
+        var dbWithFailure=new JdbcTemplate(db.getDataSource()) {
+            @Override public int update(String sql,Object... args) {
+                if(sql.startsWith("UPDATE speaker_grant SET access_cipher=") && failOnce.getAndSet(false))
+                    throw new TransientDataAccessResourceException("Fixture write failure");
+                return super.update(sql,args);
+            }
+        };
+        var worker=grantsUsing(dbWithFailure);
+        var next=replacementTokens();
+        when(market.refresh(anyString(),anyString())).thenReturn(next);
+        worker.refreshDue();
+        assertEquals("refreshing",grants.grant(customer).get("token_status"));
+        worker.refreshDue();
+        assertEquals(next.refresh(),grants.currentTokens(customer).refresh());
+        verify(market,times(1)).refresh(anyString(),anyString());
+    }
+
+    @Test void requestedReauthorizationKeepsTheOriginalBinding() {
+        bind();
+        String customer=customerId();
+        db.update("UPDATE speaker_grant SET token_status='uncertain',refresh_cipher=NULL WHERE customer_id=?",customer);
+        var operations=new SpeakerOperations(db,devices,grants,mock(SpeakerVoice.class));
+        var original=operations.state(identity);
+        assertEquals("ready",original.get("use_status"));
+        operations.requestReauthorization(customer,device,SpeakerSupport.number(original,"permission_version"),0);
+        var requested=operations.state(identity);
+        assertEquals("authorization_required",requested.get("use_status"));
+        assertEquals("bound",requested.get("binding_state"));
+        assertEquals("authorized",operations.useStatus(devices.load(identity,false)));
+        login=logins.begin(identity).get("id").toString();
+        when(market.poll(anyString())).thenReturn(new SpeakerMarket.Poll(replacementTokens(),null));
+        advance();advance();
+        var recovered=operations.state(identity);
+        assertEquals("ready",recovered.get("use_status"));
+        assertEquals(original.get("binding_version"),recovered.get("binding_version"));
+        assertEquals(customer,customerId());
+        assertEquals("active",grants.grant(customer).get("token_status"));
+    }
+
+    private String customerId() {
+        return db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?",String.class,device);
+    }
+
+    private SpeakerMarket.Tokens replacementTokens() {
+        return new SpeakerMarket.Tokens(tokens.subject(),"new-access-fixture","new-refresh-fixture",
+                System.currentTimeMillis()+300_000,SpeakerMarket.SCOPES);
+    }
+
+    private SpeakerGrants grantsUsing(JdbcTemplate template) {
+        return new SpeakerGrants(template,settings,crypto,market,new DataSourceTransactionManager(db.getDataSource()));
     }
     private void bind() {
         authorize();when(market.credential(any())).thenReturn(new SpeakerMarket.Credential("key-fixture","https://fixture.example",null));advance();

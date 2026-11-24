@@ -3,10 +3,14 @@ package xiaozhi.modules.speaker;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.Striped;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,12 +23,17 @@ import static xiaozhi.modules.speaker.SpeakerSupport.*;
 public class SpeakerGrants {
     private static final long BALANCE_CACHE_MS = 60_000;
     private static final long BALANCE_RETRY_MS = 15_000;
+    private static final long[] REFRESH_RETRY_MS = {2_000, 5_000, 10_000, 30_000, 60_000};
+    private static final Logger LOG = LoggerFactory.getLogger(SpeakerGrants.class);
     private final JdbcTemplate db;
     private final SpeakerSettings settings;
     private final SpeakerCrypto crypto;
     private final SpeakerMarket market;
     private final TransactionTemplate transactions;
     private final Striped<Lock> balanceLocks = Striped.lazyWeakLock(64);
+    private final Map<RefreshClaim, SpeakerMarket.Tokens> pendingRefreshes = new ConcurrentHashMap<>();
+
+    private record RefreshClaim(String customer, long version) {}
     public SpeakerGrants(JdbcTemplate db,SpeakerSettings settings,SpeakerCrypto crypto,SpeakerMarket market,
             PlatformTransactionManager manager) {
         this.db=db;this.settings=settings;this.crypto=crypto;this.market=market;
@@ -42,7 +51,8 @@ public class SpeakerGrants {
                     text(profile,"name",255),text(profile,"preferred_username",255),text(profile,"account_type",32),organization,now,id);
             db.update("INSERT INTO speaker_grant(customer_id,client_id,access_cipher,refresh_cipher,access_expires_at_ms,token_updated_at_ms,generation) "
                     + "VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE access_cipher=VALUES(access_cipher),refresh_cipher=VALUES(refresh_cipher),"
-                    + "access_expires_at_ms=VALUES(access_expires_at_ms),token_updated_at_ms=VALUES(token_updated_at_ms),token_status='active',token_version=token_version+1",
+                    + "access_expires_at_ms=VALUES(access_expires_at_ms),token_updated_at_ms=VALUES(token_updated_at_ms),"
+                    + "token_status='active',token_version=token_version+1,token_retry_count=0,token_retry_at_ms=0,token_error=NULL",
                     id,settings.clientId(),crypto.encrypt(tokens.access()),crypto.encrypt(tokens.refresh()),tokens.expiresAt(),now,token());
             db.update("UPDATE speaker_login SET customer_id=? WHERE id=? AND status='polling'",id,loginId);
             return id;
@@ -70,7 +80,7 @@ public class SpeakerGrants {
     }
     public static boolean usable(Map<String,Object> grant,long now) {
         // Identity authorization is independent of resource keys and short token expiry.
-        return grant!=null && java.util.Set.of("active","refreshing","uncertain").contains(grant.get("token_status"));
+        return grant!=null && java.util.Set.of("active","refreshing","uncertain","config_error").contains(grant.get("token_status"));
     }
     private SpeakerMarket.Tokens tokens(Map<String,Object> grant) {
         return new SpeakerMarket.Tokens(grant.get("subject").toString(),crypto.decrypt(grant.get("access_cipher").toString()),
@@ -116,7 +126,7 @@ public class SpeakerGrants {
     private BigDecimal fetchBalance(String customer) {
         var grant=grant(customer);
         long now=System.currentTimeMillis();
-        if(grant==null || number(grant,"access_expires_at_ms")<=now || !"active".equals(grant.get("token_status"))) {
+        if(!usable(grant,now) || number(grant,"access_expires_at_ms")<=now) {
             db.update("UPDATE speaker_customer SET balance_status='unavailable',balance_checked_at_ms=? WHERE id=?",now,customer);
             return null;
         }
@@ -134,39 +144,81 @@ public class SpeakerGrants {
     private static String balanceText(BigDecimal balance) {
         return balance.stripTrailingZeros().toPlainString();
     }
-    @Scheduled(fixedDelayString="${speaker.refresh-delay-ms:10000}")
+    @Scheduled(fixedDelayString="${speaker.refresh-delay-ms:1000}")
     public void refreshDue() {
         if(!settings.enabled() || settings.clientId().isBlank()) return;
+        pendingRefreshes.forEach(this::persistRefresh);
         long now=System.currentTimeMillis();
-        // A crashed in-flight rotation cannot be replayed. Only token state changes, never device permission or Key state.
-        db.update("UPDATE speaker_grant SET token_status='uncertain',refresh_cipher=NULL WHERE client_id=? AND token_status='refreshing' AND token_updated_at_ms<?",
+        // An interrupted attempt may already have rotated the token. A late result can
+        // still be saved by its owner, but another instance must never replay the old token.
+        db.update("UPDATE speaker_grant SET token_status='uncertain',token_error='MARKET_REFRESH_UNCERTAIN' "
+                + "WHERE client_id=? AND token_status='refreshing' AND token_updated_at_ms<?",
                 settings.clientId(),now-30_000);
-        for(var grant:db.queryForList("SELECT g.*,c.subject FROM speaker_grant g JOIN speaker_customer c ON c.id=g.customer_id "
-                + "WHERE g.client_id=? AND c.issuer=? AND g.token_status='active' AND g.access_expires_at_ms<=? LIMIT 10",settings.clientId(),settings.issuer(),now+30_000))
+        for(var grant:db.queryForList("""
+                SELECT g.*,c.subject FROM speaker_grant g JOIN speaker_customer c ON c.id=g.customer_id
+                WHERE g.client_id=? AND c.issuer=? AND g.token_status='active' AND g.refresh_cipher IS NOT NULL
+                    AND g.access_expires_at_ms<=? AND g.token_retry_at_ms<=?
+                ORDER BY GREATEST(g.token_retry_at_ms,g.access_expires_at_ms-30000),g.customer_id LIMIT 10
+                """,settings.clientId(),settings.issuer(),now+30_000,now))
             refresh(grant);
     }
+
     void refresh(Map<String,Object> grant) {
-        Object customer=grant.get("customer_id"), version=grant.get("token_version");
-        if(grant.get("refresh_cipher")==null) return;
-        if(db.update("UPDATE speaker_grant SET token_status='refreshing',token_updated_at_ms=? WHERE customer_id=? AND client_id=? "
-                + "AND token_version=? AND token_status='active'",System.currentTimeMillis(),customer,settings.clientId(),version)!=1) return;
+        long now = System.currentTimeMillis();
+        long retryAt = number(grant,"token_retry_at_ms");
+        if (grant.get("refresh_cipher")==null || retryAt>now) return;
+        var claim = new RefreshClaim(grant.get("customer_id").toString(),number(grant,"token_version"));
+        if(db.update("""
+                UPDATE speaker_grant SET token_status='refreshing',token_updated_at_ms=?
+                WHERE customer_id=? AND client_id=? AND token_version=? AND token_retry_at_ms=? AND token_status='active'
+                """,now,claim.customer(),settings.clientId(),claim.version(),retryAt)!=1) return;
+
+        SpeakerMarket.Tokens next;
         try {
             var old=tokens(grant);
-            var next=market.refresh(old.refresh(),old.subject());
-            String access=crypto.encrypt(next.access()),refresh=crypto.encrypt(next.refresh());
-            // Persist the same response on a DB retry; never repeat the external refresh request.
-            for(int attempt=0;attempt<3;attempt++) {
-                try {
-                    db.update("UPDATE speaker_grant SET access_cipher=?,refresh_cipher=?,access_expires_at_ms=?,token_status='active',token_updated_at_ms=? "
-                            + "WHERE customer_id=? AND client_id=? AND token_version=? AND token_status='refreshing'",access,refresh,next.expiresAt(),
-                            System.currentTimeMillis(),customer,settings.clientId(),version);
-                    return;
-                } catch(org.springframework.dao.DataAccessException failure) { if(attempt==2) throw failure; }
-            }
+            next=market.refresh(old.refresh(),old.subject());
+        } catch (SpeakerMarket.RefreshRetry failure) {
+            int step = (int)Math.min(number(grant,"token_retry_count"),REFRESH_RETRY_MS.length-1);
+            long delay = failure.retryAfterMs > 0 ? failure.retryAfterMs : REFRESH_RETRY_MS[step];
+            now = System.currentTimeMillis();
+            db.update("""
+                    UPDATE speaker_grant SET token_status='active', token_updated_at_ms=?, token_retry_at_ms=?,
+                        token_retry_count=?, token_error=?
+                    WHERE customer_id=? AND client_id=? AND token_version=? AND token_status IN ('refreshing','uncertain')
+                    """,now,now+delay,Math.min(step+1,REFRESH_RETRY_MS.length-1),failure.getMessage(),claim.customer(),
+                    settings.clientId(),claim.version());
+            return;
         } catch(Exception failure) {
-            String state=failure instanceof SpeakerFailure f && "MARKET_REAUTH_REQUIRED".equals(f.getMessage())?"reauth_required":"uncertain";
-            db.update("UPDATE speaker_grant SET token_status=?,refresh_cipher=NULL,token_updated_at_ms=? "
-                    + "WHERE customer_id=? AND client_id=? AND token_version=? AND token_status='refreshing'",state,System.currentTimeMillis(),customer,settings.clientId(),version);
+            String code = failure instanceof SpeakerFailure ? failure.getMessage() : "MARKET_UNAVAILABLE";
+            String status = switch (code) {
+                case "MARKET_REAUTH_REQUIRED" -> "reauth_required";
+                case "MARKET_CLIENT_CONFIGURATION", "MARKET_REFRESH_CONFIGURATION" -> "config_error";
+                default -> "uncertain";
+            };
+            db.update("""
+                    UPDATE speaker_grant SET token_status=?, token_updated_at_ms=?, token_error=?,
+                        refresh_cipher=CASE WHEN ? THEN NULL ELSE refresh_cipher END
+                    WHERE customer_id=? AND client_id=? AND token_version=? AND token_status IN ('refreshing','uncertain')
+                    """,status,System.currentTimeMillis(),"uncertain".equals(status)?"MARKET_REFRESH_UNCERTAIN":code,
+                    "reauth_required".equals(status),claim.customer(),settings.clientId(),claim.version());
+            return;
+        }
+        pendingRefreshes.put(claim,next);
+        persistRefresh(claim,next);
+    }
+
+    private void persistRefresh(RefreshClaim claim, SpeakerMarket.Tokens next) {
+        try {
+            db.update("""
+                    UPDATE speaker_grant SET access_cipher=?, refresh_cipher=?, access_expires_at_ms=?,
+                        token_status='active', token_updated_at_ms=?, token_version=token_version+1,
+                        token_retry_count=0, token_retry_at_ms=0, token_error=NULL
+                    WHERE customer_id=? AND client_id=? AND token_version=? AND token_status IN ('refreshing','uncertain')
+                    """,crypto.encrypt(next.access()),crypto.encrypt(next.refresh()),next.expiresAt(),System.currentTimeMillis(),
+                    claim.customer(),settings.clientId(),claim.version());
+            pendingRefreshes.remove(claim,next);
+        } catch (DataAccessException | SpeakerFailure failure) {
+            LOG.debug("Market refresh returned new tokens. Persistence will be retried.");
         }
     }
 }

@@ -136,7 +136,7 @@ public class SpeakerLogins {
             if(!SpeakerGrants.usable(grants.grant(customer),System.currentTimeMillis())) throw new SpeakerFailure(503,"IDENTITY_PENDING");
             long now=System.currentTimeMillis();
             db.update("UPDATE speaker_device_state SET customer_id=?,use_enabled=TRUE,bound_at_ms=COALESCE(bound_at_ms,?),"
-                    + "permission_version=permission_version+1,login_id=NULL WHERE device_id=?",customer,now,row.get("device_id"));
+                    + "permission_version=permission_version+1,login_id=NULL,reauthorization_until_ms=0 WHERE device_id=?",customer,now,row.get("device_id"));
             db.update("UPDATE speaker_login SET status='completed',tokens_cipher=NULL,verification_uri=NULL,user_code=NULL,error_code=NULL,updated_at_ms=? "
                     + "WHERE id=? AND status='polling'",now,id);
             devices.event(row.get("device_id").toString(),device.get("customer_id")==null?"bound":"resumed","customer:"+customer);

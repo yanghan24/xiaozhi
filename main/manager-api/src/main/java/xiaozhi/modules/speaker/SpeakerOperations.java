@@ -10,6 +10,7 @@ import static xiaozhi.modules.speaker.SpeakerSupport.*;
 /** Local device actions never revoke a user's application-wide authorization. */
 @Service
 public class SpeakerOperations {
+    private static final long REAUTHORIZATION_WINDOW_MS = 600_000;
     private final JdbcTemplate db;
     private final SpeakerDevices devices;
     private final SpeakerGrants grants;
@@ -24,6 +25,10 @@ public class SpeakerOperations {
             result.put("binding_version",device.get("binding_version"));result.put("permission_version",device.get("permission_version"));
             result.put("binding_state",device.get("customer_id")==null?"unbound":"bound");
             String status=useStatus(device);result.put("voice",null);
+            if ("authorized".equals(status) && number(device,"reauthorization_until_ms")>System.currentTimeMillis()
+                    && mayRequestReauthorization(device.get("customer_id").toString())) {
+                status="authorization_required";
+            }
             result.put("standby_weather_allowed","authorized".equals(status));
             result.put("account_balance_allowed","authorized".equals(status));
             if("authorized".equals(status)) {
@@ -40,6 +45,29 @@ public class SpeakerOperations {
             result.put("customer_name",owner==null?null:owner.get("display_name"));
             return result;
         });
+    }
+
+    public Map<String,Boolean> requestReauthorization(String customer,String id,long expected,long operator) {
+        return devices.transactions.execute(tx -> {
+            var rows=db.queryForList("""
+                    SELECT s.* FROM speaker_device_state s JOIN dc_device d ON d.device_id=s.device_id
+                    WHERE s.device_id=? AND s.customer_id=? AND d.admitted=TRUE FOR UPDATE
+                    """,id,customer);
+            if(rows.isEmpty()) throw new SpeakerFailure(404,"DEVICE_NOT_FOUND");
+            var device=rows.getFirst();
+            if(number(device,"permission_version")!=expected || !yes(device.get("admin_enabled"))
+                    || !yes(device.get("use_enabled"))) throw new SpeakerFailure(409,"DEVICE_CHANGED");
+            if(!mayRequestReauthorization(customer)) throw new SpeakerFailure(409,"MARKET_REAUTHORIZATION_NOT_NEEDED");
+            db.update("UPDATE speaker_device_state SET reauthorization_until_ms=? WHERE device_id=?",
+                    System.currentTimeMillis()+REAUTHORIZATION_WINDOW_MS,id);
+            devices.event(id,"request_reauthorization","admin:"+operator);
+            return Map.of("requested",true);
+        });
+    }
+
+    private boolean mayRequestReauthorization(String customer) {
+        var grant=grants.grant(customer);
+        return grant!=null && "uncertain".equals(grant.get("token_status"));
     }
     public String useStatus(Map<String,Object> device) {
         if(!yes(device.get("admin_enabled"))) return "admin_disabled";
@@ -83,7 +111,7 @@ public class SpeakerOperations {
             long next=Math.addExact(expected,1),binding=Math.addExact(number(device,"binding_version"),1);
             db.update("UPDATE speaker_login SET status='cancelled',device_code_cipher=NULL,tokens_cipher=NULL,verification_uri=NULL,user_code=NULL,error_code='DEVICE_CHANGED' "
                     + "WHERE device_id=? AND status IN ('requesting','preparing','pending','polling','authorized')",identity.id());
-            db.update("UPDATE speaker_device_state SET use_enabled=FALSE,permission_version=?,binding_version=?,login_id=NULL"
+            db.update("UPDATE speaker_device_state SET use_enabled=FALSE,permission_version=?,binding_version=?,login_id=NULL,reauthorization_until_ms=0"
                     + ("unbind".equals(action)?",customer_id=NULL,bound_at_ms=NULL":"")+" WHERE device_id=?",next,binding,identity.id());
             db.update("INSERT INTO speaker_device_operation(device_id,request_hash,credential_hash,action,permission_version,created_at_ms) VALUES (?,?,?,?,?,?)",
                     identity.id(),requestHash,identity.hash(),action,next,System.currentTimeMillis());
@@ -103,7 +131,8 @@ public class SpeakerOperations {
             if("rename".equals(action)) {
                 if(requestKey==null || requestKey.isBlank() || requestKey.length()>128) throw new SpeakerFailure(400,"INVALID_DEVICE_NAME");
                 db.update("UPDATE speaker_device_state SET name=? WHERE device_id=?",requestKey.strip(),id);
-            } else db.update("UPDATE speaker_device_state SET admin_enabled=?,permission_version=permission_version+1 WHERE device_id=?","enable".equals(action),id);
+            } else db.update("UPDATE speaker_device_state SET admin_enabled=?,permission_version=permission_version+1,"
+                    + "reauthorization_until_ms=0 WHERE device_id=?","enable".equals(action),id);
             devices.event(id,action,"admin:"+operator);
             return Map.of("stored",true);
         });

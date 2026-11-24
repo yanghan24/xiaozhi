@@ -28,6 +28,9 @@ class SpeakerMarketTest {
     private final ObjectMapper json=new ObjectMapper();
     private final Map<String,String> bodies=new ConcurrentHashMap<>();
     private final Map<String,Integer> statuses=new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicInteger tokenRequests = new java.util.concurrent.atomic.AtomicInteger();
+    private volatile String retryAfter;
+    private volatile boolean dropTokenResponse;
     private String lastForm;
     @BeforeEach void start() throws Exception {
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
@@ -40,8 +43,15 @@ class SpeakerMarketTest {
         server.createContext("/",exchange -> {
             lastForm=new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8);
             // Public device clients must never send a Client Secret or HTTP Basic.
-            if(exchange.getRequestURI().getPath().equals("/oidc/token"))
+            if(exchange.getRequestURI().getPath().equals("/oidc/token")) {
+                tokenRequests.incrementAndGet();
                 assertNull(exchange.getRequestHeaders().getFirst("Authorization"));
+                if (dropTokenResponse) {
+                    exchange.close();
+                    return;
+                }
+            }
+            if (retryAfter != null) exchange.getResponseHeaders().add("Retry-After",retryAfter);
             byte[] body=bodies.getOrDefault(exchange.getRequestURI().getPath(),"{}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type","application/json");
             exchange.sendResponseHeaders(statuses.getOrDefault(exchange.getRequestURI().getPath(),200),body.length);
@@ -110,5 +120,46 @@ class SpeakerMarketTest {
         assertEquals("MARKET_REAUTH_REQUIRED",assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
         statuses.put("/oidc/token",503);bodies.put("/oidc/token","{}");
         assertEquals("MARKET_UNAVAILABLE",assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
+    }
+
+    @Test void outageInDiscoveryDoesNotSendTheRefreshToken() {
+        String discovery = "/oidc/.well-known/openid-configuration";
+        statuses.put(discovery,502);
+        var retry = assertThrows(SpeakerMarket.RefreshRetry.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals("MARKET_REFRESH_NOT_SENT",retry.getMessage());
+        assertEquals(0,tokenRequests.get());
+    }
+
+    @Test void gatewayErrorAfterSubmittingTokenDoesNotAuthorizeRetry() {
+        statuses.put("/oidc/token",502);
+        bodies.put("/oidc/token","<html>Bad gateway</html>");
+        assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals(1,tokenRequests.get());
+    }
+
+    @Test void lostTokenResponseIsNeverResentByTheHttpClient() {
+        dropTokenResponse = true;
+        assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals(1,tokenRequests.get());
+    }
+
+    @Test void refreshRateLimitHonorsRetryAfterEvenWithoutAnOAuthResponse() {
+        statuses.put("/oidc/token",429);
+        bodies.put("/oidc/token","Busy");
+        retryAfter="17";
+        var retry = assertThrows(SpeakerMarket.RefreshRetry.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals("MARKET_RATE_LIMITED",retry.getMessage());
+        assertEquals(17_000,retry.retryAfterMs);
+    }
+
+    @Test void refreshClientAndScopeErrorsAreConfigurationFailures() {
+        statuses.put("/oidc/token",401);
+        bodies.put("/oidc/token","{\"error\":\"invalid_client\"}");
+        assertEquals("MARKET_CLIENT_CONFIGURATION",
+                assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
+        statuses.put("/oidc/token",400);
+        bodies.put("/oidc/token","{\"error\":\"invalid_scope\"}");
+        assertEquals("MARKET_REFRESH_CONFIGURATION",
+                assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
     }
 }
