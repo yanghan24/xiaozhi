@@ -14,6 +14,8 @@ spring.datasource.druid.stat-view-servlet.enabled=false
 # 设备自动登记与 AI 集市设备授权。填入生产 device 客户端的 Client ID。
 speaker.enabled=true
 speaker.enrollment-enabled=true
+# 启用前先为本环境的集市设备客户端允许 recharge:write，并核对微信支付配置。
+speaker.recharge-enabled=false
 speaker.issuer=https://aimarket.hncig.cn/oidc
 speaker.client-id=
 # 加密密钥由初始化脚本生成。填写容器内受保护的文件路径。

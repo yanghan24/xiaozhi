@@ -1,0 +1,2 @@
+ALTER TABLE speaker_grant ADD COLUMN token_scope VARCHAR(1024) NOT NULL DEFAULT '';
+ALTER TABLE speaker_login ADD COLUMN recharge_consent BOOLEAN NOT NULL DEFAULT FALSE;

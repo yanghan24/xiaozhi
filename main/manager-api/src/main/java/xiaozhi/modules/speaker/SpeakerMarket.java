@@ -33,6 +33,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class SpeakerMarket {
     public static final String SCOPES = "openid profile organization balance:read credentials:manage offline_access";
+    static final String RECHARGE_SCOPE = "recharge:write";
     private final SpeakerSettings settings;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER)
@@ -47,6 +48,15 @@ public class SpeakerMarket {
     }
     public record Tokens(String subject,String access,String refresh,long expiresAt,String scope) {
         @Override public String toString() { return "Tokens[redacted]"; }
+        boolean allowsRecharge() {
+            return SpeakerMarket.allowsRecharge(scope);
+        }
+    }
+    static boolean allowsRecharge(String scope) {
+        return scope != null && java.util.Arrays.asList(scope.split("\\s+")).contains(RECHARGE_SCOPE);
+    }
+    record RechargeEntry(String entryId, String url, long expiresIn, long pollInterval) {
+        @Override public String toString() { return "RechargeEntry[redacted]"; }
     }
     public record Poll(Tokens tokens,String error) {
         @Override public String toString() { return "Poll[redacted]"; }
@@ -192,8 +202,16 @@ public class SpeakerMarket {
         return value.asText();
     }
     public DeviceAuthorization begin() {
+        return begin(SCOPES);
+    }
+
+    DeviceAuthorization beginRecharge() {
+        return begin(SCOPES + " " + RECHARGE_SCOPE);
+    }
+
+    private DeviceAuthorization begin(String scopes) {
         var node=request(endpoint("device_authorization_endpoint"),"POST",null,
-                form(Map.of("client_id",settings.clientId(),"scope",SCOPES)),false);
+                form(Map.of("client_id",settings.clientId(),"scope",scopes)),false);
         String uri=required(node,"verification_uri_complete",2048);
         trusted(uri);
         long expires=node.path("expires_in").asLong(), interval=node.path("interval").asLong(5);
@@ -246,8 +264,10 @@ public class SpeakerMarket {
             } catch(Exception failure) { throw new SpeakerFailure(502,"INVALID_MARKET_IDENTITY"); }
         }
         if(subject==null || subject.isBlank() || subject.length()>255) throw new SpeakerFailure(502,"INVALID_MARKET_IDENTITY");
+        String scope = node.path("scope").asText();
+        if (scope.length()>1024) throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
         return new Tokens(subject,required(node,"access_token",8192),required(node,"refresh_token",8192),
-                System.currentTimeMillis()+expires*1000,node.path("scope").asText());
+                System.currentTimeMillis()+expires*1000,scope);
     }
     public JsonNode profile(Tokens tokens) {
         JsonNode node=request(endpoint("userinfo_endpoint"),"GET",tokens.access(),null,false);
@@ -282,5 +302,46 @@ public class SpeakerMarket {
         if(value.precision()>30 || value.scale()>8 || value.precision()-value.scale()>22)
             throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
         return value;
+    }
+
+    RechargeEntry rechargeEntry(Tokens tokens) {
+        var data = business("/api/application-recharge/entries", "POST", tokens.access());
+        String id = required(data, "entryId", 36);
+        String url = required(data, "url", 512);
+        URI link;
+        try {
+            link = URI.create(url);
+        } catch (IllegalArgumentException failure) {
+            throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        }
+        URI base = issuer();
+        long expires = data.path("expiresIn").asLong();
+        long interval = data.path("pollInterval").asLong();
+        if (!"/application/recharge".equals(link.getRawPath()) || !base.getScheme().equals(link.getScheme())
+                || !base.getAuthority().equals(link.getRawAuthority()) || link.getRawQuery() != null
+                || link.getRawFragment() == null || !link.getRawFragment().matches("ticket=[A-Za-z0-9_-]{43}")
+                || !validEntryId(id) || expires < 1 || expires > 300 || interval < 2 || interval > 30) {
+            throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        }
+        return new RechargeEntry(id, url, expires, interval);
+    }
+
+    static boolean validEntryId(String value) {
+        return value != null && value.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
+    }
+
+    String rechargeStatus(String entryId, Tokens tokens) {
+        if (!validEntryId(entryId)) throw new SpeakerFailure(400, "INVALID_RECHARGE_ENTRY");
+        var data = business("/api/application-recharge/entries/" + entryId, "GET", tokens.access());
+        var order = data.path("order");
+        if (!entryId.equals(data.path("entryId").asText())) throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        if (order.isNull()) return "waiting";
+        if (!order.isObject() || !order.path("payStatus").isIntegralNumber())
+            throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        if (order.path("payStatus").asInt() == 1) return "paid";
+        if (order.path("payStatus").asInt() != 0) throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        if (order.hasNonNull("paymentClosedAt")) return "closed";
+        if (order.hasNonNull("paymentCheckStoppedAt")) return "check_later";
+        return "pending";
     }
 }

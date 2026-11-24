@@ -254,6 +254,26 @@ class SpeakerLoginDatabaseTest {
         assertEquals("active",grants.grant(customer).get("token_status"));
     }
 
+    @Test void rechargeConsentForSameAccountPreservesDeviceBindingAndVoicePermission() {
+        bind();
+        String customer=customerId();
+        var before=devices.load(identity,false);
+        var replacement=replacementTokens();
+        var consent=new SpeakerMarket.Tokens(replacement.subject(),replacement.access(),replacement.refresh(),replacement.expiresAt(),
+                replacement.scope()+" "+SpeakerMarket.RECHARGE_SCOPE);
+        when(market.beginRecharge()).thenReturn(new SpeakerMarket.DeviceAuthorization("payment-device-code","ABCD-EFGH",
+                "https://fixture.example/device?user_code=ABCD-EFGH",600,5));
+        login=logins.beginRecharge(identity).get("id").toString();
+        when(market.poll(anyString())).thenReturn(new SpeakerMarket.Poll(consent,null));
+        advance();advance();
+        assertEquals("completed",logins.status(identity,login).get("status"));
+        var after=devices.load(identity,false);
+        assertEquals(customer,customerId());
+        assertEquals(before.get("binding_version"),after.get("binding_version"));
+        assertEquals(before.get("permission_version"),after.get("permission_version"));
+        assertTrue(grants.currentTokens(customer).allowsRecharge());
+    }
+
     private String customerId() {
         return db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?",String.class,device);
     }

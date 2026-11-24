@@ -162,4 +162,32 @@ class SpeakerMarketTest {
         assertEquals("MARKET_REFRESH_CONFIGURATION",
                 assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
     }
+
+    @Test void rechargeConsentIsExplicitAndLeavesOrdinaryLoginScopesUnchanged() throws Exception {
+        bodies.put("/oidc/device/auth",json.writeValueAsString(Map.of("device_code","device-fixture","user_code","ABCD-EFGH",
+                "verification_uri_complete",issuer+"/device?user_code=ABCD-EFGH","expires_in",600,"interval",5)));
+        market.begin();
+        assertFalse(lastForm.contains("recharge%3Awrite"));
+        market.beginRecharge();
+        assertTrue(lastForm.contains("recharge%3Awrite"));
+    }
+
+    @Test void rechargeRequiresTheOriginalTicketAndConfirmedMarketPayment() throws Exception {
+        String id="50aa355f-f915-4289-bd9e-9909db1aff93";
+        String path="/api/application-recharge/entries";
+        String url=issuer.replace("/oidc", "/application/recharge#ticket=")+"a".repeat(43);
+        var token=new SpeakerMarket.Tokens("owner","access","refresh",9_999_000,SpeakerMarket.RECHARGE_SCOPE);
+        var entry=Map.of("entryId",id,"url",url,"expiresIn",300,"pollInterval",2);
+        bodies.put(path,json.writeValueAsString(Map.of("code",20000,"data",entry)));
+        assertEquals(url,market.rechargeEntry(token).url());
+        bodies.put(path+"/"+id,"{\"code\":20000,\"data\":{\"entryId\":\""+id+"\",\"order\":null}}");
+        assertEquals("waiting",market.rechargeStatus(id,token));
+        bodies.put(path+"/"+id,json.writeValueAsString(Map.of("code",20000,"data",Map.of(
+                "entryId",id,"order",Map.of("payStatus",1)))));
+        assertEquals("paid",market.rechargeStatus(id,token));
+        var invalid=new java.util.HashMap<>(entry);
+        invalid.put("url",url.replace("#ticket=","?ticket="));
+        bodies.put(path,json.writeValueAsString(Map.of("code",20000,"data",invalid)));
+        assertThrows(SpeakerFailure.class,()->market.rechargeEntry(token));
+    }
 }

@@ -49,11 +49,12 @@ public class SpeakerGrants {
             String organization=profile.path("organization").isObject()?profile.path("organization").toString():null;
             db.update("UPDATE speaker_customer SET display_name=?,username=?,account_type=?,organization=?,profile_updated_at_ms=? WHERE id=?",
                     text(profile,"name",255),text(profile,"preferred_username",255),text(profile,"account_type",32),organization,now,id);
-            db.update("INSERT INTO speaker_grant(customer_id,client_id,access_cipher,refresh_cipher,access_expires_at_ms,token_updated_at_ms,generation) "
-                    + "VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE access_cipher=VALUES(access_cipher),refresh_cipher=VALUES(refresh_cipher),"
+            db.update("INSERT INTO speaker_grant(customer_id,client_id,access_cipher,refresh_cipher,access_expires_at_ms,token_updated_at_ms,generation,token_scope) "
+                    + "VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE access_cipher=VALUES(access_cipher),refresh_cipher=VALUES(refresh_cipher),"
                     + "access_expires_at_ms=VALUES(access_expires_at_ms),token_updated_at_ms=VALUES(token_updated_at_ms),"
-                    + "token_status='active',token_version=token_version+1,token_retry_count=0,token_retry_at_ms=0,token_error=NULL",
-                    id,settings.clientId(),crypto.encrypt(tokens.access()),crypto.encrypt(tokens.refresh()),tokens.expiresAt(),now,token());
+                    + "token_scope=VALUES(token_scope),token_status='active',token_version=token_version+1,token_retry_count=0,token_retry_at_ms=0,token_error=NULL",
+                    id,settings.clientId(),crypto.encrypt(tokens.access()),crypto.encrypt(tokens.refresh()),tokens.expiresAt(),now,token(),
+                    java.util.Objects.toString(tokens.scope(),""));
             db.update("UPDATE speaker_login SET customer_id=? WHERE id=? AND status='polling'",id,loginId);
             return id;
         });
@@ -84,7 +85,8 @@ public class SpeakerGrants {
     }
     private SpeakerMarket.Tokens tokens(Map<String,Object> grant) {
         return new SpeakerMarket.Tokens(grant.get("subject").toString(),crypto.decrypt(grant.get("access_cipher").toString()),
-                grant.get("refresh_cipher")==null?null:crypto.decrypt(grant.get("refresh_cipher").toString()),number(grant,"access_expires_at_ms"),"");
+                grant.get("refresh_cipher")==null?null:crypto.decrypt(grant.get("refresh_cipher").toString()),
+                number(grant,"access_expires_at_ms"),java.util.Objects.toString(grant.get("token_scope"),""));
     }
     public SpeakerMarket.Tokens currentTokens(String customer) {
         var grant=grant(customer);
@@ -210,11 +212,11 @@ public class SpeakerGrants {
     private void persistRefresh(RefreshClaim claim, SpeakerMarket.Tokens next) {
         try {
             db.update("""
-                    UPDATE speaker_grant SET access_cipher=?, refresh_cipher=?, access_expires_at_ms=?,
+                    UPDATE speaker_grant SET access_cipher=?, refresh_cipher=?, access_expires_at_ms=?, token_scope=COALESCE(NULLIF(?,''),token_scope),
                         token_status='active', token_updated_at_ms=?, token_version=token_version+1,
                         token_retry_count=0, token_retry_at_ms=0, token_error=NULL
                     WHERE customer_id=? AND client_id=? AND token_version=? AND token_status IN ('refreshing','uncertain')
-                    """,crypto.encrypt(next.access()),crypto.encrypt(next.refresh()),next.expiresAt(),System.currentTimeMillis(),
+                    """,crypto.encrypt(next.access()),crypto.encrypt(next.refresh()),next.expiresAt(),next.scope(),System.currentTimeMillis(),
                     claim.customer(),settings.clientId(),claim.version());
             pendingRefreshes.remove(claim,next);
         } catch (DataAccessException | SpeakerFailure failure) {

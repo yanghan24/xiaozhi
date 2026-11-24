@@ -11,6 +11,8 @@ import static xiaozhi.modules.speaker.SpeakerSupport.*;
 @Service
 public class SpeakerOperations {
     private static final long REAUTHORIZATION_WINDOW_MS = 600_000;
+    @org.springframework.beans.factory.annotation.Value("${speaker.recharge-enabled:false}")
+    private boolean rechargeEnabled;
     private final JdbcTemplate db;
     private final SpeakerDevices devices;
     private final SpeakerGrants grants;
@@ -31,6 +33,7 @@ public class SpeakerOperations {
             }
             result.put("standby_weather_allowed","authorized".equals(status));
             result.put("account_balance_allowed","authorized".equals(status));
+            result.put("recharge_available",rechargeEnabled && "authorized".equals(status));
             if("authorized".equals(status)) {
                 try { result.put("voice",voice.ticket(device)); status="ready"; }
                 catch(SpeakerFailure failure) {

@@ -25,20 +25,33 @@ public class SpeakerLogins {
         this.db=db;this.devices=devices;this.settings=settings;this.market=market;this.crypto=crypto;this.grants=grants;
     }
     public Map<String,Object> begin(SpeakerDevices.Identity identity) {
+        return begin(identity,false);
+    }
+
+    Map<String,Object> beginRecharge(SpeakerDevices.Identity identity) {
+        return begin(identity,true);
+    }
+
+    private Map<String,Object> begin(SpeakerDevices.Identity identity, boolean rechargeConsent) {
         settings.requireEnabled();
         if(settings.clientId().isBlank()) throw new SpeakerFailure(503,"MARKET_CLIENT_NOT_CONFIGURED");
         // Fail before creating an upstream transaction when private persistence is not ready.
         crypto.encrypt("storage-readiness");
         String id=devices.transactions.execute(tx -> {
             var device=devices.loadForLogin(identity,true);long now=System.currentTimeMillis();
+            if(rechargeConsent && !boundAndEnabled(device)) throw new SpeakerFailure(403,"DEVICE_RECHARGE_UNAVAILABLE");
             if(device.get("login_id")!=null) {
                 var existing=db.queryForList("SELECT * FROM speaker_login WHERE id=?",device.get("login_id"));
-                if(!existing.isEmpty() && ACTIVE.contains(existing.getFirst().get("status")) && number(existing.getFirst(),"expires_at_ms")>now)
+                if(!existing.isEmpty() && ACTIVE.contains(existing.getFirst().get("status")) && number(existing.getFirst(),"expires_at_ms")>now) {
+                    if (rechargeConsent != yes(existing.getFirst().get("recharge_consent"))) {
+                        throw new SpeakerFailure(409,"DEVICE_LOGIN_IN_PROGRESS");
+                    }
                     return existing.getFirst().get("id").toString();
+                }
             }
             String next=UUID.randomUUID().toString();
-            db.update("INSERT INTO speaker_login(id,device_id,credential_hash,binding_version,issuer,client_id,status,next_poll_at_ms,expires_at_ms,updated_at_ms) "
-                    + "VALUES (?,?,?,?,?,?,'requesting',?,?,?)",next,identity.id(),identity.hash(),device.get("binding_version"),settings.issuer(),settings.clientId(),now,now+30_000,now);
+            db.update("INSERT INTO speaker_login(id,device_id,credential_hash,binding_version,issuer,client_id,status,next_poll_at_ms,expires_at_ms,updated_at_ms,recharge_consent) "
+                    + "VALUES (?,?,?,?,?,?,'requesting',?,?,?,?)",next,identity.id(),identity.hash(),device.get("binding_version"),settings.issuer(),settings.clientId(),now,now+30_000,now,rechargeConsent);
             db.update("UPDATE speaker_device_state SET login_id=? WHERE device_id=?",next,identity.id());
             return next;
         });
@@ -46,7 +59,7 @@ public class SpeakerLogins {
         // Claim the requesting row; a second begin must not create a second provider transaction.
         if("requesting".equals(row.get("status")) && db.update("UPDATE speaker_login SET status='preparing' WHERE id=? AND status='requesting'",id)==1) {
             try {
-                var request=market.begin();long now=System.currentTimeMillis();
+                var request=rechargeConsent?market.beginRecharge():market.begin();long now=System.currentTimeMillis();
                 db.update("UPDATE speaker_login SET status='pending',device_code_cipher=?,verification_uri=?,user_code=?,interval_ms=?,next_poll_at_ms=?,"
                         + "expires_at_ms=?,updated_at_ms=? WHERE id=? AND status='preparing'",crypto.encrypt(request.deviceCode()),request.verificationUri(),request.userCode(),
                         request.interval()*1000,now+request.interval()*1000,now+request.expiresIn()*1000,now,id);
@@ -106,6 +119,8 @@ public class SpeakerLogins {
         String id=row.get("id").toString();
         var received=json.readValue(crypto.decrypt(row.get("tokens_cipher").toString()),SpeakerMarket.Tokens.class);
         if(received.expiresAt()<=System.currentTimeMillis()) { fail(id,"expired","LOGIN_EXPIRED");return; }
+        boolean rechargeConsent=yes(row.get("recharge_consent"));
+        if (rechargeConsent && !received.allowsRecharge()) { fail(id,"denied","RECHARGE_SCOPE_REQUIRED");return; }
         // Profile I/O stays outside the lock. Recheck ownership before persisting
         // tokens: a stale authorization must not overwrite a later user's grant.
         var profile=row.get("customer_id")==null ? market.profile(received) : null;
@@ -113,7 +128,7 @@ public class SpeakerLogins {
             var device=devices.loadForLogin(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
             var current=db.queryForMap("SELECT * FROM speaker_login WHERE id=? FOR UPDATE",id);
             if(!"polling".equals(current.get("status")) || !id.equals(device.get("login_id"))
-                    || number(row,"binding_version")!=number(device,"binding_version")) {
+                    || number(row,"binding_version")!=number(device,"binding_version") || rechargeConsent && !boundAndEnabled(device)) {
                 fail(id,"cancelled","DEVICE_CHANGED");return null;
             }
             if(device.get("customer_id")!=null) {
@@ -127,7 +142,8 @@ public class SpeakerLogins {
         if(customer==null) return;
         devices.transactions.executeWithoutResult(tx -> {
             var device=devices.loadForLogin(new SpeakerDevices.Identity(row.get("device_id").toString(),row.get("credential_hash").toString()),true);
-            if(!id.equals(device.get("login_id")) || number(row,"binding_version")!=number(device,"binding_version")) {
+            if(!id.equals(device.get("login_id")) || number(row,"binding_version")!=number(device,"binding_version")
+                    || rechargeConsent && !boundAndEnabled(device)) {
                 fail(id,"cancelled","DEVICE_CHANGED");return;
             }
             if(device.get("customer_id")!=null && !customer.equals(device.get("customer_id"))) {
@@ -136,11 +152,16 @@ public class SpeakerLogins {
             if(!SpeakerGrants.usable(grants.grant(customer),System.currentTimeMillis())) throw new SpeakerFailure(503,"IDENTITY_PENDING");
             long now=System.currentTimeMillis();
             db.update("UPDATE speaker_device_state SET customer_id=?,use_enabled=TRUE,bound_at_ms=COALESCE(bound_at_ms,?),"
-                    + "permission_version=permission_version+1,login_id=NULL,reauthorization_until_ms=0 WHERE device_id=?",customer,now,row.get("device_id"));
+                    + "permission_version=permission_version+?,login_id=NULL,reauthorization_until_ms=0 WHERE device_id=?",
+                    customer,now,rechargeConsent?0:1,row.get("device_id"));
             db.update("UPDATE speaker_login SET status='completed',tokens_cipher=NULL,verification_uri=NULL,user_code=NULL,error_code=NULL,updated_at_ms=? "
                     + "WHERE id=? AND status='polling'",now,id);
-            devices.event(row.get("device_id").toString(),device.get("customer_id")==null?"bound":"resumed","customer:"+customer);
+            devices.event(row.get("device_id").toString(),rechargeConsent?"recharge_authorized":device.get("customer_id")==null?"bound":"resumed","customer:"+customer);
         });
+    }
+
+    private static boolean boundAndEnabled(Map<String,Object> device) {
+        return device.get("customer_id")!=null && yes(device.get("admin_enabled")) && yes(device.get("use_enabled"));
     }
     private void fail(String id,String state,String code) {
         db.update("UPDATE speaker_login SET status=?,error_code=?,device_code_cipher=NULL,tokens_cipher=NULL,verification_uri=NULL,user_code=NULL,updated_at_ms=? WHERE id=? AND status IN ('requesting','preparing','pending','polling','authorized')",
