@@ -87,6 +87,37 @@ class SpeakerLoginDatabaseTest {
         when(market.poll(anyString())).thenReturn(new SpeakerMarket.Poll(null,"slow_down"));advance();
         assertEquals(10000,db.queryForObject("SELECT interval_ms FROM speaker_login WHERE id=?",Long.class,login));
     }
+    @Test void expiredLoginHidesItsCodeAndTheNextAttemptGetsANewOne() {
+        assertEquals("ABCD-EFGH",logins.status(identity,login).get("user_code"));
+        db.update("UPDATE speaker_login SET expires_at_ms=1 WHERE id=?",login);
+        var expired=logins.status(identity,login);
+        assertEquals("expired",expired.get("status"));
+        assertEquals("LOGIN_EXPIRED",expired.get("error_code"));
+        assertNull(expired.get("verification_uri"));
+        assertNull(expired.get("user_code"));
+
+        logins.advanceDue();
+        assertNull(db.queryForMap("SELECT user_code FROM speaker_login WHERE id=?",login).get("user_code"));
+        db.update("UPDATE speaker_login SET verification_uri=?,user_code=? WHERE id=?",
+                "https://fixture.example/device?user_code=ABCD-EFGH","ABCD-EFGH",login);
+        assertNull(logins.status(identity,login).get("user_code"));
+
+        when(market.begin()).thenReturn(new SpeakerMarket.DeviceAuthorization(
+                "second-private-device-code","JKLM-NPQR","https://fixture.example/device?user_code=JKLM-NPQR",600,5));
+        var next=logins.begin(identity);
+        assertNotEquals(login,next.get("id"));
+        assertEquals("JKLM-NPQR",next.get("user_code"));
+    }
+    @Test void acceptedConsentHidesTheCodeWhileBindingCompletes() {
+        authorize();
+        var authorized=logins.status(identity,login);
+        assertEquals("authorized",authorized.get("status"));
+        assertNull(authorized.get("verification_uri"));
+        assertNull(authorized.get("user_code"));
+
+        advance();
+        assertEquals("completed",logins.status(identity,login).get("status"));
+    }
     @Test void lateAuthorizationCannotRebindChangedDeviceGeneration() {
         authorize();
         var profile=new ObjectMapper().createObjectNode().put("sub",tokens.subject());

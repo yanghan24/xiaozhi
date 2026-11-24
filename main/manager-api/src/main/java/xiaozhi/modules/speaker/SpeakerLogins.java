@@ -72,18 +72,27 @@ public class SpeakerLogins {
         var rows=db.queryForList("SELECT * FROM speaker_login WHERE id=? AND device_id=? AND credential_hash=?",id,identity.id(),identity.hash());
         if(rows.isEmpty()) throw new SpeakerFailure(404,"LOGIN_NOT_FOUND");
         var row=rows.getFirst();
+        long now=System.currentTimeMillis();
+        var state=row.get("status");
+        boolean waitingForConsent=("pending".equals(state) || "polling".equals(state)) && row.get("device_code_cipher")!=null;
+        boolean expired=waitingForConsent && number(row,"expires_at_ms")<=now;
         var result=new LinkedHashMap<String,Object>();
-        for(String field:new String[]{"id","status","verification_uri","user_code","expires_at_ms","error_code"}) result.put(field,row.get(field));
-        result.put("server_time_ms",System.currentTimeMillis());
+        result.put("id",row.get("id"));
+        result.put("status",expired?"expired":state);
+        result.put("verification_uri",waitingForConsent&&!expired?row.get("verification_uri"):null);
+        result.put("user_code",waitingForConsent&&!expired?row.get("user_code"):null);
+        result.put("expires_at_ms",row.get("expires_at_ms"));
+        result.put("error_code",expired?"LOGIN_EXPIRED":row.get("error_code"));
+        result.put("server_time_ms",now);
         return result;
     }
     @Scheduled(fixedDelayString="${speaker.login-poll-delay-ms:1000}")
     public void advanceDue() {
         if(!settings.enabled() || settings.clientId().isBlank()) return;
         long now=System.currentTimeMillis();
-        db.update("UPDATE speaker_login SET status='expired',device_code_cipher=NULL,tokens_cipher=NULL,error_code='LOGIN_EXPIRED' "
+        db.update("UPDATE speaker_login SET status='expired',device_code_cipher=NULL,tokens_cipher=NULL,verification_uri=NULL,user_code=NULL,error_code='LOGIN_EXPIRED' "
                 + "WHERE status IN ('requesting','preparing','pending','authorized') AND expires_at_ms<=?",now);
-        db.update("UPDATE speaker_login SET status='failed',device_code_cipher=NULL,tokens_cipher=NULL,error_code='LOGIN_INTERRUPTED' "
+        db.update("UPDATE speaker_login SET status='failed',device_code_cipher=NULL,tokens_cipher=NULL,verification_uri=NULL,user_code=NULL,error_code='LOGIN_INTERRUPTED' "
                 + "WHERE status='polling' AND updated_at_ms<?",now-30_000);
         for(var row:db.queryForList("SELECT * FROM speaker_login WHERE issuer=? AND client_id=? AND status IN ('pending','authorized') "
                 + "AND next_poll_at_ms<=? AND expires_at_ms>? ORDER BY next_poll_at_ms LIMIT 5",settings.issuer(),settings.clientId(),now,now)) {
@@ -104,7 +113,7 @@ public class SpeakerLogins {
         var response=market.poll(crypto.decrypt(row.get("device_code_cipher").toString()));
         if(response.tokens()!=null) {
             String encrypted=crypto.encrypt(json.writeValueAsString(response.tokens()));long now=System.currentTimeMillis();
-            db.update("UPDATE speaker_login SET status='authorized',device_code_cipher=NULL,tokens_cipher=?,expires_at_ms=?,next_poll_at_ms=?,updated_at_ms=?,error_code=NULL "
+            db.update("UPDATE speaker_login SET status='authorized',device_code_cipher=NULL,verification_uri=NULL,user_code=NULL,tokens_cipher=?,expires_at_ms=?,next_poll_at_ms=?,updated_at_ms=?,error_code=NULL "
                     + "WHERE id=? AND status='polling'",encrypted,response.tokens().expiresAt(),now,now,id);
             return;
         }
