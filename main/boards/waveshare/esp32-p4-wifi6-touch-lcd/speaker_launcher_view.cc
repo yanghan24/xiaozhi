@@ -53,6 +53,7 @@ void SpeakerLauncherView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         {"音乐", MATERIAL_SYMBOLS_MUSIC_NOTE, 0xA99AF9, Page::Music},
         {"录音", MATERIAL_SYMBOLS_MIC, 0xFF9B76, Page::Recording},
         {"番茄钟", nullptr, 0, Page::Pomodoro},
+        {"计算器", MATERIAL_SYMBOLS_CALCULATE, 0x80D8BD, Page::Calculator},
     };
     for (size_t index = 0; index < std::size(entries); ++index) {
         const auto& entry = entries[index];

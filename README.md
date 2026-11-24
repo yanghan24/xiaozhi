@@ -24,7 +24,7 @@ flowchart LR
 | 音频 | [`main/audio/`](main/audio/) 管理采集、唤醒、编解码、播放和队列。本地音乐与录音经现有音频服务协调资源。 |
 | 通信与 OTA | [`main/protocols/`](main/protocols/) 管理原版传输与消息，[`main/ota.cc`](main/ota.cc) 负责固件检查、下载、校验和安装。 |
 | 身份与管理 | [`main/speaker_account/`](main/speaker_account/) 管理自动登记、设备凭据、扫码状态、心跳、账号和诊断。 |
-| 界面及本地应用 | [P4X 板型目录](main/boards/waveshare/esp32-p4-wifi6-touch-lcd/) 内按 `speaker_*` 模块维护导航、开机、首页、屏保、对话、设置、配网、日历、番茄钟、音乐和录音。 |
+| 界面及本地应用 | [P4X 板型目录](main/boards/waveshare/esp32-p4-wifi6-touch-lcd/) 内按 `speaker_*` 模块维护导航、开机、首页、屏保、对话、设置、配网、日历、番茄钟、计算器、音乐和录音。 |
 | 设备 MCP | [`main/mcp_server.cc`](main/mcp_server.cc) 管理设备工具的发现与分发。板级功能模块声明和执行各自的本机工具。 |
 
 [P4X 产品说明](docs/speaker-market.md)列出具体模块、功能和开发检查。[UI 规范与定稿](docs/ui/README.md)说明页面、组件和交互。服务端工程 `README.md` 维护服务架构与模块边界，`deploy/production/README.md` 维护生产与固件发布规范。

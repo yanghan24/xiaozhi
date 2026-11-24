@@ -30,6 +30,7 @@
 | 待机天气 | `speaker_standby_weather` 使用设备认证请求小智管理 API，在空闲阶段刷新。供应商和认证由后台配置。 |
 | 日历、记事与提醒 | `speaker_calendar_view` 显示可连续横滑的日期条和选中日期的事项。`speaker_memos` 提供 `self.memo.create`、`self.memo.list`、`self.memo.cancel`，按设备当前绑定关系隔离本地记事，支持到期时提示和响铃。 |
 | 番茄钟 | `speaker_pomodoro_view` 管理计时、暂停、重置和提示，复用现有提示音。 |
+| 计算器 | `speaker_calculator` 处理本地四则运算与百分比，`speaker_calculator_view` 管理触屏键盘、实时结果及最近 6 条历史。历史仅在本次开机期间保留。 |
 | SD 卡、本地音乐与录音 | `speaker_sd_storage` 管理挂载与文件，`speaker_music` 播放 MP3/WAV，`speaker_recorder` 保存 WAV。两种应用各有页面，复用同一音频服务。 |
 | 设备诊断 | [`speaker_account`](../main/speaker_account/) 下的语音耗时、播放和显示诊断沿用现有通用上报接口，后台按设备限时开启上传。 |
 

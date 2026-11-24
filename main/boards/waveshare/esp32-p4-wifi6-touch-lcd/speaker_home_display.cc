@@ -51,6 +51,7 @@ void SpeakerHomeDisplay::SetupUI() {
     music_.Create(desktop_, navigation_);
     recording_.Create(desktop_, navigation_);
     pomodoro_.Create(desktop_, navigation_);
+    calculator_.Create(desktop_, navigation_);
 #if LV_USE_CALENDAR
     calendar_.Create(desktop_, navigation_);
 #endif
@@ -63,6 +64,8 @@ void SpeakerHomeDisplay::SetupUI() {
     navigation_.Register(Page::Recording, [this] { recording_.Show(); }, [this] { recording_.Hide(); },
                          [this] { return recording_.CanLeave(); });
     navigation_.Register(Page::Pomodoro, [this] { pomodoro_.Show(); }, [this] { pomodoro_.Hide(); });
+    navigation_.Register(
+        Page::Calculator, [this] { calculator_.Show(); }, [this] { calculator_.Hide(); });
 #if LV_USE_CALENDAR
     navigation_.Register(Page::Calendar, [this] { calendar_.Show(); }, [this] { calendar_.Hide(); });
 #endif
