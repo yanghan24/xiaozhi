@@ -58,7 +58,7 @@ class SpeakerMarketTest {
             try(var output=exchange.getResponseBody()) { output.write(body); }
         });
         server.start();
-        market=new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""));
+        market=new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""),false);
     }
     @AfterEach void stop() { server.stop(0); }
     private String signed(String subject,String audience) throws Exception {
@@ -163,11 +163,15 @@ class SpeakerMarketTest {
                 assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
     }
 
-    @Test void rechargeConsentIsExplicitAndLeavesOrdinaryLoginScopesUnchanged() throws Exception {
+    @Test void deviceLoginRequestsRechargeScopeOnlyWhenEnabledAndSupportsLegacyConsent() throws Exception {
         bodies.put("/oidc/device/auth",json.writeValueAsString(Map.of("device_code","device-fixture","user_code","ABCD-EFGH",
                 "verification_uri_complete",issuer+"/device?user_code=ABCD-EFGH","expires_in",600,"interval",5)));
         market.begin();
         assertFalse(lastForm.contains("recharge%3Awrite"));
+        var enabled = new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""),true);
+        enabled.begin();
+        assertTrue(lastForm.contains("scope="+java.net.URLEncoder.encode(
+                SpeakerMarket.SCOPES+" "+SpeakerMarket.RECHARGE_SCOPE,StandardCharsets.UTF_8)));
         market.beginRecharge();
         assertTrue(lastForm.contains("recharge%3Awrite"));
     }

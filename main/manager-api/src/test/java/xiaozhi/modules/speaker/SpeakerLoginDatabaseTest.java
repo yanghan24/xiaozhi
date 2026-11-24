@@ -112,7 +112,7 @@ class SpeakerLoginDatabaseTest {
         verify(market,never()).credential(any());
     }
 
-    @Test void freshSpeakerCanEnrollScanAndRecoverTheCredentialUntilAcknowledged() {
+    @Test void freshSpeakerCanEnrollScanWithRechargeScopeAndRecoverTheCredentialUntilAcknowledged() {
         var enrollment = new SpeakerEnrollment(db, devices, crypto);
         String id = "enr-" + UUID.randomUUID().toString().replace("-", "");
         enrollmentDevices.add(id);
@@ -127,9 +127,12 @@ class SpeakerLoginDatabaseTest {
 
         var loginIdentity = devices.authenticateForLogin(proof, id);
         login = logins.begin(loginIdentity).get("id").toString();
+        tokens = new SpeakerMarket.Tokens(tokens.subject(),tokens.access(),tokens.refresh(),tokens.expiresAt(),
+                tokens.scope()+" "+SpeakerMarket.RECHARGE_SCOPE);
         authorize();
         advance();
         assertEquals("completed", logins.status(loginIdentity, login).get("status"));
+        verify(market,never()).beginRecharge();
         assertEquals(403, assertThrows(SpeakerFailure.class, () -> devices.authenticate(proof, id)).status);
 
         var issued = enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2");
@@ -137,7 +140,8 @@ class SpeakerLoginDatabaseTest {
         assertEquals(issued, enrollment.beginOrClaim(proof, id, "p4-test", "2.6.2"));
         assertEquals(401, assertThrows(SpeakerFailure.class, () -> devices.authenticateForLogin(proof, id)).status);
         var assigned = devices.authenticate("Bearer " + issued.get("credential"), id);
-        assertNotNull(devices.load(assigned, false).get("customer_id"));
+        var customer = devices.load(assigned, false).get("customer_id").toString();
+        assertTrue(grants.currentTokens(customer).allowsRecharge());
         assertEquals(id, devices.heartbeat(assigned, "p4-test", "2.6.2").get("device_id"));
         enrollment.acknowledge(assigned);
         enrollment.acknowledge(assigned);

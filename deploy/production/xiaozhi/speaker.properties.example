@@ -15,6 +15,7 @@ spring.datasource.druid.stat-view-servlet.enabled=false
 speaker.enabled=true
 speaker.enrollment-enabled=true
 # 启用前先为本环境的集市设备客户端允许 recharge:write，并核对微信支付配置。
+# 启用后，新发起的扫码登录同时请求 recharge:write。
 speaker.recharge-enabled=false
 speaker.issuer=https://aimarket.hncig.cn/oidc
 speaker.client-id=

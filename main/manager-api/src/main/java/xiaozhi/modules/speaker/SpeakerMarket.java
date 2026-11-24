@@ -27,6 +27,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /** AI Market's public device application contract. No website login, callback or client secret. */
@@ -35,13 +36,17 @@ public class SpeakerMarket {
     public static final String SCOPES = "openid profile organization balance:read credentials:manage offline_access";
     static final String RECHARGE_SCOPE = "recharge:write";
     private final SpeakerSettings settings;
+    private final boolean rechargeEnabled;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(5)).build();
     private volatile JsonNode discovery;
     private long refreshProbeAt;
     private RuntimeException refreshProbeFailure;
-    public SpeakerMarket(SpeakerSettings settings) { this.settings = settings; }
+    public SpeakerMarket(SpeakerSettings settings, @Value("${speaker.recharge-enabled:false}") boolean rechargeEnabled) {
+        this.settings = settings;
+        this.rechargeEnabled = rechargeEnabled;
+    }
 
     public record DeviceAuthorization(String deviceCode,String userCode,String verificationUri,long expiresIn,long interval) {
         @Override public String toString() { return "DeviceAuthorization[redacted]"; }
@@ -202,7 +207,7 @@ public class SpeakerMarket {
         return value.asText();
     }
     public DeviceAuthorization begin() {
-        return begin(SCOPES);
+        return rechargeEnabled ? beginRecharge() : begin(SCOPES);
     }
 
     DeviceAuthorization beginRecharge() {
