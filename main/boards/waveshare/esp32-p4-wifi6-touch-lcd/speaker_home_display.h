@@ -33,6 +33,7 @@ public:
     void SetTheme(Theme* theme) override;
     void SetVoicePlaybackActive(bool active) override;
     void SetHideSubtitle(bool hide) override;
+    void OnTouch() { pomodoro_.StopAlarm(); }
 
 private:
     void SetIdleClock(const char* clock) override;
