@@ -34,7 +34,13 @@ flowchart LR
 | 设备固件和 OTA | Java [`modules/device/`](main/manager-api/src/main/java/xiaozhi/modules/device/) 的 `OTAController`、`OTAMagController` 与 `OtaServiceImpl` 使用原版固件目录，按上报板型和版本提供更新。设备固件负责检查、下载、校验、写入和重启。 |
 | 设备诊断 | Java [`SpeakerDiagnostics`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerDiagnostics.java) 提供管理员按设备限时开启与查询的入口。固件通过通用诊断接口上报分段语音耗时、TTS 收发与播放、屏幕欠载等指标。新增同类指标沿用通用结构。 |
 | MCP | Java [`SpeakerMcp`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerMcp.java) 管理服务地址、认证和智能体关联。Python [`server_mcp/`](main/xiaozhi-server/core/providers/tools/server_mcp/) 发现、注册并调用工具，模型根据工具描述和参数选择调用。音箱提供的设备 MCP 工具经现有语音连接公布，由固件执行音量、亮度、记事等本机动作。 |
-| 系统设置与第三方服务 | Java [`modules/sys/`](main/manager-api/src/main/java/xiaozhi/modules/sys/) 负责系统参数、字典和服务配置。[第三方服务模块](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerThirdPartyServices.java) 统一维护供应商配置和认证。待机天气由 [`SpeakerWeather`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerWeather.java) 调用高德，设备通过认证接口获取整理后的展示数据。供应商是否启用由当前配置决定。 |
+| 系统设置与第三方服务 | Java [`modules/sys/`](main/manager-api/src/main/java/xiaozhi/modules/sys/) 负责系统参数、字典和服务配置。[第三方服务模块](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerThirdPartyServices.java) 统一维护供应商配置和认证。待机天气由 [`SpeakerWeather`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerWeather.java) 提供：优先用太平洋电脑网定位城市，再查询和风实时天气和空气质量；首选链路未启用或请求失败时回退到高德定位和天气。设备通过认证接口获取整理后的展示数据。 |
+
+### 设备待机天气
+
+`GET /xiaozhi/speaker/v1/weather` 继续使用设备认证，并从入口网关写入的 `X-Xiaozhi-Device-IP` 或 HTTP 连接对端取得设备 IP，不读取语音会话。只接受有效公网 IPv4；不把私网 IP 或空地址交给定位服务。服务端先查定位缓存，未命中时用太平洋电脑网定位城市，再用和风城市搜索取得经纬度，查询实时天气和实时空气质量。原字段保持兼容，新增 `feelsLike`（摄氏度数值）和 `aqi`（和风 `cn-mee` 中国 AQI 整数）。`temperature` 和 `feelsLike` 由后端统一舍入到最近的 0.5°C，整度不带小数。没有对应数据时字段为 `null`，不拿其他 AQI 标准代替。首选链路未启用或请求失败时，回退到高德 IP 定位和实时天气，两个新增字段为 `null`。定位缓存仍为 6 小时，天气缓存仍按城市共享、保留 20 分钟；两个供应商的缓存结果不混用。
+
+在「系统设置 → 第三方服务」启用「太平洋电脑网」（默认地址，无需凭据）和「和风天气」。和风填写控制台分配的 HTTPS API Host 和凭据，API Key 推荐用请求头 `X-QW-Api-Key`，也支持查询参数 `key`。高德配置仅用于回退，可独立启用。此配置不影响语音查天气插件。
 
 ## 语音与智能体运行链路
 

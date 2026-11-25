@@ -27,6 +27,10 @@ public class SpeakerThirdPartyServices {
         @Override public String toString() { return "AmapConfiguration[redacted]"; }
     }
 
+    record QweatherConfiguration(long version, URI origin, String authMode, String credential) {
+        @Override public String toString() { return "QweatherConfiguration[redacted]"; }
+    }
+
     private final JdbcTemplate db;
     private final ObjectMapper json;
     private final SpeakerCrypto crypto;
@@ -59,6 +63,55 @@ public class SpeakerThirdPartyServices {
                 """, (row, index) -> new AmapConfiguration(row.getLong("version"),
                 crypto.decryptThirdPartyCredential("amap", row.getString("credential_cipher"))))
                 .stream().findFirst();
+    }
+
+    Optional<Long> pconlineConfigurationVersion() {
+        return db.query("""
+                SELECT version FROM speaker_third_party_service
+                WHERE id='pconline' AND enabled=TRUE
+                  AND base_url IN ('https://whois.pconline.com.cn', 'https://whois.pconline.com.cn/')
+                  AND auth_mode='none'
+                  AND JSON_CONTAINS(endpoints, '{"path": "/ipJson.jsp"}')
+                """, (row, index) -> row.getLong("version")).stream().findFirst();
+    }
+
+    Optional<QweatherConfiguration> qweatherConfiguration() {
+        return db.query("""
+                SELECT version, base_url, auth_mode, auth_name, credential_cipher
+                FROM speaker_third_party_service
+                WHERE id='qweather' AND enabled=TRUE AND credential_cipher IS NOT NULL
+                  AND JSON_CONTAINS(endpoints, '{"path": "/geo/v2/city/lookup"}')
+                  AND JSON_CONTAINS(endpoints, '{"path": "/weather/v1/current"}')
+                  AND JSON_CONTAINS(endpoints, '{"path": "/airquality/v1/current"}')
+                """, (row, index) -> {
+                    var origin = qweatherOrigin(row.getString("base_url"));
+                    String mode = row.getString("auth_mode");
+                    String name = row.getString("auth_name");
+                    if (origin.isEmpty() || !("query".equals(mode) && "key".equals(name)
+                            || "header".equals(mode) && "X-QW-Api-Key".equalsIgnoreCase(name)
+                            || "bearer".equals(mode) && "Authorization".equals(name))) {
+                        return Optional.<QweatherConfiguration>empty();
+                    }
+                    return Optional.of(new QweatherConfiguration(row.getLong("version"), origin.get(), mode,
+                            crypto.decryptThirdPartyCredential("qweather", row.getString("credential_cipher"))));
+                }).stream().findFirst().orElseGet(Optional::empty);
+    }
+
+    static Optional<URI> qweatherOrigin(String url) {
+        try {
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+            if ("https".equals(uri.getScheme()) && host != null
+                    && host.toLowerCase(java.util.Locale.ROOT).endsWith(".qweatherapi.com")
+                    && uri.getUserInfo() == null && uri.getQuery() == null && uri.getFragment() == null
+                    && (uri.getPort() == -1 || uri.getPort() == 443)
+                    && (uri.getRawPath().isEmpty() || "/".equals(uri.getRawPath()))) {
+                return Optional.of(URI.create("https://" + host));
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Invalid provider configuration is not a usable upstream.
+        }
+        return Optional.empty();
     }
 
     public void save(String id, Configuration configuration) {
