@@ -1151,7 +1151,6 @@ if(CONFIG_XIAOZHI_SPEAKER_ACCOUNT AND BOARD_DIR STREQUAL "waveshare/esp32-p4-wif
     set(background_dir "${CMAKE_CURRENT_SOURCE_DIR}/boards/${BOARD_DIR}/backgrounds")
     list(APPEND SPEAKER_BACKGROUNDS
         "${background_dir}/speaker_home.jpg"
-        "${background_dir}/speaker_screensaver.jpg"
         "${background_dir}/speaker_boot.jpg"
     )
 endif()

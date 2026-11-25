@@ -64,10 +64,12 @@ void SpeakerStandbyWeather::Run() {
                 data.condition = Text(json.get(), "condition");
                 data.temperature = Text(json.get(), "temperature");
                 data.humidity = Text(json.get(), "humidity");
-                data.wind = Text(json.get(), "wind_direction");
-                auto wind_power = Text(json.get(), "wind_power");
-                if (!wind_power.empty()) {
-                    data.wind += " " + wind_power + " 级";
+                data.wind_direction = Text(json.get(), "wind_direction");
+                data.wind_power = Text(json.get(), "wind_power");
+                const auto* aqi = cJSON_GetObjectItemCaseSensitive(json.get(), "aqi");
+                if (cJSON_IsNumber(aqi) && aqi->valuedouble >= 0 && aqi->valuedouble <= 500 &&
+                    aqi->valueint == aqi->valuedouble) {
+                    data.aqi = aqi->valueint;
                 }
             }
             next = esp_timer_get_time() + (data.state == State::Ready ? 20 : 1) * kMinuteUs;

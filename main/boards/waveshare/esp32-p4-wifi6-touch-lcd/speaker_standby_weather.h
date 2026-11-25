@@ -17,7 +17,11 @@ public:
         std::string condition;
         std::string temperature;
         std::string humidity;
-        std::string wind;
+        std::string wind_direction;
+        std::string wind_power;
+        int aqi = -1;  // Optional in the weather response.
+
+        bool operator==(const Snapshot&) const = default;
     };
 
     static SpeakerStandbyWeather& Get();
