@@ -66,12 +66,12 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->SetMode(Mode::Rest);
     }, this);
     for (auto* mode : {work_, rest_}) {
-        lv_obj_set_size(mode, 146, 52);
+        lv_obj_set_size(mode, 146, 62);
         lv_obj_set_style_radius(mode, 14, LV_PART_MAIN);
         Scale(lv_obj_get_child(mode, 0), 320);
     }
-    lv_obj_set_pos(work_, 454, 124);
-    lv_obj_set_pos(rest_, 609, 124);
+    lv_obj_set_pos(work_, 454, 119);
+    lv_obj_set_pos(rest_, 609, 119);
 
     minus_ = Button(panel_, "-", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->ChangeMinutes(-kStepMinutes);
@@ -94,21 +94,21 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     lv_obj_set_pos(minutes_label_, 513, 215);
 
     slider_ = lv_slider_create(panel_);
-    lv_obj_set_pos(slider_, 469, 284);
-    lv_obj_set_size(slider_, 272, 20);
+    lv_obj_set_pos(slider_, 469, 287);
+    lv_obj_set_size(slider_, 272, 14);
     lv_slider_set_range(slider_, kMinMinutes / kStepMinutes, kMaxMinutes / kStepMinutes);
-    lv_obj_set_style_pad_top(slider_, 7, LV_PART_MAIN);
-    lv_obj_set_style_pad_bottom(slider_, 7, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(slider_, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(slider_, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_color(slider_, lv_color_hex(0x1B2F5A), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(slider_, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_radius(slider_, 3, LV_PART_MAIN);
+    lv_obj_set_style_radius(slider_, 7, LV_PART_MAIN);
     lv_obj_set_style_bg_color(slider_, lv_color_hex(kCyan), LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(slider_, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_set_style_radius(slider_, 3, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(slider_, 7, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(slider_, lv_color_hex(0x9DB3D0), LV_PART_KNOB);
     lv_obj_set_style_bg_opa(slider_, LV_OPA_COVER, LV_PART_KNOB);
-    lv_obj_set_style_radius(slider_, 12, LV_PART_KNOB);
-    lv_obj_set_style_pad_all(slider_, 4, LV_PART_KNOB);
+    lv_obj_set_style_radius(slider_, 11, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(slider_, 3, LV_PART_KNOB);
     lv_obj_add_event_cb(slider_, [](lv_event_t* event) {
         auto* view = static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event));
         if (view->adjusting_) {
@@ -125,7 +125,7 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     }, this, kCyan, kDeep);
     action_label_ = lv_obj_get_child(action, 0);
     Scale(action_label_, 320);
-    lv_obj_set_size(action, 176, 66);
+    lv_obj_set_size(action, 146, 66);
     lv_obj_set_pos(action, 454, 346);
     auto* reset = Button(panel_, "重置", [](lv_event_t* event) {
         auto* view = static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event));
@@ -133,8 +133,8 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     }, this);
     Outline(reset);
     Scale(lv_obj_get_child(reset, 0), 320);
-    lv_obj_set_size(reset, 114, 66);
-    lv_obj_set_pos(reset, 641, 346);
+    lv_obj_set_size(reset, 146, 66);
+    lv_obj_set_pos(reset, 609, 346);
     RefreshMode();
     SetMinutes(minutes_);
 }
