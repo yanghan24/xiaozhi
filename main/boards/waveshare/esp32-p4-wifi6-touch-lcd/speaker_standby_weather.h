@@ -6,6 +6,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <mutex>
+#include <optional>
 #include <string>
 
 class SpeakerStandbyWeather {
@@ -16,6 +17,7 @@ public:
         std::string city;
         std::string condition;
         std::string temperature;
+        std::optional<double> feels_like;
         std::string humidity;
         std::string wind_direction;
         std::string wind_power;

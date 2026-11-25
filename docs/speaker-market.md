@@ -27,7 +27,7 @@
 | 开机、首页、屏保与导航 | `speaker_home_display` 协调系统画面和应用优先级，`speaker_boot_view`、`speaker_launcher_view`、`speaker_screensaver_view`、`speaker_background` 管理各自的 UI 与资源。`speaker_navigation` 管理应用入口、返回和边缘手势。 |
 | 全屏对话 | `speaker_conversation_view` 显示语音状态与字幕，`speaker_wave` 控制波带绘制。收音和实际音频播放从现有应用和音频服务接收状态。 |
 | 设置 | `speaker_settings_view` 维持设置首页及声音和显示、屏保、关于设备页面。账号和 Wi-Fi 路由进入各自模块。滑块与语音控制复用音量、背光服务，按现有规则更新与保存。 |
-| 待机天气 | `speaker_standby_weather` 使用设备认证请求小智管理 API，在空闲阶段刷新。供应商和认证由后台配置。 |
+| 待机天气 | `speaker_standby_weather` 使用设备认证请求小智管理 API，在空闲阶段刷新。供应商和认证由后台配置。屏保体感温度优先读取 `/weather` 的 `feelsLike`（摄氏度，JSON 数字或数字字符串）；缺失或无效时沿用设备端的气温和湿度估算，估算所需数据无效时显示 `--`。 |
 | 日历、记事与提醒 | `speaker_calendar_view` 显示可连续横滑的日期条和选中日期的事项。`speaker_memos` 提供 `self.memo.create`、`self.memo.list`、`self.memo.cancel`，按设备当前绑定关系隔离本地记事，支持到期时提示和响铃。 |
 | 番茄钟 | `speaker_pomodoro_view` 管理计时、暂停、重置和提示，复用现有提示音。 |
 | 计算器 | `speaker_calculator` 处理本地四则运算与百分比，`speaker_calculator_view` 管理触屏键盘、实时结果及最近 6 条历史。历史仅在本次开机期间保留。 |

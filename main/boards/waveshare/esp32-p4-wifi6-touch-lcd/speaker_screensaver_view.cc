@@ -105,7 +105,6 @@ void UpdateWindDirection(lv_obj_t* label, const std::string& direction) {
     UpdateLabel(label, text);
 }
 
-// Keep the old heat-index display, but reject malformed and out-of-range network values.
 bool ParseReading(const std::string& text, const char* unit, double min, double max,
                   double& value) {
     const char* start = text.c_str();
@@ -116,6 +115,12 @@ bool ParseReading(const std::string& text, const char* unit, double min, double 
 }
 
 std::string FeelsLike(const SpeakerStandbyWeather::Snapshot& weather) {
+    if (weather.feels_like) {
+        char text[32];
+        std::snprintf(text, sizeof(text), "%g°", *weather.feels_like);
+        return text;
+    }
+
     double temp, humidity;
     if (!ParseReading(weather.temperature, "°C", -90, 65, temp) ||
         !ParseReading(weather.humidity, "%", 0, 100, humidity)) {
