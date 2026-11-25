@@ -26,7 +26,10 @@ foreach(header wifi_configuration_ap.h wifi_station.h wifi_manager.h dns_server.
     configure_file("${wifi_dir}/include/${header}" "${generated_dir}/include/${header}" COPYONLY)
 endforeach()
 
-execute_process(COMMAND "${GIT_EXECUTABLE}" apply --no-index "${patch}"
+# Apply from the generated tree even when the build directory is inside the Git checkout.
+configure_file("${patch}" "${generated_dir}/wifi.patch" @ONLY NEWLINE_STYLE LF)
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "GIT_CEILING_DIRECTORIES=${CMAKE_BINARY_DIR}"
+    "${GIT_EXECUTABLE}" apply --no-index "${generated_dir}/wifi.patch"
     WORKING_DIRECTORY "${generated_dir}" RESULT_VARIABLE result)
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Review the P4X provisioning patch for the current esp-wifi-connect version")
