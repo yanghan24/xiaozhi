@@ -18,6 +18,7 @@ public:
     void Show();
     void Hide();
     void Update();
+    bool CanLeave() const;
 
 private:
     using Date = std::chrono::sys_days;
@@ -37,6 +38,15 @@ private:
     void SetOffset(int32_t offset);
     void Settle(int32_t coast);
     void GoToToday();
+    void GoToDate(Date date);
+#if LV_USE_ROLLER
+    void CreateDatePicker();
+    void OpenDatePicker();
+    std::chrono::year_month PickerMonth() const;
+    void RefreshPickerDays(unsigned day);
+    void ConfirmDatePicker();
+    void CloseDatePicker();
+#endif
     bool DateIsVisible(Date date) const;
     void RenderDates(bool refresh = false);
     void RenderCell(DateCell& cell, Date date);
@@ -48,8 +58,19 @@ private:
     lv_obj_t* list_ = nullptr;
     lv_obj_t* clock_hint_ = nullptr;
     lv_obj_t* memo_hint_ = nullptr;
+    lv_obj_t* empty_title_ = nullptr;
+    lv_obj_t* empty_detail_ = nullptr;
+    lv_obj_t* agenda_date_ = nullptr;
+    lv_obj_t* agenda_count_ = nullptr;
     lv_obj_t* month_ = nullptr;
     lv_obj_t* today_button_ = nullptr;
+#if LV_USE_ROLLER
+    lv_obj_t* picker_button_ = nullptr;
+    lv_obj_t* picker_ = nullptr;
+    lv_obj_t* year_roller_ = nullptr;
+    lv_obj_t* month_roller_ = nullptr;
+    lv_obj_t* day_roller_ = nullptr;
+#endif
     std::array<DateCell, 8> cells_{};
     std::optional<Date> today_;
     std::chrono::year_month visible_month_{};
