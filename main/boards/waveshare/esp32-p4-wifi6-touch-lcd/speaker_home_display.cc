@@ -22,6 +22,9 @@ SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     if (!lock || !scene_) {
         return;
     }
+    if (touch_) {
+        lv_indev_remove_event_cb_with_user_data(touch_, OnTouchPressed, this);
+    }
     lv_timer_delete(refresh_timer_);
     conversation_.Stop();
     account_.Destroy();
@@ -106,6 +109,20 @@ void SpeakerHomeDisplay::SetupUI() {
         SpeakerMemos::Get().Tick();
         display->RefreshUi();
     }, 100, this);
+
+    for (auto* indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) {
+        if (lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER &&
+            lv_indev_get_display(indev) == lv_obj_get_display(scene_)) {
+            touch_ = indev;
+            lv_indev_add_event_cb(touch_, OnTouchPressed, LV_EVENT_PRESSED, this);
+            break;
+        }
+    }
+}
+
+void SpeakerHomeDisplay::OnTouchPressed(lv_event_t* event) {
+    auto* display = static_cast<SpeakerHomeDisplay*>(lv_event_get_user_data(event));
+    display->pomodoro_.RequestStopAlarm();
 }
 
 void SpeakerHomeDisplay::SetTheme(Theme* theme) {

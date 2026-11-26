@@ -34,9 +34,9 @@ public:
     void SetTheme(Theme* theme) override;
     void SetVoicePlaybackActive(bool active) override;
     void SetHideSubtitle(bool hide) override;
-    void OnTouch() { pomodoro_.StopAlarm(); }
 
 private:
+    static void OnTouchPressed(lv_event_t* event);
     void SetIdleClock(const char* clock) override;
     void ApplySystemStyle();
     void RefreshUi();
@@ -47,6 +47,7 @@ private:
     lv_obj_t* desktop_ = nullptr;
     lv_obj_t* notice_ = nullptr;
     lv_timer_t* refresh_timer_ = nullptr;
+    lv_indev_t* touch_ = nullptr;
     bool standby_ = false;
     bool desktop_allowed_ = false;
     bool system_background_visible_ = false;
