@@ -65,7 +65,8 @@ void SpeakerHomeDisplay::SetupUI() {
                          [this] { return recording_.CanLeave(); });
     navigation_.Register(Page::Pomodoro, [this] { pomodoro_.Show(); }, [this] { pomodoro_.Hide(); });
 #if LV_USE_CALENDAR
-    navigation_.Register(Page::Calendar, [this] { calendar_.Show(); }, [this] { calendar_.Hide(); });
+    navigation_.Register(Page::Calendar, [this] { calendar_.Show(); }, [this] { calendar_.Hide(); },
+                         [this] { return calendar_.CanLeave(); });
 #endif
     navigation_.Home();
 
