@@ -892,8 +892,24 @@ uint32_t AudioService::BeginLocalPlayback() {
     return local_playback_generation_;
 }
 
+uint32_t AudioService::TryBeginLocalPlayback() {
+    std::lock_guard lock(audio_queue_mutex_);
+    if (service_stopped_ || !IsPlaybackDrainedLocked()) return 0;
+    if (++local_playback_generation_ == 0) ++local_playback_generation_;
+    return local_playback_generation_;
+}
+
 void AudioService::CancelLocalPlayback() {
     BeginLocalPlayback();
+}
+
+bool AudioService::CancelLocalPlaybackIfCurrent(uint32_t generation) {
+    std::lock_guard lock(audio_queue_mutex_);
+    if (!generation || generation != local_playback_generation_) return false;
+    local_playback_queue_.clear();
+    if (++local_playback_generation_ == 0) ++local_playback_generation_;
+    audio_queue_cv_.notify_all();
+    return true;
 }
 
 bool AudioService::IsLocalPlaybackCurrent(uint32_t generation) {
