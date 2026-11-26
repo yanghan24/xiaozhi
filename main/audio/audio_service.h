@@ -139,7 +139,9 @@ public:
     bool IsPlaybackIdle();
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     uint32_t BeginLocalPlayback();
+    uint32_t TryBeginLocalPlayback();
     void CancelLocalPlayback();
+    bool CancelLocalPlaybackIfCurrent(uint32_t generation);
     bool IsLocalPlaybackCurrent(uint32_t generation);
     bool QueueLocalPcm(uint32_t generation, std::vector<int16_t> pcm);
     int LocalOutputSampleRate() const { return codec_->output_sample_rate(); }
