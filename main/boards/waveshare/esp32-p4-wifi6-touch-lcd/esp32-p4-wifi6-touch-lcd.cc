@@ -39,6 +39,22 @@
 #include "esp_lcd_touch_gt911.h"
 #define TAG "WaveshareEsp32p4"
 
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+namespace {
+lv_indev_read_cb_t original_touch_read = nullptr;
+bool previous_touch_pressed = false;
+void ReadTouchAndDismissAlarm(lv_indev_t* indev, lv_indev_data_t* data) {
+    original_touch_read(indev, data);
+    const bool pressed = data->state == LV_INDEV_STATE_PRESSED;
+    if (pressed && !previous_touch_pressed) {
+        auto* display = static_cast<SpeakerHomeDisplay*>(Board::GetInstance().GetDisplay());
+        display->OnTouch();
+    }
+    previous_touch_pressed = pressed;
+}
+}
+#endif
+
 class WaveshareEsp32p4 : public WifiBoard {
 private:
     i2c_master_bus_handle_t i2c_bus_;
@@ -416,7 +432,16 @@ private:
             .disp = lv_display_get_default(),
             .handle = tp,
         };
+#if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
+        if (auto* touch = lvgl_port_add_touch(&touch_cfg)) {
+            lvgl_port_lock(0);
+            original_touch_read = lv_indev_get_read_cb(touch);
+            lv_indev_set_read_cb(touch, ReadTouchAndDismissAlarm);
+            lvgl_port_unlock();
+        }
+#else
         lvgl_port_add_touch(&touch_cfg);
+#endif
         ESP_LOGI(TAG, "Touch panel initialized successfully");
     }
     void InitializeCamera() {
