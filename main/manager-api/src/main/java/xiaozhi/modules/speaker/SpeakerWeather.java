@@ -1,11 +1,13 @@
 package xiaozhi.modules.speaker;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.net.InetAddresses;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -23,9 +25,23 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class SpeakerWeather {
     private static final String AMAP = "https://restapi.amap.com";
+    // Leave time to return the result before the device's eight-second timeout.
+    private static final Duration STANDBY_BUDGET = Duration.ofSeconds(7);
 
     public record Report(String status, String city, String condition, String temperature,
-                         String humidity, String wind_direction, String wind_power, String reported_at) {
+                         String humidity, String wind_direction, String wind_power, String reported_at,
+                         @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal feelsLike,
+                         @JsonInclude(JsonInclude.Include.NON_NULL) Integer aqi) {
+        public Report(String status, String city, String condition, String temperature, String humidity,
+                      String wind_direction, String wind_power, String reported_at) {
+            this(status, city, condition, temperature, humidity, wind_direction, wind_power, reported_at, null, null);
+        }
+
+        Report withStandbyDetails(BigDecimal feelsLike, Integer aqi) {
+            return new Report(status, city, condition, temperature, humidity, wind_direction, wind_power, reported_at,
+                    feelsLike, aqi);
+        }
+
         static Report unavailable() {
             return new Report("unavailable", "", "", "", "", "", "", "");
         }
@@ -56,13 +72,14 @@ public class SpeakerWeather {
     }
 
     public Report current(String address) {
+        long deadline = System.nanoTime() + STANDBY_BUDGET.toNanos();
         var configured = services.qweatherConfiguration();
         if (configured.isPresent()) {
             var config = configured.get();
             String city = deviceCity(address, config.defaultCity());
             if (city.isEmpty()) return Report.unavailable();
             try {
-                return qweather.current(config, city);
+                return qweather.standby(config, city, deadline);
             } catch (ExecutionException failure) {
                 return Report.unavailable();
             }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -15,17 +16,28 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.zip.GZIPInputStream;
 import org.springframework.web.util.UriComponentsBuilder;
 
 final class QWeatherClient {
+    private static final Duration AIR_QUALITY_TIMEOUT = Duration.ofMillis(1500);
+
     record Day(String date, String condition, String minimum, String maximum) {}
     private record Place(String name, String coordinates) {}
+    private record Observation(Place place, SpeakerWeather.Report report, BigDecimal feelsLike) {}
     private record Lookup(long version, String city) {}
+    private record AirQualityKey(long version, String coordinates) {}
 
     private final ObjectMapper json;
     private final HttpClient http;
-    private final Cache<Lookup, SpeakerWeather.Report> current = CacheBuilder.newBuilder()
+    private final Cache<Lookup, Observation> current = CacheBuilder.newBuilder()
+            .maximumSize(1024).expireAfterWrite(Duration.ofMinutes(20)).build();
+    private final Cache<AirQualityKey, Optional<Integer>> airQuality = CacheBuilder.newBuilder()
             .maximumSize(1024).expireAfterWrite(Duration.ofMinutes(20)).build();
     private final Cache<Lookup, List<Day>> forecast = CacheBuilder.newBuilder()
             .maximumSize(1024).expireAfterWrite(Duration.ofHours(1)).build();
@@ -36,7 +48,30 @@ final class QWeatherClient {
     }
 
     SpeakerWeather.Report current(SpeakerThirdPartyServices.QWeatherConfiguration config, String city)
-            throws java.util.concurrent.ExecutionException {
+            throws ExecutionException {
+        return observation(config, city).report();
+    }
+
+    SpeakerWeather.Report standby(SpeakerThirdPartyServices.QWeatherConfiguration config, String city, long deadline)
+            throws ExecutionException {
+        var observation = observation(config, city);
+        var key = new AirQualityKey(config.version(), observation.place().coordinates());
+        var aqi = airQuality.getIfPresent(key);
+        // Skip optional I/O when the main weather lookup used most of the device's time budget.
+        if (aqi == null && deadline - System.nanoTime() >= AIR_QUALITY_TIMEOUT.toNanos()) {
+            try {
+                aqi = airQuality.get(key, () -> fetchAirQuality(config, key.coordinates()));
+            } catch (ExecutionException failure) {
+                if (failure.getCause() instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        return observation.report().withStandbyDetails(observation.feelsLike(), aqi == null ? null : aqi.orElse(null));
+    }
+
+    private Observation observation(SpeakerThirdPartyServices.QWeatherConfiguration config, String city)
+            throws ExecutionException {
         return current.get(new Lookup(config.version(), city), () -> {
             Place place = locate(config, city);
             JsonNode live = request(config, "/weather/v1/current/" + place.coordinates(),
@@ -46,15 +81,44 @@ final class QWeatherClient {
             if (condition.isEmpty() || temperature.isEmpty()) throw new IOException("Weather unavailable");
             JsonNode wind = live.path("wind");
             JsonNode humidity = live.path("humidity");
-            return new SpeakerWeather.Report("ready", place.name(), condition, temperature,
+            var report = new SpeakerWeather.Report("ready", place.name(), condition, temperature,
                     humidity.isNumber() ? Long.toString(Math.round(humidity.asDouble() * 100)) : "",
                     SpeakerWeather.text(wind.path("direction"), "compass"), number(wind.path("scale")),
                     SpeakerWeather.text(live, "validTime"));
+            return new Observation(place, report, feelsLike(live.path("feelsLike")));
         });
     }
 
+    private Optional<Integer> fetchAirQuality(SpeakerThirdPartyServices.QWeatherConfiguration config, String coordinates)
+            throws InterruptedException {
+        try {
+            var request = buildRequest(config, "/airquality/v1/current/" + coordinates,
+                    Map.of("lang", "zh"), AIR_QUALITY_TIMEOUT);
+            var pending = http.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
+            try {
+                JsonNode indexes = readResponse(pending.get(AIR_QUALITY_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS))
+                        .path("indexes");
+                if (indexes.isArray()) {
+                    for (JsonNode index : indexes) {
+                        JsonNode value = index.path("aqi");
+                        if ("cn-mee".equals(SpeakerWeather.text(index, "code"))
+                                && value.isNumber() && value.canConvertToExactIntegral() && value.canConvertToInt()
+                                && value.intValue() >= 0 && value.intValue() <= 500) {
+                            return Optional.of(value.intValue());
+                        }
+                    }
+                }
+            } finally {
+                if (!pending.isDone()) pending.cancel(true);
+            }
+        } catch (IOException | GeneralSecurityException | ExecutionException | TimeoutException | CancellationException failure) {
+            // Cache a temporary miss as well to avoid repeating failed requests for the same city.
+        }
+        return Optional.empty();
+    }
+
     List<Day> forecast(SpeakerThirdPartyServices.QWeatherConfiguration config, String city)
-            throws java.util.concurrent.ExecutionException {
+            throws ExecutionException {
         return forecast.get(new Lookup(config.version(), city), () -> {
             Place place = locate(config, city);
             JsonNode result = request(config, "/weather/v1/daily/" + place.coordinates(),
@@ -87,13 +151,22 @@ final class QWeatherClient {
 
     private JsonNode request(SpeakerThirdPartyServices.QWeatherConfiguration config, String path, Map<String, String> parameters)
             throws IOException, InterruptedException, GeneralSecurityException {
+        var request = buildRequest(config, path, parameters, Duration.ofSeconds(3));
+        return readResponse(http.send(request, HttpResponse.BodyHandlers.ofByteArray()));
+    }
+
+    private HttpRequest buildRequest(SpeakerThirdPartyServices.QWeatherConfiguration config, String path,
+                                     Map<String, String> parameters, Duration timeout)
+            throws IOException, GeneralSecurityException {
         var builder = UriComponentsBuilder.fromUriString(config.url().replaceFirst("/$", "")).path(path);
         parameters.forEach((name, value) -> builder.queryParam(name, "{" + name + "}"));
         var uri = builder.encode().buildAndExpand(parameters).toUri();
-        var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(3))
+        return HttpRequest.newBuilder(uri).timeout(timeout)
                 .header("Authorization", "Bearer " + QWeatherJwt.sign(json, config, Instant.now()))
                 .header("Accept-Encoding", "gzip").GET().build();
-        var response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private JsonNode readResponse(HttpResponse<byte[]> response) throws IOException {
         if (response.statusCode() != 200 || response.body().length > 65536)
             throw new IOException("Weather service unavailable");
         try (var source = new java.io.ByteArrayInputStream(response.body())) {
@@ -112,6 +185,15 @@ final class QWeatherClient {
 
     private static String number(JsonNode value) {
         return value.isNumber() ? value.decimalValue().setScale(0, RoundingMode.HALF_UP).toPlainString() : "";
+    }
+
+    private static BigDecimal feelsLike(JsonNode reading) {
+        JsonNode value = reading.path("value");
+        if (!"°C".equals(SpeakerWeather.text(reading, "unit")) || !value.isNumber()) return null;
+        double temperature = value.doubleValue();
+        if (!Double.isFinite(temperature) || temperature < -150 || temperature > 150) return null;
+        return BigDecimal.valueOf(temperature).multiply(BigDecimal.TWO)
+                .setScale(0, RoundingMode.HALF_UP).divide(BigDecimal.TWO);
     }
 
     private static String coordinate(String value, int bound) {
