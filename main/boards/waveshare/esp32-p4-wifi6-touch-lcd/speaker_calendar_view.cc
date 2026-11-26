@@ -14,6 +14,9 @@
 #include <string>
 #include <string_view>
 
+LV_FONT_DECLARE(speaker_calendar_weekday_font);
+LV_FONT_DECLARE(speaker_calendar_date_font);
+
 using namespace SpeakerUi;
 using namespace std::chrono;
 
@@ -125,8 +128,10 @@ void SpeakerCalendarView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_set_style_radius(cell.selection, 14, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(cell.selection, LV_OPA_COVER, LV_PART_MAIN);
         cell.weekday = Label(cell.root, "", kMuted);
+        lv_obj_set_style_text_font(cell.weekday, &speaker_calendar_weekday_font, LV_PART_MAIN);
         lv_obj_align(cell.weekday, LV_ALIGN_TOP_MID, 0, 8);
         cell.number = Label(cell.root, "");
+        lv_obj_set_style_text_font(cell.number, &speaker_calendar_date_font, LV_PART_MAIN);
         lv_obj_align(cell.number, LV_ALIGN_CENTER, 0, 9);
         cell.memo_dot = Surface(cell.root, (kDayWidth - kDotSize) / 2,
                                 kStripHeight - kDotSize - kDotBottomGap, kDotSize, kDotSize);
