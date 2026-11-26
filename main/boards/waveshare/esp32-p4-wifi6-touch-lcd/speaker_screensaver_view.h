@@ -22,6 +22,7 @@ private:
     void CreateClock();
     void CreateWeather();
     void UpdateClock(const std::tm* local_time);
+    void UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather);
     void UpdateWeather(const SpeakerStandbyWeather::Snapshot& weather);
 
     lv_obj_t* root_ = nullptr;
@@ -32,6 +33,7 @@ private:
     lv_obj_t* sun_ = nullptr;
     lv_obj_t* cloud_ = nullptr;
     lv_obj_t* rain_ = nullptr;
+    lv_obj_t* weather_placeholder_ = nullptr;
     lv_obj_t* temperature_ = nullptr;
     lv_obj_t* condition_ = nullptr;
     lv_obj_t* feels_like_ = nullptr;

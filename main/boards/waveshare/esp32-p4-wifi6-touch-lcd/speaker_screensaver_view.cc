@@ -53,6 +53,25 @@ lv_obj_t* Frame(lv_obj_t* parent, int x, int y, int w, int h, uint32_t fill, lv_
     return frame;
 }
 
+lv_obj_t* CreateSun(lv_obj_t* parent) {
+    // Draw the sun with local LVGL shapes so it stays centered without font bearings.
+    auto* sun = Surface(parent, 35, 43, 64, 64);
+    Frame(sun, 18, 18, 28, 28, kSun, LV_OPA_TRANSP, kSun, LV_OPA_COVER, 3, LV_RADIUS_CIRCLE);
+    static constexpr lv_point_precise_t rays[][2] = {
+        {{32, 2}, {32, 10}},  {{48, 16}, {53, 11}}, {{54, 32}, {62, 32}}, {{48, 48}, {53, 53}},
+        {{32, 54}, {32, 62}}, {{16, 48}, {11, 53}}, {{2, 32}, {10, 32}},  {{11, 11}, {16, 16}},
+    };
+    for (const auto& points : rays) {
+        auto* ray = lv_line_create(sun);
+        lv_obj_remove_style_all(ray);
+        lv_line_set_points(ray, points, 2);
+        lv_obj_set_style_line_color(ray, lv_color_hex(kSun), LV_PART_MAIN);
+        lv_obj_set_style_line_width(ray, 3, LV_PART_MAIN);
+        lv_obj_set_style_line_rounded(ray, true, LV_PART_MAIN);
+    }
+    return sun;
+}
+
 lv_obj_t* Centered(lv_obj_t* parent, const char* text, int x, int y, int width,
                    uint32_t color = kText) {
     auto* label = Label(parent, text, color);
@@ -217,24 +236,26 @@ void SpeakerScreensaverView::CreateClock() {
 
 void SpeakerScreensaverView::CreateWeather() {
     auto* panel = Frame(root_, 420, 72, 364, 356, kWeatherPanel, LV_OPA_90, kBlue, LV_OPA_80);
-    // Draw the weather mark with LVGL shapes: the current icon font has no cloud glyph.
-    sun_ = Icon(panel, MATERIAL_SYMBOLS_BRIGHTNESS_6, kSun, 390);
-    lv_obj_align(sun_, LV_ALIGN_TOP_LEFT, 72, 32);
-    cloud_ = Surface(panel, 35, 61, 74, 45);
+    // Build the local weather symbols from lightweight LVGL shapes.
+    sun_ = CreateSun(panel);
+    cloud_ = Surface(panel, 30, 53, 74, 45);
     Block(cloud_, 1, 18, 72, 26, kText, LV_OPA_COVER, 13);
     Block(cloud_, 11, 8, 28, 29, kText, LV_OPA_COVER, 14);
     Block(cloud_, 28, 0, 35, 39, kText, LV_OPA_COVER, LV_RADIUS_CIRCLE);
-    rain_ = Surface(panel, 46, 110, 54, 14);
+    rain_ = Surface(panel, 42, 94, 50, 12);
     for (int x : {0, 22, 44}) {
         Block(rain_, x, 0, 5, 12, kCyan, LV_OPA_COVER, 2);
     }
-    lv_obj_add_flag(sun_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(rain_, LV_OBJ_FLAG_HIDDEN);
+    weather_placeholder_ = Centered(panel, "--", 20, 55, 94, kMuted);
+    UpdateWeatherIcons({});
 
     Block(panel, 134, 30, 1, 108, kCyan, LV_OPA_70);
     temperature_ = Centered(panel, "--°C", 158, 32, 184);
     Scale(temperature_, 380);
     condition_ = Centered(panel, "正在更新", 158, 101, 184);
+    // Keep long provider descriptions on one line so they cannot overlap the statistics.
+    lv_obj_set_height(
+        condition_, lv_font_get_line_height(lv_obj_get_style_text_font(condition_, LV_PART_MAIN)));
     Block(panel, 20, 150, 324, 1, kCyan, LV_OPA_60);
 
     const char* titles[] = {"体感", "湿度", "风向"};
@@ -313,6 +334,32 @@ void SpeakerScreensaverView::UpdateClock(const std::tm* local_time) {
     UpdateLabel(date_, date);
 }
 
+void SpeakerScreensaverView::UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather) {
+    const auto& condition = weather.condition;
+    // Only the locally drawn sun, cloud and rain symbols are supported here. Do not
+    // accidentally interpret compound snow, fog or hail descriptions as sunshine/rain.
+    constexpr const char* unsupported[] = {"雪", "雾", "霾", "沙", "尘", "冰雹", "龙卷"};
+    const bool supported =
+        weather.state == SpeakerStandbyWeather::State::Ready &&
+        std::none_of(std::begin(unsupported), std::end(unsupported),
+                     [&](const char* text) { return condition.find(text) != std::string::npos; });
+    const bool rain = supported &&
+        (condition.find("雨") != std::string::npos || condition.find("雷") != std::string::npos);
+    const bool partly_cloudy = supported && !rain && condition.find("多云") != std::string::npos;
+    const bool sunny = supported && !rain && !partly_cloudy &&
+                       condition.find("晴") != std::string::npos;
+    const bool cloudy = rain || partly_cloudy ||
+        (supported && !sunny &&
+         (condition.find("阴") != std::string::npos || condition.find("云") != std::string::npos));
+
+    lv_obj_set_pos(sun_, partly_cloudy ? 43 : 35, partly_cloudy ? 36 : 43);
+    lv_obj_set_pos(cloud_, partly_cloudy ? 28 : 30, partly_cloudy ? 68 : rain ? 44 : 53);
+    lv_obj_set_flag(sun_, LV_OBJ_FLAG_HIDDEN, !sunny && !partly_cloudy);
+    lv_obj_set_flag(cloud_, LV_OBJ_FLAG_HIDDEN, !cloudy);
+    lv_obj_set_flag(rain_, LV_OBJ_FLAG_HIDDEN, !rain);
+    lv_obj_set_flag(weather_placeholder_, LV_OBJ_FLAG_HIDDEN, sunny || cloudy);
+}
+
 void SpeakerScreensaverView::UpdateWeather(const SpeakerStandbyWeather::Snapshot& weather) {
     if (last_weather_ == weather) {
         return;
@@ -323,14 +370,7 @@ void SpeakerScreensaverView::UpdateWeather(const SpeakerStandbyWeather::Snapshot
     UpdateLabel(temperature_, WithUnit(weather.temperature, "°C", "--°C").c_str());
     UpdateLabel(condition_, ready && !weather.condition.empty() ? weather.condition.c_str()
                                                                 : WeatherStatus(weather.state));
-    const auto& condition = weather.condition;
-    const bool rain =
-        condition.find("雨") != std::string::npos || condition.find("雷") != std::string::npos;
-    const bool partly_cloudy = condition.find("多云") != std::string::npos;
-    const bool sunny = !rain && !partly_cloudy && condition.find("晴") != std::string::npos;
-    lv_obj_set_flag(sun_, LV_OBJ_FLAG_HIDDEN, !sunny && !partly_cloudy);
-    lv_obj_set_flag(cloud_, LV_OBJ_FLAG_HIDDEN, sunny);
-    lv_obj_set_flag(rain_, LV_OBJ_FLAG_HIDDEN, !rain);
+    UpdateWeatherIcons(weather);
     UpdateLabel(feels_like_, FeelsLike(weather).c_str());
     UpdateLabel(humidity_, WithUnit(weather.humidity, "%").c_str());
     UpdateWindDirection(wind_direction_, weather.wind_direction);
