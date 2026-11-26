@@ -43,6 +43,10 @@ public class SpeakerOperations {
             }
             result.put("use_status",status);result.put("server_time_ms",System.currentTimeMillis());
             result.put("lease_expires_in_ms","ready".equals(status)?60000:0);
+            if ("ready".equals(status)) {
+                result.put("memo_owner", hash("speaker-memos\n" + identity.id() + "\n" + device.get("customer_id"))
+                        .substring(0, 32));
+            }
             result.put("login_id",device.get("login_id"));
             var owner=device.get("customer_id")==null?null:db.queryForMap("SELECT display_name FROM speaker_customer WHERE id=?",device.get("customer_id"));
             result.put("customer_name",owner==null?null:owner.get("display_name"));
