@@ -24,12 +24,14 @@
 | --- | --- |
 | 配网与 Wi-Fi | `speaker_wifi_view` 管理触屏界面，`speaker_wifi_setup` 后台任务调用 Wi-Fi 组件。[组件补丁](../cmake/p4x-touch-wifi.patch)支持运行中扫描、试连和热点。首次触屏与手机热点共用提交逻辑。浏览列表或打开热点时保留已连网络。确认后试连，成功取得 IP 后保存，失败时恢复原网络。 |
 | 账号、积分、解绑 | [`speaker_account`](../main/speaker_account/) 管理身份和认证连接，账号页显示扫码、绑定资料及积分。首次配网完成后自动登记。用户经手机完成 AI 集市授权，设备更新状态并取得语音票据。解绑按本台设备的既有流程确认。 |
+| 积分充值 | `speaker_recharge` 根据后台开关在账号页提供入口。启用充值后，扫码登录可同时取得充值权限。已有授权缺少此权限时，用原账号补充一次授权。使用微信扫描充值二维码，在集市页面付款。音箱核对到账结果并刷新积分。 |
 | 开机、首页、屏保与导航 | `speaker_home_display` 协调系统画面和应用优先级，`speaker_boot_view`、`speaker_launcher_view`、`speaker_screensaver_view`、`speaker_background` 管理各自的 UI 与资源。`speaker_navigation` 管理应用入口、返回和边缘手势。 |
 | 全屏对话 | `speaker_conversation_view` 显示语音状态与字幕，`speaker_wave` 控制波带绘制。收音和实际音频播放从现有应用和音频服务接收状态。 |
 | 设置 | `speaker_settings_view` 维持设置首页及声音和显示、屏保、关于设备页面。账号和 Wi-Fi 路由进入各自模块。滑块与语音控制复用音量、背光服务，按现有规则更新与保存。 |
-| 待机天气 | `speaker_standby_weather` 使用设备认证请求小智管理 API，在空闲阶段刷新。供应商和认证由后台配置。 |
+| 待机天气 | `speaker_standby_weather` 使用设备认证请求小智管理 API，在空闲阶段刷新。供应商和认证由后台配置。屏保使用本地 LVGL 图形绘制晴天、云和雨等天气标记。体感温度优先读取 `/weather` 的 `feelsLike`（摄氏度，JSON 数字或数字字符串）；缺失或无效时沿用设备端的气温和湿度估算，估算所需数据无效时显示 `--`。 | |
 | 日历、记事与提醒 | `speaker_calendar_view` 显示可连续横滑的日期条和选中日期的事项。`speaker_memos` 提供 `self.memo.create`、`self.memo.list`、`self.memo.cancel`，按设备当前绑定关系隔离本地记事，支持到期时提示和响铃。 |
 | 番茄钟 | `speaker_pomodoro_view` 管理专注／休息模式、计时、暂停、重置和到时提醒。支持滑块及加减按钮按 5 分钟一档选择 5～60 分钟；切换模式分别恢复默认 25 分钟和 5 分钟。 |
+| 计算器 | `speaker_calculator` 处理本地四则运算与百分比，`speaker_calculator_view` 管理触屏键盘、实时结果及最近 6 条历史。历史仅在本次开机期间保留。 |
 | SD 卡、本地音乐与录音 | `speaker_sd_storage` 管理挂载与文件，`speaker_music` 播放 MP3/WAV，`speaker_recorder` 保存 WAV。两种应用各有页面，复用同一音频服务。 |
 | 设备诊断 | [`speaker_account`](../main/speaker_account/) 下的语音耗时、播放和显示诊断沿用现有通用上报接口，后台按设备限时开启上传。 |
 

@@ -26,7 +26,9 @@ foreach(header wifi_configuration_ap.h wifi_station.h wifi_manager.h dns_server.
     configure_file("${wifi_dir}/include/${header}" "${generated_dir}/include/${header}" COPYONLY)
 endforeach()
 
-execute_process(COMMAND "${GIT_EXECUTABLE}" apply --no-index "${patch}"
+# Without an explicit work tree, Git can discover the parent repository and
+# silently skip patch paths outside the current repository subdirectory.
+execute_process(COMMAND "${GIT_EXECUTABLE}" --work-tree=. apply --no-index "${patch}"
     WORKING_DIRECTORY "${generated_dir}" RESULT_VARIABLE result)
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Review the P4X provisioning patch for the current esp-wifi-connect version")

@@ -76,9 +76,8 @@ inline lv_obj_t* Surface(lv_obj_t* parent, int x, int y, int width, int height) 
 
 inline lv_obj_t* Panel(lv_obj_t* parent) {
     auto* panel = Surface(parent, 0, 0, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(panel, lv_color_hex(kNavy), LV_PART_MAIN);
-    lv_obj_set_style_bg_grad_color(panel, lv_color_hex(kDeep), LV_PART_MAIN);
-    lv_obj_set_style_bg_grad_dir(panel, LV_GRAD_DIR_VER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(panel, lv_color_hex(kDeep), LV_PART_MAIN);
+    lv_obj_set_style_bg_grad_dir(panel, LV_GRAD_DIR_NONE, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
     return panel;

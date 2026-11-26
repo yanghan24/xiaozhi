@@ -6,6 +6,7 @@
 #include "system_info.h"
 #ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 #include "speaker_account/speaker_account.h"
+#include "speaker_account/speaker_clock.h"
 #endif
 
 #include <freertos/FreeRTOS.h>
@@ -260,6 +261,9 @@ NetworkResult<> Ota::CheckVersion() {
     if (cJSON_IsObject(server_time)) {
         cJSON *timestamp = cJSON_GetObjectItem(server_time, "timestamp");
         cJSON *timezone_offset = cJSON_GetObjectItem(server_time, "timezone_offset");
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+        has_server_time_ = SpeakerClock::Synchronize(timestamp, timezone_offset);
+#else
         
         if (cJSON_IsNumber(timestamp)) {
             // 设置系统时间
@@ -276,6 +280,7 @@ NetworkResult<> Ota::CheckVersion() {
             settimeofday(&tv, NULL);
             has_server_time_ = true;
         }
+#endif
     } else {
         ESP_LOGW(TAG, "No server_time section found!");
     }

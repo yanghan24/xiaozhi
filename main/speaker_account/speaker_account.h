@@ -29,6 +29,7 @@ public:
         Connecting,
         Unprovisioned,
         Scan,
+        Scanned,
         Retry,
         Disabled,
         Ready,
@@ -46,6 +47,7 @@ public:
         int64_t balance_permission = 0;
         bool balance_loading = false;
         std::string balance;
+        bool recharge_available = false;
 
         bool operator==(const View&) const = default;
     };
@@ -70,6 +72,7 @@ public:
 
 private:
     friend class SpeakerStandbyWeather;
+    friend class SpeakerRecharge;
     struct Response {
         int status = 0;
         std::string body;
@@ -81,7 +84,7 @@ private:
     Response RequestWithIdentity(const Identity& identity, const char* method, const std::string& path,
                                  std::string body = {}, int channel = 5, int timeout_ms = 5000);
     enum class LoginResult { InProgress, Completed, InvalidCredential };
-    LoginResult PollLogin(const Identity& identity, std::string& login_id, bool& retry_login,
+    LoginResult PollLogin(const Identity& identity, std::string& login_id, bool& retry_login, bool& replace_login,
                           const std::string& customer, bool bound, int64_t permission, uint32_t epoch);
     void Publish(View view, std::optional<VoiceAccess> access, int64_t lease_until,
                  int64_t permission_version, bool revoke_if_changed, uint32_t network_epoch,

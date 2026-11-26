@@ -11,11 +11,15 @@ public:
     void Hide();
     void SetPromptsAllowed(bool allowed);
     void Apply(const SpeakerAccount::View& view);
+    void RefreshRecharge();
     bool PromptVisible() const;
 
 private:
     void Render();
     void RenderContent(bool prompt);
+    void RenderRecharge();
+    static void OnRecharge(lv_event_t* event);
+    static void OnRechargeBack(lv_event_t* event);
     static void OnUnbind(lv_event_t* event);
 
     lv_obj_t* root_ = nullptr;

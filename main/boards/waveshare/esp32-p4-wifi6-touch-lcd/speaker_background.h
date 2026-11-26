@@ -8,7 +8,7 @@
 
 class SpeakerBackground {
 public:
-    enum class Artwork { Home, Screensaver, Boot };
+    enum class Artwork { Home, Boot };
 
     void Load(lv_obj_t* panel, Artwork artwork);
     void Detach(lv_obj_t* panel) const;

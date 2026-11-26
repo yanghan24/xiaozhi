@@ -7,6 +7,7 @@
 #include "lvgl_font.h"
 #include "lvgl_image.h"
 #include "speaker_account/display_diagnostics.h"
+#include "speaker_account/speaker_clock.h"
 #include "speaker_account/speaker_ui_widgets.h"
 #include "speaker_memos.h"
 #include "speaker_standby_weather.h"
@@ -51,6 +52,7 @@ void SpeakerHomeDisplay::SetupUI() {
     music_.Create(desktop_, navigation_);
     recording_.Create(desktop_, navigation_);
     pomodoro_.Create(desktop_, navigation_);
+    calculator_.Create(desktop_, navigation_);
 #if LV_USE_CALENDAR
     calendar_.Create(desktop_, navigation_);
 #endif
@@ -63,8 +65,11 @@ void SpeakerHomeDisplay::SetupUI() {
     navigation_.Register(Page::Recording, [this] { recording_.Show(); }, [this] { recording_.Hide(); },
                          [this] { return recording_.CanLeave(); });
     navigation_.Register(Page::Pomodoro, [this] { pomodoro_.Show(); }, [this] { pomodoro_.Hide(); });
+    navigation_.Register(
+        Page::Calculator, [this] { calculator_.Show(); }, [this] { calculator_.Hide(); });
 #if LV_USE_CALENDAR
-    navigation_.Register(Page::Calendar, [this] { calendar_.Show(); }, [this] { calendar_.Hide(); });
+    navigation_.Register(Page::Calendar, [this] { calendar_.Show(); }, [this] { calendar_.Hide(); },
+                         [this] { return calendar_.CanLeave(); });
 #endif
     navigation_.Home();
 
@@ -325,7 +330,7 @@ void SpeakerHomeDisplay::RefreshUi() {
 }
 
 void SpeakerHomeDisplay::RefreshClocks() {
-    const auto now = std::time(nullptr);
+    const auto now = SpeakerClock::Now();
     if (now == last_clock_second_) {
         return;
     }
@@ -333,7 +338,8 @@ void SpeakerHomeDisplay::RefreshClocks() {
     char time[12] = "--:--";
     char date[40] = "正在校时";
     std::tm local{};
-    if (now >= 1704067200 && localtime_r(&now, &local)) {
+    const auto* local_time = now ? localtime_r(&now, &local) : nullptr;
+    if (local_time) {
         constexpr const char* days[] = {"日", "一", "二", "三", "四", "五", "六"};
         std::strftime(time, sizeof(time), "%H:%M", &local);
         std::snprintf(date, sizeof(date), "%d月%d日 周%s", local.tm_mon + 1, local.tm_mday, days[local.tm_wday]);
@@ -348,13 +354,10 @@ void SpeakerHomeDisplay::RefreshClocks() {
     } else if (weather.state == SpeakerStandbyWeather::State::Unavailable) {
         weather_line = "暂无天气";
     }
-    std::string summary(date);
-    if (!weather_line.empty()) {
-        summary += "  ·  " + weather_line;
-    }
     const char* wifi = lv_label_get_text(network_label_);
-    launcher_.Update(time, date, weather_line.c_str(), *wifi ? wifi : MATERIAL_SYMBOLS_WIFI_OFF);
-    screensaver_.Update(time, summary.c_str(), *wifi ? wifi : MATERIAL_SYMBOLS_WIFI_OFF);
+    wifi = *wifi ? wifi : MATERIAL_SYMBOLS_WIFI_OFF;
+    launcher_.Update(time, date, weather_line.c_str(), wifi);
+    screensaver_.Update(local_time, weather, wifi);
 }
 
 #endif

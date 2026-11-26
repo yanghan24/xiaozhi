@@ -6,8 +6,11 @@
 #include "speaker_account/speaker_account.h"
 #include <cJSON.h>
 #include <esp_timer.h>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <string_view>
 
 namespace {
 constexpr int64_t kMinuteUs = 60LL * 1000 * 1000;
@@ -15,6 +18,28 @@ constexpr int64_t kMinuteUs = 60LL * 1000 * 1000;
 std::string Text(cJSON* json, const char* key) {
     const auto* item = cJSON_GetObjectItemCaseSensitive(json, key);
     return cJSON_IsString(item) && std::strlen(item->valuestring) <= 192 ? item->valuestring : "";
+}
+
+std::optional<double> ReadFeelsLike(const cJSON* json) {
+    const auto* item = cJSON_GetObjectItemCaseSensitive(json, "feelsLike");
+    double value;
+    if (cJSON_IsNumber(item)) {
+        value = item->valuedouble;
+    } else if (cJSON_IsString(item)) {
+        const std::string_view text(item->valuestring);
+        if (text.empty() || text.size() > 32 ||
+            text.find_first_not_of("+-0123456789.eE") != std::string_view::npos) {
+            return std::nullopt;
+        }
+        char* end;
+        value = std::strtod(text.data(), &end);
+        if (end != text.data() + text.size()) {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt;
+    }
+    return std::isfinite(value) ? std::optional<double>{value} : std::nullopt;
 }
 }  // namespace
 
@@ -63,11 +88,14 @@ void SpeakerStandbyWeather::Run() {
                 data.city = Text(json.get(), "city");
                 data.condition = Text(json.get(), "condition");
                 data.temperature = Text(json.get(), "temperature");
+                data.feels_like = ReadFeelsLike(json.get());
                 data.humidity = Text(json.get(), "humidity");
-                data.wind = Text(json.get(), "wind_direction");
-                auto wind_power = Text(json.get(), "wind_power");
-                if (!wind_power.empty()) {
-                    data.wind += " " + wind_power + " 级";
+                data.wind_direction = Text(json.get(), "wind_direction");
+                data.wind_power = Text(json.get(), "wind_power");
+                const auto* aqi = cJSON_GetObjectItemCaseSensitive(json.get(), "aqi");
+                if (cJSON_IsNumber(aqi) && aqi->valuedouble >= 0 && aqi->valuedouble <= 500 &&
+                    aqi->valueint == aqi->valuedouble) {
+                    data.aqi = aqi->valueint;
                 }
             }
             next = esp_timer_get_time() + (data.state == State::Ready ? 20 : 1) * kMinuteUs;

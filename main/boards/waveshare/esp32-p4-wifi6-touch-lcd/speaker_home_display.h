@@ -7,6 +7,7 @@
 
 #include "speaker_account/speaker_account_page.h"
 #include "speaker_boot_view.h"
+#include "speaker_calculator_view.h"
 #include "speaker_calendar_view.h"
 #include "speaker_conversation_view.h"
 #include "speaker_launcher_view.h"
@@ -71,6 +72,7 @@ private:
     SpeakerCalendarView calendar_;
 #endif
     SpeakerPomodoroView pomodoro_;
+    SpeakerCalculatorView calculator_;
     SpeakerMusicView music_;
     SpeakerRecordingView recording_;
     SpeakerConversationView conversation_;
