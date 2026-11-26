@@ -8,17 +8,24 @@
 #include <array>
 #include <ctime>
 
+#include "speaker_background.h"
 #include "speaker_standby_weather.h"
 
 class SpeakerScreensaverView {
 public:
+    enum class Style { Dashboard = 1, Classic = 2 };
+
     void Create(lv_obj_t* parent, lv_event_cb_t on_exit, void* context);
-    void SetVisible(bool visible);
+    void Show(Style style);
+    void Hide();
     bool Visible() const;
     void Update(const std::tm* local_time, const SpeakerStandbyWeather::Snapshot& weather,
                 const char* wifi);
 
 private:
+    void CreateClassic(lv_obj_t* parent, lv_event_cb_t on_exit, void* context);
+    void UpdateClassic(const std::tm* local_time, const SpeakerStandbyWeather::Snapshot& weather,
+                       const char* wifi);
     void CreateClock();
     void CreateWeather();
     void UpdateClock(const std::tm* local_time);
@@ -45,6 +52,12 @@ private:
     std::array<std::array<lv_obj_t*, 7>, 4> segments_{};
     std::array<uint8_t, 4> masks_{};
     SpeakerStandbyWeather::Snapshot last_weather_;
+    lv_obj_t* classic_ = nullptr;
+    lv_obj_t* classic_city_ = nullptr;
+    lv_obj_t* classic_wifi_ = nullptr;
+    lv_obj_t* classic_clock_ = nullptr;
+    lv_obj_t* classic_summary_ = nullptr;
+    SpeakerBackground classic_background_;
 };
 
 #endif

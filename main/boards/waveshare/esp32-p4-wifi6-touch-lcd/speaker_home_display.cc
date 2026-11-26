@@ -28,6 +28,7 @@ SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     lv_timer_delete(refresh_timer_);
     conversation_.Stop();
     account_.Destroy();
+    screensaver_.Hide();
     lv_obj_delete(scene_);
     system_background_.Release(container_);
 }
@@ -255,7 +256,7 @@ void SpeakerHomeDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 
 void SpeakerHomeDisplay::ExitScreensaver() {
     lv_display_trigger_activity(lv_obj_get_display(scene_));
-    screensaver_.SetVisible(false);
+    screensaver_.Hide();
     navigation_.Home();
     RefreshUi();
 }
@@ -280,10 +281,11 @@ void SpeakerHomeDisplay::RefreshUi() {
     }
     desktop_allowed_ = show_desktop;
     if (!show_desktop) {
-        screensaver_.SetVisible(false);
+        screensaver_.Hide();
     } else if (!screensaver_.Visible() && navigation_.CanLeave() &&
                lv_display_get_inactive_time(lv_obj_get_display(scene_)) >= settings_.ScreensaverDelayMs()) {
-        screensaver_.SetVisible(true);
+        screensaver_.Show(settings_.GetScreensaverStyle());
+        last_clock_second_ = -1;
     }
     lv_obj_set_flag(desktop_, LV_OBJ_FLAG_HIDDEN, !show_desktop || screensaver_.Visible());
 

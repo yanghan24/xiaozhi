@@ -11,6 +11,10 @@
 
 #include "speaker_account/speaker_ui_widgets.h"
 
+#if LV_USE_FONT_COMPRESSED
+LV_FONT_DECLARE(speaker_clock_font);
+#endif
+
 namespace {
 using SpeakerUi::Icon;
 using SpeakerUi::Label;
@@ -80,6 +84,12 @@ lv_obj_t* Centered(lv_obj_t* parent, const char* text, int x, int y, int width,
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
     return label;
+}
+
+void LimitToOneLine(lv_obj_t* label) {
+    const auto* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    lv_obj_set_height(label, lv_font_get_line_height(font));
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
 }
 
 std::string WithUnit(const std::string& value, const char* unit, const char* fallback = "--") {
@@ -168,6 +178,24 @@ const char* WeatherStatus(SpeakerStandbyWeather::State state) {
     }
 }
 
+struct AirQualityBand {
+    int maximum;
+    const char* label;
+    uint32_t color;
+};
+
+const AirQualityBand* AirQuality(int aqi) {
+    static constexpr AirQualityBand bands[] = {
+        {50, "优", 0x5CFF73}, {100, "良", 0xE9ED4A}, {150, "轻度", 0xFFB020},
+        {200, "中度", 0xFF5A67}, {300, "重度", 0xFF5A67}, {500, "严重", 0xFF5A67},
+    };
+    if (aqi < 0) {
+        return nullptr;
+    }
+    const auto* band = std::ranges::find_if(bands, [aqi](const auto& item) { return aqi <= item.maximum; });
+    return band == std::end(bands) ? nullptr : band;
+}
+
 }  // namespace
 
 void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, void* context) {
@@ -193,7 +221,7 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
     lv_obj_align(Icon(root_, MATERIAL_SYMBOLS_LOCATION_ON, kCyan), LV_ALIGN_TOP_LEFT, 18, 8);
     city_ = Label(root_, "本地天气", kText);
     lv_obj_set_width(city_, 250);
-    lv_label_set_long_mode(city_, LV_LABEL_LONG_DOT);
+    LimitToOneLine(city_);
     lv_obj_align(city_, LV_ALIGN_TOP_LEFT, 50, 2);
     wifi_ = Icon(root_, MATERIAL_SYMBOLS_WIFI_OFF, kText);
     lv_obj_align(wifi_, LV_ALIGN_TOP_RIGHT, -18, 8);
@@ -212,6 +240,32 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
     Centered(root_, "筑音 · 待机中", 34, 390, 332);
     Block(root_, 68, 414, 42, 2, kCyan, LV_OPA_80);
     Block(root_, 290, 414, 42, 2, kCyan, LV_OPA_80);
+    CreateClassic(parent, on_exit, context);
+}
+
+void SpeakerScreensaverView::CreateClassic(lv_obj_t* parent, lv_event_cb_t on_exit, void* context) {
+    classic_ = SpeakerUi::Panel(parent);
+    lv_obj_add_flag(classic_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
+    lv_obj_add_event_cb(classic_, on_exit, LV_EVENT_CLICKED, context);
+
+    classic_city_ = Label(classic_, "本地天气", SpeakerUi::kText);
+    lv_obj_set_width(classic_city_, 250);
+    LimitToOneLine(classic_city_);
+    lv_obj_align(classic_city_, LV_ALIGN_TOP_LEFT, 26, 12);
+    classic_wifi_ = SpeakerUi::Wifi(classic_);
+#if LV_USE_FONT_COMPRESSED
+    classic_clock_ = Label(classic_, "--:--", SpeakerUi::kText);
+    lv_obj_set_style_text_font(classic_clock_, &speaker_clock_font, LV_PART_MAIN);
+    lv_obj_set_width(classic_clock_, 720);
+    lv_obj_set_style_text_align(classic_clock_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+#else
+    classic_clock_ = SpeakerUi::Digits(classic_, "--:--", 316, 900);
+#endif
+    lv_obj_align(classic_clock_, LV_ALIGN_CENTER, 0, -60);
+
+    classic_summary_ = Centered(classic_, "正在校时", 0, 0, 720, SpeakerUi::kMuted);
+    LimitToOneLine(classic_summary_);
+    lv_obj_align(classic_summary_, LV_ALIGN_CENTER, 0, 68);
 }
 
 void SpeakerScreensaverView::CreateClock() {
@@ -288,18 +342,65 @@ void SpeakerScreensaverView::CreateWeather() {
     air_value_ = Centered(air, "--", 195, 1, 57);
 }
 
-void SpeakerScreensaverView::SetVisible(bool visible) {
-    lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, !visible);
+void SpeakerScreensaverView::Show(Style style) {
+    const bool classic = style == Style::Classic;
+    if (classic) {
+        classic_background_.Load(classic_, SpeakerBackground::Artwork::Screensaver);
+    } else {
+        classic_background_.Release(classic_);
+    }
+    lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, classic);
+    lv_obj_set_flag(classic_, LV_OBJ_FLAG_HIDDEN, !classic);
 }
 
-bool SpeakerScreensaverView::Visible() const { return !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN); }
+void SpeakerScreensaverView::Hide() {
+    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(classic_, LV_OBJ_FLAG_HIDDEN);
+    classic_background_.Release(classic_);
+}
+
+bool SpeakerScreensaverView::Visible() const {
+    return !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN) || !lv_obj_has_flag(classic_, LV_OBJ_FLAG_HIDDEN);
+}
 
 void SpeakerScreensaverView::Update(const std::tm* local_time,
                                     const SpeakerStandbyWeather::Snapshot& weather,
                                     const char* wifi) {
-    UpdateClock(local_time);
-    UpdateWeather(weather);
-    UpdateLabel(wifi_, wifi);
+    if (!lv_obj_has_flag(classic_, LV_OBJ_FLAG_HIDDEN)) {
+        UpdateClassic(local_time, weather, wifi);
+    } else if (!lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
+        UpdateClock(local_time);
+        UpdateWeather(weather);
+        UpdateLabel(wifi_, wifi);
+    }
+}
+
+void SpeakerScreensaverView::UpdateClassic(const std::tm* local_time,
+                                           const SpeakerStandbyWeather::Snapshot& weather,
+                                           const char* wifi) {
+    char time[8] = "--:--";
+    char date[48] = "正在校时";
+    if (local_time) {
+        constexpr const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+        std::strftime(time, sizeof(time), "%H:%M", local_time);
+        std::snprintf(date, sizeof(date), "%d月%d日 周%s", local_time->tm_mon + 1, local_time->tm_mday,
+                      weekdays[local_time->tm_wday]);
+    }
+
+    const bool ready = weather.state == SpeakerStandbyWeather::State::Ready;
+    std::string summary = date;
+    summary += " · ";
+    summary += ready && !weather.condition.empty() ? weather.condition.c_str() : WeatherStatus(weather.state);
+    if (ready && !weather.temperature.empty()) {
+        summary += " " + WithUnit(weather.temperature, "°C");
+    }
+    if (const auto* band = ready ? AirQuality(weather.aqi) : nullptr) {
+        summary += " · AQI " + std::to_string(weather.aqi) + " " + band->label;
+    }
+    UpdateLabel(classic_clock_, time);
+    UpdateLabel(classic_summary_, summary.c_str());
+    UpdateLabel(classic_city_, ready && !weather.city.empty() ? weather.city.c_str() : "本地天气");
+    UpdateLabel(classic_wifi_, wifi);
 }
 
 void SpeakerScreensaverView::UpdateClock(const std::tm* local_time) {
@@ -375,14 +476,10 @@ void SpeakerScreensaverView::UpdateWeather(const SpeakerStandbyWeather::Snapshot
     UpdateLabel(humidity_, WithUnit(weather.humidity, "%").c_str());
     UpdateWindDirection(wind_direction_, weather.wind_direction);
     UpdateLabel(wind_power_, WithUnit(weather.wind_power, "级").c_str());
-    constexpr const char* air_names[] = {"优", "良", "轻度", "中度", "重度"};
-    constexpr uint32_t air_colors[] = {0x5CFF73, 0xE9ED4A, 0xFFB020, 0xFF5A67, 0xFF5A67};
-    const int aqi = weather.aqi;
-    const int band = aqi <= 50 ? 0 : aqi <= 100 ? 1 : aqi <= 150 ? 2 : aqi <= 200 ? 3 : 4;
-    UpdateLabel(air_category_, aqi < 0 ? "--" : air_names[band]);
-    lv_obj_set_style_text_color(air_category_, lv_color_hex(aqi < 0 ? kMuted : air_colors[band]),
-                                LV_PART_MAIN);
-    UpdateLabel(air_value_, aqi < 0 ? "--" : std::to_string(aqi).c_str());
+    const auto* band = ready ? AirQuality(weather.aqi) : nullptr;
+    UpdateLabel(air_category_, band ? band->label : "--");
+    lv_obj_set_style_text_color(air_category_, lv_color_hex(band ? band->color : kMuted), LV_PART_MAIN);
+    UpdateLabel(air_value_, band ? std::to_string(weather.aqi).c_str() : "--");
 }
 
 #endif

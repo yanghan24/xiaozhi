@@ -16,21 +16,30 @@ using namespace SpeakerUi;
 
 namespace {
 using Page = SpeakerNavigation::Page;
+using ScreensaverStyle = SpeakerScreensaverView::Style;
 constexpr char kNamespace[] = "speaker_ui";
 constexpr char kScreensaverMinutes[] = "screen_idle_min";
+constexpr char kScreensaverStyle[] = "screen_style";
 constexpr std::array kMinutes{1, 3, 5, 10};
 constexpr std::array kTimeoutLabels{"1 分钟", "3 分钟", "5 分钟", "10 分钟"};
+constexpr std::array kStyles{ScreensaverStyle::Dashboard, ScreensaverStyle::Classic};
+constexpr std::array kStyleLabels{"样式一", "样式二"};
 constexpr int kMinBrightness = 10;
 constexpr int kMaxLevel = 100;
 
-bool SaveTimeout(int minutes) {
+bool SaveScreenSetting(const char* key, int value) {
     nvs_handle_t handle;
     if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
         return false;
     }
-    const bool saved = nvs_set_i32(handle, kScreensaverMinutes, minutes) == ESP_OK && nvs_commit(handle) == ESP_OK;
+    const bool saved = nvs_set_i32(handle, key, value) == ESP_OK && nvs_commit(handle) == ESP_OK;
     nvs_close(handle);
     return saved;
+}
+
+void UpdateScreenOption(lv_obj_t* button, bool selected) {
+    lv_obj_set_style_bg_color(button, lv_color_hex(selected ? kCyan : kCard), LV_PART_MAIN);
+    lv_obj_set_style_text_color(lv_obj_get_child(button, 0), lv_color_hex(selected ? kDeep : kText), LV_PART_MAIN);
 }
 
 void RegisterPage(SpeakerNavigation& navigation, Page page, lv_obj_t* panel) {
@@ -53,6 +62,10 @@ void SpeakerSettingsView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     const int saved = settings.GetInt(kScreensaverMinutes, kMinutes.front());
     if (std::ranges::find(kMinutes, saved) != kMinutes.end()) {
         screensaver_minutes_ = saved;
+    }
+    const int saved_style = settings.GetInt(kScreensaverStyle, static_cast<int>(ScreensaverStyle::Dashboard));
+    if (saved_style == static_cast<int>(ScreensaverStyle::Classic)) {
+        screensaver_style_ = ScreensaverStyle::Classic;
     }
 
     root_ = Panel(parent);
@@ -224,6 +237,19 @@ void SpeakerSettingsView::CreateScreensaver(lv_obj_t* parent, SpeakerNavigation&
         timeout_buttons_[index] = button;
     }
     UpdateTimeoutButtons();
+    style_hint_ = Label(panel, "样式", kMuted);
+    lv_obj_set_pos(style_hint_, 54, 309);
+    for (size_t index = 0; index < kStyles.size(); ++index) {
+        styles_[index] = {this, kStyles[index]};
+        auto* button = Button(panel, kStyleLabels[index], [](lv_event_t* event) {
+            auto* action = static_cast<StyleAction*>(lv_event_get_user_data(event));
+            action->view->SetScreensaverStyle(action->style);
+        }, &styles_[index]);
+        lv_obj_set_size(button, 334, 80);
+        lv_obj_set_pos(button, 54 + static_cast<int>(index) * 358, 362);
+        style_buttons_[index] = button;
+    }
+    UpdateStyleButtons();
     RegisterPage(navigation, Page::ScreensaverSettings, panel);
 }
 
@@ -250,7 +276,7 @@ void SpeakerSettingsView::SetScreensaverMinutes(int minutes) {
     if (minutes == screensaver_minutes_) {
         return;
     }
-    if (!SaveTimeout(minutes)) {
+    if (!SaveScreenSetting(kScreensaverMinutes, minutes)) {
         UpdateLabel(timeout_hint_, "保存失败，请重试");
         return;
     }
@@ -262,10 +288,27 @@ void SpeakerSettingsView::SetScreensaverMinutes(int minutes) {
 
 void SpeakerSettingsView::UpdateTimeoutButtons() {
     for (size_t index = 0; index < timeout_buttons_.size(); ++index) {
-        auto* button = timeout_buttons_[index];
-        const bool selected = kMinutes[index] == screensaver_minutes_;
-        lv_obj_set_style_bg_color(button, lv_color_hex(selected ? kCyan : kCard), LV_PART_MAIN);
-        lv_obj_set_style_text_color(lv_obj_get_child(button, 0), lv_color_hex(selected ? kDeep : kText), LV_PART_MAIN);
+        UpdateScreenOption(timeout_buttons_[index], kMinutes[index] == screensaver_minutes_);
+    }
+}
+
+void SpeakerSettingsView::SetScreensaverStyle(ScreensaverStyle style) {
+    if (style == screensaver_style_) {
+        return;
+    }
+    if (!SaveScreenSetting(kScreensaverStyle, static_cast<int>(style))) {
+        UpdateLabel(style_hint_, "保存失败，请重试");
+        return;
+    }
+    screensaver_style_ = style;
+    UpdateLabel(style_hint_, "样式");
+    UpdateStyleButtons();
+    lv_display_trigger_activity(lv_obj_get_display(root_));
+}
+
+void SpeakerSettingsView::UpdateStyleButtons() {
+    for (size_t index = 0; index < style_buttons_.size(); ++index) {
+        UpdateScreenOption(style_buttons_[index], kStyles[index] == screensaver_style_);
     }
 }
 
