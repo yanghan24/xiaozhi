@@ -2,7 +2,10 @@ package xiaozhi.modules.speaker;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import java.math.BigDecimal;
+import java.net.URI;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
@@ -17,6 +20,7 @@ import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 /** Scoped integration fixture: only unique speaker records on the approved 104 development database. */
 class SpeakerLoginDatabaseTest {
@@ -31,6 +35,7 @@ class SpeakerLoginDatabaseTest {
     private SpeakerDevices.Identity identity;
     private String login;
     private String device;
+    private String authorization;
     private SpeakerMarket.Tokens tokens;
     private final List<String> extraCustomers=new ArrayList<>();
     private final List<String> enrollmentDevices = new ArrayList<>();
@@ -47,7 +52,8 @@ class SpeakerLoginDatabaseTest {
         grants=new SpeakerGrants(db,settings,crypto,market,manager);logins=new SpeakerLogins(db,devices,settings,market,crypto,grants);
         device="speaker-test-"+UUID.randomUUID();
         var registered=devices.register(device,"自动化协议夹具","p4-test",0);
-        identity=devices.authenticate("Bearer "+registered.get("credential"),device);
+        authorization="Bearer "+registered.get("credential");
+        identity=devices.authenticate(authorization,device);
         when(market.begin()).thenReturn(new SpeakerMarket.DeviceAuthorization("private-device-code","ABCD-EFGH","https://fixture.example/device?user_code=ABCD-EFGH",600,5));
         login=logins.begin(identity).get("id").toString();
         tokens=new SpeakerMarket.Tokens("fixture-owner-"+UUID.randomUUID(),"access-fixture","refresh-fixture",System.currentTimeMillis()+300000,SpeakerMarket.SCOPES);
@@ -114,9 +120,58 @@ class SpeakerLoginDatabaseTest {
         assertEquals("authorized",authorized.get("status"));
         assertNull(authorized.get("verification_uri"));
         assertNull(authorized.get("user_code"));
+        assertEquals("authorized",logins.refresh(identity,login).get("status"));
 
         advance();
         assertEquals("completed",logins.status(identity,login).get("status"));
+        assertEquals("completed",logins.refresh(identity,login).get("status"));
+        verify(market,times(1)).begin();
+    }
+    @Test void scanIsOneTimeAndRefreshingReplacesTheRequestForThisDevice() throws Exception {
+        var http=MockMvcBuilders.standaloneSetup(new SpeakerDeviceController(devices,logins,null,null))
+                .setControllerAdvice(new SpeakerErrors(),new SpeakerProtocolResponse()).build();
+        String route="/speaker/v1";
+        var initial=logins.status(identity,login);
+        String scan=route+initial.get("scan_path");
+        String providerUrl=initial.get("verification_uri").toString();
+        when(market.verificationUri(providerUrl)).thenReturn(URI.create(providerUrl));
+
+        http.perform(head(scan)).andExpect(status().isNoContent());
+        http.perform(get(scan).header("Sec-Purpose","prefetch")).andExpect(status().isNoContent());
+        assertEquals(false,logins.status(identity,login).get("scanned"));
+        http.perform(get(scan)).andExpect(status().isSeeOther())
+                .andExpect(header().string("Location",providerUrl))
+                .andExpect(header().string("Cache-Control","no-store"));
+        http.perform(get(scan)).andExpect(status().isGone());
+        var scanned=logins.begin(identity,true);
+        assertEquals(login,scanned.get("id"));
+        assertEquals(true,scanned.get("scanned"));
+        assertNull(scanned.get("scan_path"));
+        assertEquals("ABCD-EFGH",scanned.get("user_code"));
+        assertNull(customerId());
+        verify(market,never()).poll(anyString());
+
+        String refresh=route+"/login/"+login+"/refresh";
+        http.perform(post(refresh)).andExpect(status().isUnauthorized());
+        when(market.begin()).thenReturn(new SpeakerMarket.DeviceAuthorization(
+                "second-private-device-code","JKLM-NPQR","https://fixture.example/device?user_code=JKLM-NPQR",600,5));
+        http.perform(post(refresh).header("Authorization",authorization).header("Device-Id",device))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.scanned").value(false))
+                .andExpect(jsonPath("$.user_code").value("JKLM-NPQR"));
+        var replacement=logins.refresh(identity,login);
+        assertNotEquals(login,replacement.get("id"));
+        assertEquals("cancelled",logins.status(identity,login).get("status"));
+        http.perform(get(scan)).andExpect(status().isGone());
+        verify(market,times(2)).begin();
+    }
+
+    @Test void resumingAnExpiredLoginWaitsForExplicitRefresh() {
+        db.update("UPDATE speaker_login SET expires_at_ms=1 WHERE id=?",login);
+        assertEquals("expired",logins.begin(identity,true).get("status"));
+        verify(market,times(1)).begin();
+
+        assertNotEquals(login,logins.refresh(identity,login).get("id"));
+        verify(market,times(2)).begin();
     }
     @Test void lateAuthorizationCannotRebindChangedDeviceGeneration() {
         authorize();

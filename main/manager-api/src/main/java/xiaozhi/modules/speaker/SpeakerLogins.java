@@ -1,5 +1,6 @@
 package xiaozhi.modules.speaker;
 
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +14,7 @@ import static xiaozhi.modules.speaker.SpeakerSupport.*;
 /** One device-bound authorization transaction. Upstream I/O never holds a device row lock. */
 @Service
 public class SpeakerLogins {
+    static final String SCAN_PATH = "/login/scan/";
     private final JdbcTemplate db;
     private final SpeakerDevices devices;
     private final SpeakerSettings settings;
@@ -25,14 +27,23 @@ public class SpeakerLogins {
         this.db=db;this.devices=devices;this.settings=settings;this.market=market;this.crypto=crypto;this.grants=grants;
     }
     public Map<String,Object> begin(SpeakerDevices.Identity identity) {
-        return begin(identity,false);
+        return begin(identity,false,false,null);
+    }
+
+    Map<String,Object> begin(SpeakerDevices.Identity identity, boolean resume) {
+        return begin(identity,false,resume,null);
     }
 
     Map<String,Object> beginRecharge(SpeakerDevices.Identity identity) {
-        return begin(identity,true);
+        return begin(identity,true,false,null);
     }
 
-    private Map<String,Object> begin(SpeakerDevices.Identity identity, boolean rechargeConsent) {
+    Map<String,Object> refresh(SpeakerDevices.Identity identity, String previous) {
+        if (!validTransaction(previous)) throw new SpeakerFailure(404,"LOGIN_NOT_FOUND");
+        return begin(identity,false,true,previous);
+    }
+
+    private Map<String,Object> begin(SpeakerDevices.Identity identity, boolean rechargeConsent, boolean resume, String previous) {
         settings.requireEnabled();
         if(settings.clientId().isBlank()) throw new SpeakerFailure(503,"MARKET_CLIENT_NOT_CONFIGURED");
         // Fail before creating an upstream transaction when private persistence is not ready.
@@ -40,14 +51,24 @@ public class SpeakerLogins {
         String id=devices.transactions.execute(tx -> {
             var device=devices.loadForLogin(identity,true);long now=System.currentTimeMillis();
             if(rechargeConsent && !boundAndEnabled(device)) throw new SpeakerFailure(403,"DEVICE_RECHARGE_UNAVAILABLE");
-            if(device.get("login_id")!=null) {
-                var existing=db.queryForList("SELECT * FROM speaker_login WHERE id=?",device.get("login_id"));
-                if(!existing.isEmpty() && ACTIVE.contains(existing.getFirst().get("status")) && number(existing.getFirst(),"expires_at_ms")>now) {
-                    if (rechargeConsent != yes(existing.getFirst().get("recharge_consent"))) {
-                        throw new SpeakerFailure(409,"DEVICE_LOGIN_IN_PROGRESS");
+            if (device.get("login_id")!=null) {
+                String current=device.get("login_id").toString();
+                var rows=db.queryForList("SELECT * FROM speaker_login WHERE id=? FOR UPDATE",current);
+                if (!rows.isEmpty()) {
+                    var existing=rows.getFirst();
+                    boolean active=ACTIVE.contains(existing.get("status")) && number(existing,"expires_at_ms")>now;
+                    boolean sameFlow=rechargeConsent==yes(existing.get("recharge_consent"));
+                    if (!sameFlow && active) throw new SpeakerFailure(409,"DEVICE_LOGIN_IN_PROGRESS");
+                    if (sameFlow && (active || resume)) {
+                        if (!current.equals(previous) || active && completing(existing)) return current;
+                        fail(current,"cancelled","LOGIN_REPLACED");
                     }
-                    return existing.getFirst().get("id").toString();
                 }
+            } else if (previous!=null) {
+                var completed=db.queryForList("SELECT id FROM speaker_login WHERE id=? AND device_id=? AND credential_hash=? "
+                        + "AND status='completed' AND recharge_consent=FALSE",previous,identity.id(),identity.hash());
+                if (!completed.isEmpty()) return previous;
+                throw new SpeakerFailure(409,"DEVICE_CHANGED");
             }
             String next=UUID.randomUUID().toString();
             db.update("INSERT INTO speaker_login(id,device_id,credential_hash,binding_version,issuer,client_id,status,next_poll_at_ms,expires_at_ms,updated_at_ms,recharge_consent) "
@@ -74,17 +95,63 @@ public class SpeakerLogins {
         var row=rows.getFirst();
         long now=System.currentTimeMillis();
         var state=row.get("status");
-        boolean waitingForConsent=("pending".equals(state) || "polling".equals(state)) && row.get("device_code_cipher")!=null;
+        boolean waitingForConsent=waitingForConsent(row);
         boolean expired=waitingForConsent && number(row,"expires_at_ms")<=now;
+        boolean showCode=waitingForConsent && !expired;
+        boolean scanned=row.get("scanned_at_ms")!=null;
         var result=new LinkedHashMap<String,Object>();
         result.put("id",row.get("id"));
         result.put("status",expired?"expired":state);
-        result.put("verification_uri",waitingForConsent&&!expired?row.get("verification_uri"):null);
-        result.put("user_code",waitingForConsent&&!expired?row.get("user_code"):null);
+        result.put("verification_uri",showCode?row.get("verification_uri"):null);
+        result.put("user_code",showCode?row.get("user_code"):null);
+        if (!yes(row.get("recharge_consent"))) {
+            result.put("scanned",showCode && scanned);
+            result.put("scan_path",showCode && !scanned?SCAN_PATH+id:null);
+        }
         result.put("expires_at_ms",row.get("expires_at_ms"));
         result.put("error_code",expired?"LOGIN_EXPIRED":row.get("error_code"));
         result.put("server_time_ms",now);
         return result;
+    }
+
+    URI openScan(String id) {
+        settings.requireEnabled();
+        if (!validTransaction(id)) return null;
+        var candidates=db.queryForList("SELECT device_id,credential_hash FROM speaker_login WHERE id=? AND recharge_consent=FALSE",id);
+        if (candidates.isEmpty()) return null;
+        var candidate=candidates.getFirst();
+        var identity=new SpeakerDevices.Identity(candidate.get("device_id").toString(),candidate.get("credential_hash").toString());
+        return devices.transactions.execute(tx -> {
+            Map<String,Object> device;
+            try {
+                device=devices.loadForLogin(identity,true);
+            } catch(SpeakerFailure failure) {
+                if (failure.status==401 || failure.status==403) return null;
+                throw failure;
+            }
+            if (!id.equals(device.get("login_id")) || !yes(device.get("admin_enabled"))) return null;
+            var login=db.queryForMap("SELECT * FROM speaker_login WHERE id=? FOR UPDATE",id);
+            long now=System.currentTimeMillis();
+            if (!waitingForConsent(login) || login.get("scanned_at_ms")!=null || login.get("verification_uri")==null
+                    || number(login,"expires_at_ms")<=now || number(login,"binding_version")!=number(device,"binding_version")) return null;
+            var destination=market.verificationUri(login.get("verification_uri").toString());
+            db.update("UPDATE speaker_login SET scanned_at_ms=? WHERE id=?",now,id);
+            return destination;
+        });
+    }
+
+    private static boolean validTransaction(String id) {
+        return id != null && id.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}");
+    }
+
+    private static boolean waitingForConsent(Map<String,Object> row) {
+        var state=row.get("status");
+        return ("pending".equals(state) || "polling".equals(state)) && row.get("device_code_cipher")!=null;
+    }
+
+    private static boolean completing(Map<String,Object> row) {
+        var state=row.get("status");
+        return "authorized".equals(state) || "polling".equals(state) && !waitingForConsent(row);
     }
     @Scheduled(fixedDelayString="${speaker.login-poll-delay-ms:1000}")
     public void advanceDue() {

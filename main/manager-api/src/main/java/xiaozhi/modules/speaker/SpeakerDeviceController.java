@@ -6,12 +6,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/speaker/v1")
@@ -41,13 +43,38 @@ public class SpeakerDeviceController {
     }
     @PostMapping("/login")
     public Object login(@RequestHeader(name="Authorization",required=false) String auth,
-            @RequestHeader(name="Device-Id",required=false) String id) {
-        return logins.begin(devices.authenticateForLogin(auth,id));
+            @RequestHeader(name="Device-Id",required=false) String id,
+            @RequestParam(defaultValue="false") boolean resume) {
+        return logins.begin(devices.authenticateForLogin(auth,id),resume);
     }
     @GetMapping("/login/{transaction}")
     public Object loginStatus(@RequestHeader(name="Authorization",required=false) String auth,
             @RequestHeader(name="Device-Id",required=false) String id,@PathVariable String transaction) {
         return logins.status(devices.authenticateForLogin(auth,id),transaction);
+    }
+    @PostMapping("/login/{transaction}/refresh")
+    public Object refreshLogin(@RequestHeader(name="Authorization",required=false) String auth,
+            @RequestHeader(name="Device-Id",required=false) String id,@PathVariable String transaction) {
+        return logins.refresh(devices.authenticateForLogin(auth,id),transaction);
+    }
+    @GetMapping(SpeakerLogins.SCAN_PATH+"{transaction}")
+    public ResponseEntity<?> scanLogin(@PathVariable String transaction,HttpServletRequest request) {
+        if (!"GET".equals(request.getMethod()) || isPrefetch(request.getHeader("Sec-Purpose"))
+                || isPrefetch(request.getHeader("Purpose"))) {
+            return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+        }
+        var destination=logins.openScan(transaction);
+        if (destination==null) {
+            return ResponseEntity.status(410).cacheControl(CacheControl.noStore())
+                    .contentType(MediaType.parseMediaType("text/plain;charset=UTF-8"))
+                    .body("二维码已使用或已失效，请在音箱上刷新二维码。");
+        }
+        return ResponseEntity.status(303).location(destination).cacheControl(CacheControl.noStore())
+                .header("Referrer-Policy","no-referrer").build();
+    }
+
+    private static boolean isPrefetch(String value) {
+        return value!=null && value.toLowerCase(Locale.ROOT).contains("prefetch");
     }
     @GetMapping("/state")
     public Object state(@RequestHeader(name="Authorization",required=false) String auth,

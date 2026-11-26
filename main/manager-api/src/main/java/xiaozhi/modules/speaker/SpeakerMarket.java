@@ -214,6 +214,10 @@ public class SpeakerMarket {
         return begin(SCOPES + " " + RECHARGE_SCOPE);
     }
 
+    URI verificationUri(String value) {
+        return trusted(value);
+    }
+
     private DeviceAuthorization begin(String scopes) {
         var node=request(endpoint("device_authorization_endpoint"),"POST",null,
                 form(Map.of("client_id",settings.clientId(),"scope",scopes)),false);
