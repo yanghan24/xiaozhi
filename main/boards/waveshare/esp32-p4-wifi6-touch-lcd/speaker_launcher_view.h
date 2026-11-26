@@ -26,7 +26,7 @@ private:
         SpeakerNavigation::Page page = SpeakerNavigation::Page::Home;
     };
 
-    std::array<LaunchAction, 5> actions_{};
+    std::array<LaunchAction, 6> actions_{};
     lv_obj_t* root_ = nullptr;
     lv_obj_t* clock_ = nullptr;
     lv_obj_t* date_ = nullptr;
