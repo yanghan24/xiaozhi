@@ -3,6 +3,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <array>
 #include <cstdint>
 #include <mutex>
 #include <optional>
@@ -23,6 +24,14 @@ public:
         std::string url;
         std::string token;
         int protocol_version = 1;
+    };
+
+    using MemoOwner = std::array<char, 32>;
+    struct MemoAccess {
+        int64_t binding_version = 0;
+        MemoOwner owner{};
+
+        bool operator==(const MemoAccess&) const = default;
     };
 
     enum class Page {
@@ -65,7 +74,7 @@ public:
     void SetUpgrading(bool upgrading);
     std::optional<VoiceAccess> Voice() const;
     View GetView() const;
-    int64_t MemoBindingVersion() const;
+    MemoAccess GetMemoAccess() const;
     void RefreshCode();
     void RefreshBalance();
     void Unbind();
@@ -88,7 +97,7 @@ private:
                           const std::string& customer, bool bound, int64_t permission, uint32_t epoch);
     void Publish(View view, std::optional<VoiceAccess> access, int64_t lease_until,
                  int64_t permission_version, bool revoke_if_changed, uint32_t network_epoch,
-                 int64_t binding_version = 0);
+                 int64_t binding_version = 0, MemoOwner memo_owner = {});
     void Notify();
 
     Identity identity_;
@@ -99,7 +108,7 @@ private:
     std::optional<VoiceAccess> voice_;
     int64_t voice_until_ = 0;
     int64_t permission_version_ = 0;
-    int64_t memo_binding_version_ = 0;
+    MemoAccess memo_access_{};
     uint32_t network_epoch_ = 0;
     bool enrollment_allowed_ = false;
     bool connected_ = false;
