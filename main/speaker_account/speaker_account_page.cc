@@ -277,8 +277,22 @@ void SpeakerAccountPage::RenderContent(bool prompt) {
         lv_obj_set_width(balance, kBalanceWidth);
         lv_obj_align_to(balance, caption, LV_ALIGN_OUT_RIGHT_MID, 20, 0);
     }
+    if (view_.can_unbind && confirm_unbind_) {
+        auto* cancel = Button(root_, "取消", [](lv_event_t* event) {
+            auto* page = static_cast<SpeakerAccountPage*>(lv_event_get_user_data(event));
+            page->confirm_unbind_ = false;
+            page->Render();
+        }, this);
+        Outline(cancel, kEdge);
+        lv_obj_set_size(cancel, 250, 70);
+        lv_obj_align(cancel, LV_ALIGN_BOTTOM_MID, -150, -63);
+        auto* confirm = Button(root_, "确认解绑", OnUnbind, this, kCyan, kDeep);
+        lv_obj_set_size(confirm, 278, 70);
+        lv_obj_align(confirm, LV_ALIGN_BOTTOM_MID, 150, -63);
+        return;
+    }
     if (view_.can_unbind) {
-        auto* button = Button(root_, confirm_unbind_ ? "确认解绑" : "解除绑定", OnUnbind, this);
+        auto* button = Button(root_, "解除绑定", OnUnbind, this);
         Outline(button);
         lv_obj_set_size(button, 278, 70);
         lv_obj_align(button, LV_ALIGN_BOTTOM_MID, view_.recharge_available ? 150 : 0, -63);
