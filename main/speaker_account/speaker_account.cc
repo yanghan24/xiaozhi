@@ -23,6 +23,7 @@
 namespace {
 
 constexpr int64_t kStateInterval = 4000;
+constexpr auto kSpeakerApi = "/xiaozhi/speaker/v1";
 constexpr int64_t kHeartbeatInterval = 20000;
 constexpr int64_t kMaxLease = 60000;
 constexpr size_t kResponseLimit = 16384;
@@ -469,7 +470,7 @@ SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& ide
     if (!body.empty() || std::string_view(method) == "POST") {
         http->SetContent(std::move(body));
     }
-    if (!http->Open(method, identity.origin + "/xiaozhi/speaker/v1" + path)) {
+    if (!http->Open(method, identity.origin + kSpeakerApi + path)) {
         return {};
     }
     const auto status = http->GetStatusCode();
@@ -528,14 +529,25 @@ void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64
 }
 
 SpeakerAccount::LoginResult SpeakerAccount::PollLogin(const Identity& identity, std::string& login_id,
-                                                       bool& retry_login, const std::string& customer,
+                                                       bool& retry_login, bool& replace_login, const std::string& customer,
                                                        bool bound, int64_t permission, uint32_t epoch) {
     if (retry_login) {
         Publish({Page::Retry, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
         return LoginResult::InProgress;
     }
-    const auto login = login_id.empty() ? RequestWithIdentity(identity, "POST", "/login")
-                                         : RequestWithIdentity(identity, "GET", "/login/" + login_id);
+    Response login;
+    if (replace_login) {
+        login = RequestWithIdentity(identity, "POST", "/login/" + login_id + "/refresh");
+        if (login.status == 404) {
+            // An older backend can still handle the original login request.
+            login_id.clear();
+            replace_login = false;
+        }
+    }
+    if (!replace_login) {
+        login = login_id.empty() ? RequestWithIdentity(identity, "POST", "/login?resume=true")
+                                 : RequestWithIdentity(identity, "GET", "/login/" + login_id);
+    }
     const auto result = Parse(login.body);
     if ((login.status != 200 && login.status != 201) || !result) {
         retry_login = login.status == 404 || login.status == 409;
@@ -543,6 +555,7 @@ SpeakerAccount::LoginResult SpeakerAccount::PollLogin(const Identity& identity, 
                 {}, 0, permission, true, epoch);
         return login.status == 401 ? LoginResult::InvalidCredential : LoginResult::InProgress;
     }
+    replace_login = false;
     const auto transaction = Text(result.get(), "id", 128);
     if (Token(transaction, 1, 128, "-_")) {
         login_id = transaction;
@@ -558,20 +571,27 @@ SpeakerAccount::LoginResult SpeakerAccount::PollLogin(const Identity& identity, 
     const auto server_time = Number(result.get(), "server_time_ms");
     const bool expired = waiting_for_consent && server_time > 0 && expires_at > 0 && expires_at <= server_time;
     if (expired || status == "expired" || status == "denied" || status == "cancelled" || status == "failed") {
-        login_id.clear();
         retry_login = true;
         Publish({Page::Retry, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
         return LoginResult::InProgress;
     }
-    auto qr_url = Text(result.get(), "verification_uri");
     auto code = Text(result.get(), "user_code", 32);
     if (waiting_for_consent && !login_id.empty() && server_time > 0 && expires_at > server_time &&
-        SecureUrl(qr_url, "https://") && Token(code, 1, 32, "- ")) {
-        Publish({Page::Scan, std::move(qr_url), std::move(code), customer, bound},
-                {}, 0, permission, true, epoch);
-    } else {
-        Publish({Page::Connecting, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
+        Token(code, 1, 32, "- ")) {
+        if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(result.get(), "scanned"))) {
+            Publish({Page::Scanned, {}, std::move(code), customer, bound}, {}, 0, permission, true, epoch);
+            return LoginResult::InProgress;
+        }
+        const auto scan_path = Text(result.get(), "scan_path", 128);
+        auto qr_url = scan_path == "/login/scan/" + login_id ? identity.origin + kSpeakerApi + scan_path
+                                                            : Text(result.get(), "verification_uri");
+        if (SecureUrl(qr_url, "https://")) {
+            Publish({Page::Scan, std::move(qr_url), std::move(code), customer, bound},
+                    {}, 0, permission, true, epoch);
+            return LoginResult::InProgress;
+        }
     }
+    Publish({Page::Connecting, {}, {}, customer, bound}, {}, 0, permission, true, epoch);
     return LoginResult::InProgress;
 }
 
@@ -581,6 +601,7 @@ void SpeakerAccount::Run() {
     int64_t next_state = 0;
     std::string login_id;
     bool retry_login = false;
+    bool replace_login = false;
     auto pending = ReadUnbind();
     std::optional<Identity> enrollment;
     bool enrollment_registered = false;
@@ -605,15 +626,19 @@ void SpeakerAccount::Run() {
             ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
             continue;
         }
-        if (epoch != current_epoch || refresh) {
+        if (epoch != current_epoch) {
             epoch = current_epoch;
             next_state = 0;
             login_id.clear();
             retry_login = false;
-            if (!refresh) {
-                next_heartbeat = 0;
-                enrollment_registered = false;
-            }
+            replace_login = false;
+            next_heartbeat = 0;
+            enrollment_registered = false;
+        }
+        if (refresh) {
+            next_state = 0;
+            retry_login = false;
+            replace_login = !login_id.empty();
         }
         if (identity_.id.empty()) {
             if (now < next_state) {
@@ -662,6 +687,7 @@ void SpeakerAccount::Run() {
                     acknowledge_enrollment = true;
                     enrollment.reset();
                     login_id.clear();
+                    replace_login = false;
                     next_state = 0;
                     next_heartbeat = 0;
                     continue;
@@ -671,10 +697,11 @@ void SpeakerAccount::Run() {
                 }
                 enrollment_registered = true;
             }
-            const auto result = PollLogin(*enrollment, login_id, retry_login, {}, false, 0, epoch);
+            const auto result = PollLogin(*enrollment, login_id, retry_login, replace_login, {}, false, 0, epoch);
             if (result != LoginResult::InProgress) {
                 enrollment_registered = false;
                 login_id.clear();
+                replace_login = false;
                 next_state = 0;
             }
             continue;
@@ -744,6 +771,7 @@ void SpeakerAccount::Run() {
             pending = {};
             login_id.clear();
             retry_login = false;
+            replace_login = false;
         }
         const auto response = Request("GET", "/state");
         const auto document = Parse(response.body);
@@ -789,6 +817,7 @@ void SpeakerAccount::Run() {
             }
             login_id.clear();
             retry_login = false;
+            replace_login = false;
             continue;
         }
         if (status != "unbound" && status != "signed_out" && status != "authorization_required") {
@@ -797,13 +826,14 @@ void SpeakerAccount::Run() {
             Publish(std::move(view), {}, 0,
                     permission_version, true, epoch);
             login_id.clear();
+            replace_login = false;
             continue;
         }
         if (Voice()) {
             Publish({Page::Connecting, {}, {}, customer, bound}, {}, 0,
                     permission_version, true, epoch);
         }
-        if (PollLogin(identity_, login_id, retry_login, customer, bound, permission_version, epoch) ==
+        if (PollLogin(identity_, login_id, retry_login, replace_login, customer, bound, permission_version, epoch) ==
             LoginResult::Completed) {
             next_state = 0;
         }

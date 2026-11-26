@@ -17,7 +17,8 @@ const char* Description(Page page) {
     switch (page) {
         case Page::Connecting: return "正在加载";
         case Page::Unprovisioned: return "设备身份尚未交付";
-        case Page::Scan: return "用手机扫描二维码并核对授权码";
+        case Page::Scan: return "请用手机扫描二维码";
+        case Page::Scanned: return "请在手机上完成授权";
         case Page::Retry: return "授权未完成，请重新获取二维码";
         case Page::Disabled: return "当前无法使用，请联系管理员";
         case Page::Ready: return "已绑定";
@@ -144,7 +145,7 @@ void SpeakerAccountPage::RefreshRecharge() {
 }
 
 bool SpeakerAccountPage::PromptVisible() const {
-    return prompts_allowed_ && (view_.page == Page::Scan || view_.page == Page::Retry ||
+    return prompts_allowed_ && (view_.page == Page::Scan || view_.page == Page::Scanned || view_.page == Page::Retry ||
                                 view_.page == Page::Unprovisioned || view_.unbind_pending);
 }
 
@@ -199,7 +200,8 @@ void SpeakerAccountPage::RenderRecharge() {
 }
 
 void SpeakerAccountPage::RenderContent(bool prompt) {
-    const bool scan = view_.page == Page::Scan || view_.page == Page::Retry;
+    const bool scanned = view_.page == Page::Scanned;
+    const bool scan = view_.page == Page::Scan || scanned || view_.page == Page::Retry;
     Header(root_, scan ? "扫码登录" : "账号", prompt ? nullptr : back_, back_context_);
     auto* state = Label(root_, view_.unbind_pending ? "正在解除绑定" : Description(view_.page), kCyan);
     lv_obj_align(state, LV_ALIGN_CENTER, 0, -18);
@@ -207,24 +209,34 @@ void SpeakerAccountPage::RenderContent(bool prompt) {
         return;
     }
 
-    if (view_.page == Page::Scan && RenderQr(root_, view_.qr_url, qr_buffer_)) {
+    const auto add_refresh = [this](int x, int y) {
+        auto* button = Button(root_, "刷新二维码", [](lv_event_t*) {
+            SpeakerAccount::Get().RefreshCode();
+        }, nullptr, kCyan, kDeep);
+        lv_obj_set_size(button, 225, 70);
+        lv_obj_align(button, LV_ALIGN_CENTER, x, y);
+    };
+    if (scanned || (view_.page == Page::Scan && RenderQr(root_, view_.qr_url, qr_buffer_))) {
         lv_obj_set_width(state, 346);
         lv_obj_set_style_text_align(state, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-        lv_obj_align(state, LV_ALIGN_CENTER, 171, -42);
+        lv_obj_align(state, LV_ALIGN_CENTER, 171, -72);
+        auto* caption = Label(root_, "核对授权码", kMuted);
+        Scale(caption, 220);
+        lv_obj_align(caption, LV_ALIGN_CENTER, 171, -4);
         auto* code = Label(root_, view_.user_code.c_str());
         Scale(code, 330);
-        lv_obj_align(code, LV_ALIGN_CENTER, 171, 42);
+        lv_obj_align(code, LV_ALIGN_CENTER, 171, 69);
+        if (scanned) {
+            lv_obj_align(Label(root_, "已扫码", kCyan), LV_ALIGN_CENTER, -196, -41);
+            add_refresh(-196, 53);
+        }
         return;
     }
     if (scan) {
         if (view_.page == Page::Scan) {
             UpdateLabel(state, "二维码生成失败，请重新获取");
         }
-        auto* retry = Button(root_, "重新获取", [](lv_event_t*) {
-            SpeakerAccount::Get().RefreshCode();
-        }, nullptr, kCyan, kDeep);
-        lv_obj_set_size(retry, 225, 70);
-        lv_obj_align(retry, LV_ALIGN_CENTER, 0, 90);
+        add_refresh(0, 90);
         return;
     }
     if (view_.page == Page::Unprovisioned) {
