@@ -27,6 +27,11 @@
 
 #define TAG "Application"
 
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+static constexpr int kVoiceNotificationMs = 5000;
+static constexpr size_t kVoiceNotificationMaxBytes = 192;
+#endif
+
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
 namespace PlaybackDiag = SpeakerPlaybackDiagnostics;
 #endif
@@ -920,6 +925,24 @@ void Application::InitializeProtocol() {
             auto status = cJSON_GetObjectItem(root, "status");
             auto message = cJSON_GetObjectItem(root, "message");
             auto emotion = cJSON_GetObjectItem(root, "emotion");
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+            const auto* presentation = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(root, "presentation"));
+            if (presentation && strcmp(presentation, "notification") == 0) {
+                const auto* text = cJSON_GetStringValue(message);
+                if (text && *text && strlen(text) <= kVoiceNotificationMaxBytes) {
+                    Schedule([this, notification = std::string(text)]() {
+                        const auto state = GetDeviceState();
+                        if (state == kDeviceStateIdle || state == kDeviceStateConnecting ||
+                            state == kDeviceStateListening || state == kDeviceStateSpeaking) {
+                            pending_voice_notification_ = notification;
+                            voice_notification_until_us_ = esp_timer_get_time() + kVoiceNotificationMs * 1000LL;
+                            Board::GetInstance().GetDisplay()->ShowNotification(notification.c_str(), kVoiceNotificationMs);
+                        }
+                    });
+                }
+                return;
+            }
+#endif
             if (cJSON_IsString(status) && cJSON_IsString(message) && cJSON_IsString(emotion)) {
                 Alert(status->valuestring, message->valuestring, emotion->valuestring,
                       Lang::Sounds::OGG_VIBRATION);
@@ -1347,6 +1370,20 @@ void Application::HandleStateChangedEvent() {
             // Do nothing
             break;
     }
+#ifdef CONFIG_XIAOZHI_SPEAKER_ACCOUNT
+    if (!pending_voice_notification_.empty()) {
+        const auto remaining_us = voice_notification_until_us_ - esp_timer_get_time();
+        const bool in_dialogue = new_state == kDeviceStateListening || new_state == kDeviceStateSpeaking;
+        const bool idle = new_state == kDeviceStateIdle;
+        if (remaining_us > 0 && last_error_message_.empty() && (in_dialogue || idle)) {
+            const int duration_ms = idle ? kVoiceNotificationMs : (remaining_us + 999) / 1000;
+            display->ShowNotification(pending_voice_notification_.c_str(), duration_ms);
+        }
+        if (!in_dialogue || remaining_us <= 0) {
+            pending_voice_notification_.clear();
+        }
+    }
+#endif
 }
 
 void Application::ShowStartupWakeWordHint() {
