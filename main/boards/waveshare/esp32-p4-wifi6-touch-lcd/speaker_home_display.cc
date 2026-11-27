@@ -257,7 +257,6 @@ void SpeakerHomeDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 void SpeakerHomeDisplay::ExitScreensaver() {
     lv_display_trigger_activity(lv_obj_get_display(scene_));
     screensaver_.Hide();
-    navigation_.Home();
     RefreshUi();
 }
 
