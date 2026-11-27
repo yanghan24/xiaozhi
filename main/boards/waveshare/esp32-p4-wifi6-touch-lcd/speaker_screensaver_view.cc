@@ -300,6 +300,8 @@ void SpeakerScreensaverView::CreateWeather() {
     for (int x : {0, 22, 44}) {
         Block(rain_, x, 0, 5, 12, kCyan, LV_OPA_COVER, 2);
     }
+    weather_detail_ = Surface(panel, 20, 30, 94, 108);
+    lv_obj_add_event_cb(weather_detail_, DrawWeatherDetail, LV_EVENT_DRAW_MAIN, this);
     weather_placeholder_ = Centered(panel, "--", 20, 55, 94, kMuted);
     UpdateWeatherIcons({});
 
@@ -435,30 +437,102 @@ void SpeakerScreensaverView::UpdateClock(const std::tm* local_time) {
     UpdateLabel(date_, date);
 }
 
-void SpeakerScreensaverView::UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather) {
-    const auto& condition = weather.condition;
-    // Only the locally drawn sun, cloud and rain symbols are supported here. Do not
-    // accidentally interpret compound snow, fog or hail descriptions as sunshine/rain.
-    constexpr const char* unsupported[] = {"雪", "雾", "霾", "沙", "尘", "冰雹", "龙卷"};
-    const bool supported =
-        weather.state == SpeakerStandbyWeather::State::Ready &&
-        std::none_of(std::begin(unsupported), std::end(unsupported),
-                     [&](const char* text) { return condition.find(text) != std::string::npos; });
-    const bool rain = supported &&
-        (condition.find("雨") != std::string::npos || condition.find("雷") != std::string::npos);
-    const bool partly_cloudy = supported && !rain && condition.find("多云") != std::string::npos;
-    const bool sunny = supported && !rain && !partly_cloudy &&
-                       condition.find("晴") != std::string::npos;
-    const bool cloudy = rain || partly_cloudy ||
-        (supported && !sunny &&
-         (condition.find("阴") != std::string::npos || condition.find("云") != std::string::npos));
+SpeakerScreensaverView::WeatherIcon SpeakerScreensaverView::SelectWeatherIcon(
+    const SpeakerStandbyWeather::Snapshot& weather) {
+    const std::string_view condition = weather.condition;
+    if (weather.state != SpeakerStandbyWeather::State::Ready || condition.contains("冰雹") ||
+        condition.contains("龙卷")) {
+        return WeatherIcon::Unknown;
+    }
+    if (condition.contains("沙") || condition.contains("尘")) return WeatherIcon::Dust;
+    if (condition.contains("霾")) return WeatherIcon::Haze;
+    if (condition.contains("雾")) return WeatherIcon::Fog;
+    if (condition.contains("雪")) {
+        return condition.contains("雨") ? WeatherIcon::Sleet : WeatherIcon::Snow;
+    }
+    if (condition.contains("雨") || condition.contains("雷")) return WeatherIcon::Rain;
+    if (condition.contains("多云")) return WeatherIcon::PartlyCloudy;
+    if (condition.contains("晴")) return WeatherIcon::Sunny;
+    if (condition.contains("阴") || condition.contains("云")) return WeatherIcon::Cloudy;
+    return WeatherIcon::Unknown;
+}
 
+void SpeakerScreensaverView::DrawWeatherDetail(lv_event_t* event) {
+    const auto* view = static_cast<const SpeakerScreensaverView*>(lv_event_get_user_data(event));
+    auto* layer = lv_event_get_layer(event);
+    lv_area_t area;
+    lv_obj_get_coords(static_cast<lv_obj_t*>(lv_event_get_current_target(event)), &area);
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init(&line);
+    line.round_start = true;
+    line.round_end = true;
+    const auto stroke = [&](int x1, int y1, int x2, int y2, uint32_t color, int width) {
+        line.p1 = {area.x1 + x1, area.y1 + y1};
+        line.p2 = {area.x1 + x2, area.y1 + y2};
+        line.color = lv_color_hex(color);
+        line.width = width;
+        lv_draw_line(layer, &line);
+    };
+    const auto flake = [&](int x, int y) {
+        stroke(x, y - 6, x, y + 6, kText, 2);
+        stroke(x - 5, y - 3, x + 5, y + 3, kText, 2);
+        stroke(x - 5, y + 3, x + 5, y - 3, kText, 2);
+    };
+
+    switch (view->weather_icon_) {
+        case WeatherIcon::Snow:
+            flake(26, 69);
+            flake(47, 78);
+            flake(68, 69);
+            break;
+        case WeatherIcon::Sleet:
+            stroke(28, 66, 24, 77, kCyan, 3);
+            flake(47, 74);
+            stroke(70, 66, 66, 77, kCyan, 3);
+            break;
+        case WeatherIcon::Fog:
+            stroke(13, 68, 81, 68, kMuted, 4);
+            stroke(22, 80, 72, 80, kMuted, 4);
+            stroke(16, 92, 78, 92, kMuted, 4);
+            break;
+        case WeatherIcon::Haze:
+            stroke(29, 28, 61, 28, kMuted, 4);
+            stroke(15, 43, 79, 43, kMuted, 4);
+            stroke(22, 58, 72, 58, kMuted, 4);
+            stroke(30, 73, 64, 73, kMuted, 4);
+            break;
+        case WeatherIcon::Dust:
+            stroke(21, 30, 23, 30, SpeakerUi::kWarm, 4);
+            stroke(51, 26, 53, 26, SpeakerUi::kWarm, 4);
+            stroke(71, 35, 73, 35, SpeakerUi::kWarm, 4);
+            stroke(29, 45, 75, 45, SpeakerUi::kWarm, 4);
+            stroke(14, 58, 68, 58, SpeakerUi::kWarm, 4);
+            stroke(23, 71, 60, 71, SpeakerUi::kWarm, 4);
+            break;
+        default:
+            break;
+    }
+}
+
+void SpeakerScreensaverView::UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather) {
+    const auto icon = SelectWeatherIcon(weather);
+    const bool changed = icon != weather_icon_;
+    weather_icon_ = icon;
+    const bool partly_cloudy = icon == WeatherIcon::PartlyCloudy;
+    const bool sunny = icon == WeatherIcon::Sunny;
+    const bool rain = icon == WeatherIcon::Rain;
+    const bool high_cloud = rain || icon == WeatherIcon::Snow || icon == WeatherIcon::Sleet ||
+                            icon == WeatherIcon::Fog;
+    const bool cloudy = high_cloud || partly_cloudy || icon == WeatherIcon::Cloudy;
+    const bool has_detail = (high_cloud && !rain) || icon == WeatherIcon::Haze || icon == WeatherIcon::Dust;
     lv_obj_set_pos(sun_, partly_cloudy ? 43 : 35, partly_cloudy ? 36 : 43);
-    lv_obj_set_pos(cloud_, partly_cloudy ? 28 : 30, partly_cloudy ? 68 : rain ? 44 : 53);
+    lv_obj_set_pos(cloud_, partly_cloudy ? 28 : 30, partly_cloudy ? 68 : high_cloud ? 44 : 53);
     lv_obj_set_flag(sun_, LV_OBJ_FLAG_HIDDEN, !sunny && !partly_cloudy);
     lv_obj_set_flag(cloud_, LV_OBJ_FLAG_HIDDEN, !cloudy);
     lv_obj_set_flag(rain_, LV_OBJ_FLAG_HIDDEN, !rain);
-    lv_obj_set_flag(weather_placeholder_, LV_OBJ_FLAG_HIDDEN, sunny || cloudy);
+    lv_obj_set_flag(weather_detail_, LV_OBJ_FLAG_HIDDEN, !has_detail);
+    lv_obj_set_flag(weather_placeholder_, LV_OBJ_FLAG_HIDDEN, icon != WeatherIcon::Unknown);
+    if (has_detail && changed) lv_obj_invalidate(weather_detail_);
 }
 
 void SpeakerScreensaverView::UpdateWeather(const SpeakerStandbyWeather::Snapshot& weather) {

@@ -23,12 +23,16 @@ public:
                 const char* wifi);
 
 private:
+    enum class WeatherIcon : uint8_t { Unknown, Sunny, PartlyCloudy, Cloudy, Rain, Snow, Sleet, Fog, Haze, Dust };
+
     void CreateClassic(lv_obj_t* parent, lv_event_cb_t on_exit, void* context);
     void UpdateClassic(const std::tm* local_time, const SpeakerStandbyWeather::Snapshot& weather,
                        const char* wifi);
     void CreateClock();
     void CreateWeather();
     void UpdateClock(const std::tm* local_time);
+    static WeatherIcon SelectWeatherIcon(const SpeakerStandbyWeather::Snapshot& weather);
+    static void DrawWeatherDetail(lv_event_t* event);
     void UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather);
     void UpdateWeather(const SpeakerStandbyWeather::Snapshot& weather);
 
@@ -40,6 +44,8 @@ private:
     lv_obj_t* sun_ = nullptr;
     lv_obj_t* cloud_ = nullptr;
     lv_obj_t* rain_ = nullptr;
+    lv_obj_t* weather_detail_ = nullptr;
+    WeatherIcon weather_icon_ = WeatherIcon::Unknown;
     lv_obj_t* weather_placeholder_ = nullptr;
     lv_obj_t* temperature_ = nullptr;
     lv_obj_t* condition_ = nullptr;
