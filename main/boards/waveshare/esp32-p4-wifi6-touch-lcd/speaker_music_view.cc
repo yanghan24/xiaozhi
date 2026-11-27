@@ -187,9 +187,12 @@ void SpeakerMusicView::Update() {
         if (displayed_tracks_) {
             for (size_t i = 0; i < displayed_tracks_->size(); ++i) {
                 auto* button = Button(list_, FileName((*displayed_tracks_)[i]), [](lv_event_t* event) {
-                    const int index = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
-                    Application::GetInstance().Schedule([index] { SpeakerMusic::Get().Select(index); });
-                }, reinterpret_cast<void*>(i));
+                    auto* view = static_cast<SpeakerMusicView*>(lv_event_get_user_data(event));
+                    const int index = lv_obj_get_index(lv_event_get_current_target_obj(event));
+                    Application::GetInstance().Schedule([tracks = view->displayed_tracks_, index] {
+                        SpeakerMusic::Get().Select(tracks, index);
+                    });
+                }, this);
                 lv_obj_set_size(button, 252, 62);
                 auto* label = lv_obj_get_child(button, 0);
                 lv_obj_set_size(

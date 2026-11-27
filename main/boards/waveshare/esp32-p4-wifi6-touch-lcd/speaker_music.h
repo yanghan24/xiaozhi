@@ -24,7 +24,7 @@ public:
     static SpeakerMusic& Get();
     Snapshot GetSnapshot() const;
     void Refresh();
-    void Select(int index);
+    void Select(const std::shared_ptr<const Tracks>& tracks, int index);
     void Toggle();
     void Step(int offset);
     void Stop();

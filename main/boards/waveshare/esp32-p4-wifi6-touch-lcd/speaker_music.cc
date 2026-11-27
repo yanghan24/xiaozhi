@@ -75,9 +75,9 @@ void SpeakerMusic::Refresh() {
     xTaskNotifyGive(task_);
 }
 
-void SpeakerMusic::Select(int index) {
+void SpeakerMusic::Select(const std::shared_ptr<const Tracks>& tracks, int index) {
     std::lock_guard lock(mutex_);
-    if (!snapshot_.tracks || index < 0 || static_cast<size_t>(index) >= snapshot_.tracks->size() ||
+    if (!tracks || tracks != snapshot_.tracks || index < 0 || static_cast<size_t>(index) >= tracks->size() ||
         Application::GetInstance().GetDeviceState() != kDeviceStateIdle ||
         Audio().IsLocalCaptureRunning() || snapshot_.UpdatingFiles() || !task_)
         return;
@@ -91,7 +91,7 @@ void SpeakerMusic::Select(int index) {
 void SpeakerMusic::Toggle() {
     const auto view = GetSnapshot();
     if (view.state != State::Playing && view.state != State::Paused) {
-        Select(view.selected < 0 ? 0 : view.selected);
+        Select(view.tracks, view.selected < 0 ? 0 : view.selected);
         return;
     }
     std::lock_guard lock(mutex_);
@@ -107,7 +107,7 @@ void SpeakerMusic::Step(int offset) {
     const auto view = GetSnapshot();
     if (!view.tracks || view.tracks->empty()) return;
     const auto count = static_cast<int>(view.tracks->size());
-    Select(view.selected < 0 ? 0 : (view.selected + offset + count) % count);
+    Select(view.tracks, view.selected < 0 ? 0 : (view.selected + offset + count) % count);
 }
 
 void SpeakerMusic::StopPlaybackLocked() {
