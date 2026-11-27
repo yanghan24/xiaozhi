@@ -30,7 +30,7 @@ index e79098b..a249f44 100644
      memset(&server_addr, 0, sizeof(server_addr));
      server_addr.sin_family = AF_INET;
 diff --git a/wifi_configuration_ap.cc b/wifi_configuration_ap.cc
-index 62f435c..585692b 100644
+index 62f435c..8a46ce7 100644
 --- a/wifi_configuration_ap.cc
 +++ b/wifi_configuration_ap.cc
 @@ -20,6 +20,8 @@
@@ -466,7 +466,7 @@ index 62f435c..585692b 100644
          },
          .user_ctx = this
      };
-@@ -784,6 +851,65 @@ void WifiConfigurationAp::StartWebServer()
+@@ -784,9 +851,70 @@ void WifiConfigurationAp::StartWebServer()
      ESP_ERROR_CHECK(httpd_register_uri_handler(server_, &advanced_submit));
  
      ESP_LOGI(TAG, "Web server started");
@@ -474,7 +474,8 @@ index 62f435c..585692b 100644
 +}
 +
 +WifiConfigurationAp::SubmitResult WifiConfigurationAp::SubmitNetwork(
-+    const std::string& ssid, const std::string& password, bool exit_on_success) {
++    const std::string& ssid, const std::string& password, bool exit_on_success,
++    uint8_t* disconnect_reason, wifi_auth_mode_t minimum_auth) {
 +    std::unique_lock submission(submission_mutex_, std::try_to_lock);
 +    if (!submission.owns_lock() || portal_closing_) {
 +        return SubmitResult::Busy;
@@ -484,11 +485,11 @@ index 62f435c..585692b 100644
 +    }
 +
 +    if (settings_station_) {
-+        if (!settings_station_->TryNetwork(ssid, password)) {
++        if (!settings_station_->TryNetwork(ssid, password, disconnect_reason, minimum_auth)) {
 +            return SubmitResult::ConnectionFailed;
 +        }
 +    } else {
-+        if (!ConnectToWifi(ssid, password)) {
++        if (!ConnectToWifi(ssid, password, disconnect_reason, minimum_auth)) {
 +            return SubmitResult::ConnectionFailed;
 +        }
 +        Save(ssid, password);
@@ -510,8 +511,9 @@ index 62f435c..585692b 100644
 +        PreferStation(resume);
 +    }
 +    return SchedulePortalExit();
-+}
-+
+ }
+ 
+-bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::string &password)
 +bool WifiConfigurationAp::SchedulePortalExit() {
 +    if (portal_closing_.exchange(true)) {
 +        return true;
@@ -529,19 +531,54 @@ index 62f435c..585692b 100644
 +        return false;
 +    }
 +    return true;
- }
++}
++
++bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::string &password,
++                                        uint8_t* disconnect_reason, wifi_auth_mode_t minimum_auth)
+ {
+     if (ssid.empty()) {
+         ESP_LOGE(TAG, "SSID cannot be empty");
+@@ -845,6 +973,9 @@ bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::stri
+             vTaskDelay(pdMS_TO_TICKS(kRetryDelayMs));
+         }
  
- bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::string &password)
-@@ -958,8 +1084,6 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
++        if (disconnect_reason) {
++            *disconnect_reason = 0;
++        }
+         xEventGroupClearBits(event_group_, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+         esp_wifi_scan_stop();
+ 
+@@ -861,6 +992,7 @@ bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::stri
+             password_len = sizeof(wifi_config.sta.password);
+         }
+         memcpy(wifi_config.sta.password, password.data(), password_len);
++        wifi_config.sta.threshold.authmode = minimum_auth;
+         wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+         wifi_config.sta.failure_retry_cnt = 1;
+ 
+@@ -891,6 +1023,9 @@ bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::stri
+         if (bits & WIFI_CONNECTED_BIT) {
+             connected = true;
+         } else {
++            if (disconnect_reason && (bits & WIFI_FAIL_BIT)) {
++                *disconnect_reason = disconnect_reason_.load();
++            }
+             const bool timed_out = (bits == 0);
+             if (timed_out) {
+                 // Timeout — neither WIFI_CONNECTED_BIT nor WIFI_FAIL_BIT
+@@ -958,9 +1093,9 @@ void WifiConfigurationAp::WifiEventHandler(void* arg, esp_event_base_t event_bas
      } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
          wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
          ESP_LOGI(TAG, "Station " MACSTR " left, AID=%d", MAC2STR(event->mac), event->aid);
 -    } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
 -        xEventGroupSetBits(self->event_group_, WIFI_CONNECTED_BIT);
      } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
++        const auto* event = static_cast<wifi_event_sta_disconnected_t*>(event_data);
++        self->disconnect_reason_ = event->reason;
          xEventGroupSetBits(self->event_group_, WIFI_FAIL_BIT);
      } else if (event_id == WIFI_EVENT_SCAN_DONE) {
-@@ -980,6 +1104,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
+         std::lock_guard<std::mutex> lock(self->mutex_);
+@@ -980,6 +1115,9 @@ void WifiConfigurationAp::IpEventHandler(void* arg, esp_event_base_t event_base,
      WifiConfigurationAp* self = static_cast<WifiConfigurationAp*>(arg);
      if (event_id == IP_EVENT_STA_GOT_IP) {
          ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
@@ -551,7 +588,7 @@ index 62f435c..585692b 100644
          ESP_LOGI(TAG, "Got IP:" IPSTR, IP2STR(&event->ip_info.ip));
          xEventGroupSetBits(self->event_group_, WIFI_CONNECTED_BIT);
      }
-@@ -1048,6 +1175,7 @@ void WifiConfigurationAp::SmartConfigEventHandler(void *arg, esp_event_base_t ev
+@@ -1048,6 +1186,7 @@ void WifiConfigurationAp::SmartConfigEventHandler(void *arg, esp_event_base_t ev
  #endif // !CONFIG_IDF_TARGET_ESP32P4
  
  void WifiConfigurationAp::Stop() {
@@ -559,7 +596,7 @@ index 62f435c..585692b 100644
  #if !CONFIG_IDF_TARGET_ESP32P4
      // 停止SmartConfig服务
      if (sc_event_instance_) {
-@@ -1057,6 +1185,15 @@ void WifiConfigurationAp::Stop() {
+@@ -1057,6 +1196,15 @@ void WifiConfigurationAp::Stop() {
      esp_smartconfig_stop();
  #endif
  
@@ -575,7 +612,7 @@ index 62f435c..585692b 100644
      // 停止定时器
      if (scan_timer_) {
          esp_timer_stop(scan_timer_);
-@@ -1064,12 +1201,6 @@ void WifiConfigurationAp::Stop() {
+@@ -1064,12 +1212,6 @@ void WifiConfigurationAp::Stop() {
          scan_timer_ = nullptr;
      }
  
@@ -588,7 +625,7 @@ index 62f435c..585692b 100644
      // 停止DNS服务器
      if (dns_server_) {
          dns_server_->Stop();
-@@ -1086,9 +1217,18 @@ void WifiConfigurationAp::Stop() {
+@@ -1086,9 +1228,18 @@ void WifiConfigurationAp::Stop() {
          instance_got_ip_ = nullptr;
      }
  
@@ -610,7 +647,7 @@ index 62f435c..585692b 100644
      if (ap_netif_) {
          esp_netif_destroy_default_wifi(ap_netif_);
 diff --git a/wifi_manager.cc b/wifi_manager.cc
-index a79008a..0e55992 100644
+index a79008a..6d212e2 100644
 --- a/wifi_manager.cc
 +++ b/wifi_manager.cc
 @@ -23,6 +23,7 @@ WifiManager& WifiManager::GetInstance() {
@@ -629,7 +666,7 @@ index a79008a..0e55992 100644
      std::unique_lock<std::mutex> lock(mutex_);
  
      if (!initialized_) {
-@@ -280,6 +282,72 @@ void WifiManager::StopConfigAp() {
+@@ -280,6 +282,74 @@ void WifiManager::StopConfigAp() {
      lock.lock();
  }
  
@@ -678,17 +715,19 @@ index a79008a..0e55992 100644
 +    return station_active_ ? station_->NearbyNetworks(refresh) : std::vector<wifi_ap_record_t>{};
 +}
 +
-+bool WifiManager::SubmitConfigNetwork(const std::string& ssid, const std::string& password) {
++bool WifiManager::SubmitConfigNetwork(const std::string& ssid, const std::string& password,
++                                      uint8_t* disconnect_reason, wifi_auth_mode_t minimum_auth) {
 +    {
 +        std::lock_guard lock(mutex_);
 +        if (!config_mode_active_) {
 +            return false;
 +        }
 +    }
-+    return config_ap_->SubmitNetwork(ssid, password, true) == WifiConfigurationAp::SubmitResult::Success;
++    return config_ap_->SubmitNetwork(ssid, password, true, disconnect_reason, minimum_auth) == WifiConfigurationAp::SubmitResult::Success;
 +}
 +
-+bool WifiManager::TrySettingsNetwork(const std::string& ssid, const std::string& password) {
++bool WifiManager::TrySettingsNetwork(const std::string& ssid, const std::string& password,
++                                      uint8_t* disconnect_reason, wifi_auth_mode_t minimum_auth) {
 +    {
 +        std::lock_guard lock(mutex_);
 +        if (!station_active_) {
@@ -696,13 +735,13 @@ index a79008a..0e55992 100644
 +        }
 +    }
 +    // The station publishes disconnect/connect notifications during the trial.
-+    return station_->TryNetwork(ssid, password);
++    return station_->TryNetwork(ssid, password, disconnect_reason, minimum_auth);
 +}
 +
  bool WifiManager::IsConfigMode() const {
      std::lock_guard<std::mutex> lock(mutex_);
      return config_mode_active_;
-@@ -287,13 +355,13 @@ bool WifiManager::IsConfigMode() const {
+@@ -287,13 +357,13 @@ bool WifiManager::IsConfigMode() const {
  
  std::string WifiManager::GetApSsid() const {
      std::lock_guard<std::mutex> lock(mutex_);
@@ -719,7 +758,7 @@ index a79008a..0e55992 100644
  }
  
 diff --git a/wifi_station.cc b/wifi_station.cc
-index 9dfe5b0..a61733d 100644
+index 9dfe5b0..7ac17de 100644
 --- a/wifi_station.cc
 +++ b/wifi_station.cc
 @@ -17,6 +17,8 @@
@@ -741,7 +780,7 @@ index 9dfe5b0..a61733d 100644
      std::vector<uint8_t> channels;
      if (use_saved_channels_scan_) {
          channels = SsidManager::GetInstance().GetSavedChannels();
-@@ -224,11 +229,108 @@ void WifiStation::StartScan() {
+@@ -224,11 +229,113 @@ void WifiStation::StartScan() {
      }
  }
  
@@ -773,7 +812,8 @@ index 9dfe5b0..a61733d 100644
 +                              pdMS_TO_TICKS(2000)) & WIFI_TRIAL_DOWN;
 +}
 +
-+bool WifiStation::TryNetwork(const std::string& ssid, const std::string& password) {
++bool WifiStation::TryNetwork(const std::string& ssid, const std::string& password,
++                             uint8_t* disconnect_reason, wifi_auth_mode_t minimum_auth) {
 +    std::unique_lock attempt(trial_mutex_, std::try_to_lock);
 +    if (!attempt.owns_lock() || !station_netif_ || ssid.empty() || ssid.size() > 32 ||
 +        password.size() > 64) {
@@ -803,12 +843,16 @@ index 9dfe5b0..a61733d 100644
 +    candidate.sta.bssid_set = false;
 +    candidate.sta.channel = 0;
 +    candidate.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
-+    candidate.sta.threshold.authmode = WIFI_AUTH_OPEN;
++    candidate.sta.threshold.authmode = minimum_auth;
 +    xEventGroupClearBits(event_group_, WIFI_TRIAL_ADDRESS | WIFI_TRIAL_DOWN);
 +    const bool started = esp_wifi_set_config(WIFI_IF_STA, &candidate) == ESP_OK &&
 +                         esp_wifi_connect() == ESP_OK;
-+    if (started && (xEventGroupWaitBits(event_group_, WIFI_TRIAL_ADDRESS | WIFI_TRIAL_DOWN,
-+                                       pdTRUE, pdFALSE, pdMS_TO_TICKS(15000)) & WIFI_TRIAL_ADDRESS)) {
++    const auto bits = started ? xEventGroupWaitBits(event_group_, WIFI_TRIAL_ADDRESS | WIFI_TRIAL_DOWN,
++                                                   pdTRUE, pdFALSE, pdMS_TO_TICKS(15000)) : 0;
++    if (disconnect_reason && (bits & WIFI_TRIAL_DOWN)) {
++        *disconnect_reason = trial_disconnect_reason_.load();
++    }
++    if (bits & WIFI_TRIAL_ADDRESS) {
 +        esp_netif_ip_info_t address{};
 +        wifi_ap_record_t network{};
 +        if (esp_netif_get_ip_info(station_netif_, &address) == ESP_OK && address.ip.addr &&
@@ -850,7 +894,7 @@ index 9dfe5b0..a61733d 100644
      // sort by rssi descending
      std::sort(ap_records, ap_records + ap_num, [](const wifi_ap_record_t& a, const wifi_ap_record_t& b) {
          return a.rssi > b.rssi;
-@@ -274,6 +376,12 @@ void WifiStation::HandleScanResult() {
+@@ -274,6 +381,12 @@ void WifiStation::HandleScanResult() {
          return;
      }
  
@@ -863,7 +907,7 @@ index 9dfe5b0..a61733d 100644
      StartConnect();
  }
  
-@@ -414,7 +522,11 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
+@@ -414,7 +527,11 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
          }
      } else if (event_id == WIFI_EVENT_SCAN_DONE) {
          xEventGroupSetBits(this_->event_group_, WIFI_EVENT_SCAN_DONE_BIT);
@@ -876,11 +920,12 @@ index 9dfe5b0..a61733d 100644
      } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
          xEventGroupClearBits(this_->event_group_, WIFI_EVENT_CONNECTED);
          
-@@ -427,6 +539,11 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
+@@ -427,6 +544,12 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
              this_->on_disconnected_(event->reason);
          }
          
 +        if (this_->trial_active_) {
++            this_->trial_disconnect_reason_ = event->reason;
 +            xEventGroupSetBits(this_->event_group_, WIFI_TRIAL_DOWN);
 +            return;
 +        }
@@ -888,7 +933,7 @@ index 9dfe5b0..a61733d 100644
          if (this_->reconnect_count_ < MAX_RECONNECT_COUNT) {
              esp_wifi_connect();
              this_->reconnect_count_++;
-@@ -451,25 +568,33 @@ void WifiStation::IpEventHandler(void* arg, esp_event_base_t event_base, int32_t
+@@ -451,25 +574,33 @@ void WifiStation::IpEventHandler(void* arg, esp_event_base_t event_base, int32_t
      auto* this_ = static_cast<WifiStation*>(arg);
      auto* event = static_cast<ip_event_got_ip_t*>(event_data);
  
@@ -934,6 +979,64 @@ index 9dfe5b0..a61733d 100644
 -    this_->scan_current_interval_microseconds_ = this_->scan_min_interval_microseconds_;
 +    scan_current_interval_microseconds_ = scan_min_interval_microseconds_;
  }
+diff --git a/ssid_manager.cc b/ssid_manager.cc
+index 7b8f6c9..fd907be 100644
+--- a/ssid_manager.cc
++++ b/ssid_manager.cc
+@@ -23,6 +23,7 @@ SsidManager::~SsidManager() {
+ }
+ 
+ void SsidManager::Clear() {
++    std::lock_guard lock(mutex_);
+     ssid_list_.clear();
+     SaveToNvs();
+ }
+@@ -86,6 +87,7 @@ void SsidManager::SaveToNvs() {
+ }
+ 
+ void SsidManager::AddSsid(const std::string& ssid, const std::string& password, uint8_t channel) {
++    std::lock_guard lock(mutex_);
+     for (auto& item : ssid_list_) {
+         ESP_LOGI(TAG, "compare [%s:%d] [%s:%d]", item.ssid.c_str(), item.ssid.size(), ssid.c_str(),
+                  ssid.size());
+@@ -110,6 +112,7 @@ void SsidManager::AddSsid(const std::string& ssid, const std::string& password,
+ }
+ 
+ void SsidManager::UpdateSsidChannel(const std::string& ssid, uint8_t channel) {
++    std::lock_guard lock(mutex_);
+     if (channel == 0) {
+         return;
+     }
+@@ -127,6 +130,7 @@ void SsidManager::UpdateSsidChannel(const std::string& ssid, uint8_t channel) {
+ }
+ 
+ void SsidManager::RemoveSsid(int index) {
++    std::lock_guard lock(mutex_);
+     if (index < 0 || index >= ssid_list_.size()) {
+         ESP_LOGW(TAG, "Invalid index %d", index);
+         return;
+@@ -136,6 +140,7 @@ void SsidManager::RemoveSsid(int index) {
+ }
+ 
+ void SsidManager::SetDefaultSsid(int index) {
++    std::lock_guard lock(mutex_);
+     if (index < 0 || index >= ssid_list_.size()) {
+         ESP_LOGW(TAG, "Invalid index %d", index);
+         return;
+@@ -147,7 +152,13 @@ void SsidManager::SetDefaultSsid(int index) {
+     SaveToNvs();
+ }
+ 
++std::vector<SsidItem> SsidManager::GetSsidList() const {
++    std::lock_guard lock(mutex_);
++    return ssid_list_;
++}
++
+ std::vector<uint8_t> SsidManager::GetSavedChannels() const {
++    std::lock_guard lock(mutex_);
+     std::vector<uint8_t> channels;
+     for (const auto& item : ssid_list_) {
+         if (item.channel == 0) {
 diff --git a/include/dns_server.h b/include/dns_server.h
 index db65307..a98bbed 100644
 --- a/include/dns_server.h
@@ -947,8 +1050,37 @@ index db65307..a98bbed 100644
      void Stop();
  
  private:
+diff --git a/include/ssid_manager.h b/include/ssid_manager.h
+index f318b95..7cdc009 100644
+--- a/include/ssid_manager.h
++++ b/include/ssid_manager.h
+@@ -2,6 +2,7 @@
+ #define SSID_MANAGER_H
+ 
+ #include <cstdint>
++#include <mutex>
+ #include <string>
+ #include <vector>
+ 
+@@ -25,7 +26,7 @@ public:
+     void RemoveSsid(int index);
+     void SetDefaultSsid(int index);
+     void Clear();
+-    const std::vector<SsidItem>& GetSsidList() const { return ssid_list_; }
++    std::vector<SsidItem> GetSsidList() const;
+     std::vector<uint8_t> GetSavedChannels() const;
+ 
+ private:
+@@ -35,6 +36,7 @@ private:
+     void LoadFromNvs();
+     void SaveToNvs();
+ 
++    mutable std::mutex mutex_;
+     std::vector<SsidItem> ssid_list_;
+ };
+ 
 diff --git a/include/wifi_configuration_ap.h b/include/wifi_configuration_ap.h
-index 7f71c80..fcb3d8a 100644
+index 7f71c80..fe14daa 100644
 --- a/include/wifi_configuration_ap.h
 +++ b/include/wifi_configuration_ap.h
 @@ -1,6 +1,7 @@
@@ -968,7 +1100,7 @@ index 7f71c80..fcb3d8a 100644
  class WifiConfigurationAp {
  public:
      WifiConfigurationAp();
-@@ -38,10 +41,14 @@ public:
+@@ -38,11 +41,19 @@ public:
      void SetShowOtaConfig(bool show) { show_ota_config_ = show; }
      void SetShowSleepConfig(bool show) { show_sleep_config_ = show; }
      void Start();
@@ -978,12 +1110,18 @@ index 7f71c80..fcb3d8a 100644
  #if !CONFIG_IDF_TARGET_ESP32P4
      void StartSmartConfig();
  #endif
+-    bool ConnectToWifi(const std::string &ssid, const std::string &password);
 +    enum class SubmitResult { Success, Invalid, Busy, ConnectionFailed, ExitFailed };
-+    SubmitResult SubmitNetwork(const std::string& ssid, const std::string& password, bool exit_on_success);
-     bool ConnectToWifi(const std::string &ssid, const std::string &password);
++    SubmitResult SubmitNetwork(const std::string& ssid, const std::string& password, bool exit_on_success,
++                               uint8_t* disconnect_reason = nullptr,
++                               wifi_auth_mode_t minimum_auth = WIFI_AUTH_OPEN);
++    bool ConnectToWifi(const std::string &ssid, const std::string &password,
++                       uint8_t* disconnect_reason = nullptr,
++                       wifi_auth_mode_t minimum_auth = WIFI_AUTH_OPEN);
      void Save(const std::string &ssid, const std::string &password);
      std::vector<wifi_ap_record_t> GetAccessPoints();
-@@ -56,6 +63,8 @@ public:
+     std::string GetSsid();
+@@ -56,6 +67,8 @@ public:
  
  private:
      std::mutex mutex_;
@@ -992,17 +1130,18 @@ index 7f71c80..fcb3d8a 100644
      std::unique_ptr<DnsServer> dns_server_;
      httpd_handle_t server_ = NULL;
      EventGroupHandle_t event_group_;
-@@ -64,7 +73,8 @@ private:
+@@ -64,7 +77,9 @@ private:
      esp_event_handler_instance_t instance_any_id_;
      esp_event_handler_instance_t instance_got_ip_;
      esp_timer_handle_t scan_timer_ = nullptr;
 -    bool is_connecting_ = false;
 +    std::atomic<bool> is_connecting_{false};
++    std::atomic<uint8_t> disconnect_reason_{0};
 +    WifiStation* settings_station_ = nullptr;
      esp_netif_t* ap_netif_ = nullptr;
      std::vector<wifi_ap_record_t> ap_records_;
      uint8_t last_connected_channel_ = 0;
-@@ -83,8 +93,10 @@ private:
+@@ -83,8 +98,10 @@ private:
      // Callbacks
      std::function<void()> on_exit_requested_;
  
@@ -1016,23 +1155,27 @@ index 7f71c80..fcb3d8a 100644
      // Event handlers
      static void WifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 diff --git a/include/wifi_manager.h b/include/wifi_manager.h
-index e1d6bb2..fe90550 100644
+index e1d6bb2..39aa6b2 100644
 --- a/include/wifi_manager.h
 +++ b/include/wifi_manager.h
-@@ -98,6 +98,12 @@ public:
+@@ -98,6 +98,16 @@ public:
      std::string GetApSsid() const;
      std::string GetApWebUrl() const;
  
 +    bool StartSettingsHotspot();
 +    void StopSettingsHotspot();
 +    std::vector<wifi_ap_record_t> SettingsNetworks(bool refresh);
-+    bool SubmitConfigNetwork(const std::string& ssid, const std::string& password);
-+    bool TrySettingsNetwork(const std::string& ssid, const std::string& password);
++    bool SubmitConfigNetwork(const std::string& ssid, const std::string& password,
++                             uint8_t* disconnect_reason = nullptr,
++                             wifi_auth_mode_t minimum_auth = WIFI_AUTH_OPEN);
++    bool TrySettingsNetwork(const std::string& ssid, const std::string& password,
++                             uint8_t* disconnect_reason = nullptr,
++                             wifi_auth_mode_t minimum_auth = WIFI_AUTH_OPEN);
 +
      // ==================== Power ====================
      
      void SetPowerSaveLevel(WifiPowerSaveLevel level);
-@@ -125,6 +131,8 @@ private:
+@@ -125,6 +135,8 @@ private:
      bool initialized_ = false;
      bool station_active_ = false;
      bool config_mode_active_ = false;
@@ -1042,7 +1185,7 @@ index e1d6bb2..fe90550 100644
      std::function<void(WifiEvent, const std::string&)> event_callback_;
      mutable std::string mac_address_;
 diff --git a/include/wifi_station.h b/include/wifi_station.h
-index d620f3b..9f579d9 100644
+index d620f3b..2e85e0a 100644
 --- a/include/wifi_station.h
 +++ b/include/wifi_station.h
 @@ -1,6 +1,8 @@
@@ -1054,16 +1197,18 @@ index d620f3b..9f579d9 100644
  #include <string>
  #include <vector>
  #include <functional>
-@@ -49,6 +51,8 @@ public:
+@@ -49,6 +51,10 @@ public:
      std::string GetSsid() const { return ssid_; }
      std::string GetIpAddress() const { return ip_address_; }
      uint8_t GetChannel();
 +    std::vector<wifi_ap_record_t> NearbyNetworks(bool refresh);
-+    bool TryNetwork(const std::string& ssid, const std::string& password);
++    bool TryNetwork(const std::string& ssid, const std::string& password,
++                    uint8_t* disconnect_reason = nullptr,
++                    wifi_auth_mode_t minimum_auth = WIFI_AUTH_OPEN);
      void SetPowerSaveLevel(WifiPowerSaveLevel level);
  
      void OnConnect(std::function<void(const std::string& ssid)> on_connect);
-@@ -92,6 +96,13 @@ private:
+@@ -92,6 +98,14 @@ private:
      bool use_saved_channels_scan_ = true;       // First scan uses saved channels when known
      bool last_scan_used_saved_channels_ = false;
  
@@ -1071,6 +1216,7 @@ index d620f3b..9f579d9 100644
 +    std::mutex scan_mutex_;
 +    std::mutex trial_mutex_;
 +    std::atomic<bool> trial_active_{false};
++    std::atomic<uint8_t> trial_disconnect_reason_{0};
 +    void TakeScanSnapshot();
 +    void AcceptAddress(const esp_ip4_addr_t& ip);
 +    bool DisconnectForTrial();

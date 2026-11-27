@@ -50,6 +50,7 @@ private:
     bool refresh_ = false;
     bool scan_seen_ = false;
     bool secured_ = false;
+    bool use_saved_ = false;
     bool starting_network_ = false;
     uint32_t startup_connect_at_ = 0;
     uint32_t last_poll_ = 0;

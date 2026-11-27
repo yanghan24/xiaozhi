@@ -12,19 +12,22 @@
 
 class SpeakerWifiSetup {
 public:
-    enum class Action { Inspect, OpenHotspot, CloseHotspot, Scan, Refresh, Connect };
+    enum class Action { Inspect, OpenHotspot, CloseHotspot, Scan, Refresh, Connect, ConnectSaved };
     enum class Submission { Accepted, Busy, Unavailable };
 
     struct Request {
         Action action;
         std::string ssid;
         std::string password;
+        bool secured = false;
     };
 
     struct Network {
         std::string ssid;
-        int rssi;
+        int signal;
         bool secured;
+        bool saved;
+        bool connected;
         bool operator==(const Network&) const = default;
     };
 
@@ -35,6 +38,7 @@ public:
         std::string portal_url;
         std::vector<Network> networks;
         bool ok = false;
+        bool password_required = false;
     };
 
     static SpeakerWifiSetup& Get();

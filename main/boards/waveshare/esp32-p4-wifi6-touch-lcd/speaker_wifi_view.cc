@@ -29,6 +29,19 @@ lv_obj_t* DetailCard(lv_obj_t* parent, int y) {
     lv_obj_set_style_border_width(card, 1, LV_PART_MAIN);
     return card;
 }
+
+const char* SignalIcon(int signal) {
+    switch (signal) {
+        case 3:
+            return MATERIAL_SYMBOLS_WIFI;
+        case 2:
+            return MATERIAL_SYMBOLS_WIFI_2_BAR;
+        case 1:
+            return MATERIAL_SYMBOLS_WIFI_1_BAR;
+        default:
+            return nullptr;
+    }
+}
 }  // namespace
 
 lv_obj_t* SpeakerWifiView::CreatePage(Page page, const char* title) {
@@ -69,7 +82,7 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     lv_obj_align(Icon(select, MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT), LV_ALIGN_RIGHT_MID, -24, 0);
     lv_obj_align(Icon(phone, MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT), LV_ALIGN_RIGHT_MID, -24, 0);
 
-    auto* networks = CreatePage(Page::Networks, "附近网络");
+    auto* networks = CreatePage(Page::Networks, "选择网络");
     auto* refresh = Button(networks, "刷新", [](lv_event_t* event) {
         auto& view = *static_cast<SpeakerWifiView*>(lv_event_get_user_data(event));
         if (!view.Busy()) {
@@ -197,8 +210,12 @@ void SpeakerWifiView::SelectNetwork(size_t index) {
         return;
     }
     const auto& selected = networks_[index];
+    if (selected.connected) {
+        return;
+    }
     target_ = selected.ssid;
     secured_ = selected.secured;
+    use_saved_ = selected.saved;
     lv_textarea_set_text(password_, "");
     lv_keyboard_set_mode(keyboard_, LV_KEYBOARD_MODE_TEXT_LOWER);
     message_ = "";
@@ -209,8 +226,10 @@ void SpeakerWifiView::Connect(const char* password) {
     if (Busy()) {
         return;
     }
-    std::string secret = password;
-    if (secured_ && (secret.empty() || secret.size() > 64)) {
+    if (use_saved_) {
+        operation_ = SpeakerWifiSetup::Request{Action::ConnectSaved, target_, {}, secured_};
+        message_ = "正在连接…";
+    } else if (std::string secret = password; secured_ && (secret.empty() || secret.size() > 64)) {
         message_ = "请输入 Wi-Fi 密码，最多 64 字节";
     } else {
         operation_ = SpeakerWifiSetup::Request{Action::Connect, target_, std::move(secret)};
@@ -254,8 +273,14 @@ void SpeakerWifiView::ReadResult(SpeakerWifiSetup::Result result) {
             }
             break;
         case Action::Connect:
-            if (!result.ok) {
-                message_ = "连接失败，请检查密码或信号后重试";
+        case Action::ConnectSaved:
+            if (result.password_required) {
+                use_saved_ = false;
+                message_ = "无法使用已保存的密码，请重新输入";
+            } else if (!result.ok) {
+                message_ = result.action == Action::ConnectSaved
+                    ? "连接失败，请检查网络后重试"
+                    : "连接失败，请检查密码或信号后重试";
             } else if (configuring_) {
                 starting_network_ = true;
                 startup_connect_at_ = lv_tick_get();
@@ -337,9 +362,10 @@ void SpeakerWifiView::UpdateLabels() {
     UpdateLabel(list_status_, *message_ ? message_ : scan_status);
     UpdateLabel(target_name_, target_.c_str());
     UpdateLabel(password_status_, message_);
-    lv_obj_set_flag(keyboard_, LV_OBJ_FLAG_HIDDEN, !secured_);
-    lv_obj_set_flag(password_, LV_OBJ_FLAG_HIDDEN, !secured_);
-    lv_obj_set_flag(connect_button_, LV_OBJ_FLAG_HIDDEN, secured_);
+    const bool needs_password = secured_ && !use_saved_;
+    lv_obj_set_flag(keyboard_, LV_OBJ_FLAG_HIDDEN, !needs_password);
+    lv_obj_set_flag(password_, LV_OBJ_FLAG_HIDDEN, !needs_password);
+    lv_obj_set_flag(connect_button_, LV_OBJ_FLAG_HIDDEN, needs_password);
     for (auto* control : {keyboard_, password_, connect_button_}) {
         lv_obj_set_state(control, LV_STATE_DISABLED, Busy());
     }
@@ -352,28 +378,32 @@ void SpeakerWifiView::RebuildNetworks() {
     constexpr int kRightInset = 22;
     constexpr int kLockWidth = 30;
     constexpr int kStatusGap = 16;
-    constexpr int kSignalWidth = 112;
     const auto scroll = lv_obj_get_scroll_y(list_);
     lv_obj_clean(list_);
     for (size_t i = 0; i < networks_.size(); ++i) {
         const auto& network = networks_[i];
+        if (i == 0 || network.saved != networks_[i - 1].saved) {
+            auto* heading = Label(list_, network.saved ? "已保存" : "附近网络", kMuted);
+            lv_obj_set_style_pad_left(heading, 21, LV_PART_MAIN);
+        }
         auto* row = Control(list_, [](lv_event_t* event) {
             auto& view = *static_cast<SpeakerWifiView*>(lv_event_get_user_data(event));
             auto* button = lv_event_get_current_target_obj(event);
             view.SelectNetwork(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(button)));
-        }, this);
+        }, this, network.connected ? kBlue : kCard);
         lv_obj_set_user_data(row, reinterpret_cast<void*>(i));
         lv_obj_set_size(row, lv_pct(100), 65);
-        auto* name = TextLine(row, network.ssid.c_str(), 21, 0, 447);
+        auto* name = TextLine(row, network.ssid.c_str(), 21, 0, 560);
         lv_obj_align(name, LV_ALIGN_LEFT_MID, 21, 0);
+        const auto status_color = network.connected ? kText : kMuted;
         if (network.secured) {
-            lv_obj_align(Icon(row, MATERIAL_SYMBOLS_LOCK, kMuted), LV_ALIGN_RIGHT_MID, -kRightInset, 0);
+            lv_obj_align(Icon(row, MATERIAL_SYMBOLS_LOCK, status_color), LV_ALIGN_RIGHT_MID,
+                         -kRightInset, 0);
         }
-        const char* signal = network.rssi >= -60 ? "信号强" : network.rssi >= -75 ? "信号中" : "信号弱";
-        auto* strength = Label(row, signal, kMuted);
-        lv_obj_set_width(strength, kSignalWidth);
-        lv_obj_set_style_text_align(strength, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-        lv_obj_align(strength, LV_ALIGN_RIGHT_MID, -(kRightInset + kLockWidth + kStatusGap), 0);
+        if (const auto* signal = SignalIcon(network.signal)) {
+            lv_obj_align(Icon(row, signal, status_color), LV_ALIGN_RIGHT_MID,
+                         -(kRightInset + kLockWidth + kStatusGap), 0);
+        }
     }
     lv_obj_scroll_to_y(list_, scroll, LV_ANIM_OFF);
 }
