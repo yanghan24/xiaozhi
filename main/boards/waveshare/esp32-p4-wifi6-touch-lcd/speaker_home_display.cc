@@ -174,6 +174,16 @@ void SpeakerHomeDisplay::SetStatus(const char* status) {
 }
 
 void SpeakerHomeDisplay::SetIdleClock(const char* clock) {
+    {
+        DisplayLockGuard lock(this);
+        if (!lock) {
+            return;
+        }
+        if (notification_label_ && !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN)) {
+            lv_label_set_text(status_label_, clock);
+            return;
+        }
+    }
     MipiLcdDisplay::SetStatus(clock);
 }
 

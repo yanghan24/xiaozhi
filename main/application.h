@@ -148,6 +148,8 @@ private:
     std::atomic<uint32_t> active_voice_reply_{0};
     uint32_t voice_reply_sequence_ = 0;
     bool voice_reply_stopped_ = false;
+    std::string pending_voice_notification_;
+    int64_t voice_notification_until_us_ = 0;
     void ClearVoiceReply();
 #endif
     esp_timer_handle_t clock_timer_handle_ = nullptr;
