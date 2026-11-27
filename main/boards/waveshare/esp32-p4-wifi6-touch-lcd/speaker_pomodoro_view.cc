@@ -190,7 +190,7 @@ void SpeakerPomodoroView::Reset(int minutes) {
     minutes_ = minutes;
     remaining_us_ = minutes * 60 * kSecondUs;
     state_ = State::Ready;
-    StopAlarm();
+    RequestStopAlarm();
     displayed_seconds_ = -1;
     Render(esp_timer_get_time());
 }
@@ -237,20 +237,43 @@ void SpeakerPomodoroView::Update() {
     }
 }
 
-void SpeakerPomodoroView::StopAlarm() {
+void SpeakerPomodoroView::RequestStopAlarm() {
+    if (!sound_pending_.exchange(false)) return;
     ++alarm_epoch_;
-    sound_pending_ = false;
     const auto generation = alarm_generation_.exchange(0);
     if (generation) {
-        Application::GetInstance().GetAudioService().CancelLocalPlaybackIfCurrent(generation);
+        Application::GetInstance().Schedule([generation] {
+            Application::GetInstance().GetAudioService().EndLocalAlert(generation);
+        });
     }
 }
 
 void SpeakerPomodoroView::DispatchSound() {
     if (sound_scheduled_.exchange(true)) return;
-    if (xTaskCreate(&SpeakerPomodoroView::AlarmTask, "pomodoro_alarm", 4096, this, 2, nullptr) != pdPASS) {
+    const uint32_t epoch = alarm_epoch_;
+    Application::GetInstance().Schedule([this, epoch] {
+        auto& app = Application::GetInstance();
+        auto& audio = app.GetAudioService();
+        if (!sound_pending_ || alarm_epoch_ != epoch ||
+            app.GetDeviceState() != kDeviceStateIdle || audio.IsLocalCaptureRunning()) {
+            sound_scheduled_ = false;
+            return;
+        }
+        // Claim output on the application task, alongside voice and capture state changes.
+        const auto generation = audio.TryBeginLocalAlert();
+        if (!generation) {
+            sound_scheduled_ = false;
+            return;
+        }
+        alarm_generation_ = generation;
+        if (sound_pending_ && alarm_epoch_ == epoch &&
+            xTaskCreate(&SpeakerPomodoroView::AlarmTask, "pomodoro_alarm", 4096, this, 2, nullptr) == pdPASS) {
+            return;
+        }
+        audio.EndLocalAlert(generation);
+        alarm_generation_ = 0;
         sound_scheduled_ = false;
-    }
+    });
 }
 
 void SpeakerPomodoroView::AlarmTask(void* context) {
@@ -263,19 +286,12 @@ void SpeakerPomodoroView::AlarmTask(void* context) {
 void SpeakerPomodoroView::RunAlarm() {
     auto& app = Application::GetInstance();
     auto& audio = app.GetAudioService();
+    const uint32_t generation = alarm_generation_;
     const uint32_t epoch = alarm_epoch_;
-    if (!sound_pending_ || app.GetDeviceState() != kDeviceStateIdle || audio.IsLocalCaptureRunning()) return;
-
-    const uint32_t generation = audio.TryBeginLocalPlayback();
     if (!generation) return;
-    alarm_generation_ = generation;
-    if (!sound_pending_ || alarm_epoch_ != epoch) {
-        if (alarm_generation_.exchange(0) == generation) audio.CancelLocalPlaybackIfCurrent(generation);
-        return;
-    }
     const auto active = [&] {
         return sound_pending_ && alarm_epoch_ == epoch && app.GetDeviceState() == kDeviceStateIdle
-            && !audio.IsLocalCaptureRunning() && audio.IsLocalPlaybackCurrent(generation);
+            && !audio.IsLocalCaptureRunning() && audio.IsLocalAlertCurrent(generation);
     };
     const int rate = audio.LocalOutputSampleRate();
     constexpr int kChunkMs = 20;
@@ -298,19 +314,19 @@ void SpeakerPomodoroView::RunAlarm() {
                         pcm[i] = static_cast<int16_t>(7000 * gain * std::sin(6.28318530718 * 1000 * phase / rate));
                     }
                 }
-                if (!audio.QueueLocalPcm(generation, std::move(pcm))) break;
+                if (!audio.QueueLocalAlertPcm(generation, std::move(pcm))) break;
             }
         }
         for (int ms = 0; group < 9 && ms < kGroupGapMs && active(); ms += kChunkMs) {
             if (app.GetDeviceState() != kDeviceStateIdle || audio.IsLocalCaptureRunning()
-                || !audio.QueueLocalPcm(generation, std::vector<int16_t>(samples, 0))) break;
+                || !audio.QueueLocalAlertPcm(generation, std::vector<int16_t>(samples, 0))) break;
         }
         if (app.GetDeviceState() != kDeviceStateIdle || audio.IsLocalCaptureRunning()) break;
     }
     while (active() && !audio.IsPlaybackIdle()) {
         vTaskDelay(pdMS_TO_TICKS(20));
     }
-    audio.CancelLocalPlaybackIfCurrent(generation);
+    audio.EndLocalAlert(generation);
     uint32_t expected = generation;
     alarm_generation_.compare_exchange_strong(expected, 0);
     if (alarm_epoch_ == epoch) sound_pending_ = false;

@@ -79,6 +79,17 @@ int64_t Number(const cJSON* object, const char* key) {
     return static_cast<int64_t>(value->valuedouble);
 }
 
+SpeakerAccount::MemoOwner ReadMemoOwner(const cJSON* object) {
+    SpeakerAccount::MemoOwner owner{};
+    const auto text = Text(object, "memo_owner", owner.size());
+    if (text.size() == owner.size() && std::all_of(text.begin(), text.end(), [](char ch) {
+            return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f');
+        })) {
+        std::copy(text.begin(), text.end(), owner.begin());
+    }
+    return owner;
+}
+
 CJsonUniquePtr Parse(const std::string& body) {
     return CJsonUniquePtr(cJSON_ParseWithOpts(body.c_str(), nullptr, true));
 }
@@ -342,13 +353,13 @@ SpeakerAccount::View SpeakerAccount::GetView() const {
     return view_;
 }
 
-int64_t SpeakerAccount::MemoBindingVersion() const {
+SpeakerAccount::MemoAccess SpeakerAccount::GetMemoAccess() const {
     std::lock_guard lock(mutex_);
     if (upgrading_ || unbind_ || view_.unbind_pending ||
         (view_.page != Page::Ready && view_.page != Page::Offline)) {
-        return 0;
+        return {};
     }
-    return memo_binding_version_;
+    return memo_access_;
 }
 
 void SpeakerAccount::RefreshCode() {
@@ -425,7 +436,7 @@ void SpeakerAccount::Unbind() {
         view_.balance_permission = 0;
         view_.balance_loading = false;
         view_.balance.clear();
-        memo_binding_version_ = 0;
+        memo_access_ = {};
         voice_.reset();
         voice_until_ = 0;
     }
@@ -494,7 +505,7 @@ SpeakerAccount::Response SpeakerAccount::RequestWithIdentity(const Identity& ide
 
 void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64_t lease_until,
                              int64_t permission, bool revoke_if_changed, uint32_t network_epoch,
-                             int64_t binding_version) {
+                             int64_t binding_version, MemoOwner memo_owner) {
     bool changed;
     bool revoke;
     {
@@ -510,8 +521,8 @@ void SpeakerAccount::Publish(View view, std::optional<VoiceAccess> access, int64
         revoke = voice_.has_value() && (!access ||
                  (revoke_if_changed && permission_version_ != permission));
         if (view.page != Page::Offline) {
-            memo_binding_version_ = view.page == Page::Ready && binding_version > 0
-                ? binding_version : 0;
+            memo_access_ = view.page == Page::Ready && binding_version > 0
+                ? MemoAccess{binding_version, memo_owner} : MemoAccess{};
         }
         view_ = std::move(view);
         voice_ = std::move(access);
@@ -808,7 +819,8 @@ void SpeakerAccount::Run() {
                 view.recharge_available = recharge_available;
                 Publish(std::move(view), std::move(access),
                         Now() + std::min({lease, expiry - server_time, kMaxLease}),
-                        permission_version, true, epoch, Number(document.get(), "binding_version"));
+                        permission_version, true, epoch, Number(document.get(), "binding_version"),
+                        ReadMemoOwner(document.get()));
             } else {
                 View view{Page::Disabled, {}, {}, customer, bound, false, weather_allowed, balance_permission};
                 view.recharge_available = recharge_available;

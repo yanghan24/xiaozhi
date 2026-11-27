@@ -93,8 +93,11 @@ void SpeakerMusic::Toggle() {
         return;
     }
     std::lock_guard lock(mutex_);
-    if (snapshot_.state == State::Playing) snapshot_.state = State::Paused;
-    else if (snapshot_.state == State::Paused) snapshot_.state = State::Playing;
+    if (snapshot_.state == State::Playing || snapshot_.state == State::Paused) {
+        const bool paused = snapshot_.state == State::Playing;
+        Audio().SetLocalPlaybackPaused(generation_, paused);
+        snapshot_.state = paused ? State::Paused : State::Playing;
+    }
     if (task_) xTaskNotifyGive(task_);
 }
 
@@ -108,7 +111,7 @@ void SpeakerMusic::Step(int offset) {
 void SpeakerMusic::Stop() {
     std::lock_guard lock(mutex_);
     if (!generation_) return;
-    Audio().CancelLocalPlayback();
+    Audio().EndLocalPlayback(generation_);
     generation_ = pending_ = 0;
     snapshot_.state = State::Idle;
     if (task_) xTaskNotifyGive(task_);
@@ -134,6 +137,7 @@ void SpeakerMusic::Run() {
         lock.unlock();
         const bool ok = Play(path, generation);
         const bool current = Audio().IsLocalPlaybackCurrent(generation);
+        Audio().EndLocalPlayback(generation);
         lock.lock();
         if (generation == generation_) {
             generation_ = 0;

@@ -11,6 +11,10 @@
 
 #include "speaker_account/speaker_ui_widgets.h"
 
+#if LV_USE_FONT_COMPRESSED
+LV_FONT_DECLARE(speaker_clock_font);
+#endif
+
 namespace {
 using SpeakerUi::Icon;
 using SpeakerUi::Label;
@@ -80,6 +84,12 @@ lv_obj_t* Centered(lv_obj_t* parent, const char* text, int x, int y, int width,
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
     return label;
+}
+
+void LimitToOneLine(lv_obj_t* label) {
+    const auto* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    lv_obj_set_height(label, lv_font_get_line_height(font));
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
 }
 
 std::string WithUnit(const std::string& value, const char* unit, const char* fallback = "--") {
@@ -168,6 +178,24 @@ const char* WeatherStatus(SpeakerStandbyWeather::State state) {
     }
 }
 
+struct AirQualityBand {
+    int maximum;
+    const char* label;
+    uint32_t color;
+};
+
+const AirQualityBand* AirQuality(int aqi) {
+    static constexpr AirQualityBand bands[] = {
+        {50, "优", 0x5CFF73}, {100, "良", 0xE9ED4A}, {150, "轻度", 0xFFB020},
+        {200, "中度", 0xFF5A67}, {300, "重度", 0xFF5A67}, {500, "严重", 0xFF5A67},
+    };
+    if (aqi < 0) {
+        return nullptr;
+    }
+    const auto* band = std::ranges::find_if(bands, [aqi](const auto& item) { return aqi <= item.maximum; });
+    return band == std::end(bands) ? nullptr : band;
+}
+
 }  // namespace
 
 void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, void* context) {
@@ -193,7 +221,7 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
     lv_obj_align(Icon(root_, MATERIAL_SYMBOLS_LOCATION_ON, kCyan), LV_ALIGN_TOP_LEFT, 18, 8);
     city_ = Label(root_, "本地天气", kText);
     lv_obj_set_width(city_, 250);
-    lv_label_set_long_mode(city_, LV_LABEL_LONG_DOT);
+    LimitToOneLine(city_);
     lv_obj_align(city_, LV_ALIGN_TOP_LEFT, 50, 2);
     wifi_ = Icon(root_, MATERIAL_SYMBOLS_WIFI_OFF, kText);
     lv_obj_align(wifi_, LV_ALIGN_TOP_RIGHT, -18, 8);
@@ -212,6 +240,33 @@ void SpeakerScreensaverView::Create(lv_obj_t* parent, lv_event_cb_t on_exit, voi
     Centered(root_, "筑音 · 待机中", 34, 390, 332);
     Block(root_, 68, 414, 42, 2, kCyan, LV_OPA_80);
     Block(root_, 290, 414, 42, 2, kCyan, LV_OPA_80);
+    CreateClassic(parent, on_exit, context);
+}
+
+void SpeakerScreensaverView::CreateClassic(lv_obj_t* parent, lv_event_cb_t on_exit, void* context) {
+    classic_ = SpeakerUi::Panel(parent);
+    lv_obj_add_flag(classic_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
+    lv_obj_add_event_cb(classic_, on_exit, LV_EVENT_CLICKED, context);
+
+    lv_obj_align(Icon(classic_, MATERIAL_SYMBOLS_LOCATION_ON, SpeakerUi::kText), LV_ALIGN_TOP_LEFT, 26, 18);
+    classic_city_ = Label(classic_, "本地天气", SpeakerUi::kText);
+    lv_obj_set_width(classic_city_, 250);
+    LimitToOneLine(classic_city_);
+    lv_obj_align(classic_city_, LV_ALIGN_TOP_LEFT, 58, 12);
+    classic_wifi_ = SpeakerUi::Wifi(classic_);
+#if LV_USE_FONT_COMPRESSED
+    classic_clock_ = Label(classic_, "--:--", SpeakerUi::kText);
+    lv_obj_set_style_text_font(classic_clock_, &speaker_clock_font, LV_PART_MAIN);
+    lv_obj_set_width(classic_clock_, 720);
+    lv_obj_set_style_text_align(classic_clock_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+#else
+    classic_clock_ = SpeakerUi::Digits(classic_, "--:--", 316, 900);
+#endif
+    lv_obj_align(classic_clock_, LV_ALIGN_CENTER, 0, -60);
+
+    classic_summary_ = Centered(classic_, "正在校时", 0, 0, 720, SpeakerUi::kMuted);
+    LimitToOneLine(classic_summary_);
+    lv_obj_align(classic_summary_, LV_ALIGN_CENTER, 0, 68);
 }
 
 void SpeakerScreensaverView::CreateClock() {
@@ -246,6 +301,8 @@ void SpeakerScreensaverView::CreateWeather() {
     for (int x : {0, 22, 44}) {
         Block(rain_, x, 0, 5, 12, kCyan, LV_OPA_COVER, 2);
     }
+    weather_detail_ = Surface(panel, 20, 30, 94, 108);
+    lv_obj_add_event_cb(weather_detail_, DrawWeatherDetail, LV_EVENT_DRAW_MAIN, this);
     weather_placeholder_ = Centered(panel, "--", 20, 55, 94, kMuted);
     UpdateWeatherIcons({});
 
@@ -288,18 +345,65 @@ void SpeakerScreensaverView::CreateWeather() {
     air_value_ = Centered(air, "--", 195, 1, 57);
 }
 
-void SpeakerScreensaverView::SetVisible(bool visible) {
-    lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, !visible);
+void SpeakerScreensaverView::Show(Style style) {
+    const bool classic = style == Style::Classic;
+    if (classic) {
+        classic_background_.Load(classic_, SpeakerBackground::Artwork::Screensaver);
+    } else {
+        classic_background_.Release(classic_);
+    }
+    lv_obj_set_flag(root_, LV_OBJ_FLAG_HIDDEN, classic);
+    lv_obj_set_flag(classic_, LV_OBJ_FLAG_HIDDEN, !classic);
 }
 
-bool SpeakerScreensaverView::Visible() const { return !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN); }
+void SpeakerScreensaverView::Hide() {
+    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(classic_, LV_OBJ_FLAG_HIDDEN);
+    classic_background_.Release(classic_);
+}
+
+bool SpeakerScreensaverView::Visible() const {
+    return !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN) || !lv_obj_has_flag(classic_, LV_OBJ_FLAG_HIDDEN);
+}
 
 void SpeakerScreensaverView::Update(const std::tm* local_time,
                                     const SpeakerStandbyWeather::Snapshot& weather,
                                     const char* wifi) {
-    UpdateClock(local_time);
-    UpdateWeather(weather);
-    UpdateLabel(wifi_, wifi);
+    if (!lv_obj_has_flag(classic_, LV_OBJ_FLAG_HIDDEN)) {
+        UpdateClassic(local_time, weather, wifi);
+    } else if (!lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
+        UpdateClock(local_time);
+        UpdateWeather(weather);
+        UpdateLabel(wifi_, wifi);
+    }
+}
+
+void SpeakerScreensaverView::UpdateClassic(const std::tm* local_time,
+                                           const SpeakerStandbyWeather::Snapshot& weather,
+                                           const char* wifi) {
+    char time[8] = "--:--";
+    char date[48] = "正在校时";
+    if (local_time) {
+        constexpr const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
+        std::strftime(time, sizeof(time), "%H:%M", local_time);
+        std::snprintf(date, sizeof(date), "%d月%d日 周%s", local_time->tm_mon + 1, local_time->tm_mday,
+                      weekdays[local_time->tm_wday]);
+    }
+
+    const bool ready = weather.state == SpeakerStandbyWeather::State::Ready;
+    std::string summary = date;
+    summary += " · ";
+    summary += ready && !weather.condition.empty() ? weather.condition.c_str() : WeatherStatus(weather.state);
+    if (ready && !weather.temperature.empty()) {
+        summary += " " + WithUnit(weather.temperature, "°C");
+    }
+    if (const auto* band = ready ? AirQuality(weather.aqi) : nullptr) {
+        summary += " · 空气 " + std::to_string(weather.aqi) + " " + band->label;
+    }
+    UpdateLabel(classic_clock_, time);
+    UpdateLabel(classic_summary_, summary.c_str());
+    UpdateLabel(classic_city_, ready && !weather.city.empty() ? weather.city.c_str() : "本地天气");
+    UpdateLabel(classic_wifi_, wifi);
 }
 
 void SpeakerScreensaverView::UpdateClock(const std::tm* local_time) {
@@ -334,30 +438,102 @@ void SpeakerScreensaverView::UpdateClock(const std::tm* local_time) {
     UpdateLabel(date_, date);
 }
 
-void SpeakerScreensaverView::UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather) {
-    const auto& condition = weather.condition;
-    // Only the locally drawn sun, cloud and rain symbols are supported here. Do not
-    // accidentally interpret compound snow, fog or hail descriptions as sunshine/rain.
-    constexpr const char* unsupported[] = {"雪", "雾", "霾", "沙", "尘", "冰雹", "龙卷"};
-    const bool supported =
-        weather.state == SpeakerStandbyWeather::State::Ready &&
-        std::none_of(std::begin(unsupported), std::end(unsupported),
-                     [&](const char* text) { return condition.find(text) != std::string::npos; });
-    const bool rain = supported &&
-        (condition.find("雨") != std::string::npos || condition.find("雷") != std::string::npos);
-    const bool partly_cloudy = supported && !rain && condition.find("多云") != std::string::npos;
-    const bool sunny = supported && !rain && !partly_cloudy &&
-                       condition.find("晴") != std::string::npos;
-    const bool cloudy = rain || partly_cloudy ||
-        (supported && !sunny &&
-         (condition.find("阴") != std::string::npos || condition.find("云") != std::string::npos));
+SpeakerScreensaverView::WeatherIcon SpeakerScreensaverView::SelectWeatherIcon(
+    const SpeakerStandbyWeather::Snapshot& weather) {
+    const std::string_view condition = weather.condition;
+    if (weather.state != SpeakerStandbyWeather::State::Ready || condition.contains("冰雹") ||
+        condition.contains("龙卷")) {
+        return WeatherIcon::Unknown;
+    }
+    if (condition.contains("沙") || condition.contains("尘")) return WeatherIcon::Dust;
+    if (condition.contains("霾")) return WeatherIcon::Haze;
+    if (condition.contains("雾")) return WeatherIcon::Fog;
+    if (condition.contains("雪")) {
+        return condition.contains("雨") ? WeatherIcon::Sleet : WeatherIcon::Snow;
+    }
+    if (condition.contains("雨") || condition.contains("雷")) return WeatherIcon::Rain;
+    if (condition.contains("多云")) return WeatherIcon::PartlyCloudy;
+    if (condition.contains("晴")) return WeatherIcon::Sunny;
+    if (condition.contains("阴") || condition.contains("云")) return WeatherIcon::Cloudy;
+    return WeatherIcon::Unknown;
+}
 
+void SpeakerScreensaverView::DrawWeatherDetail(lv_event_t* event) {
+    const auto* view = static_cast<const SpeakerScreensaverView*>(lv_event_get_user_data(event));
+    auto* layer = lv_event_get_layer(event);
+    lv_area_t area;
+    lv_obj_get_coords(static_cast<lv_obj_t*>(lv_event_get_current_target(event)), &area);
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init(&line);
+    line.round_start = true;
+    line.round_end = true;
+    const auto stroke = [&](int x1, int y1, int x2, int y2, uint32_t color, int width) {
+        line.p1 = {area.x1 + x1, area.y1 + y1};
+        line.p2 = {area.x1 + x2, area.y1 + y2};
+        line.color = lv_color_hex(color);
+        line.width = width;
+        lv_draw_line(layer, &line);
+    };
+    const auto flake = [&](int x, int y) {
+        stroke(x, y - 6, x, y + 6, kText, 2);
+        stroke(x - 5, y - 3, x + 5, y + 3, kText, 2);
+        stroke(x - 5, y + 3, x + 5, y - 3, kText, 2);
+    };
+
+    switch (view->weather_icon_) {
+        case WeatherIcon::Snow:
+            flake(26, 69);
+            flake(47, 78);
+            flake(68, 69);
+            break;
+        case WeatherIcon::Sleet:
+            stroke(28, 66, 24, 77, kCyan, 3);
+            flake(47, 74);
+            stroke(70, 66, 66, 77, kCyan, 3);
+            break;
+        case WeatherIcon::Fog:
+            stroke(13, 68, 81, 68, kMuted, 4);
+            stroke(22, 80, 72, 80, kMuted, 4);
+            stroke(16, 92, 78, 92, kMuted, 4);
+            break;
+        case WeatherIcon::Haze:
+            stroke(29, 28, 61, 28, kMuted, 4);
+            stroke(15, 43, 79, 43, kMuted, 4);
+            stroke(22, 58, 72, 58, kMuted, 4);
+            stroke(30, 73, 64, 73, kMuted, 4);
+            break;
+        case WeatherIcon::Dust:
+            stroke(21, 30, 23, 30, SpeakerUi::kWarm, 4);
+            stroke(51, 26, 53, 26, SpeakerUi::kWarm, 4);
+            stroke(71, 35, 73, 35, SpeakerUi::kWarm, 4);
+            stroke(29, 45, 75, 45, SpeakerUi::kWarm, 4);
+            stroke(14, 58, 68, 58, SpeakerUi::kWarm, 4);
+            stroke(23, 71, 60, 71, SpeakerUi::kWarm, 4);
+            break;
+        default:
+            break;
+    }
+}
+
+void SpeakerScreensaverView::UpdateWeatherIcons(const SpeakerStandbyWeather::Snapshot& weather) {
+    const auto icon = SelectWeatherIcon(weather);
+    const bool changed = icon != weather_icon_;
+    weather_icon_ = icon;
+    const bool partly_cloudy = icon == WeatherIcon::PartlyCloudy;
+    const bool sunny = icon == WeatherIcon::Sunny;
+    const bool rain = icon == WeatherIcon::Rain;
+    const bool high_cloud = rain || icon == WeatherIcon::Snow || icon == WeatherIcon::Sleet ||
+                            icon == WeatherIcon::Fog;
+    const bool cloudy = high_cloud || partly_cloudy || icon == WeatherIcon::Cloudy;
+    const bool has_detail = (high_cloud && !rain) || icon == WeatherIcon::Haze || icon == WeatherIcon::Dust;
     lv_obj_set_pos(sun_, partly_cloudy ? 43 : 35, partly_cloudy ? 36 : 43);
-    lv_obj_set_pos(cloud_, partly_cloudy ? 28 : 30, partly_cloudy ? 68 : rain ? 44 : 53);
+    lv_obj_set_pos(cloud_, partly_cloudy ? 28 : 30, partly_cloudy ? 68 : high_cloud ? 44 : 53);
     lv_obj_set_flag(sun_, LV_OBJ_FLAG_HIDDEN, !sunny && !partly_cloudy);
     lv_obj_set_flag(cloud_, LV_OBJ_FLAG_HIDDEN, !cloudy);
     lv_obj_set_flag(rain_, LV_OBJ_FLAG_HIDDEN, !rain);
-    lv_obj_set_flag(weather_placeholder_, LV_OBJ_FLAG_HIDDEN, sunny || cloudy);
+    lv_obj_set_flag(weather_detail_, LV_OBJ_FLAG_HIDDEN, !has_detail);
+    lv_obj_set_flag(weather_placeholder_, LV_OBJ_FLAG_HIDDEN, icon != WeatherIcon::Unknown);
+    if (has_detail && changed) lv_obj_invalidate(weather_detail_);
 }
 
 void SpeakerScreensaverView::UpdateWeather(const SpeakerStandbyWeather::Snapshot& weather) {
@@ -375,14 +551,10 @@ void SpeakerScreensaverView::UpdateWeather(const SpeakerStandbyWeather::Snapshot
     UpdateLabel(humidity_, WithUnit(weather.humidity, "%").c_str());
     UpdateWindDirection(wind_direction_, weather.wind_direction);
     UpdateLabel(wind_power_, WithUnit(weather.wind_power, "级").c_str());
-    constexpr const char* air_names[] = {"优", "良", "轻度", "中度", "重度"};
-    constexpr uint32_t air_colors[] = {0x5CFF73, 0xE9ED4A, 0xFFB020, 0xFF5A67, 0xFF5A67};
-    const int aqi = weather.aqi;
-    const int band = aqi <= 50 ? 0 : aqi <= 100 ? 1 : aqi <= 150 ? 2 : aqi <= 200 ? 3 : 4;
-    UpdateLabel(air_category_, aqi < 0 ? "--" : air_names[band]);
-    lv_obj_set_style_text_color(air_category_, lv_color_hex(aqi < 0 ? kMuted : air_colors[band]),
-                                LV_PART_MAIN);
-    UpdateLabel(air_value_, aqi < 0 ? "--" : std::to_string(aqi).c_str());
+    const auto* band = ready ? AirQuality(weather.aqi) : nullptr;
+    UpdateLabel(air_category_, band ? band->label : "--");
+    lv_obj_set_style_text_color(air_category_, lv_color_hex(band ? band->color : kMuted), LV_PART_MAIN);
+    UpdateLabel(air_value_, band ? std::to_string(weather.aqi).c_str() : "--");
 }
 
 #endif

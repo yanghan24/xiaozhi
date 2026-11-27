@@ -14,6 +14,9 @@
 #include <string>
 #include <string_view>
 
+LV_FONT_DECLARE(speaker_calendar_weekday_font);
+LV_FONT_DECLARE(speaker_calendar_date_font);
+
 using namespace SpeakerUi;
 using namespace std::chrono;
 
@@ -125,10 +128,10 @@ void SpeakerCalendarView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_set_style_radius(cell.selection, 14, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(cell.selection, LV_OPA_COVER, LV_PART_MAIN);
         cell.weekday = Label(cell.root, "", kMuted);
-        Scale(cell.weekday, 193);
+        lv_obj_set_style_text_font(cell.weekday, &speaker_calendar_weekday_font, LV_PART_MAIN);
         lv_obj_align(cell.weekday, LV_ALIGN_TOP_MID, 0, 8);
         cell.number = Label(cell.root, "");
-        Scale(cell.number, 334);
+        lv_obj_set_style_text_font(cell.number, &speaker_calendar_date_font, LV_PART_MAIN);
         lv_obj_align(cell.number, LV_ALIGN_CENTER, 0, 9);
         cell.memo_dot = Surface(cell.root, (kDayWidth - kDotSize) / 2,
                                 kStripHeight - kDotSize - kDotBottomGap, kDotSize, kDotSize);
@@ -482,14 +485,14 @@ void SpeakerCalendarView::RenderCell(DateCell& cell, Date date) {
 }
 
 bool SpeakerCalendarView::RefreshEntries() {
-    const auto binding = SpeakerAccount::Get().MemoBindingVersion();
+    const auto access = SpeakerAccount::Get().GetMemoAccess();
     const auto revision = SpeakerMemos::Get().Revision();
-    if (binding == binding_ && revision == memo_revision_) {
+    if (access == memo_access_ && revision == memo_revision_) {
         return false;
     }
-    binding_ = binding;
+    memo_access_ = access;
     memo_revision_ = revision;
-    entries_ = SpeakerMemos::Get().Entries(binding_);
+    entries_ = SpeakerMemos::Get().Entries(access);
     return true;
 }
 
@@ -526,12 +529,13 @@ void SpeakerCalendarView::RenderMemos() {
     }
 
     lv_label_set_text_fmt(agenda_count_, "%u 条提醒", count);
-    lv_obj_set_flag(agenda_count_, LV_OBJ_FLAG_HIDDEN, binding_ <= 0);
+    const bool signed_in = memo_access_.binding_version > 0;
+    lv_obj_set_flag(agenda_count_, LV_OBJ_FLAG_HIDDEN, !signed_in);
     lv_obj_set_flag(list_, LV_OBJ_FLAG_HIDDEN, count == 0);
     lv_obj_set_flag(memo_hint_, LV_OBJ_FLAG_HIDDEN, count != 0);
     if (count == 0) {
-        UpdateLabel(empty_title_, binding_ > 0 ? "当天暂无提醒" : "登录后可查看记事");
-        UpdateLabel(empty_detail_, binding_ > 0 ? "请说「你好小智，明天上午九点提醒我开会」" : "请先在音箱上登录账号");
+        UpdateLabel(empty_title_, signed_in ? "当天暂无提醒" : "登录后可查看记事");
+        UpdateLabel(empty_detail_, signed_in ? "请说「你好小智，明天上午九点提醒我开会」" : "请先在音箱上登录账号");
     }
 }
 

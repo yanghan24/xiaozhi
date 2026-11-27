@@ -15,7 +15,7 @@ public:
     void Show();
     void Hide();
     void Update();
-    void StopAlarm();
+    void RequestStopAlarm();
 
 private:
     enum class State { Ready, Running, Paused, Finished };

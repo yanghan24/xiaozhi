@@ -139,11 +139,15 @@ public:
     bool IsPlaybackIdle();
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     uint32_t BeginLocalPlayback();
-    uint32_t TryBeginLocalPlayback();
     void CancelLocalPlayback();
-    bool CancelLocalPlaybackIfCurrent(uint32_t generation);
+    void EndLocalPlayback(uint32_t generation);
+    void SetLocalPlaybackPaused(uint32_t generation, bool paused);
     bool IsLocalPlaybackCurrent(uint32_t generation);
     bool QueueLocalPcm(uint32_t generation, std::vector<int16_t> pcm);
+    uint32_t TryBeginLocalAlert();
+    void EndLocalAlert(uint32_t generation);
+    bool IsLocalAlertCurrent(uint32_t generation);
+    bool QueueLocalAlertPcm(uint32_t generation, std::vector<int16_t> pcm);
     int LocalOutputSampleRate() const { return codec_->output_sample_rate(); }
     using LocalCapture = std::function<void(const int16_t*, size_t, int)>;
     void StartLocalCapture(LocalCapture capture);
@@ -218,8 +222,19 @@ private:
     FixedQueue<AudioTask, MAX_ENCODE_TASKS_IN_QUEUE> audio_encode_queue_;
     FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> audio_playback_queue_;
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT && CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
-    FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> local_playback_queue_;
-    uint32_t local_playback_generation_ = 0;
+    struct LocalPlayback {
+        FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> queue;
+        uint32_t generation = 0;
+        bool active = false;
+        bool paused = false;
+
+        uint32_t Begin();
+        void End();
+        bool IsCurrent(uint32_t candidate) const;
+    };
+    LocalPlayback local_music_;
+    LocalPlayback local_alert_;
+    bool QueueLocalPcm(LocalPlayback& playback, uint32_t generation, std::vector<int16_t> pcm);
     std::mutex local_capture_mutex_;
     LocalCapture local_capture_;
 #endif

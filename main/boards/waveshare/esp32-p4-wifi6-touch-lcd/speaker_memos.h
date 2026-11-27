@@ -3,6 +3,8 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
+#include "speaker_account/speaker_account.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -25,28 +27,41 @@ public:
 
     static SpeakerMemos& Get();
     void InitializeTools();
-    std::vector<Entry> Entries(int64_t binding) const;
+    std::vector<Entry> Entries(const SpeakerAccount::MemoAccess& access) const;
     uint32_t Revision() const;
     void Tick();
 
 private:
+    using MemoAccess = SpeakerAccount::MemoAccess;
     struct Data {
-        int64_t binding = 0;
         int32_t last_id = 0;
         std::array<Entry, kCapacity> entries{};
     };
 
-    void Load();
+    struct LegacyData {
+        int64_t binding_version;
+        Data memos;
+    };
+
+    struct AccountData {
+        SpeakerAccount::MemoOwner owner;
+        Data memos;
+    };
+
+    bool LoadFor(const MemoAccess& access);
     bool Save(const Data& data);
-    std::string Create(int64_t binding, const std::string& content, std::string when);
-    std::string Cancel(int64_t binding, int id);
-    const Entry* FindDue(int64_t binding, std::time_t now) const;
-    void Remind();
+    std::vector<Entry> CopyEntries() const;
+    std::string Create(const MemoAccess& access, const std::string& content, std::string when);
+    std::string Cancel(const MemoAccess& access, int id);
+    const Entry* FindDue(std::time_t now) const;
+    void Remind(const MemoAccess& access);
 
     mutable std::mutex mutex_;
     Data data_;
+    MemoAccess loaded_access_{};
     uint32_t revision_ = 0;
     bool ready_ = false;
+    bool migrated_legacy_pending_ = false;
     bool reminder_pending_ = false;
     std::time_t checked_second_ = 0;
 };

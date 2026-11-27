@@ -76,7 +76,7 @@ private:
     std::chrono::year_month visible_month_{};
     Date selected_{};
     std::vector<SpeakerMemos::Entry> entries_;
-    int64_t binding_ = 0;
+    SpeakerAccount::MemoAccess memo_access_{};
     uint32_t memo_revision_ = 0;
     int32_t offset_ = 0;
     int32_t drag_start_offset_ = 0;

@@ -19,6 +19,8 @@ extern const uint8_t home_start[] asm("_binary_speaker_home_jpg_start");
 extern const uint8_t home_end[] asm("_binary_speaker_home_jpg_end");
 extern const uint8_t boot_start[] asm("_binary_speaker_boot_jpg_start");
 extern const uint8_t boot_end[] asm("_binary_speaker_boot_jpg_end");
+extern const uint8_t screensaver_start[] asm("_binary_speaker_screensaver_jpg_start");
+extern const uint8_t screensaver_end[] asm("_binary_speaker_screensaver_jpg_end");
 
 struct EmbeddedImage {
     const uint8_t* start;
@@ -30,6 +32,7 @@ constexpr EmbeddedImage Asset(SpeakerBackground::Artwork artwork) {
     switch (artwork) {
         case Artwork::Home: return {home_start, home_end};
         case Artwork::Boot: return {boot_start, boot_end};
+        case Artwork::Screensaver: return {screensaver_start, screensaver_end};
     }
     return {};
 }

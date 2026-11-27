@@ -22,14 +22,21 @@
 namespace {
 
 constexpr char kNamespace[] = "speaker_memos";
-constexpr char kDataKey[] = "entries_v1";
+constexpr char kLegacyKey[] = "entries_v1";
 constexpr std::time_t kEarliestClock = 1704067200;
 constexpr int kReminderGraceSeconds = 600;
 constexpr int kPageSize = 4;
 static_assert(SpeakerMemos::kCapacity % kPageSize == 0);
 
-int64_t Binding() {
-    return SpeakerAccount::Get().MemoBindingVersion();
+SpeakerAccount::MemoAccess CurrentAccess() {
+    return SpeakerAccount::Get().GetMemoAccess();
+}
+
+std::array<char, 16> StorageKey(const SpeakerAccount::MemoOwner& owner) {
+    // NVS limits keys to 15 characters. The stored record also carries the complete owner ID.
+    std::array<char, 16> key{};
+    std::copy_n(owner.begin(), key.size() - 1, key.begin());
+    return key;
 }
 
 std::string FormatTime(std::time_t time, const char* format = "%Y-%m-%d %H:%M") {
@@ -67,7 +74,6 @@ SpeakerMemos& SpeakerMemos::Get() {
 }
 
 void SpeakerMemos::InitializeTools() {
-    Load();
     auto& server = McpServer::GetInstance();
     auto content = Property("content", kPropertyTypeString);
     content.SetMaxLength(kContentBytes);
@@ -82,7 +88,7 @@ void SpeakerMemos::InitializeTools() {
         "use the memo list tool to read device_time. Ask when the requested time is ambiguous. "
         "Only say it was saved when the tool reports success.",
         PropertyList({content, when}), [this](const PropertyList& properties) -> ReturnValue {
-            return Create(Binding(), properties["content"].value<std::string>(),
+            return Create(CurrentAccess(), properties["content"].value<std::string>(),
                           properties["when"].value<std::string>());
         });
     server.AddTool("self.memo.list",
@@ -91,18 +97,22 @@ void SpeakerMemos::InitializeTools() {
         PropertyList({date, Property("page", kPropertyTypeInteger, 1, 1,
                                      kCapacity / kPageSize)}),
         [this](const PropertyList& properties) -> ToolResult {
-            const auto binding = Binding();
-            if (binding <= 0) {
+            const auto access = CurrentAccess();
+            if (access.binding_version <= 0) {
                 return std::unexpected("请先在音箱上登录账号");
-            }
-            if (!ready_) {
-                return std::unexpected("本机记事存储暂不可用");
             }
             const auto date = properties["date"].value<std::string>();
             if (!date.empty() && !ParseTime(date)) {
                 return std::unexpected("日期无效，请使用 YYYY-MM-DD");
             }
-            auto entries = Entries(binding);
+            std::vector<Entry> entries;
+            {
+                std::lock_guard lock(mutex_);
+                if (!LoadFor(access)) {
+                    return std::unexpected("本机记事存储暂不可用");
+                }
+                entries = CopyEntries();
+            }
             if (!date.empty()) {
                 std::erase_if(entries, [&date](const Entry& entry) {
                     return !std::string_view(entry.when).starts_with(date);
@@ -144,35 +154,106 @@ void SpeakerMemos::InitializeTools() {
         "First use the memo list tool to find its exact ID. Ask which one if multiple entries match.",
         PropertyList({Property("id", kPropertyTypeInteger, 1, std::numeric_limits<int>::max())}),
         [this](const PropertyList& properties) -> ReturnValue {
-            return Cancel(Binding(), properties["id"].value<int>());
+            return Cancel(CurrentAccess(), properties["id"].value<int>());
         });
 }
 
-void SpeakerMemos::Load() {
-    std::lock_guard lock(mutex_);
+bool SpeakerMemos::LoadFor(const MemoAccess& access) {
+    if (access.binding_version <= 0 || CurrentAccess() != access) {
+        return false;
+    }
+    if (access == loaded_access_) {
+        return ready_;
+    }
+    loaded_access_ = access;
+    data_ = {};
+    migrated_legacy_pending_ = false;
+    ++revision_;
     nvs_handle_t handle;
     auto error = nvs_open(kNamespace, NVS_READONLY, &handle);
-    if (error == ESP_ERR_NVS_NOT_FOUND) {
-        ready_ = true;
-        return;
-    }
     if (error != ESP_OK) {
-        return;
+        ready_ = error == ESP_ERR_NVS_NOT_FOUND;
+        return ready_;
     }
-    size_t size = sizeof(data_);
-    error = nvs_get_blob(handle, kDataKey, &data_, &size);
+    error = ESP_ERR_NVS_NOT_FOUND;
+    if (access.owner.front() != '\0') {
+        const auto key = StorageKey(access.owner);
+        auto record = std::unique_ptr<AccountData>(new (std::nothrow) AccountData{});
+        if (record) {
+            size_t size = sizeof(AccountData);
+            error = nvs_get_blob(handle, key.data(), record.get(), &size);
+            constexpr size_t header = offsetof(AccountData, memos) + offsetof(Data, entries);
+            if (error == ESP_OK) {
+                if (size < header || (size - header) % sizeof(Entry) != 0 || record->owner != access.owner) {
+                    error = ESP_ERR_INVALID_STATE;
+                } else {
+                    data_ = record->memos;
+                }
+            }
+        } else {
+            error = ESP_ERR_NO_MEM;
+        }
+    }
+    if (error == ESP_ERR_NVS_NOT_FOUND) {
+        auto legacy = std::unique_ptr<LegacyData>(new (std::nothrow) LegacyData{});
+        if (legacy) {
+            size_t size = sizeof(LegacyData);
+            error = nvs_get_blob(handle, kLegacyKey, legacy.get(), &size);
+            if (error == ESP_OK) {
+                if (size != sizeof(LegacyData)) {
+                    error = ESP_ERR_INVALID_STATE;
+                } else if (legacy->binding_version == access.binding_version) {
+                    data_ = legacy->memos;
+                    migrated_legacy_pending_ = access.owner.front() != '\0';
+                }
+            }
+        } else {
+            error = ESP_ERR_NO_MEM;
+        }
+    }
     nvs_close(handle);
-    ready_ = error == ESP_ERR_NVS_NOT_FOUND || (error == ESP_OK && size == sizeof(data_));
+    ready_ = error == ESP_ERR_NVS_NOT_FOUND || error == ESP_OK;
+    if (migrated_legacy_pending_) {
+        Save(data_);
+    }
+    return ready_;
 }
 
 bool SpeakerMemos::Save(const Data& data) {
+    if (CurrentAccess() != loaded_access_) {
+        return false;
+    }
     nvs_handle_t handle;
     if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
         return false;
     }
-    auto error = nvs_set_blob(handle, kDataKey, &data, sizeof(data));
+    esp_err_t error = ESP_ERR_NO_MEM;
+    if (loaded_access_.owner.front() == '\0') {
+        auto legacy = std::unique_ptr<LegacyData>(new (std::nothrow) LegacyData{loaded_access_.binding_version, data});
+        if (legacy) {
+            error = nvs_set_blob(handle, kLegacyKey, legacy.get(), sizeof(LegacyData));
+        }
+    } else {
+        auto record = std::unique_ptr<AccountData>(new (std::nothrow) AccountData{});
+        if (record) {
+            record->owner = loaded_access_.owner;
+            record->memos.last_id = data.last_id;
+            const auto end = std::copy_if(data.entries.begin(), data.entries.end(), record->memos.entries.begin(),
+                                          [](const Entry& entry) { return entry.id != 0; });
+            const size_t count = end - record->memos.entries.begin();
+            const auto key = StorageKey(loaded_access_.owner);
+            const size_t size = offsetof(AccountData, memos) + offsetof(Data, entries) + count * sizeof(Entry);
+            error = nvs_set_blob(handle, key.data(), record.get(), size);
+        }
+    }
     if (error == ESP_OK) {
         error = nvs_commit(handle);
+    }
+    if (error == ESP_OK && migrated_legacy_pending_) {
+        // Keep the old record until the new account record is committed.
+        const auto erased = nvs_erase_key(handle, kLegacyKey);
+        migrated_legacy_pending_ = erased != ESP_ERR_NVS_NOT_FOUND &&
+            (erased != ESP_OK || nvs_commit(handle) != ESP_OK);
     }
     nvs_close(handle);
     if (error != ESP_OK) {
@@ -183,8 +264,8 @@ bool SpeakerMemos::Save(const Data& data) {
     return true;
 }
 
-std::string SpeakerMemos::Create(int64_t binding, const std::string& content, std::string when) {
-    if (binding <= 0) {
+std::string SpeakerMemos::Create(const MemoAccess& access, const std::string& content, std::string when) {
+    if (access.binding_version <= 0) {
         return "未保存，请先在音箱上登录账号";
     }
     if (content.empty() || content.size() > kContentBytes ||
@@ -204,17 +285,13 @@ std::string SpeakerMemos::Create(int64_t binding, const std::string& content, st
         return "未保存，请提供有效日期";
     }
     std::lock_guard lock(mutex_);
-    if (!ready_) {
+    if (!LoadFor(access)) {
         return "未保存，本机记事存储暂不可用";
     }
-    std::unique_ptr<Data> next(new (std::nothrow) Data);
+    std::unique_ptr<Data> next(new (std::nothrow) Data(data_));
     if (!next) {
         return "未保存，本机暂时无法处理记事";
     }
-    if (data_.binding == binding) {
-        *next = data_;
-    }
-    next->binding = binding;
     auto slot = next->entries.end();
     for (auto it = next->entries.begin(); it != next->entries.end(); ++it) {
         if (it->id != 0 && when == it->when && content == it->content) {
@@ -239,41 +316,44 @@ std::string SpeakerMemos::Create(int64_t binding, const std::string& content, st
     return "已保存，编号 " + std::to_string(slot->id) + "，日期 " + when;
 }
 
-std::string SpeakerMemos::Cancel(int64_t binding, int id) {
-    if (binding <= 0) {
+std::string SpeakerMemos::Cancel(const MemoAccess& access, int id) {
+    if (access.binding_version <= 0) {
         return "未取消，请先在音箱上登录账号";
     }
     std::lock_guard lock(mutex_);
-    if (!ready_) {
+    if (!LoadFor(access)) {
         return "未取消，本机记事存储暂不可用";
     }
-    if (data_.binding == binding) {
-        const auto entry = std::find_if(data_.entries.begin(), data_.entries.end(), [id](const Entry& item) {
-            return item.id == id;
-        });
-        if (entry != data_.entries.end()) {
-            std::unique_ptr<Data> next(new (std::nothrow) Data(data_));
-            if (!next) {
-                return "未取消，本机暂时无法处理记事";
-            }
-            next->entries[entry - data_.entries.begin()] = {};
-            return Save(*next) ? "已取消记事" : "未取消，本机记事存储写入失败";
+    const auto entry = std::find_if(data_.entries.begin(), data_.entries.end(), [id](const Entry& item) {
+        return item.id == id;
+    });
+    if (entry != data_.entries.end()) {
+        std::unique_ptr<Data> next(new (std::nothrow) Data(data_));
+        if (!next) {
+            return "未取消，本机暂时无法处理记事";
         }
+        next->entries[entry - data_.entries.begin()] = {};
+        return Save(*next) ? "已取消记事" : "未取消，本机记事存储写入失败";
     }
     return "未找到该记事，请先查询本机记事编号";
 }
 
-std::vector<SpeakerMemos::Entry> SpeakerMemos::Entries(int64_t binding) const {
+std::vector<SpeakerMemos::Entry> SpeakerMemos::Entries(const MemoAccess& access) const {
     std::lock_guard lock(mutex_);
-    std::vector<Entry> entries;
-    if (ready_ && binding > 0 && binding == data_.binding) {
-        std::copy_if(data_.entries.begin(), data_.entries.end(), std::back_inserter(entries),
-                     [](const Entry& entry) { return entry.id != 0; });
-        std::sort(entries.begin(), entries.end(), [](const Entry& first, const Entry& second) {
-            const int order = std::strcmp(first.when, second.when);
-            return order == 0 ? first.id < second.id : order < 0;
-        });
+    if (!ready_ || access != loaded_access_ || CurrentAccess() != access) {
+        return {};
     }
+    return CopyEntries();
+}
+
+std::vector<SpeakerMemos::Entry> SpeakerMemos::CopyEntries() const {
+    std::vector<Entry> entries;
+    std::copy_if(data_.entries.begin(), data_.entries.end(), std::back_inserter(entries),
+                 [](const Entry& entry) { return entry.id != 0; });
+    std::sort(entries.begin(), entries.end(), [](const Entry& first, const Entry& second) {
+        const int order = std::strcmp(first.when, second.when);
+        return order == 0 ? first.id < second.id : order < 0;
+    });
     return entries;
 }
 
@@ -282,8 +362,8 @@ uint32_t SpeakerMemos::Revision() const {
     return revision_;
 }
 
-const SpeakerMemos::Entry* SpeakerMemos::FindDue(int64_t binding, std::time_t now) const {
-    if (!ready_ || binding <= 0 || binding != data_.binding || !now) {
+const SpeakerMemos::Entry* SpeakerMemos::FindDue(std::time_t now) const {
+    if (!ready_ || !now) {
         return nullptr;
     }
     const Entry* earliest = nullptr;
@@ -304,36 +384,44 @@ void SpeakerMemos::Tick() {
     if (app.GetDeviceState() != kDeviceStateIdle) {
         return;
     }
-    const auto binding = Binding();
+    const auto access = CurrentAccess();
     const auto now = SpeakerClock::Now();
-    if (binding <= 0 || !now) {
+    if (access.binding_version <= 0) {
         return;
     }
     {
         std::lock_guard lock(mutex_);
-        if (reminder_pending_ || checked_second_ == now) {
+        if (reminder_pending_) {
             return;
         }
-        checked_second_ = now;
-        if (!FindDue(binding, now)) {
-            return;
+        if (access == loaded_access_) {
+            if (checked_second_ == now) {
+                return;
+            }
+            checked_second_ = now;
+            if (!FindDue(now)) {
+                return;
+            }
         }
         reminder_pending_ = true;
     }
-    app.Schedule([this] { Remind(); });
+    app.Schedule([this, access] { Remind(access); });
 }
 
-void SpeakerMemos::Remind() {
+void SpeakerMemos::Remind(const MemoAccess& access) {
     auto& app = Application::GetInstance();
     auto& audio = app.GetAudioService();
     const bool idle = app.GetDeviceState() == kDeviceStateIdle && audio.IsPlaybackIdle() &&
         !audio.IsLocalCaptureRunning();
-    const auto binding = Binding();
     std::string notice;
     {
         std::lock_guard lock(mutex_);
         reminder_pending_ = false;
-        const auto* entry = idle ? FindDue(binding, SpeakerClock::Now()) : nullptr;
+        if (!LoadFor(access)) {
+            return;
+        }
+        checked_second_ = SpeakerClock::Now();
+        const auto* entry = idle ? FindDue(checked_second_) : nullptr;
         if (!entry) {
             return;
         }
@@ -347,7 +435,7 @@ void SpeakerMemos::Remind() {
             return;
         }
     }
-    if (Binding() == binding) {
+    if (CurrentAccess() == access) {
         Board::GetInstance().GetDisplay()->ShowNotification(notice.c_str(), 6000);
         app.PlaySound(Lang::Sounds::OGG_POPUP);
     }
