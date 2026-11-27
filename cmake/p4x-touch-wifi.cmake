@@ -33,5 +33,34 @@ execute_process(COMMAND "${GIT_EXECUTABLE}" --work-tree=. apply --no-index "${pa
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Review the P4X provisioning patch for the current esp-wifi-connect version")
 endif()
-set_property(TARGET "${wifi_target}" PROPERTY SOURCES "${wifi_sources}")
 target_include_directories("${wifi_target}" BEFORE PUBLIC "${generated_dir}/include")
+
+# Keep the portal's embedded symbols and plain HTML responses. Use compacted
+# copies in this product build, leaving the locked component intact.
+idf_build_get_property(python PYTHON)
+idf_build_get_property(idf_path IDF_PATH)
+set(compactor "${CMAKE_CURRENT_LIST_DIR}/compact-wifi-portal.py")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${compactor}")
+list(FILTER wifi_sources EXCLUDE REGEX "(^|/)wifi_configuration(_done)?[.]html[.]S$")
+set_property(TARGET "${wifi_target}" PROPERTY SOURCES "${wifi_sources}")
+foreach(page wifi_configuration.html wifi_configuration_done.html)
+    set(original "${wifi_dir}/assets/${page}")
+    set(compact "${generated_dir}/compact_${page}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${original}")
+    execute_process(COMMAND "${python}" "${compactor}" "${original}" "${compact}"
+        RESULT_VARIABLE result)
+    if(NOT result EQUAL 0)
+        message(FATAL_ERROR "Could not compact the P4X Wi-Fi portal page ${page}")
+    endif()
+    # Generate the assembly here because the Wi-Fi target belongs to the
+    # managed component's CMake directory.
+    set(assembly "${compact}.S")
+    execute_process(COMMAND "${CMAKE_COMMAND}" "-DDATA_FILE=${compact}"
+        "-DSOURCE_FILE=${assembly}" "-DVARIABLE_BASENAME=${page}" "-DFILE_TYPE=TEXT"
+        -P "${idf_path}/tools/cmake/scripts/data_file_embed_asm.cmake"
+        RESULT_VARIABLE result)
+    if(NOT result EQUAL 0)
+        message(FATAL_ERROR "Could not embed the P4X Wi-Fi portal page ${page}")
+    endif()
+    target_sources("${wifi_target}" PRIVATE "${assembly}")
+endforeach()
