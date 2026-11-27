@@ -29,6 +29,7 @@ SpeakerHomeDisplay::~SpeakerHomeDisplay() {
     conversation_.Stop();
     account_.Destroy();
     screensaver_.Hide();
+    boot_.Destroy();
     lv_obj_delete(scene_);
     system_background_.Release(container_);
 }
