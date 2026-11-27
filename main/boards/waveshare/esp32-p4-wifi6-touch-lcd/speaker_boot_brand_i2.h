@@ -18,6 +18,7 @@ enum {
 
 extern const lv_image_dsc_t speaker_boot_emblem_i2;
 extern const lv_image_dsc_t speaker_boot_wordmark_i2;
+extern const lv_image_dsc_t speaker_boot_title_i2;
 
 #ifdef __cplusplus
 }

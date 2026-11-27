@@ -10,13 +10,12 @@ public:
     void Create(lv_obj_t* parent, SpeakerBackground& background);
     bool Visible() const;
     void Update(bool interrupted, SpeakerBackground& background);
+    void SetSystemBrandVisible(lv_obj_t* parent, bool visible);
 
 private:
     lv_obj_t* root_ = nullptr;
+    lv_obj_t* artwork_ = nullptr;
     lv_obj_t* brand_ = nullptr;
-    lv_obj_t* emblem_ = nullptr;
-    lv_obj_t* wordmark_ = nullptr;
-    lv_obj_t* title_ = nullptr;
     uint32_t started_ = 0;
 };
 

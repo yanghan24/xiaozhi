@@ -85,6 +85,9 @@ void SpeakerHomeDisplay::SetupUI() {
         Application::GetInstance().EndSpeakerConversation();
     }, this);
     boot_.Create(scene_, system_background_);
+    if (emoji_box_) {
+        lv_obj_set_style_opa(emoji_box_, LV_OPA_TRANSP, LV_STATE_USER_1);
+    }
 #if CONFIG_XIAOZHI_SPEAKER_TOUCH_WIFI
     wifi_.Create(scene_, navigation_);
 #endif
@@ -313,6 +316,11 @@ void SpeakerHomeDisplay::RefreshUi() {
         system_background_.Release(container_);
     }
     system_background_visible_ = show_system_background;
+    const bool show_system_brand = show_system_background && !has_preview_;
+    boot_.SetSystemBrandVisible(container_, show_system_brand);
+    if (emoji_box_) {
+        lv_obj_set_state(emoji_box_, LV_STATE_USER_1, show_system_brand);
+    }
 
     const bool waiting = state == kDeviceStateSpeaking || awaiting_reply_;
     const auto motion = voice_playback_ ? SpeakerWave::Motion::Speaking :
