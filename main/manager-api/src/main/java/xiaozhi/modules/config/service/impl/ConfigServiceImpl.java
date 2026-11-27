@@ -58,6 +58,8 @@ public class ConfigServiceImpl implements ConfigService {
     private final RedisUtils redisUtils;
     private final TimbreService timbreService;
     private final AgentPluginMappingService agentPluginMappingService;
+    private final xiaozhi.modules.speaker.SpeakerFunctionPlugins speakerFunctionPlugins;
+    private final xiaozhi.modules.speaker.SpeakerSettings speakerSettings;
     private final AgentMcpAccessPointService agentMcpAccessPointService;
     private final AgentContextProviderService agentContextProviderService;
     private final VoiceCloneService cloneVoiceService;
@@ -204,7 +206,8 @@ public class ConfigServiceImpl implements ConfigService {
                 for (AgentPluginMapping pluginMapping : pluginMappings) {
                     pluginParams.put(pluginMapping.getProviderCode(), pluginMapping.getParamInfo());
                 }
-                result.put("plugins", pluginParams);
+                result.put("plugins", speakerSettings.enabled()
+                        ? speakerFunctionPlugins.runtime(pluginMappings) : pluginParams);
             }
         }
         // 获取mcp接入点地址

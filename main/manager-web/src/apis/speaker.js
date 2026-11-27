@@ -20,10 +20,17 @@ const errors = {
   MCP_NOT_FOUND: 'MCP 服务不存在，请刷新目录。',
   INVALID_THIRD_PARTY_SERVICE: '请检查服务名称、地址、接口和认证配置。启用时需填完整。',
   THIRD_PARTY_SERVICE_CHANGED: '服务配置已变化，请刷新页面后重试。',
+  INVALID_PLUGIN_CONFIGURATION: '请检查功能插件的参数和必填凭据。',
+  PLUGIN_CONFIGURATION_REQUIRED: '请先完成插件配置，再启用。',
+  PLUGIN_CONFIGURATION_CHANGED: '功能插件配置已变化，请刷新后重试。',
+  PLUGIN_NOT_FOUND: '功能插件不存在，请刷新后重试。',
 };
 
 export function adminToken(store) {
   try { return JSON.parse(store.getters.getToken || '{}').token || ''; } catch (_) { return ''; }
+}
+export function functionPluginName(id, name, translate) {
+  return id === 'SYSTEM_PLUGIN_WEATHER' ? translate('agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER') : name;
 }
 export async function speakerRequest(token, path, body, signal) {
   const response = await fetch(`${getServiceUrl()}/admin/speaker/${path}`, {

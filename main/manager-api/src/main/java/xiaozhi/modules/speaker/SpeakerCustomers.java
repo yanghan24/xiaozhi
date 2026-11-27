@@ -42,8 +42,17 @@ public class SpeakerCustomers {
                     device.put("online",SpeakerSupport.online(row.get("last_seen_at_ms"),System.currentTimeMillis()));return device;
                 }).toList());
         var grant=grants.grant(id);
-        result.put("authorization",grant==null?null:Map.of("client_id",settings.clientId(),"token_status",grant.get("token_status"),
-                "identity_authorized",SpeakerGrants.usable(grant,System.currentTimeMillis())));
+        if (grant == null) {
+            result.put("authorization",null);
+        } else {
+            var authorization=new LinkedHashMap<String,Object>();
+            authorization.put("client_id",settings.clientId());
+            authorization.put("token_status",grant.get("token_status"));
+            authorization.put("identity_authorized",SpeakerGrants.usable(grant,System.currentTimeMillis()));
+            authorization.put("token_error",grant.get("token_error"));
+            authorization.put("token_retry_at_ms",grant.get("token_retry_at_ms"));
+            result.put("authorization",authorization);
+        }
         return result;
     }
     public Map<String,Object> refresh(String id) {

@@ -919,7 +919,7 @@ export default {
   'agentSnapshot.chatHistoryConf.none': 'Chatverlauf nicht aufzeichnen',
   'agentSnapshot.chatHistoryConf.text': 'Text melden',
   'agentSnapshot.chatHistoryConf.textVoice': 'Text und Sprache melden',
-  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'Wetter',
+  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'QWeather',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_MUSIC': 'Server-Musikplayer',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_CHINANEWS': 'China News',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_NEWSNOW': 'NewsNow-Aggregation',

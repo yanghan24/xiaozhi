@@ -75,6 +75,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     private final RedisUtils redisUtils;
     private final DeviceService deviceService;
     private final AgentPluginMappingService agentPluginMappingService;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerFunctionPlugins speakerFunctionPlugins;
     private final AgentChatHistoryService agentChatHistoryService;
     private final AgentTemplateService agentTemplateService;
     private final ModelProviderService modelProviderService;
@@ -455,6 +456,14 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
 
         // 更新函数插件信息
         List<AgentUpdateDTO.FunctionInfo> functions = dto.getFunctions();
+        boolean selectionOnly = dto.getPluginIds() != null;
+        if (selectionOnly) {
+            functions = dto.getPluginIds().stream().distinct().map(id -> {
+                var entry = new AgentUpdateDTO.FunctionInfo();
+                entry.setPluginId(id);
+                return entry;
+            }).toList();
+        }
         if (functions != null) {
             // 1. 收集本次提交的 pluginId
             List<String> newPluginIds = functions.stream()
@@ -468,13 +477,17 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
             Map<String, AgentPluginMapping> existMap = existing.stream()
                     .collect(Collectors.toMap(AgentPluginMapping::getPluginId, Function.identity()));
 
+            if (selectionOnly) {
+                speakerFunctionPlugins.validateSelections(newPluginIds, existMap.keySet());
+            }
+
             // 3. 构造所有要 保存或更新 的实体
             List<AgentPluginMapping> allToPersist = functions.stream().map(info -> {
                 AgentPluginMapping m = new AgentPluginMapping();
                 m.setAgentId(agentId);
                 m.setPluginId(info.getPluginId());
-                m.setParamInfo(JsonUtils.toJsonString(info.getParamInfo()));
                 AgentPluginMapping old = existMap.get(info.getPluginId());
+                m.setParamInfo(selectionOnly && old != null ? old.getParamInfo() : JsonUtils.toJsonString(info.getParamInfo()));
                 if (old != null) {
                     // 已存在，设置id表示更新
                     m.setId(old.getId());

@@ -1,12 +1,20 @@
 package xiaozhi.modules.speaker;
 
+import java.net.ConnectException;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.channels.UnresolvedAddressException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -19,30 +27,56 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /** AI Market's public device application contract. No website login, callback or client secret. */
 @Component
 public class SpeakerMarket {
     public static final String SCOPES = "openid profile organization balance:read credentials:manage offline_access";
+    static final String RECHARGE_SCOPE = "recharge:write";
     private final SpeakerSettings settings;
+    private final boolean rechargeEnabled;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(5)).build();
     private volatile JsonNode discovery;
-    public SpeakerMarket(SpeakerSettings settings) { this.settings = settings; }
+    private long refreshProbeAt;
+    private RuntimeException refreshProbeFailure;
+    public SpeakerMarket(SpeakerSettings settings, @Value("${speaker.recharge-enabled:false}") boolean rechargeEnabled) {
+        this.settings = settings;
+        this.rechargeEnabled = rechargeEnabled;
+    }
 
     public record DeviceAuthorization(String deviceCode,String userCode,String verificationUri,long expiresIn,long interval) {
         @Override public String toString() { return "DeviceAuthorization[redacted]"; }
     }
     public record Tokens(String subject,String access,String refresh,long expiresAt,String scope) {
         @Override public String toString() { return "Tokens[redacted]"; }
+        boolean allowsRecharge() {
+            return SpeakerMarket.allowsRecharge(scope);
+        }
+    }
+    static boolean allowsRecharge(String scope) {
+        return scope != null && java.util.Arrays.asList(scope.split("\\s+")).contains(RECHARGE_SCOPE);
+    }
+    record RechargeEntry(String entryId, String url, long expiresIn, long pollInterval) {
+        @Override public String toString() { return "RechargeEntry[redacted]"; }
     }
     public record Poll(Tokens tokens,String error) {
         @Override public String toString() { return "Poll[redacted]"; }
     }
     public record Credential(String key,String baseUrl,Long expiresAt) {
         @Override public String toString() { return "Credential[redacted]"; }
+    }
+
+    static final class RefreshRetry extends RuntimeException {
+        final long retryAfterMs;
+
+        RefreshRetry(String code, long retryAfterMs) {
+            super(code);
+            this.retryAfterMs = retryAfterMs;
+        }
     }
     private URI issuer() {
         settings.requireEnabled();
@@ -67,39 +101,104 @@ public class SpeakerMarket {
     }
     private JsonNode metadata() {
         if (discovery != null) return discovery;
-        JsonNode node=request(URI.create(issuer()+"/.well-known/openid-configuration"),"GET",null,null,false);
+        return readMetadata(false);
+    }
+
+    private JsonNode readMetadata(boolean refresh) {
+        JsonNode node=request(URI.create(issuer()+"/.well-known/openid-configuration"),"GET",null,null,false,refresh);
         if (!settings.issuer().equals(node.path("issuer").asText())) throw new SpeakerFailure(502,"INVALID_MARKET_ISSUER");
         for(String field:new String[]{"device_authorization_endpoint","token_endpoint","userinfo_endpoint","jwks_uri"})
             trusted(node.path(field).asText());
         discovery=node;
         return node;
     }
+
+    private synchronized void probeBeforeRefresh() {
+        // During a rollout, a failed discovery GET leaves the refresh token untouched.
+        // A recent successful check can be shared by the grants in this polling batch.
+        if (refreshProbeAt != 0 && System.nanoTime() - refreshProbeAt < 1_000_000_000L) {
+            if (refreshProbeFailure != null) throw refreshProbeFailure;
+            return;
+        }
+        try {
+            readMetadata(true);
+            refreshProbeFailure = null;
+        } catch (RefreshRetry failure) {
+            refreshProbeFailure = failure;
+            throw failure;
+        } catch (SpeakerFailure failure) {
+            boolean invalidConfig = Set.of("INVALID_MARKET_CONFIG", "INVALID_MARKET_ISSUER", "INVALID_MARKET_ENDPOINT",
+                    "MARKET_CLIENT_NOT_CONFIGURED").contains(failure.getMessage());
+            refreshProbeFailure = invalidConfig ? new SpeakerFailure(503, "MARKET_CLIENT_CONFIGURATION")
+                    : new RefreshRetry("MARKET_REFRESH_NOT_SENT", 0);
+            throw refreshProbeFailure;
+        } finally {
+            refreshProbeAt = System.nanoTime();
+        }
+    }
+
+    private synchronized void invalidateRefreshProbe() { refreshProbeAt = 0; }
+
     private URI endpoint(String name) { return trusted(metadata().path(name).asText()); }
     private static String form(Map<String,String> values) {
         return values.entrySet().stream().map(e -> URLEncoder.encode(e.getKey(),StandardCharsets.UTF_8)+"="
                 +URLEncoder.encode(e.getValue(),StandardCharsets.UTF_8)).collect(Collectors.joining("&"));
     }
     private JsonNode request(URI uri,String method,String access,String body,boolean oauthError) {
+        return request(uri,method,access,body,oauthError,false);
+    }
+
+    private JsonNode request(URI uri,String method,String access,String body,boolean oauthError,boolean refresh) {
         try {
             var request=HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).header("Accept","application/json");
             if(access!=null) request.header("Authorization","Bearer "+access);
             if(body!=null) request.header("Content-Type","application/x-www-form-urlencoded");
-            var response=http.send(request.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofInputStream());
+            var outbound=request.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(body)).build();
+            HttpResponse<java.io.InputStream> response;
+            try {
+                response=http.send(outbound,HttpResponse.BodyHandlers.ofInputStream());
+            } catch (ConnectException | UnknownHostException | HttpConnectTimeoutException | UnresolvedAddressException unavailable) {
+                if (refresh) throw new RefreshRetry("MARKET_REFRESH_NOT_SENT", 0);
+                throw unavailable;
+            }
             byte[] raw;
-            try(var stream=response.body()) { raw=stream.readNBytes(65537); }
+            try(var stream=response.body()) {
+                if (refresh && response.statusCode() == 429) {
+                    long wait = response.headers().firstValue("Retry-After").map(SpeakerMarket::retryAfterMs).orElse(0L);
+                    throw new RefreshRetry("MARKET_RATE_LIMITED", wait);
+                }
+                raw=stream.readNBytes(65537);
+            }
             if(raw.length>65536) throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
             JsonNode node=json.readTree(raw);
             if(node==null || !node.isObject()) throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
             if(response.statusCode()>=200 && response.statusCode()<300) return node;
-            if(oauthError && response.statusCode()==400 && Set.of("authorization_pending","slow_down","access_denied",
-                    "expired_token","invalid_grant","invalid_client","invalid_scope").contains(node.path("error").asText())) return node;
+            String error = node.path("error").asText();
+            if(oauthError && response.statusCode()==400 && (Set.of("authorization_pending","slow_down","access_denied",
+                    "expired_token","invalid_grant","invalid_client","invalid_scope").contains(error)
+                    || refresh && Set.of("invalid_request","unauthorized_client","unsupported_grant_type").contains(error))) return node;
+            if (refresh && oauthError && response.statusCode() == 401 && "invalid_client".equals(error)) return node;
             if(response.statusCode()==401) throw new SpeakerFailure(401,"MARKET_AUTH_REQUIRED");
             if(response.statusCode()==403) throw new SpeakerFailure(403,"MARKET_FORBIDDEN");
             if(response.statusCode()==429) throw new SpeakerFailure(429,"MARKET_RATE_LIMITED");
             throw new SpeakerFailure(503,"MARKET_UNAVAILABLE");
-        } catch (SpeakerFailure failure) { throw failure; }
+        } catch (SpeakerFailure | RefreshRetry failure) { throw failure; }
         catch (InterruptedException failure) { Thread.currentThread().interrupt(); throw new SpeakerFailure(503,"MARKET_UNAVAILABLE"); }
         catch (Exception failure) { throw new SpeakerFailure(503,"MARKET_UNAVAILABLE"); }
+    }
+
+    private static long retryAfterMs(String value) {
+        try {
+            long seconds = Long.parseLong(value);
+            return Math.max(0, Math.min(seconds, Long.MAX_VALUE / 2000)) * 1000;
+        } catch (NumberFormatException failure) {
+            try {
+                return Math.max(0, Duration.between(Instant.now(),
+                        ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()).toMillis());
+            } catch (DateTimeParseException invalid) {
+                return 0;
+            }
+        }
     }
     private static String required(JsonNode node,String field,int max) {
         JsonNode value=node.path(field);
@@ -108,8 +207,20 @@ public class SpeakerMarket {
         return value.asText();
     }
     public DeviceAuthorization begin() {
+        return rechargeEnabled ? beginRecharge() : begin(SCOPES);
+    }
+
+    DeviceAuthorization beginRecharge() {
+        return begin(SCOPES + " " + RECHARGE_SCOPE);
+    }
+
+    URI verificationUri(String value) {
+        return trusted(value);
+    }
+
+    private DeviceAuthorization begin(String scopes) {
         var node=request(endpoint("device_authorization_endpoint"),"POST",null,
-                form(Map.of("client_id",settings.clientId(),"scope",SCOPES)),false);
+                form(Map.of("client_id",settings.clientId(),"scope",scopes)),false);
         String uri=required(node,"verification_uri_complete",2048);
         trusted(uri);
         long expires=node.path("expires_in").asLong(), interval=node.path("interval").asLong(5);
@@ -123,11 +234,24 @@ public class SpeakerMarket {
         return new Poll(tokens(node,true,null),null);
     }
     public Tokens refresh(String refreshToken,String subject) {
-        var node=request(endpoint("token_endpoint"),"POST",null,form(Map.of("client_id",settings.clientId(),
-                "grant_type","refresh_token","refresh_token",refreshToken)),true);
+        probeBeforeRefresh();
+        JsonNode node;
+        try {
+            node=request(endpoint("token_endpoint"),"POST",null,form(Map.of("client_id",settings.clientId(),
+                    "grant_type","refresh_token","refresh_token",refreshToken)),true,true);
+        } catch (SpeakerFailure | RefreshRetry failure) {
+            // Recheck reachability before sending another user's refresh during a cutover.
+            invalidateRefreshProbe();
+            throw failure;
+        }
         if(node.has("error")) {
-            if("invalid_grant".equals(node.path("error").asText())) throw new SpeakerFailure(401,"MARKET_REAUTH_REQUIRED");
-            throw new SpeakerFailure(503,"MARKET_UNAVAILABLE");
+            switch (node.path("error").asText()) {
+                case "invalid_grant" -> throw new SpeakerFailure(401,"MARKET_REAUTH_REQUIRED");
+                case "invalid_client", "unauthorized_client" -> throw new SpeakerFailure(503,"MARKET_CLIENT_CONFIGURATION");
+                case "invalid_scope", "invalid_request", "unsupported_grant_type" ->
+                        throw new SpeakerFailure(503,"MARKET_REFRESH_CONFIGURATION");
+                default -> throw new SpeakerFailure(503,"MARKET_UNAVAILABLE");
+            }
         }
         Tokens tokens=tokens(node,false,subject);
         if(tokens.refresh().equals(refreshToken)) throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
@@ -149,8 +273,10 @@ public class SpeakerMarket {
             } catch(Exception failure) { throw new SpeakerFailure(502,"INVALID_MARKET_IDENTITY"); }
         }
         if(subject==null || subject.isBlank() || subject.length()>255) throw new SpeakerFailure(502,"INVALID_MARKET_IDENTITY");
+        String scope = node.path("scope").asText();
+        if (scope.length()>1024) throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
         return new Tokens(subject,required(node,"access_token",8192),required(node,"refresh_token",8192),
-                System.currentTimeMillis()+expires*1000,node.path("scope").asText());
+                System.currentTimeMillis()+expires*1000,scope);
     }
     public JsonNode profile(Tokens tokens) {
         JsonNode node=request(endpoint("userinfo_endpoint"),"GET",tokens.access(),null,false);
@@ -177,6 +303,28 @@ public class SpeakerMarket {
         }
         return new Credential(required(data,"api_key",8192),base,expires);
     }
+    public boolean credentialAccepted(Credential credential) {
+        URI base=trusted(credential.baseUrl());
+        var request=HttpRequest.newBuilder(base.resolve("/v1/models")).timeout(Duration.ofSeconds(4))
+                .header("Authorization","Bearer "+credential.key()).GET().build();
+        try {
+            var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
+            try(var ignored=response.body()) {
+                return switch(response.statusCode()) {
+                    case 200 -> true;
+                    case 401 -> false;
+                    case 403 -> throw new SpeakerFailure(403,"MARKET_MODEL_FORBIDDEN");
+                    case 429 -> throw new SpeakerFailure(429,"MARKET_RATE_LIMITED");
+                    default -> throw new SpeakerFailure(503,"MARKET_CREDENTIAL_UNAVAILABLE");
+                };
+            }
+        } catch(InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new SpeakerFailure(503,"MARKET_CREDENTIAL_UNAVAILABLE");
+        } catch(java.io.IOException failure) {
+            throw new SpeakerFailure(503,"MARKET_CREDENTIAL_UNAVAILABLE");
+        }
+    }
     public java.math.BigDecimal balance(Tokens tokens) {
         JsonNode data=business("/api/application-balance","GET",tokens.access());
         if(!tokens.subject().equals(data.path("subject").asText()) || !data.path("balance").isNumber())
@@ -185,5 +333,46 @@ public class SpeakerMarket {
         if(value.precision()>30 || value.scale()>8 || value.precision()-value.scale()>22)
             throw new SpeakerFailure(502,"INVALID_MARKET_RESPONSE");
         return value;
+    }
+
+    RechargeEntry rechargeEntry(Tokens tokens) {
+        var data = business("/api/application-recharge/entries", "POST", tokens.access());
+        String id = required(data, "entryId", 36);
+        String url = required(data, "url", 512);
+        URI link;
+        try {
+            link = URI.create(url);
+        } catch (IllegalArgumentException failure) {
+            throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        }
+        URI base = issuer();
+        long expires = data.path("expiresIn").asLong();
+        long interval = data.path("pollInterval").asLong();
+        if (!"/application/recharge".equals(link.getRawPath()) || !base.getScheme().equals(link.getScheme())
+                || !base.getAuthority().equals(link.getRawAuthority()) || link.getRawQuery() != null
+                || link.getRawFragment() == null || !link.getRawFragment().matches("ticket=[A-Za-z0-9_-]{43}")
+                || !validEntryId(id) || expires < 1 || expires > 300 || interval < 2 || interval > 30) {
+            throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        }
+        return new RechargeEntry(id, url, expires, interval);
+    }
+
+    static boolean validEntryId(String value) {
+        return value != null && value.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
+    }
+
+    String rechargeStatus(String entryId, Tokens tokens) {
+        if (!validEntryId(entryId)) throw new SpeakerFailure(400, "INVALID_RECHARGE_ENTRY");
+        var data = business("/api/application-recharge/entries/" + entryId, "GET", tokens.access());
+        var order = data.path("order");
+        if (!entryId.equals(data.path("entryId").asText())) throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        if (order.isNull()) return "waiting";
+        if (!order.isObject() || !order.path("payStatus").isIntegralNumber())
+            throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        if (order.path("payStatus").asInt() == 1) return "paid";
+        if (order.path("payStatus").asInt() != 0) throw new SpeakerFailure(502, "INVALID_MARKET_RESPONSE");
+        if (order.hasNonNull("paymentClosedAt")) return "closed";
+        if (order.hasNonNull("paymentCheckStoppedAt")) return "check_later";
+        return "pending";
     }
 }

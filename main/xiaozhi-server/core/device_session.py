@@ -2,8 +2,9 @@
 import asyncio
 import contextlib
 
-from config.manage_api_client import device_session
+from config.manage_api_client import MarketCredentialError, device_session
 from core.auth import AuthenticationError
+from core.providers.market_credential import MarketSessionCredential, notify_market_credential_error
 
 
 def diagnostic_deadline(value):
@@ -21,6 +22,22 @@ class DeviceSession:
         self.memory_scope = memory_scope
         self.diagnostics_until_ms = diagnostic_deadline(diagnostics_until_ms)
         self.lock = asyncio.Lock()
+        self.market_credential = None
+
+    def install_market_credential(self, conn, config):
+        data = config.get("market_credential")
+        self.market_credential = None
+        if not isinstance(data, dict):
+            return
+        self.market_credential = MarketSessionCredential(conn.device_id, self.session, conn.loop, data)
+        for kind in ("ASR", "TTS", "LLM", "VLLM", "SLM"):
+            for provider in (config.get(kind) or {}).values():
+                if isinstance(provider, dict) and provider.get("source") == "aimarket":
+                    provider["market_credential_handle"] = self.market_credential
+
+    def invalidate_market_credential(self):
+        if self.market_credential:
+            self.market_credential.invalidate()
 
     @classmethod
     async def open(cls, headers):
@@ -56,6 +73,7 @@ class DeviceSession:
         except asyncio.CancelledError:
             raise
         except Exception:
+            self.invalidate_market_credential()
             conn.client_abort = True
             conn.clear_queues()
             await conn.close()
@@ -78,7 +96,12 @@ class DeviceSession:
                         raise RuntimeError('Previous answer still playing')
                     conn.memory_scope = status['memory_scope']
                     await conn.reload_agent_configuration()
-            except Exception:
+                elif self.market_credential and "market_credential_generation" in status:
+                    await self.market_credential.synchronize(status["market_credential_generation"])
+            except Exception as failure:
+                if isinstance(failure, MarketCredentialError):
+                    await notify_market_credential_error(conn, failure)
+                self.invalidate_market_credential()
                 conn.client_abort = True
                 conn.clear_queues()
                 await conn.close()

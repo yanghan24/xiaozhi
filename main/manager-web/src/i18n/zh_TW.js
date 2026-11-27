@@ -919,7 +919,7 @@ export default {
   'agentSnapshot.chatHistoryConf.none': '不記錄聊天記錄',
   'agentSnapshot.chatHistoryConf.text': '上報文字',
   'agentSnapshot.chatHistoryConf.textVoice': '上報文字+語音',
-  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': '天氣查詢',
+  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': '和風天氣',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_MUSIC': '伺服器音樂播放',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_CHINANEWS': '中新網新聞',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_NEWSNOW': 'newsnow新聞聚合',

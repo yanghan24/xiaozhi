@@ -41,7 +41,8 @@ from config.config_loader import get_private_config_from_api
 from core.providers.tts.dto.dto import ContentType, TTSMessageDTO, SentenceType
 from config.logger import setup_logging, build_module_string, create_connection_logger
 from core.voice_timing import VoiceTiming
-from config.manage_api_client import DeviceNotFoundException, DeviceBindException, generate_and_save_chat_title
+from config.manage_api_client import DeviceNotFoundException, DeviceBindException, MarketCredentialError, generate_and_save_chat_title
+from core.providers.market_credential import notify_market_credential_error
 from core.utils.prompt_manager import PromptManager
 from core.utils.voiceprint_provider import VoiceprintProvider
 from core.utils.util import get_system_error_response
@@ -836,6 +837,9 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).info(
                 f"{time.time() - begin_time} 秒，异步获取差异化配置成功: {json.dumps(filter_sensitive_info(private_config), ensure_ascii=False)}"
             )
+            identity = getattr(self, "identity_session", None)
+            if identity:
+                identity.install_market_credential(self, private_config)
             self.need_bind = False
             self.bind_completed_event.set()
         except DeviceNotFoundException as e:
@@ -845,6 +849,9 @@ class ConnectionHandler:
             self.need_bind = True
             self.bind_code = e.bind_code
             private_config = {}
+        except MarketCredentialError as e:
+            await notify_market_credential_error(self, e)
+            raise
         except Exception as e:
             self.need_bind = True
             self.logger.bind(tag=TAG).error(f"异步获取差异化配置失败: {e}")
@@ -1313,14 +1320,17 @@ class ConnectionHandler:
             if timing:
                 timing.finish('llm_error')
             self.logger.bind(tag=TAG).error(f"LLM stream processing error: {e}")
-            self.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=current_sentence_id,
-                    sentence_type=SentenceType.MIDDLE,
-                    content_type=ContentType.TEXT,
-                    content_detail=get_system_error_response(self.config),
+            if isinstance(e, MarketCredentialError):
+                asyncio.run_coroutine_threadsafe(notify_market_credential_error(self, e), self.loop)
+            else:
+                self.tts.tts_text_queue.put(
+                    TTSMessageDTO(
+                        sentence_id=current_sentence_id,
+                        sentence_type=SentenceType.MIDDLE,
+                        content_type=ContentType.TEXT,
+                        content_detail=get_system_error_response(self.config),
+                    )
                 )
-            )
             if depth == 0:
                 self.tts.tts_text_queue.put(
                     TTSMessageDTO(

@@ -1,7 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
+import httpx
+import openai
 import pytest
+from config.manage_api_client import MarketCredentialError
 from core.providers.llm.openai.openai import LLMProvider
 from core.providers.vllm.openai import VLLMProvider
 from core.api.vision_handler import VisionHandler
@@ -42,6 +45,31 @@ def test_original_openai_provider_scopes_json_and_retry_settings_to_market(monke
     market.response_no_stream("system", "test")
     assert requests[-1]["response_format"] == {"type": "json_object"}
     assert requests[-1]["extra_body"] == {"reasoning_effort": "none"}
+
+
+def test_market_chat_refreshes_only_before_opening_a_stream(monkeypatch):
+    denial = openai.AuthenticationError("rejected", response=httpx.Response(
+        401, request=httpx.Request("POST", "https://aimarket.hncig.cn/v1/chat/completions"),
+    ), body=None)
+    active_stream = Mock()
+    credential = Mock(value=("old", "old-fixture"))
+    credential.recover_for_thread.return_value = ("new", "new-fixture")
+    client = Mock()
+    client.with_options.return_value.chat.completions.create.side_effect = [denial, active_stream]
+    monkeypatch.setattr("core.providers.llm.openai.openai.openai.OpenAI", Mock(return_value=client))
+    provider = LLMProvider({"model_name": "fixture", "source": "aimarket", "api_key": "old-fixture",
+                            "market_credential_handle": credential})
+    assert provider._create_completion({"stream": True}) is active_stream
+    credential.recover_for_thread.assert_called_once_with("old")
+    assert [call.kwargs["api_key"] for call in client.with_options.call_args_list] == ["old-fixture", "new-fixture"]
+    credential.recover_for_thread.reset_mock()
+    client.with_options.return_value.chat.completions.create.side_effect = openai.BadRequestError(
+        "rejected", response=httpx.Response(400, request=httpx.Request("POST", "https://aimarket.hncig.cn/v1/chat/completions")),
+        body={"message": "积分不足，请充值后重试"},
+    )
+    with pytest.raises(MarketCredentialError, match="MARKET_INSUFFICIENT_POINTS"):
+        provider._create_completion({"stream": True})
+    credential.recover_for_thread.assert_not_called()
 
 
 def test_vision_provider_only_disables_reasoning_for_market(monkeypatch):

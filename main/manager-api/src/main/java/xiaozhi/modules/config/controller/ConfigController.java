@@ -29,11 +29,14 @@ import xiaozhi.modules.config.service.ConfigService;
 public class ConfigController {
     private final ConfigService configService;
     @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketModelRuntime marketModels;
+    @jakarta.annotation.Resource private xiaozhi.modules.model.market.MarketResourceCredentials marketCredentials;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerSettings speakerSettings;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerVoice speakerVoice;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerAgents speakerAgents;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerMcp speakerMcp;
     @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerConversations speakerConversations;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerWeather speakerWeather;
+    @jakarta.annotation.Resource private xiaozhi.modules.speaker.SpeakerFunctionPlugins functionPlugins;
 
     @PostMapping("server-base")
     @Operation(summary = "服务端获取配置接口")
@@ -86,6 +89,32 @@ public class ConfigController {
         if(body.size()>2 || body.values().stream().anyMatch(v->v==null || v.length()>2048))
             throw new xiaozhi.modules.speaker.SpeakerFailure(400,"INVALID_REQUEST");
         return new Result<Object>().ok(speakerVoice.action(action,body));
+    }
+
+    public record WeatherQuery(String session, String address, String location) {}
+
+    public record MarketCredentialQuery(String deviceId, String session, String rejectedGeneration) {}
+
+    @PostMapping("market-credential")
+    public Result<Object> marketCredential(@RequestBody MarketCredentialQuery query) {
+        speakerSettings.requireEnabled();
+        if(query.rejectedGeneration()!=null && !query.rejectedGeneration().matches("[A-Za-z0-9_-]{43}"))
+            throw new xiaozhi.modules.speaker.SpeakerFailure(400,"INVALID_REQUEST");
+        String customer=speakerVoice.customerForSession(query.deviceId(),query.session());
+        var current=marketCredentials.current(customer,query.rejectedGeneration());
+        if(!customer.equals(speakerVoice.customerForSession(query.deviceId(),query.session())))
+            throw new xiaozhi.modules.speaker.SpeakerFailure(403,"VOICE_DENIED");
+        return new Result<Object>().ok(current.forVoice());
+    }
+
+    @PostMapping("weather")
+    public Result<Object> weather(@RequestBody WeatherQuery query) {
+        speakerSettings.requireEnabled();
+        speakerVoice.requireSession(query.session());
+        Object result = functionPlugins.weatherSelected(speakerAgents.configurationId())
+                ? speakerWeather.query(query.address(), query.location())
+                : java.util.Map.of("status", "unavailable");
+        return new Result<>().ok(result);
     }
 
     @org.springframework.web.bind.annotation.ExceptionHandler(xiaozhi.modules.speaker.SpeakerFailure.class)

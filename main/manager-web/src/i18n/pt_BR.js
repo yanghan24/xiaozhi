@@ -919,7 +919,7 @@ export default {
   'agentSnapshot.chatHistoryConf.none': 'Não registrar histórico de conversa',
   'agentSnapshot.chatHistoryConf.text': 'Enviar texto',
   'agentSnapshot.chatHistoryConf.textVoice': 'Enviar texto e voz',
-  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'Clima',
+  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'QWeather',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_MUSIC': 'Reprodutor de música do servidor',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_CHINANEWS': 'China News',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_NEWSNOW': 'Agregação NewsNow',

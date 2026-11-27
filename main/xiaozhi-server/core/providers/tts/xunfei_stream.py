@@ -13,6 +13,8 @@ import websockets
 from asyncio import Task
 from typing import Callable, Any
 from config.logger import setup_logging
+from config.manage_api_client import MarketCredentialError
+from core.providers.market_credential import notify_market_credential_error
 from core.voice_timing import VoiceTiming
 from core.utils.tts import MarkdownCleaner
 from urllib.parse import urlencode, urlparse, urlsplit, urlunsplit
@@ -79,6 +81,7 @@ class TTSProvider(TTSProviderBase):
         self.api_secret = config.get("api_secret")
         self.report_on_last = True
         self.market = config.get("source") == "aimarket"
+        self.market_credential = config.get("market_credential_handle") if self.market else None
 
         # 接口地址
         self.api_url = config.get("api_url", "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6")
@@ -149,9 +152,14 @@ class TTSProvider(TTSProviderBase):
     def _open_websocket(self):
         options = {"ping_interval": 30, "ping_timeout": 10, "close_timeout": 10}
         if self.market:
-            options.update(additional_headers={"Authorization": "Bearer " + self.api_key},
-                           open_timeout=8, close_timeout=2)
-            return websockets.connect(self.api_url, **options)
+            options.update(open_timeout=8, close_timeout=2)
+
+            def connect(key):
+                return websockets.connect(self.api_url, additional_headers={"Authorization": "Bearer " + key}, **options)
+
+            if self.market_credential:
+                return self.market_credential.open_websocket(connect)
+            return connect(self.api_key)
         url = XunfeiWSAuth.create_auth_url(self.api_key, self.api_secret, self.api_url)
         return websockets.connect(url, **options)
 
@@ -429,9 +437,11 @@ class TTSProvider(TTSProviderBase):
                 self._monitor_task = asyncio.create_task(self._receive_market_audio(ws, sentence_id))
             await self.ws.send(json.dumps(self._build_base_request(status=status, text=text)))
             self.text_seq += 1
-        except (websockets.WebSocketException, OSError, asyncio.TimeoutError):
+        except (websockets.WebSocketException, OSError, asyncio.TimeoutError, MarketCredentialError) as failure:
             await self._close_market_stream()
             if self._market_turn_active(sentence_id):
+                if isinstance(failure, MarketCredentialError):
+                    await notify_market_credential_error(self.conn, failure)
                 self._process_before_stop_play_files()
             raise
 
