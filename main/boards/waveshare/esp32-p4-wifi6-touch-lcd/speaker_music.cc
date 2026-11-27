@@ -2,15 +2,16 @@
 
 #if CONFIG_XIAOZHI_SPEAKER_ACCOUNT
 
-#include "application.h"
-#include "speaker_sd_storage.h"
-#include <algorithm>
-#include <array>
-#include <cstdio>
 #include <esp_audio_simple_dec.h>
 #include <esp_mp3_dec.h>
 #include <esp_pcm_dec.h>
 #include <impl/esp_wav_dec.h>
+#include <unistd.h>
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include "application.h"
+#include "speaker_sd_storage.h"
 
 namespace {
 AudioService& Audio() { return Application::GetInstance().GetAudioService(); }
@@ -63,13 +64,13 @@ void SpeakerMusic::EnsureTaskLocked() {
 
 void SpeakerMusic::Refresh() {
     std::lock_guard lock(mutex_);
-    if (generation_ || scan_) return;
+    if (generation_ || snapshot_.UpdatingFiles())
+        return;
     EnsureTaskLocked();
     if (!task_) {
         snapshot_.state = State::Failed;
         return;
     }
-    scan_ = true;
     snapshot_.state = State::Scanning;
     xTaskNotifyGive(task_);
 }
@@ -78,7 +79,8 @@ void SpeakerMusic::Select(int index) {
     std::lock_guard lock(mutex_);
     if (!snapshot_.tracks || index < 0 || static_cast<size_t>(index) >= snapshot_.tracks->size() ||
         Application::GetInstance().GetDeviceState() != kDeviceStateIdle ||
-        Audio().IsLocalCaptureRunning() || scan_ || !task_) return;
+        Audio().IsLocalCaptureRunning() || snapshot_.UpdatingFiles() || !task_)
+        return;
     generation_ = Audio().BeginLocalPlayback();
     pending_ = generation_;
     snapshot_.selected = index;
@@ -108,27 +110,48 @@ void SpeakerMusic::Step(int offset) {
     Select(view.selected < 0 ? 0 : (view.selected + offset + count) % count);
 }
 
+void SpeakerMusic::StopPlaybackLocked() {
+    Audio().EndLocalPlayback(generation_);
+    generation_ = pending_ = 0;
+}
+
 void SpeakerMusic::Stop() {
     std::lock_guard lock(mutex_);
     if (!generation_) return;
-    Audio().EndLocalPlayback(generation_);
-    generation_ = pending_ = 0;
+    StopPlaybackLocked();
     snapshot_.state = State::Idle;
     if (task_) xTaskNotifyGive(task_);
+}
+
+void SpeakerMusic::DeleteSelected(const std::shared_ptr<const Tracks>& tracks, int selected) {
+    std::lock_guard lock(mutex_);
+    if (!tracks || tracks != snapshot_.tracks || selected < 0 || selected != snapshot_.selected ||
+        snapshot_.UpdatingFiles())
+        return;
+    StopPlaybackLocked();
+    snapshot_.state = State::Deleting;
+    xTaskNotifyGive(task_);
 }
 
 void SpeakerMusic::Run() {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         std::unique_lock lock(mutex_);
-        if (scan_) {
+        if (snapshot_.state == State::Deleting) {
+            // Play() runs on this same task and has already closed its file.
+            const auto path = (*snapshot_.tracks)[snapshot_.selected];
+            lock.unlock();
+            const bool removed = unlink(path.c_str()) == 0;
+            lock.lock();
+            snapshot_.state = removed ? State::Scanning : State::DeleteFailed;
+        }
+        if (snapshot_.state == State::Scanning) {
             lock.unlock();
             auto& storage = SpeakerSdStorage::Get();
             const bool mounted = storage.Mount();
             auto tracks = mounted ? std::make_shared<Tracks>(storage.ListAudio()) : nullptr;
             lock.lock();
             snapshot_ = {mounted ? State::Idle : State::NoCard, std::move(tracks), -1};
-            scan_ = false;
         }
         if (!pending_) continue;
         const uint32_t generation = pending_;
