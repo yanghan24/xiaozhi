@@ -12,6 +12,9 @@
 using namespace SpeakerUi;
 
 namespace {
+constexpr int kContentShiftUp = 25;
+constexpr int kWaveCenterY = 270 - kContentShiftUp;
+
 bool Busy(SpeakerRecorder::State state) {
     return state == SpeakerRecorder::State::Starting || state == SpeakerRecorder::State::Recording ||
            state == SpeakerRecorder::State::Saving;
@@ -21,7 +24,7 @@ bool Busy(SpeakerRecorder::State state) {
 void SpeakerRecordingView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     root_ = Panel(parent);
     back_ = Header(root_, "录音", SpeakerNavigation::OnBack, &navigation);
-    auto* ring = Surface(root_, 86, 141, 171, 171);
+    auto* ring = Surface(root_, 86, 141 - kContentShiftUp, 171, 171);
     lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_border_width(ring, 4, LV_PART_MAIN);
     lv_obj_set_style_border_color(ring, lv_color_hex(0x9E6E8E), LV_PART_MAIN);
@@ -30,9 +33,9 @@ void SpeakerRecordingView::Create(lv_obj_t* parent, SpeakerNavigation& navigatio
     lv_obj_center(Icon(ring, MATERIAL_SYMBOLS_MIC, kText, 625));
 
     elapsed_ = Digits(root_, "00:00", 244, 404);
-    lv_obj_align(elapsed_, LV_ALIGN_CENTER, 124, -53);
+    lv_obj_align(elapsed_, LV_ALIGN_CENTER, 124, -53 - kContentShiftUp);
     for (size_t i = 0; i < bars_.size(); ++i) {
-        auto* bar = Surface(root_, 352 + static_cast<int>(i) * 13, 269, 5, 7);
+        auto* bar = Surface(root_, 352 + static_cast<int>(i) * 13, kWaveCenterY - 1, 5, 7);
         lv_obj_set_style_radius(bar, LV_RADIUS_CIRCLE, LV_PART_MAIN);
         lv_obj_set_style_bg_color(bar, lv_color_hex(i < 11 ? kWarm : 0x4D6CAB), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
@@ -40,7 +43,7 @@ void SpeakerRecordingView::Create(lv_obj_t* parent, SpeakerNavigation& navigatio
     }
 
     status_ = Label(root_, "", kMuted);
-    lv_obj_align(status_, LV_ALIGN_BOTTOM_MID, 0, -126);
+    lv_obj_align(status_, LV_ALIGN_BOTTOM_MID, 0, -126 - kContentShiftUp);
     file_ = Label(root_, "", kMuted);
     lv_obj_set_width(file_, 670);
     lv_obj_set_style_text_align(file_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -55,7 +58,8 @@ void SpeakerRecordingView::Create(lv_obj_t* parent, SpeakerNavigation& navigatio
     }, nullptr, kCyan, kDeep);
     for (auto* button : {start_, stop_}) {
         lv_obj_set_size(button, 402, 71);
-        lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -48);
+        lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -48 - kContentShiftUp);
+        lv_obj_align(lv_obj_get_child(button, 0), LV_ALIGN_CENTER, 0, 4);
     }
 }
 
@@ -97,7 +101,7 @@ void SpeakerRecordingView::Update() {
     for (size_t i = 0; i < bars_.size(); ++i) {
         const int size = recording ? 8 + static_cast<int>(42 * std::abs(std::sin(i * 0.57f + phase))) : 6;
         lv_obj_set_height(bars_[i], size);
-        lv_obj_set_y(bars_[i], 270 - size / 2);
+        lv_obj_set_y(bars_[i], kWaveCenterY - size / 2);
     }
 
     const char* status = "";
