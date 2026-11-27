@@ -303,6 +303,28 @@ public class SpeakerMarket {
         }
         return new Credential(required(data,"api_key",8192),base,expires);
     }
+    public boolean credentialAccepted(Credential credential) {
+        URI base=trusted(credential.baseUrl());
+        var request=HttpRequest.newBuilder(base.resolve("/v1/models")).timeout(Duration.ofSeconds(4))
+                .header("Authorization","Bearer "+credential.key()).GET().build();
+        try {
+            var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
+            try(var ignored=response.body()) {
+                return switch(response.statusCode()) {
+                    case 200 -> true;
+                    case 401 -> false;
+                    case 403 -> throw new SpeakerFailure(403,"MARKET_MODEL_FORBIDDEN");
+                    case 429 -> throw new SpeakerFailure(429,"MARKET_RATE_LIMITED");
+                    default -> throw new SpeakerFailure(503,"MARKET_CREDENTIAL_UNAVAILABLE");
+                };
+            }
+        } catch(InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new SpeakerFailure(503,"MARKET_CREDENTIAL_UNAVAILABLE");
+        } catch(java.io.IOException failure) {
+            throw new SpeakerFailure(503,"MARKET_CREDENTIAL_UNAVAILABLE");
+        }
+    }
     public java.math.BigDecimal balance(Tokens tokens) {
         JsonNode data=business("/api/application-balance","GET",tokens.access());
         if(!tokens.subject().equals(data.path("subject").asText()) || !data.path("balance").isNumber())

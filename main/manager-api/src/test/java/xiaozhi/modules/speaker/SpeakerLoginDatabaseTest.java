@@ -325,6 +325,9 @@ class SpeakerLoginDatabaseTest {
     @Test void requestedReauthorizationKeepsTheOriginalBinding() {
         bind();
         String customer=customerId();
+        var previous=grants.grant(customer).get("generation").toString();
+        long claim=System.currentTimeMillis()+60000;
+        assertTrue(grants.claimCredentialCheck(customer,previous,System.currentTimeMillis(),claim));
         db.update("UPDATE speaker_grant SET token_status='uncertain',refresh_cipher=NULL WHERE customer_id=?",customer);
         var operations=new SpeakerOperations(db,devices,grants,mock(SpeakerVoice.class));
         var original=operations.state(identity);
@@ -342,6 +345,10 @@ class SpeakerLoginDatabaseTest {
         assertEquals(original.get("binding_version"),recovered.get("binding_version"));
         assertEquals(customer,customerId());
         assertEquals("active",grants.grant(customer).get("token_status"));
+        assertNotEquals(previous,grants.grant(customer).get("generation"));
+        assertEquals("pending",grants.grant(customer).get("credential_status"));
+        assertFalse(grants.saveVerifiedCredential(customer,previous,claim,
+                new SpeakerMarket.Credential("stale-key","https://fixture.example",null),true));
     }
 
     @Test void rechargeConsentForSameAccountPreservesDeviceBindingAndVoicePermission() {
@@ -382,6 +389,11 @@ class SpeakerLoginDatabaseTest {
     @Test void signOutAndUnbindAreIdempotentAndKeepOtherDevicesAndApplicationKey() {
         bind();var operations=new SpeakerOperations(db,devices,grants,mock(SpeakerVoice.class));
         String customer=db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?",String.class,device);
+        String generation=grants.grant(customer).get("generation").toString();
+        long claim=System.currentTimeMillis()+60000;
+        assertTrue(grants.claimCredentialCheck(customer,generation,System.currentTimeMillis(),claim));
+        assertTrue(grants.saveVerifiedCredential(customer,generation,claim,
+                new SpeakerMarket.Credential("shared-key","https://fixture.example",null),false));
         String second="speaker-test-"+UUID.randomUUID();
         devices.register(second,"第二台协议夹具","p4-test",0);
         try {
@@ -395,6 +407,8 @@ class SpeakerLoginDatabaseTest {
             assertNull(db.queryForMap("SELECT customer_id FROM speaker_device_state WHERE device_id=?",device).get("customer_id"));
             assertEquals(customer,db.queryForObject("SELECT customer_id FROM speaker_device_state WHERE device_id=?",String.class,second));
             assertTrue(SpeakerGrants.usable(grants.grant(customer),System.currentTimeMillis()));
+            assertEquals(generation,grants.grant(customer).get("generation"));
+            assertEquals("shared-key",crypto.decrypt(grants.grant(customer).get("credential_cipher").toString()));
             verify(market,never()).refresh(anyString(),anyString());
         } finally {
             db.update("DELETE FROM speaker_event WHERE device_id=?",second);

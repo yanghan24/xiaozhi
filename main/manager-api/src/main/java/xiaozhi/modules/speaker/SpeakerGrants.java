@@ -52,7 +52,8 @@ public class SpeakerGrants {
             db.update("INSERT INTO speaker_grant(customer_id,client_id,access_cipher,refresh_cipher,access_expires_at_ms,token_updated_at_ms,generation,token_scope) "
                     + "VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE access_cipher=VALUES(access_cipher),refresh_cipher=VALUES(refresh_cipher),"
                     + "access_expires_at_ms=VALUES(access_expires_at_ms),token_updated_at_ms=VALUES(token_updated_at_ms),"
-                    + "token_scope=VALUES(token_scope),token_status='active',token_version=token_version+1,token_retry_count=0,token_retry_at_ms=0,token_error=NULL",
+                    + "token_scope=VALUES(token_scope),token_status='active',token_version=token_version+1,token_retry_count=0,token_retry_at_ms=0,token_error=NULL,"
+                    + "generation=VALUES(generation),credential_status='pending',credential_verified_at_ms=0,credential_check_after_ms=0",
                     id,settings.clientId(),crypto.encrypt(tokens.access()),crypto.encrypt(tokens.refresh()),tokens.expiresAt(),now,token(),
                     java.util.Objects.toString(tokens.scope(),""));
             db.update("UPDATE speaker_login SET customer_id=? WHERE id=? AND status='polling'",id,loginId);
@@ -63,16 +64,50 @@ public class SpeakerGrants {
         var value=profile.path(field);
         return value.isTextual() && !value.asText().isBlank() ? value.asText().substring(0,Math.min(max,value.asText().length())) : null;
     }
-    public void saveCredential(String customer,SpeakerMarket.Tokens tokens,SpeakerMarket.Credential credential) {
-        // A late result from an older login must not replace credentials from a later login.
-        transactions.executeWithoutResult(tx -> {
-            var row=db.queryForMap("SELECT * FROM speaker_grant WHERE customer_id=? AND client_id=? FOR UPDATE",customer,settings.clientId());
-            if(!tokens.access().equals(crypto.decrypt(row.get("access_cipher").toString()))) return;
-            boolean changed=!"active".equals(row.get("credential_status")) || row.get("credential_cipher")==null || !credential.key().equals(crypto.decrypt(row.get("credential_cipher").toString()));
-            db.update("UPDATE speaker_grant SET credential_cipher=?,credential_base=?,credential_expires_at_ms=?,credential_status='active',generation=? "
-                    + "WHERE customer_id=? AND client_id=?",crypto.encrypt(credential.key()),credential.baseUrl(),credential.expiresAt(),
-                    changed?token():row.get("generation"),customer,settings.clientId());
-        });
+    public boolean claimCredentialCheck(String customer, String generation, long now, long until) {
+        return db.update("""
+                UPDATE speaker_grant SET credential_check_after_ms=?
+                WHERE customer_id=? AND client_id=? AND generation=? AND credential_check_after_ms<=?
+                  AND token_status IN ('active','refreshing','uncertain','config_error')
+                """,until,customer,settings.clientId(),generation,now)==1;
+    }
+
+    public boolean markCredentialRejected(String customer, String generation, long claim, boolean recoveryFailed) {
+        return db.update("""
+                UPDATE speaker_grant SET credential_status=?,credential_verified_at_ms=0
+                WHERE customer_id=? AND client_id=? AND generation=? AND credential_check_after_ms=?
+                """,recoveryFailed?"blocked":"rejected",customer,settings.clientId(),generation,claim)==1;
+    }
+
+    public boolean saveVerifiedCredential(String customer, String generation, long claim,
+            SpeakerMarket.Credential credential, boolean replace) {
+        return db.update("""
+                UPDATE speaker_grant
+                SET credential_cipher=?,credential_base=?,credential_expires_at_ms=?,credential_status='active',
+                    credential_verified_at_ms=?,credential_check_after_ms=0,generation=?
+                WHERE customer_id=? AND client_id=? AND generation=? AND credential_check_after_ms=?
+                  AND token_status IN ('active','refreshing','uncertain','config_error')
+                """,crypto.encrypt(credential.key()),credential.baseUrl(),credential.expiresAt(),System.currentTimeMillis(),
+                replace?token():generation,customer,settings.clientId(),generation,claim)==1;
+    }
+
+    public void finishCredentialCheck(String customer, String generation, long claim, long retryAt) {
+        db.update("""
+                UPDATE speaker_grant SET credential_check_after_ms=?
+                WHERE customer_id=? AND client_id=? AND generation=? AND credential_check_after_ms=?
+                """,retryAt,customer,settings.clientId(),generation,claim);
+    }
+
+    public java.util.List<String> credentialsDue(long now, long verifiedBefore, long seenAfter) {
+        return db.queryForList("""
+                SELECT g.customer_id FROM speaker_grant g JOIN speaker_customer c ON c.id=g.customer_id
+                WHERE g.client_id=? AND c.issuer=? AND g.credential_check_after_ms<=?
+                  AND g.credential_verified_at_ms<=? AND g.token_status='active' AND g.credential_status<>'blocked'
+                  AND EXISTS (SELECT 1 FROM speaker_device_state s JOIN dc_device d ON d.device_id=s.device_id
+                              WHERE s.customer_id=g.customer_id AND s.use_enabled=TRUE AND s.admin_enabled=TRUE
+                                AND d.admitted=TRUE AND s.last_seen_at_ms>=?)
+                ORDER BY g.credential_verified_at_ms,g.customer_id LIMIT 4
+                """,String.class,settings.clientId(),settings.issuer(),now,verifiedBefore,seenAfter);
     }
     public Map<String,Object> grant(String customer) {
         var rows=db.queryForList("SELECT g.*,c.subject FROM speaker_grant g JOIN speaker_customer c ON c.id=g.customer_id "
@@ -93,6 +128,21 @@ public class SpeakerGrants {
         if(grant==null || number(grant,"access_expires_at_ms")<=System.currentTimeMillis())
             throw new SpeakerFailure(503,"MARKET_TOKEN_PENDING");
         return tokens(grant);
+    }
+
+    public SpeakerMarket.Tokens renewCredentialTokens(String customer, String rejectedAccess) {
+        var grant=grant(customer);
+        long now=System.currentTimeMillis();
+        if(!usable(grant,now)) throw new SpeakerFailure(403,"MARKET_AUTH_REQUIRED");
+        var previous=tokens(grant);
+        if(rejectedAccess!=null && !rejectedAccess.equals(previous.access()) && previous.expiresAt()>now)
+            return previous;
+        if("active".equals(grant.get("token_status"))) refresh(grant);
+        var updated=grant(customer);
+        if(!usable(updated,System.currentTimeMillis())) throw new SpeakerFailure(403,"MARKET_AUTH_REQUIRED");
+        var current=currentTokens(customer);
+        if(current.access().equals(previous.access())) throw new SpeakerFailure(503,"MARKET_TOKEN_PENDING");
+        return current;
     }
     public void refreshBalance(String customer) {
         settings.requireEnabled();

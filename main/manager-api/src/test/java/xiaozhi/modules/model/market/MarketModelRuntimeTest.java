@@ -32,8 +32,12 @@ class MarketModelRuntimeTest {
             var model=new ModelConfigEntity();model.setIsEnabled(1);
             when(models.getModelByIdFromCache(MarketModelBindings.id(kind))).thenReturn(model);
         }
-        when(keys.forCustomer("a")).thenReturn(new SpeakerMarket.Credential("user-a-key","https://aimarket.hncig.cn",null));
-        when(keys.forCustomer("b")).thenReturn(new SpeakerMarket.Credential("user-b-key","https://aimarket.hncig.cn",null));
+        var a=new SpeakerMarket.Credential("user-a-key","https://aimarket.hncig.cn",null);
+        var b=new SpeakerMarket.Credential("user-b-key","https://aimarket.hncig.cn",null);
+        when(keys.current("a",null)).thenReturn(new MarketResourceCredentials.Current("a-generation",a));
+        when(keys.current("b",null)).thenReturn(new MarketResourceCredentials.Current("b-generation",b));
+        when(keys.forCustomer("a")).thenReturn(a);
+        when(keys.forCustomer("b")).thenReturn(b);
     }
     Map<String,Object> configuration() {
         return new HashMap<>(Map.of("selected_module",Map.of("LLM","MARKET_LLM","Intent","MARKET_Intent"),

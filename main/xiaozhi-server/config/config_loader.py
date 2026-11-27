@@ -9,6 +9,7 @@ from config.manage_api_client import (
     get_correct_words,
     DeviceNotFoundException,
     DeviceBindException,
+    MarketCredentialError,
 )
 
 
@@ -97,7 +98,7 @@ async def get_private_config_from_api(config, device_id, client_id, voice_sessio
     # 抛出业务异常
     if isinstance(agent_result, DeviceNotFoundException):
         raise agent_result
-    if isinstance(agent_result, DeviceBindException):
+    if isinstance(agent_result, (DeviceBindException, MarketCredentialError)):
         raise agent_result
 
     private_config = agent_result if not isinstance(agent_result, Exception) else {}
