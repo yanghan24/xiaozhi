@@ -248,10 +248,11 @@ void SpeakerScreensaverView::CreateClassic(lv_obj_t* parent, lv_event_cb_t on_ex
     lv_obj_add_flag(classic_, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
     lv_obj_add_event_cb(classic_, on_exit, LV_EVENT_CLICKED, context);
 
+    lv_obj_align(Icon(classic_, MATERIAL_SYMBOLS_LOCATION_ON, SpeakerUi::kText), LV_ALIGN_TOP_LEFT, 26, 18);
     classic_city_ = Label(classic_, "本地天气", SpeakerUi::kText);
     lv_obj_set_width(classic_city_, 250);
     LimitToOneLine(classic_city_);
-    lv_obj_align(classic_city_, LV_ALIGN_TOP_LEFT, 26, 12);
+    lv_obj_align(classic_city_, LV_ALIGN_TOP_LEFT, 58, 12);
     classic_wifi_ = SpeakerUi::Wifi(classic_);
 #if LV_USE_FONT_COMPRESSED
     classic_clock_ = Label(classic_, "--:--", SpeakerUi::kText);
@@ -397,7 +398,7 @@ void SpeakerScreensaverView::UpdateClassic(const std::tm* local_time,
         summary += " " + WithUnit(weather.temperature, "°C");
     }
     if (const auto* band = ready ? AirQuality(weather.aqi) : nullptr) {
-        summary += " · AQI " + std::to_string(weather.aqi) + " " + band->label;
+        summary += " · 空气 " + std::to_string(weather.aqi) + " " + band->label;
     }
     UpdateLabel(classic_clock_, time);
     UpdateLabel(classic_summary_, summary.c_str());
