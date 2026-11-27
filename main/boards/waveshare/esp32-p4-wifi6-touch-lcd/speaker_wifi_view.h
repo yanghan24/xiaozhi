@@ -35,11 +35,11 @@ private:
     lv_obj_t* choose_label_ = nullptr;
     lv_obj_t* list_ = nullptr;
     lv_obj_t* list_status_ = nullptr;
+    lv_obj_t* password_title_ = nullptr;
     lv_obj_t* target_name_ = nullptr;
     lv_obj_t* password_ = nullptr;
     lv_obj_t* keyboard_ = nullptr;
     lv_obj_t* connect_button_ = nullptr;
-    lv_obj_t* password_status_ = nullptr;
     lv_obj_t* hotspot_name_ = nullptr;
     lv_obj_t* hotspot_url_ = nullptr;
     lv_obj_t* phone_status_ = nullptr;

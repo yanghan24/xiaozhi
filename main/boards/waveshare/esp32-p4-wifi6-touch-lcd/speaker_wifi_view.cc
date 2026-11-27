@@ -102,6 +102,10 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     lv_obj_set_style_pad_row(list_, 9, LV_PART_MAIN);
 
     auto* password_page = CreatePage(Page::Password, "连接网络");
+    password_title_ = lv_obj_get_child_by_type(password_page, 0, &lv_label_class);
+    lv_obj_set_width(password_title_, 520);
+    lv_obj_set_style_text_align(password_title_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(password_title_, LV_LABEL_LONG_DOT);
     target_name_ = TextLine(password_page, "", 46, 78, 706, kMuted);
     password_ = lv_textarea_create(password_page);
     lv_obj_set_pos(password_, 45, 112);
@@ -114,7 +118,6 @@ void SpeakerWifiView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     lv_obj_set_style_border_color(password_, lv_color_hex(kEdge), LV_PART_MAIN);
     lv_obj_set_style_text_color(password_, lv_color_hex(kText), LV_PART_MAIN);
     lv_obj_set_style_text_color(password_, lv_color_hex(kMuted), LV_PART_TEXTAREA_PLACEHOLDER);
-    password_status_ = TextLine(password_page, "", 46, 169, 706, kMuted);
     keyboard_ = lv_keyboard_create(password_page);
     lv_obj_set_size(keyboard_, 710, 244);
     lv_obj_align(keyboard_, LV_ALIGN_TOP_LEFT, 45, 202);
@@ -361,7 +364,7 @@ void SpeakerWifiView::UpdateLabels() {
                                   networks_.empty() ? "未发现网络，可点刷新" : "";
     UpdateLabel(list_status_, *message_ ? message_ : scan_status);
     UpdateLabel(target_name_, target_.c_str());
-    UpdateLabel(password_status_, message_);
+    UpdateLabel(password_title_, page_ == Page::Password && *message_ ? message_ : "连接网络");
     const bool needs_password = secured_ && !use_saved_;
     lv_obj_set_flag(keyboard_, LV_OBJ_FLAG_HIDDEN, !needs_password);
     lv_obj_set_flag(password_, LV_OBJ_FLAG_HIDDEN, !needs_password);
