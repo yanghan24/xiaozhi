@@ -17,9 +17,9 @@ GET_WEATHER_FUNCTION_DESC = {
     "function": {
         "name": "get_weather",
         "description": (
-            "获取某个地点的天气，用户应提供一个位置，比如用户说杭州天气，参数为：杭州。"
-            "如果用户说的是省份，默认用省会城市。如果用户说的不是省份或城市而是一个地名，默认用该地所在省份的省会城市。"
-            "重要：本地未来7天天气已在上下文中提供，用户未指明其他城市时绝对不要调用此工具。"
+            "当用户询问实时天气或未来七天内的天气预报时调用。"
+            "用户指定城市时，把城市传给 location，例如杭州。"
+            "用户询问这里或当地天气且没有指定城市时，省略 location，由服务端确定设备所在地。"
         ),
         "parameters": {
             "type": "object",
@@ -248,8 +248,37 @@ def parse_weather_info(soup):
     return city_name, current_abstract, current_basic, temps_list
 
 
+async def _get_managed_weather(conn, session, location):
+    from config.manage_api_client import get_weather_for_device
+
+    request = {"session": session, "address": conn.client_ip or ""}
+    if location:
+        request["location"] = location
+    try:
+        result = await get_weather_for_device(request)
+    except Exception:
+        return ActionResponse(Action.REQLLM, "天气服务暂时不可用，请稍后再试。", None)
+    if result.get("status") == "city_required":
+        return ActionResponse(Action.REQLLM, "暂时无法确定所在城市，请询问用户想查哪个城市。", None)
+    if result.get("status") != "ready":
+        return ActionResponse(Action.REQLLM, "暂时查不到该城市的天气，请稍后再试。", None)
+    current = result["current"]
+    lines = [
+        f"{current['city']}当前天气：{current['condition']}，{current['temperature']}℃",
+        f"观测时间：{current['reported_at']}",
+    ]
+    for day in result.get("forecast", []):
+        lines.append(f"{day['date']}：{day['condition']}，{day['minimum']}~{day['maximum']}℃")
+    lines.append("数据来源：和风天气")
+    return ActionResponse(Action.REQLLM, "\n".join(lines), None)
+
+
 @register_function("get_weather", GET_WEATHER_FUNCTION_DESC, ToolType.SYSTEM_CTL)
 async def get_weather(conn: "ConnectionHandler", location: str = None, lang: str = "zh_CN"):
+    identity = getattr(conn, "identity_session", None)
+    if identity is not None:
+        return await _get_managed_weather(conn, identity.session, location)
+
     from core.utils.cache.manager import cache_manager, CacheType
 
     weather_config = conn.config.get("plugins", {}).get("get_weather", {})

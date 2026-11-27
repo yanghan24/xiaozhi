@@ -34,13 +34,13 @@ flowchart LR
 | 设备固件和 OTA | Java [`modules/device/`](main/manager-api/src/main/java/xiaozhi/modules/device/) 的 `OTAController`、`OTAMagController` 与 `OtaServiceImpl` 使用原版固件目录，按上报板型和版本提供更新。设备固件负责检查、下载、校验、写入和重启。 |
 | 设备诊断 | Java [`SpeakerDiagnostics`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerDiagnostics.java) 提供管理员按设备限时开启与查询的入口。固件通过通用诊断接口上报分段语音耗时、TTS 收发与播放、屏幕欠载等指标。新增同类指标沿用通用结构。 |
 | MCP | Java [`SpeakerMcp`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerMcp.java) 管理服务地址、认证和智能体关联。Python [`server_mcp/`](main/xiaozhi-server/core/providers/tools/server_mcp/) 发现、注册并调用工具，模型根据工具描述和参数选择调用。音箱提供的设备 MCP 工具经现有语音连接公布，由固件执行音量、亮度、记事等本机动作。 |
-| 系统设置与第三方服务 | Java [`modules/sys/`](main/manager-api/src/main/java/xiaozhi/modules/sys/) 负责系统参数、字典和服务配置。[第三方服务模块](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerThirdPartyServices.java) 统一维护供应商配置和认证。待机天气由 [`SpeakerWeather`](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerWeather.java) 提供：优先用太平洋电脑网定位城市，再查询和风实时天气和空气质量；首选链路未启用或请求失败时回退到高德定位和天气。设备通过认证接口获取整理后的展示数据。 |
+| 系统设置与第三方服务 | Java [`modules/sys/`](main/manager-api/src/main/java/xiaozhi/modules/sys/) 负责系统参数、字典和服务配置。[第三方服务模块](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerThirdPartyServices.java) 统一维护供应商配置和认证。功能插件管理统一配置 Python 内置工具，配置完整后可启用，智能体编辑页只列出已启用的插件。[待机天气服务](main/manager-api/src/main/java/xiaozhi/modules/speaker/SpeakerWeather.java) 向通过认证的设备返回天气。 |
 
 ### 设备待机天气
 
-`GET /xiaozhi/speaker/v1/weather` 继续使用设备认证，并从入口网关写入的 `X-Xiaozhi-Device-IP` 或 HTTP 连接对端取得设备 IP，不读取语音会话。只接受有效公网 IPv4；不把私网 IP 或空地址交给定位服务。服务端先查定位缓存，未命中时用太平洋电脑网定位城市，再用和风城市搜索取得经纬度，查询实时天气和实时空气质量。原字段保持兼容，新增 `feelsLike`（摄氏度数值）和 `aqi`（和风 `cn-mee` 中国 AQI 整数）。`temperature` 和 `feelsLike` 由后端统一舍入到最近的 0.5°C，整度不带小数。没有对应数据时字段为 `null`，不拿其他 AQI 标准代替。首选链路未启用或请求失败时，回退到高德 IP 定位和实时天气，两个新增字段为 `null`。定位缓存仍为 6 小时，天气缓存仍按城市共享、保留 20 分钟；两个供应商的缓存结果不混用。
+`GET /xiaozhi/speaker/v1/weather` 使用设备认证，从入口网关写入的 `X-Xiaozhi-Device-IP` 或 HTTP 连接对端取得设备 IP。定位供应商仅接收有效公网 IPv4。接口在数据可用时返回 `feelsLike`（摄氏度数值）和 `aqi`（和风 `cn-mee` 中国 AQI 整数）。定位缓存保留 6 小时，实时天气和空气质量缓存按城市或坐标共享，保留 20 分钟。
 
-在「系统设置 → 第三方服务」启用「太平洋电脑网」（默认地址，无需凭据）和「和风天气」。和风填写控制台分配的 HTTPS API Host 和凭据，API Key 推荐用请求头 `X-QW-Api-Key`，也支持查询参数 `key`。高德配置仅用于回退，可独立启用。此配置不影响语音查天气插件。
+在「系统设置 → 第三方服务」配置和风控制台分配的 HTTPS API Host 和凭据。JWT 配置沿用高德 IP 定位，定位失败时使用已配置的默认城市。语音天气插件使用这套 JWT 配置。和风 API Key 配置与太平洋电脑网同时启用时，待机页优先用太平洋电脑网定位，再查询和风实时天气和空气质量。首选链路不可用时，待机页回退到已启用的高德定位和实时天气。
 
 ## 语音与智能体运行链路
 
@@ -52,6 +52,10 @@ flowchart LR
 ## AI 集市接入
 
 **应用接入**采用设备授权。全新音箱配网后自动登记，向 Java 申请登录事务，显示授权二维码和核对码。手机浏览器完成集市授权，Java 轮询授权结果、维护用户令牌和音箱归属。解绑针对本台设备。集市负责用户身份、授予范围、积分与模型计费，小智负责本台设备的接入和归属。
+
+手机打开音箱二维码的一次性链接后，小智记录扫码并跳转到集市授权页。音箱隐藏二维码，继续显示核对码。用户在音箱点击「刷新二维码」时，后台替换尚未完成的登录请求。
+
+**积分充值**从音箱账号页发起。启用充值后，新发起的扫码登录会同时申请 `recharge:write`。已有授权缺少该权限时，可在首次充值时用原账号补充授权，保留设备绑定。Java 使用绑定账号的授权向集市申请一次性充值链接，手机微信扫描音箱上的二维码进入集市页面选择金额并付款。到账由集市确认，小智刷新余额。环境开关见[应用参数示例](deploy/production/xiaozhi/speaker.properties.example)。
 
 **模型接入**用独立目录客户端访问集市。管理端按模型用途、协议、能力及其验证结果筛选，管理员选择后保存配置。运行时按已认证会话和设备归属取得用户应用专用 Key，交由对应语音提供者调用。扫码绑定完成与模型 Key 的领取分开处理。
 

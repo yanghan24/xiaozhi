@@ -1,11 +1,21 @@
 package xiaozhi.modules.model.market;
 
 import java.util.*;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import cn.hutool.json.JSONObject;
 import com.fasterxml.jackson.databind.*;
+import jakarta.annotation.Resource;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import xiaozhi.modules.config.service.ConfigService;
+import xiaozhi.modules.speaker.SpeakerAgents;
 import xiaozhi.modules.speaker.SpeakerFailure;
+import xiaozhi.modules.speaker.SpeakerGrants;
+import xiaozhi.modules.speaker.SpeakerSettings;
 
 /** Resolve selected adapters into independent ORIGINAL provider configurations. */
 @Service
@@ -14,6 +24,11 @@ public class MarketModelRuntime {
     private final MarketResourceCredentials credentials;
     private final JdbcTemplate db;
     private final xiaozhi.modules.model.service.ModelConfigService models;
+    @Resource @Lazy private SpeakerAgents agents;
+    @Resource private ConfigService configurations;
+    @Resource private SpeakerSettings speakerSettings;
+    @Resource private SpeakerGrants grants;
+    private final AtomicBoolean preparingCredentials = new AtomicBoolean();
     private final ObjectMapper json=new ObjectMapper();
     private static final List<String> KINDS=List.of("ASR","TTS","LLM","VLLM","Intent","Memory","SLM");
     private static final String REASONING_EFFORT="none";
@@ -52,7 +67,9 @@ public class MarketModelRuntime {
         Map<String,Object> config=json.convertValue(original,Map.class);
         if(!hasMarket(config)) return config;
         validate(config);
-        var credential=credentials.forCustomer(customer);
+        var current=credentials.current(customer,null);
+        var credential=current.credential();
+        config.put("market_credential",current.forVoice());
         for(var selected:entries(config)) {
             var model=selected.config();
             String root=credential.baseUrl().replaceAll("/$","");
@@ -78,6 +95,28 @@ public class MarketModelRuntime {
             }
         }
         return config;
+    }
+
+    @Async("taskExecutor")
+    @Scheduled(fixedDelay=15_000)
+    public void prepareActiveCredentials() {
+        if(!speakerSettings.enabled() || speakerSettings.clientId().isBlank()
+                || !preparingCredentials.compareAndSet(false,true)) return;
+        try {
+            var activeAgent=agents.defaultConfiguration().get("agent_id");
+            if(activeAgent==null || !hasMarket(configurations.getAgentConfiguration(activeAgent.toString(),Map.of()))) return;
+            long now=System.currentTimeMillis();
+            for(String customer:grants.credentialsDue(now,now-MarketResourceCredentials.VERIFICATION_MS,
+                    now-Duration.ofMinutes(5).toMillis())) {
+                try {
+                    credentials.forCustomer(customer);
+                } catch(SpeakerFailure unavailable) {
+                    // Account-specific errors are reflected in the credential state and retried later.
+                }
+            }
+        } finally {
+            preparingCredentials.set(false);
+        }
     }
     private void requireEnabled(String kind) {
         var configured=models.getModelByIdFromCache(MarketModelBindings.id(kind));

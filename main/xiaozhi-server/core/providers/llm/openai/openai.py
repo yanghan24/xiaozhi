@@ -2,8 +2,10 @@ import httpx
 import openai
 from openai.types import CompletionUsage
 from config.logger import setup_logging
+from config.manage_api_client import MarketCredentialError
 from core.utils.util import check_model_key
 from core.providers.llm.base import LLMProviderBase
+from core.providers.market_credential import market_model_failure
 from urllib.parse import urlparse
 
 TAG = __name__
@@ -29,6 +31,7 @@ class LLMProvider(LLMProviderBase):
     def __init__(self, config):
         self.model_name = config.get("model_name")
         is_market = config.get("source") == "aimarket"
+        self.market_credential = config.get("market_credential_handle") if is_market else None
         self.response_format = config.get("response_format") if is_market else None
         self.reasoning_effort = config.get("reasoning_effort") if is_market else None
         # 可选实例级思考强度: off/disabled/none/disable | low/medium/high | 空/其他=按域名默认
@@ -124,6 +127,30 @@ class LLMProvider(LLMProviderBase):
             logger.bind(tag=TAG).info(f"为域名 {domain} 禁用思考模式，参数: {params}")
             break
 
+    def _create_market_completion(self, key, request_params):
+        try:
+            return self.client.with_options(api_key=key).chat.completions.create(**request_params)
+        except openai.APIConnectionError:
+            raise MarketCredentialError("MARKET_CREDENTIAL_UNAVAILABLE") from None
+        except openai.APIStatusError as error:
+            rejection = market_model_failure(error.status_code, error.body)
+            if rejection:
+                raise rejection from None
+            raise
+
+    def _create_completion(self, request_params):
+        if self.market_credential is None:
+            return self.client.chat.completions.create(**request_params)
+        generation, key = self.market_credential.value
+        try:
+            return self._create_market_completion(key, request_params)
+        except openai.AuthenticationError:
+            _, key = self.market_credential.recover_for_thread(generation)
+        try:
+            return self._create_market_completion(key, request_params)
+        except openai.AuthenticationError:
+            raise MarketCredentialError("MARKET_MODEL_KEY_REJECTED") from None
+
     def response(self, session_id, dialogue, **kwargs):
         dialogue = self.normalize_dialogue(dialogue)
 
@@ -150,7 +177,7 @@ class LLMProvider(LLMProviderBase):
         # 禁用思考模式
         self._apply_thinking_disabled(request_params)
 
-        responses = self.client.chat.completions.create(**request_params)
+        responses = self._create_completion(request_params)
 
         is_active = True
         try:            
@@ -198,7 +225,7 @@ class LLMProvider(LLMProviderBase):
         # 禁用思考模式
         self._apply_thinking_disabled(request_params)
 
-        stream = self.client.chat.completions.create(**request_params)
+        stream = self._create_completion(request_params)
 
         try:
             for chunk in stream:

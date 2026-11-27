@@ -509,6 +509,7 @@
 
 <script>
 import Api from "@/apis/api";
+import { functionPluginName } from "@/apis/speaker";
 import correctWord from "@/apis/module/correctWord";
 import { formatDate } from "@/utils/date";
 import { CodeDiff, hljs } from "v-code-diff/vue2.7";
@@ -1755,8 +1756,9 @@ export default {
     },
     functionDisplayName(pluginId) {
       const meta = this.resolveFunctionMeta(pluginId);
-      return meta?.name || this.translateKey(FALLBACK_PLUGIN_NAME_KEYS[pluginId], pluginId)
+      const name = meta?.name || this.translateKey(FALLBACK_PLUGIN_NAME_KEYS[pluginId], pluginId)
         || pluginId || this.$t("agentSnapshot.emptyValue");
+      return functionPluginName(pluginId, name, key => this.$t(key));
     },
     functionParamLabel(pluginId, key) {
       const field = this.functionFields(pluginId).find((item) => item.key === key);

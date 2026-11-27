@@ -106,6 +106,8 @@ class ConfigServiceImplTest {
                 redisUtils,
                 mock(TimbreService.class),
                 mock(AgentPluginMappingService.class),
+                mock(xiaozhi.modules.speaker.SpeakerFunctionPlugins.class),
+                mock(xiaozhi.modules.speaker.SpeakerSettings.class),
                 mock(AgentMcpAccessPointService.class),
                 mock(AgentContextProviderService.class),
                 mock(VoiceCloneService.class),

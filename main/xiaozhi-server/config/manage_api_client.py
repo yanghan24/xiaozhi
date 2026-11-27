@@ -28,6 +28,32 @@ class ManageApiShutdownError(Exception):
     """safe_close 打断重试等待后的收尾异常，__cause__ 保留最后一次失败原因。"""
 
 
+class MarketCredentialError(Exception):
+    messages = {
+        "MARKET_AUTH_REQUIRED": "请使用原账号重新扫码授权",
+        "MARKET_MODEL_KEY_REJECTED": "集市模型凭据失效，请联系管理员",
+        "MARKET_MODEL_FORBIDDEN": "当前账号无法调用所选集市模型",
+        "MARKET_INSUFFICIENT_POINTS": "积分不足，请到设置里的账号页充值",
+        "MARKET_FORBIDDEN": "当前授权缺少集市模型凭据权限",
+        "MARKET_RATE_LIMITED": "集市请求过多，请稍后重试",
+        "MARKET_TOKEN_PENDING": "集市登录正在续期，请稍后重试",
+        "MARKET_CREDENTIAL_PENDING": "集市模型凭据正在准备，请稍后重试",
+        "MARKET_CREDENTIAL_UNAVAILABLE": "集市模型服务暂不可用，请稍后重试",
+        "MARKET_UNAVAILABLE": "集市模型服务暂不可用，请稍后重试",
+        "INVALID_MARKET_CREDENTIAL": "集市模型凭据异常，请联系管理员",
+    }
+
+    @classmethod
+    def from_response(cls, response):
+        try:
+            code = response.json().get("msg")
+        except (ValueError, AttributeError):
+            return None
+        if isinstance(code, str) and code in cls.messages:
+            return cls(code)
+        return None
+
+
 class ManageApiClient:
     _instance = None
     _instance_lock = threading.Lock()  # 保护 _instance 与 _closed 的读写
@@ -103,6 +129,10 @@ class ManageApiClient:
         response = None
         try:
             response = await client.request(method, endpoint, **kwargs)
+            if response.is_error and endpoint == "config/agent-models":
+                failure = MarketCredentialError.from_response(response)
+                if failure:
+                    raise failure
             response.raise_for_status()
             result = response.json()
             if result.get("code") == 10041:
@@ -260,6 +290,31 @@ async def device_session(instance, action, body):
         if result.get('code') != 0 or not isinstance(result.get('data'), dict):
             raise ValueError('Device identity unavailable')
         return result['data']
+
+
+@api_guard(raise_when_closed=True)
+async def get_weather_for_device(instance, request):
+    async with instance._build_client() as client:
+        response = await client.post('config/weather', json=request, timeout=14)
+        response.raise_for_status()
+        result = response.json()
+        if result.get('code') != 0 or not isinstance(result.get('data'), dict):
+            raise ValueError('Weather service unavailable')
+        return result['data']
+
+
+@api_guard(raise_when_closed=True)
+async def get_market_credential(instance, device_id, session, rejected_generation):
+    async with instance._build_client() as client:
+        response = await client.post("config/market-credential", json={
+            "deviceId": device_id, "session": session, "rejectedGeneration": rejected_generation,
+        }, timeout=25)
+        if response.is_error:
+            raise MarketCredentialError.from_response(response) or MarketCredentialError("MARKET_CREDENTIAL_UNAVAILABLE")
+        result = response.json()
+        if result.get("code") != 0 or not isinstance(result.get("data"), dict):
+            raise MarketCredentialError("MARKET_CREDENTIAL_UNAVAILABLE")
+        return result["data"]
 
 
 @api_guard(raise_when_closed=True)

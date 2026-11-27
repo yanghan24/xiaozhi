@@ -100,6 +100,9 @@ public class AgentUpdateDTO implements Serializable {
     @Schema(description = "标签ID列表", nullable = true)
     private List<String> tagIds;
 
+    @Schema(description = "已选择的内置功能插件 ID")
+    private List<String> pluginIds;
+
     @Data
     @Schema(description = "插件函数信息")
     public static class FunctionInfo implements Serializable {

@@ -919,7 +919,7 @@ export default {
   'agentSnapshot.chatHistoryConf.none': 'Không ghi lịch sử trò chuyện',
   'agentSnapshot.chatHistoryConf.text': 'Báo cáo văn bản',
   'agentSnapshot.chatHistoryConf.textVoice': 'Báo cáo văn bản và giọng nói',
-  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'Thời tiết',
+  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': 'QWeather',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_MUSIC': 'Trình phát nhạc máy chủ',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_CHINANEWS': 'Tin tức China News',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_NEWSNOW': 'Tổng hợp NewsNow',

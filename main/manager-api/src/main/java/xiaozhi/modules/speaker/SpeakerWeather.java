@@ -1,5 +1,6 @@
 package xiaozhi.modules.speaker;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
@@ -16,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.GZIPInputStream;
@@ -36,7 +38,18 @@ public class SpeakerWeather {
 
     public record Report(String status, String city, String condition, String temperature,
                          String humidity, String wind_direction, String wind_power, String reported_at,
-                         BigDecimal feelsLike, Integer aqi) {
+                         @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal feelsLike,
+                         @JsonInclude(JsonInclude.Include.NON_NULL) Integer aqi) {
+        public Report(String status, String city, String condition, String temperature, String humidity,
+                      String wind_direction, String wind_power, String reported_at) {
+            this(status, city, condition, temperature, humidity, wind_direction, wind_power, reported_at, null, null);
+        }
+
+        Report withStandbyDetails(BigDecimal feelsLike, Integer aqi) {
+            return new Report(status, city, condition, temperature, humidity, wind_direction, wind_power, reported_at,
+                    feelsLike, aqi);
+        }
+
         static Report unavailable() {
             return new Report("unavailable", "", "", "", "", "", "", "", null, null);
         }
@@ -50,6 +63,7 @@ public class SpeakerWeather {
     private final SpeakerThirdPartyServices services;
     private final ObjectMapper json;
     private final HttpClient http;
+    private final QWeatherClient qweather;
     private final Cache<Lookup, Location> locations = CacheBuilder.newBuilder()
             .maximumSize(4096).expireAfterWrite(Duration.ofHours(6)).build();
     private final Cache<WeatherKey, Report> weather = CacheBuilder.newBuilder()
@@ -64,24 +78,40 @@ public class SpeakerWeather {
         this.services = services;
         this.json = json;
         this.http = http;
+        this.qweather = new QWeatherClient(json, http);
     }
 
     public Report current(String address) {
+        long start = System.nanoTime();
+        var configured = services.qweatherConfiguration();
+        if (configured.isPresent()) {
+            var config = configured.get();
+            long deadline = start + TOTAL_BUDGET.toNanos();
+            String city = deviceCity(address, config.defaultCity(), deadline);
+            if (city.isEmpty()) return Report.unavailable();
+            try {
+                return qweather.standby(config, city, deadline);
+            } catch (ExecutionException failure) {
+                if (failure.getCause() instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                return Report.unavailable();
+            }
+        }
         if (!publicIpv4(address)) {
             return Report.unavailable();
         }
-        long start = System.nanoTime();
-        var qweather = services.qweatherConfiguration().orElse(null);
-        if (qweather != null) {
+        var apiKey = services.qweatherApiKeyConfiguration().orElse(null);
+        if (apiKey != null) {
             var locatorVersion = services.pconlineConfigurationVersion().orElse(null);
             if (locatorVersion != null) {
                 long deadline = start + PRIMARY_BUDGET.toNanos();
                 try {
                     Location location = locations.get(new Lookup(Locator.PCONLINE, locatorVersion, address),
                             () -> locateWithPconline(address, deadline));
-                    var key = new WeatherKey(Locator.PCONLINE, locatorVersion, qweather.version(),
+                    var key = new WeatherKey(Locator.PCONLINE, locatorVersion, apiKey.version(),
                             location.city(), location.province());
-                    return weather.get(key, () -> fetchQweather(qweather, location, deadline));
+                    return weather.get(key, () -> fetchQweather(apiKey, location, deadline));
                 } catch (ExecutionException unavailable) {
                     if (unavailable.getCause() instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
@@ -99,6 +129,9 @@ public class SpeakerWeather {
         try {
             Location location = locations.get(new Lookup(Locator.AMAP, amap.version(), address),
                     () -> locateWithAmap(amap.credential(), address, deadline));
+            if (!location.code().matches("[0-9]{6}")) {
+                return Report.unavailable();
+            }
             var key = new WeatherKey(Locator.AMAP, amap.version(), amap.version(), location.code(), "");
             return weather.get(key, () -> fetchAmapWeather(amap.credential(), location, deadline));
         } catch (ExecutionException unavailable) {
@@ -107,6 +140,48 @@ public class SpeakerWeather {
             }
             return Report.unavailable();
         }
+    }
+
+    public Map<String, Object> query(String address, String requestedCity) {
+        var configured = services.qweatherConfiguration();
+        if (configured.isEmpty()) return Map.of("status", "unavailable");
+        var config = configured.get();
+        String city = requestedCity != null && !requestedCity.isBlank() ? requestedCity.strip()
+                : deviceCity(address, config.defaultCity(), System.nanoTime() + REQUEST_TIMEOUT.toNanos());
+        if (city.isEmpty()) return Map.of("status", "city_required");
+        if (city.length() > 64 || city.chars().anyMatch(Character::isISOControl)) return Map.of("status", "unavailable");
+        try {
+            var current = qweather.current(config, city);
+            List<QWeatherClient.Day> forecast;
+            try {
+                forecast = qweather.forecast(config, city);
+            } catch (ExecutionException failure) {
+                forecast = List.of();
+            }
+            return Map.of("status", "ready", "current", current, "forecast", forecast);
+        } catch (ExecutionException failure) {
+            return Map.of("status", "unavailable");
+        }
+    }
+
+    private String deviceCity(String address, String defaultCity, long deadline) {
+        if (publicIpv4(address)) {
+            var locator = services.amapConfiguration();
+            if (locator.isPresent()) {
+                var config = locator.get();
+                try {
+                    var location = locations.get(new Lookup(Locator.AMAP, config.version(), address),
+                            () -> locateWithAmap(config.credential(), address, deadline));
+                    if (!location.city().isEmpty()) return location.city();
+                } catch (ExecutionException failure) {
+                    if (failure.getCause() instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                        return "";
+                    }
+                }
+            }
+        }
+        return defaultCity == null ? "" : defaultCity;
     }
 
     static boolean publicIpv4(String value) {
@@ -135,15 +210,15 @@ public class SpeakerWeather {
     private Location locateWithAmap(String key, String address, long deadline) throws IOException, InterruptedException {
         JsonNode result = requestAmap("/v3/ip", key, Map.of("ip", address), deadline);
         String code = text(result, "adcode");
-        if (!code.matches("[0-9]{6}")) {
-            throw new IOException("City unavailable");
-        }
         String city = text(result, "city");
         String province = text(result, "province");
+        if (city.isEmpty() && province.isEmpty() && !code.matches("[0-9]{6}")) {
+            throw new IOException("City unavailable");
+        }
         return new Location(code, city.isEmpty() ? province : city, province);
     }
 
-    private Report fetchQweather(SpeakerThirdPartyServices.QweatherConfiguration config, Location location,
+    private Report fetchQweather(SpeakerThirdPartyServices.QWeatherApiKeyConfiguration config, Location location,
                                  long deadline) throws IOException, InterruptedException {
         if (location.city().isEmpty()) {
             throw new IOException("City unavailable");
@@ -264,7 +339,7 @@ public class SpeakerWeather {
         return body;
     }
 
-    private JsonNode requestQweather(SpeakerThirdPartyServices.QweatherConfiguration config,
+    private JsonNode requestQweather(SpeakerThirdPartyServices.QWeatherApiKeyConfiguration config,
                                      String path, Map<String, String> parameters, long deadline)
             throws IOException, InterruptedException {
         var query = new HashMap<>(parameters);
@@ -318,7 +393,7 @@ public class SpeakerWeather {
         return parsed;
     }
 
-    private static String text(JsonNode node, String name) {
+    static String text(JsonNode node, String name) {
         JsonNode value = node.path(name);
         if (!value.isTextual()) return "";
         String text = value.textValue().strip();

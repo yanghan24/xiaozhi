@@ -2,12 +2,15 @@
 import asyncio
 import base64
 import json
+from contextlib import asynccontextmanager
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import websockets
 from config.logger import setup_logging
+from config.manage_api_client import MarketCredentialError
 from core.providers.asr.base import ASRProviderBase
 from core.providers.asr.dto.dto import InterfaceType
+from core.providers.market_credential import notify_market_credential_error
 
 logger = setup_logging()
 
@@ -20,6 +23,7 @@ class ASRProvider(ASRProviderBase):
         super().__init__()
         self.interface_type = InterfaceType.STREAM
         self.api_key = config.get("api_key", "")
+        self.market_credential = config.get("market_credential_handle")
         self.output_dir = config.get("output_dir", "tmp/")
         self.delete_audio_file = delete_audio_file
         self.model = config.get("model_name", "")
@@ -152,6 +156,22 @@ class ASRProvider(ASRProviderBase):
                 return "".join(parts[n] for n in sorted(parts))
         raise ValueError("ASR_INCOMPLETE_RESULT")
 
+    @asynccontextmanager
+    async def _open_stream(self):
+        def connect(key):
+            return websockets.connect(self.ws_url, additional_headers={"Authorization": "Bearer " + key},
+                                      open_timeout=8, close_timeout=2, max_size=1024 * 1024)
+
+        if self.market_credential is None:
+            async with connect(self.api_key) as ws:
+                yield ws
+            return
+        ws = await self.market_credential.open_websocket(connect)
+        try:
+            yield ws
+        finally:
+            await ws.close()
+
     async def _recognize(self, conn):
         timing = getattr(conn, 'voice_input_timing', None)
         if timing:
@@ -160,9 +180,7 @@ class ASRProvider(ASRProviderBase):
         success = False
         snapshot = []
         try:
-            async with websockets.connect(self.ws_url,
-                    additional_headers={"Authorization": "Bearer " + self.api_key},
-                    open_timeout=8, close_timeout=2, max_size=1024 * 1024) as ws:
+            async with self._open_stream() as ws:
                 if timing:
                     timing.mark('asr_connected')
                 self._ws = ws
@@ -183,11 +201,15 @@ class ASRProvider(ASRProviderBase):
                 snapshot = self._recorded.copy()
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as failure:
             # Neither upstream bodies nor websocket headers/URLs belong in logs.
             self.last_error = "ASR_UNAVAILABLE"
             self._closed = True
-            logger.warning("AI Market ASR did not complete")
+            if isinstance(failure, MarketCredentialError):
+                logger.warning("AI Market ASR unavailable: {}", str(failure))
+                await notify_market_credential_error(conn, failure)
+            else:
+                logger.warning("AI Market ASR did not complete: {}", type(failure).__name__)
             if timing:
                 timing.finish('asr_error')
                 if getattr(conn, 'voice_input_timing', None) is timing:

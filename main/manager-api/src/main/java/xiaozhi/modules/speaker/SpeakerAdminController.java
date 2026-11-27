@@ -37,6 +37,11 @@ public class SpeakerAdminController {
     public Object customer(@PathVariable String id) { return customers.detail(id); }
     @PostMapping("/customers/{id}/refresh")
     public Object refreshCustomer(@PathVariable String id) { return customers.refresh(id); }
+    public record Reauthorization(long expected_permission_version) {}
+    @PostMapping("/customers/{id}/devices/{device}/reauthorization")
+    public Object requestReauthorization(@PathVariable String id,@PathVariable String device,@RequestBody Reauthorization body) {
+        return operations.requestReauthorization(id,device,body.expected_permission_version(),SecurityUser.getUserId());
+    }
     public record DeviceAction(long expected_permission_version,String request_key) {}
     @PostMapping("/devices/{id}/{action}")
     public Object action(@PathVariable String id,@PathVariable String action,@RequestBody DeviceAction body) {

@@ -969,7 +969,7 @@ export default {
   'agentSnapshot.chatHistoryConf.none': '不记录聊天记录',
   'agentSnapshot.chatHistoryConf.text': '上报文字',
   'agentSnapshot.chatHistoryConf.textVoice': '上报文字+语音',
-  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': '天气查询',
+  'agentSnapshot.plugin.SYSTEM_PLUGIN_WEATHER': '和风天气',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_MUSIC': '服务器音乐播放',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_CHINANEWS': '中新网新闻',
   'agentSnapshot.plugin.SYSTEM_PLUGIN_NEWS_NEWSNOW': 'newsnow新闻聚合',

@@ -28,6 +28,9 @@ class SpeakerMarketTest {
     private final ObjectMapper json=new ObjectMapper();
     private final Map<String,String> bodies=new ConcurrentHashMap<>();
     private final Map<String,Integer> statuses=new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicInteger tokenRequests = new java.util.concurrent.atomic.AtomicInteger();
+    private volatile String retryAfter;
+    private volatile boolean dropTokenResponse;
     private String lastForm;
     @BeforeEach void start() throws Exception {
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
@@ -40,15 +43,22 @@ class SpeakerMarketTest {
         server.createContext("/",exchange -> {
             lastForm=new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8);
             // Public device clients must never send a Client Secret or HTTP Basic.
-            if(exchange.getRequestURI().getPath().equals("/oidc/token"))
+            if(exchange.getRequestURI().getPath().equals("/oidc/token")) {
+                tokenRequests.incrementAndGet();
                 assertNull(exchange.getRequestHeaders().getFirst("Authorization"));
+                if (dropTokenResponse) {
+                    exchange.close();
+                    return;
+                }
+            }
+            if (retryAfter != null) exchange.getResponseHeaders().add("Retry-After",retryAfter);
             byte[] body=bodies.getOrDefault(exchange.getRequestURI().getPath(),"{}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type","application/json");
             exchange.sendResponseHeaders(statuses.getOrDefault(exchange.getRequestURI().getPath(),200),body.length);
             try(var output=exchange.getResponseBody()) { output.write(body); }
         });
         server.start();
-        market=new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""));
+        market=new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""),false);
     }
     @AfterEach void stop() { server.stop(0); }
     private String signed(String subject,String audience) throws Exception {
@@ -110,5 +120,78 @@ class SpeakerMarketTest {
         assertEquals("MARKET_REAUTH_REQUIRED",assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
         statuses.put("/oidc/token",503);bodies.put("/oidc/token","{}");
         assertEquals("MARKET_UNAVAILABLE",assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
+    }
+
+    @Test void outageInDiscoveryDoesNotSendTheRefreshToken() {
+        String discovery = "/oidc/.well-known/openid-configuration";
+        statuses.put(discovery,502);
+        var retry = assertThrows(SpeakerMarket.RefreshRetry.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals("MARKET_REFRESH_NOT_SENT",retry.getMessage());
+        assertEquals(0,tokenRequests.get());
+    }
+
+    @Test void gatewayErrorAfterSubmittingTokenDoesNotAuthorizeRetry() {
+        statuses.put("/oidc/token",502);
+        bodies.put("/oidc/token","<html>Bad gateway</html>");
+        assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals(1,tokenRequests.get());
+    }
+
+    @Test void lostTokenResponseIsNeverResentByTheHttpClient() {
+        dropTokenResponse = true;
+        assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals(1,tokenRequests.get());
+    }
+
+    @Test void refreshRateLimitHonorsRetryAfterEvenWithoutAnOAuthResponse() {
+        statuses.put("/oidc/token",429);
+        bodies.put("/oidc/token","Busy");
+        retryAfter="17";
+        var retry = assertThrows(SpeakerMarket.RefreshRetry.class,()->market.refresh("refresh-fixture","owner"));
+        assertEquals("MARKET_RATE_LIMITED",retry.getMessage());
+        assertEquals(17_000,retry.retryAfterMs);
+    }
+
+    @Test void refreshClientAndScopeErrorsAreConfigurationFailures() {
+        statuses.put("/oidc/token",401);
+        bodies.put("/oidc/token","{\"error\":\"invalid_client\"}");
+        assertEquals("MARKET_CLIENT_CONFIGURATION",
+                assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
+        statuses.put("/oidc/token",400);
+        bodies.put("/oidc/token","{\"error\":\"invalid_scope\"}");
+        assertEquals("MARKET_REFRESH_CONFIGURATION",
+                assertThrows(SpeakerFailure.class,()->market.refresh("refresh-fixture","owner")).getMessage());
+    }
+
+    @Test void deviceLoginRequestsRechargeScopeOnlyWhenEnabledAndSupportsLegacyConsent() throws Exception {
+        bodies.put("/oidc/device/auth",json.writeValueAsString(Map.of("device_code","device-fixture","user_code","ABCD-EFGH",
+                "verification_uri_complete",issuer+"/device?user_code=ABCD-EFGH","expires_in",600,"interval",5)));
+        market.begin();
+        assertFalse(lastForm.contains("recharge%3Awrite"));
+        var enabled = new SpeakerMarket(new SpeakerSettings(true,issuer,"test-client","",""),true);
+        enabled.begin();
+        assertTrue(lastForm.contains("scope="+java.net.URLEncoder.encode(
+                SpeakerMarket.SCOPES+" "+SpeakerMarket.RECHARGE_SCOPE,StandardCharsets.UTF_8)));
+        market.beginRecharge();
+        assertTrue(lastForm.contains("recharge%3Awrite"));
+    }
+
+    @Test void rechargeRequiresTheOriginalTicketAndConfirmedMarketPayment() throws Exception {
+        String id="50aa355f-f915-4289-bd9e-9909db1aff93";
+        String path="/api/application-recharge/entries";
+        String url=issuer.replace("/oidc", "/application/recharge#ticket=")+"a".repeat(43);
+        var token=new SpeakerMarket.Tokens("owner","access","refresh",9_999_000,SpeakerMarket.RECHARGE_SCOPE);
+        var entry=Map.of("entryId",id,"url",url,"expiresIn",300,"pollInterval",2);
+        bodies.put(path,json.writeValueAsString(Map.of("code",20000,"data",entry)));
+        assertEquals(url,market.rechargeEntry(token).url());
+        bodies.put(path+"/"+id,"{\"code\":20000,\"data\":{\"entryId\":\""+id+"\",\"order\":null}}");
+        assertEquals("waiting",market.rechargeStatus(id,token));
+        bodies.put(path+"/"+id,json.writeValueAsString(Map.of("code",20000,"data",Map.of(
+                "entryId",id,"order",Map.of("payStatus",1)))));
+        assertEquals("paid",market.rechargeStatus(id,token));
+        var invalid=new java.util.HashMap<>(entry);
+        invalid.put("url",url.replace("#ticket=","?ticket="));
+        bodies.put(path,json.writeValueAsString(Map.of("code",20000,"data",invalid)));
+        assertThrows(SpeakerFailure.class,()->market.rechargeEntry(token));
     }
 }

@@ -66,11 +66,18 @@ public class SpeakerVoice {
                 + "JOIN speaker_device_state s ON s.device_id=v.device_id JOIN dc_device d ON d.device_id=s.device_id WHERE v."+key+"=?",value);
         if(rows.isEmpty()) throw new SpeakerFailure(401,"VOICE_DENIED");
         var row=rows.getFirst();
+        var customer=row.get("customer_id");
         if(number(row,"expires_at_ms")<=System.currentTimeMillis() || !yes(row.get("admitted")) || !yes(row.get("admin_enabled")) || !yes(row.get("use_enabled"))
-                || row.get("customer_id")==null || !row.get("credential_hash").equals(row.get("current_credential"))
-                || number(row,"binding_version")!=number(row,"current_binding") || number(row,"permission_version")!=number(row,"current_permission")
-                || !SpeakerGrants.usable(grants.grant(row.get("customer_id").toString()),System.currentTimeMillis()))
+                || customer==null || !row.get("credential_hash").equals(row.get("current_credential"))
+                || number(row,"binding_version")!=number(row,"current_binding") || number(row,"permission_version")!=number(row,"current_permission"))
             throw new SpeakerFailure(403,"VOICE_DENIED");
+        var grant=grants.grant(customer.toString());
+        if(!SpeakerGrants.usable(grant,System.currentTimeMillis())) throw new SpeakerFailure(403,"VOICE_DENIED");
+        Object expires=grant.get("credential_expires_at_ms");
+        row.put("market_credential_generation","active".equals(grant.get("credential_status"))
+                && grant.get("credential_verified_at_ms") instanceof Number checked && checked.longValue()>0
+                && (!(expires instanceof Number expiry) || expiry.longValue()>System.currentTimeMillis())
+                ? grant.get("generation") : "");
         return row;
     }
     private Map<String,Object> scope(Map<String,Object> device) {
@@ -80,6 +87,7 @@ public class SpeakerVoice {
         return Map.of("allowed",true,"device_id",device.get("device_id"),"agent_id",revision.split(":",2)[0],
                 "configuration_revision",revision,"permission_version",device.get("permission_version"),
                 "diagnostics_until_ms",until > System.currentTimeMillis() ? until : 0,
+                "market_credential_generation",device.get("market_credential_generation"),
                 "memory_scope",hash(device.get("customer_id")+":"+device.get("device_id")+":"+revision));
     }
     public String customerForSession(String id,String session) {
@@ -87,6 +95,10 @@ public class SpeakerVoice {
         var device=checked("speaker_voice_session","session_hash",hash(session));
         if(!id.equals(device.get("device_id"))) throw new SpeakerFailure(403,"VOICE_DENIED");
         return device.get("customer_id").toString();
+    }
+    public void requireSession(String session) {
+        if (session == null || !session.matches("[A-Za-z0-9_-]{43}")) throw new SpeakerFailure(401, "VOICE_DENIED");
+        checked("speaker_voice_session", "session_hash", hash(session));
     }
     public void requireDevice(String id) {
         var rows=db.queryForList("SELECT s.*,d.admitted FROM speaker_device_state s JOIN dc_device d ON d.device_id=s.device_id WHERE s.device_id=?",id);
