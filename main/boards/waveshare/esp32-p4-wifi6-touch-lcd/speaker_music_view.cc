@@ -59,13 +59,14 @@ void SpeakerMusicView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
     lv_obj_add_event_cb(cover, DrawCover, LV_EVENT_DRAW_MAIN_END, nullptr);
 
     song_ = Label(root_, "选择音频文件");
-    lv_obj_set_width(song_, 245);
-    lv_obj_set_pos(song_, 207, 138);
-    lv_label_set_long_mode(song_, LV_LABEL_LONG_DOT);
+    const int line_height =
+        lv_font_get_line_height(lv_obj_get_style_text_font(song_, LV_PART_MAIN));
+    lv_obj_set_size(song_, 245, line_height);
+    lv_obj_set_pos(song_, 207, 128);
+    lv_label_set_long_mode(song_, LV_LABEL_LONG_SCROLL_CIRCULAR);
     status_ = Label(root_, "", kMuted);
     lv_obj_set_width(status_, 245);
-    lv_obj_set_pos(status_, 207, 188);
-    lv_label_set_long_mode(status_, LV_LABEL_LONG_DOT);
+    lv_obj_set_pos(status_, 207, 128 + line_height + 12);
 
     const auto add = [&](const char* icon, int x, int y, int size, uint32_t color, lv_event_cb_t callback) {
         auto* button = Control(root_, callback, nullptr, color, LV_RADIUS_CIRCLE);
@@ -94,12 +95,69 @@ void SpeakerMusicView::Create(lv_obj_t* parent, SpeakerNavigation& navigation) {
         Application::GetInstance().Schedule([] { SpeakerMusic::Get().Stop(); });
     }, nullptr);
     auto* refresh = Button(root_, "刷新", [](lv_event_t*) { SpeakerMusic::Get().Refresh(); }, nullptr);
-    for (auto* button : {stop, refresh}) {
+    delete_button_ = Button(
+        root_, "删除",
+        [](lv_event_t* event) {
+            static_cast<SpeakerMusicView*>(lv_event_get_user_data(event))->OpenDeleteDialog();
+        },
+        this, kCard, kWarm);
+    int x = 497;
+    for (auto* button : {stop, refresh, delete_button_}) {
         Outline(button);
-        lv_obj_set_size(button, 110, 52);
+        lv_obj_set_size(button, 82, 52);
+        lv_obj_set_pos(button, x, 393);
+        x += 88;
     }
-    lv_obj_set_pos(stop, 502, 393);
-    lv_obj_set_pos(refresh, 633, 393);
+    lv_obj_add_state(delete_button_, LV_STATE_DISABLED);
+}
+
+void SpeakerMusicView::OpenDeleteDialog() {
+    if (delete_dialog_ || !displayed_tracks_ || selected_index_ < 0)
+        return;
+    const auto& path = displayed_tracks_->at(selected_index_);
+    delete_dialog_ = Panel(root_);
+    lv_obj_remove_flag(delete_dialog_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(delete_dialog_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(delete_dialog_, LV_OPA_70, LV_PART_MAIN);
+    auto* card = Surface(delete_dialog_, 100, 118, 600, 244);
+    lv_obj_set_style_radius(card, 20, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(card, lv_color_hex(kCard), LV_PART_MAIN);
+    lv_obj_align(Label(card, "从 SD 卡删除此文件？"), LV_ALIGN_TOP_MID, 0, 16);
+    auto* filename = Label(card, path.c_str(), kMuted);
+    lv_obj_set_width(filename, 542);
+    lv_label_set_long_mode(filename, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_align(filename, LV_ALIGN_TOP_MID, 0, 83);
+
+    auto* cancel = Button(
+        card, "取消",
+        [](lv_event_t* event) {
+            static_cast<SpeakerMusicView*>(lv_event_get_user_data(event))->CloseDeleteDialog();
+        },
+        this);
+    Outline(cancel);
+    auto* confirm = Button(
+        card, "确认删除",
+        [](lv_event_t* event) {
+            auto* view = static_cast<SpeakerMusicView*>(lv_event_get_user_data(event));
+            Application::GetInstance().Schedule(
+                [tracks = view->displayed_tracks_, index = view->selected_index_] {
+                    SpeakerMusic::Get().DeleteSelected(tracks, index);
+                });
+            view->CloseDeleteDialog();
+        },
+        this, kWarm, kDeep);
+    lv_obj_set_size(cancel, 245, 56);
+    lv_obj_set_size(confirm, 245, 56);
+    lv_obj_align(cancel, LV_ALIGN_BOTTOM_LEFT, 36, -22);
+    lv_obj_align(confirm, LV_ALIGN_BOTTOM_RIGHT, -36, -22);
+}
+
+void SpeakerMusicView::CloseDeleteDialog() {
+    if (delete_dialog_) {
+        lv_obj_delete(delete_dialog_);
+        delete_dialog_ = nullptr;
+    }
 }
 
 void SpeakerMusicView::Show() {
@@ -109,12 +167,19 @@ void SpeakerMusicView::Show() {
 }
 
 void SpeakerMusicView::Hide() {
+    CloseDeleteDialog();
     if (root_) lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void SpeakerMusicView::Update() {
     if (!root_ || lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) return;
     const auto snapshot = SpeakerMusic::Get().GetSnapshot();
+    if (snapshot.UpdatingFiles() || snapshot.tracks != displayed_tracks_ ||
+        snapshot.selected != selected_index_) {
+        CloseDeleteDialog();
+    }
+    lv_obj_set_state(delete_button_, LV_STATE_DISABLED,
+                     snapshot.selected < 0 || snapshot.UpdatingFiles());
     if (displayed_tracks_ != snapshot.tracks) {
         displayed_tracks_ = snapshot.tracks;
         lv_obj_clean(list_);
@@ -127,7 +192,9 @@ void SpeakerMusicView::Update() {
                 }, reinterpret_cast<void*>(i));
                 lv_obj_set_size(button, 252, 62);
                 auto* label = lv_obj_get_child(button, 0);
-                lv_obj_set_width(label, 222);
+                lv_obj_set_size(
+                    label, 222,
+                    lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN)));
                 lv_obj_align(label, LV_ALIGN_LEFT_MID, 17, 0);
                 lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
             }
@@ -153,6 +220,12 @@ void SpeakerMusicView::Update() {
         case SpeakerMusic::State::Playing: state = "正在播放"; break;
         case SpeakerMusic::State::Paused: state = "已暂停"; break;
         case SpeakerMusic::State::Failed: state = "无法播放此文件"; break;
+        case SpeakerMusic::State::Deleting:
+            state = "正在删除";
+            break;
+        case SpeakerMusic::State::DeleteFailed:
+            state = "删除失败，请刷新";
+            break;
         case SpeakerMusic::State::Idle:
             state = snapshot.tracks && snapshot.tracks->empty() ? "未找到 MP3 或 WAV 文件" : "就绪";
             break;
