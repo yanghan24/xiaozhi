@@ -59,6 +59,13 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     Scale(state_label_, 320);
     lv_obj_align(state_label_, LV_ALIGN_CENTER, -191, 62);
 
+    // Keep the whole control column centered vertically inside the page.
+    constexpr int kColumnHeight = 227 + 66;
+    constexpr int kModeY = (kHeight - kColumnHeight) / 2;
+    constexpr int kStepY = kModeY + 85;
+    constexpr int kSliderY = kModeY + 168;
+    constexpr int kActionY = kModeY + 227;
+
     work_ = Button(panel_, "专注", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->SetMode(Mode::Focus);
     }, this);
@@ -68,10 +75,12 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     for (auto* mode : {work_, rest_}) {
         lv_obj_set_size(mode, 146, 62);
         lv_obj_set_style_radius(mode, 14, LV_PART_MAIN);
-        Scale(lv_obj_get_child(mode, 0), 320);
+        auto* label = lv_obj_get_child(mode, 0);
+        Scale(label, 320);
+        lv_obj_align(label, LV_ALIGN_CENTER, 0, 4);
     }
-    lv_obj_set_pos(work_, 454, 119);
-    lv_obj_set_pos(rest_, 609, 119);
+    lv_obj_set_pos(work_, 454, kModeY);
+    lv_obj_set_pos(rest_, 609, kModeY);
 
     minus_ = Button(panel_, "-", [](lv_event_t* event) {
         static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event))->ChangeMinutes(-kStepMinutes);
@@ -85,16 +94,16 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
         lv_obj_set_style_text_color(lv_obj_get_child(step, 0), lv_color_hex(kMuted), LV_PART_MAIN);
         Scale(lv_obj_get_child(step, 0), 320);
     }
-    lv_obj_set_pos(minus_, 454, 204);
-    lv_obj_set_pos(plus_, 696, 204);
+    lv_obj_set_pos(minus_, 454, kStepY);
+    lv_obj_set_pos(plus_, 696, kStepY);
     minutes_label_ = Label(panel_, "25 分钟", kText);
     Scale(minutes_label_, 320);
     lv_obj_set_width(minutes_label_, 183);
     lv_obj_set_style_text_align(minutes_label_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_set_pos(minutes_label_, 513, 215);
+    lv_obj_set_pos(minutes_label_, 513, kStepY + 11);
 
     slider_ = lv_slider_create(panel_);
-    lv_obj_set_pos(slider_, 469, 287);
+    lv_obj_set_pos(slider_, 469, kSliderY);
     lv_obj_set_size(slider_, 272, 14);
     lv_slider_set_range(slider_, kMinMinutes / kStepMinutes, kMaxMinutes / kStepMinutes);
     lv_obj_set_style_pad_top(slider_, 0, LV_PART_MAIN);
@@ -111,7 +120,7 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     lv_obj_set_style_pad_all(slider_, 3, LV_PART_KNOB);
     lv_obj_add_event_cb(slider_, [](lv_event_t* event) {
         auto* view = static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event));
-        if (view->adjusting_) {
+        if (view->adjusting_ || view->state_ == State::Running) {
             return;
         }
         const int minutes = IndexToMinutes(lv_slider_get_value(view->slider_));
@@ -125,16 +134,19 @@ void SpeakerPomodoroView::Create(lv_obj_t* parent, SpeakerNavigation& navigation
     }, this, kCyan, kDeep);
     action_label_ = lv_obj_get_child(action, 0);
     Scale(action_label_, 320);
+    lv_obj_align(action_label_, LV_ALIGN_CENTER, 0, 4);
     lv_obj_set_size(action, 146, 66);
-    lv_obj_set_pos(action, 454, 346);
+    lv_obj_set_pos(action, 454, kActionY);
     auto* reset = Button(panel_, "重置", [](lv_event_t* event) {
         auto* view = static_cast<SpeakerPomodoroView*>(lv_event_get_user_data(event));
         view->Reset(view->minutes_);
     }, this);
     Outline(reset);
-    Scale(lv_obj_get_child(reset, 0), 320);
+    auto* reset_label = lv_obj_get_child(reset, 0);
+    Scale(reset_label, 320);
+    lv_obj_align(reset_label, LV_ALIGN_CENTER, 0, 4);
     lv_obj_set_size(reset, 146, 66);
-    lv_obj_set_pos(reset, 609, 346);
+    lv_obj_set_pos(reset, 609, kActionY);
     RefreshMode();
     SetMinutes(minutes_);
 }
@@ -162,8 +174,19 @@ void SpeakerPomodoroView::RefreshMode() {
     lv_obj_set_style_text_color(lv_obj_get_child(rest_, 0), lv_color_hex(focus ? kMuted : kText), LV_PART_MAIN);
 }
 
+void SpeakerPomodoroView::UpdateControls() {
+    const bool running = state_ == State::Running;
+    for (auto* control : {work_, rest_, minus_, plus_, slider_}) {
+        if (running) {
+            lv_obj_add_state(control, LV_STATE_DISABLED);
+        } else {
+            lv_obj_remove_state(control, LV_STATE_DISABLED);
+        }
+    }
+}
+
 void SpeakerPomodoroView::SetMode(Mode mode) {
-    if (mode_ == mode) {
+    if (state_ == State::Running || mode_ == mode) {
         return;
     }
     mode_ = mode;
@@ -183,13 +206,16 @@ void SpeakerPomodoroView::SetMinutes(int minutes) {
 }
 
 void SpeakerPomodoroView::ChangeMinutes(int delta) {
-    SetMinutes(minutes_ + delta);
+    if (state_ != State::Running) {
+        SetMinutes(minutes_ + delta);
+    }
 }
 
 void SpeakerPomodoroView::Reset(int minutes) {
     minutes_ = minutes;
     remaining_us_ = minutes * 60 * kSecondUs;
     state_ = State::Ready;
+    UpdateControls();
     RequestStopAlarm();
     displayed_seconds_ = -1;
     Render(esp_timer_get_time());
@@ -212,6 +238,7 @@ void SpeakerPomodoroView::Toggle() {
         deadline_us_ = now + remaining_us_;
         state_ = State::Running;
     }
+    UpdateControls();
     Render(now);
 }
 
@@ -220,6 +247,7 @@ void SpeakerPomodoroView::Update() {
     if (state_ == State::Running && now >= deadline_us_) {
         remaining_us_ = 0;
         state_ = State::Finished;
+        UpdateControls();
         ++alarm_epoch_;
         sound_pending_ = true;
         next_sound_check_us_ = now;

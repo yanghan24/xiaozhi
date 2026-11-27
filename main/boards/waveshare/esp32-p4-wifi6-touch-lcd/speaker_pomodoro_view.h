@@ -27,6 +27,7 @@ private:
     void SetMinutes(int minutes);
     void ChangeMinutes(int delta);
     void RefreshMode();
+    void UpdateControls();
     void Render(int64_t now);
     void DispatchSound();
     static void AlarmTask(void* context);
